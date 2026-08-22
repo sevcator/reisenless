@@ -239,7 +239,7 @@
     <string name="settings_sulist_config_title">配置 sulist</string>
     <string name="settings_sulist_config_summary">选择允许使用 reisenless 的应用和进程</string>
     <string name="webui">网页界面</string>
-    <string name="udonge">udonge</string>
+    <string name="udonge">reisenless</string>
     <string name="udonge_integrity_title">通过 strong integrity</string>
     <string name="udonge_integrity_summary">udonge 会让你的设备成为正版设备！</string>
     <string name="udonge_keybox_list_title">keybox 列表</string>

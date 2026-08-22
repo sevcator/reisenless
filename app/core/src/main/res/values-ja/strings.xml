@@ -239,7 +239,7 @@
     <string name="settings_sulist_config_title">sulist を設定</string>
     <string name="settings_sulist_config_summary">reisenless の使用を許可するアプリとプロセスを選択します</string>
     <string name="webui">webui</string>
-    <string name="udonge">udonge</string>
+    <string name="udonge">reisenless</string>
     <string name="udonge_integrity_title">strong integrity を通過</string>
     <string name="udonge_integrity_summary">udonge がデバイスを正規の状態にします！</string>
     <string name="udonge_keybox_list_title">keybox リスト</string>

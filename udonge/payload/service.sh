@@ -114,6 +114,10 @@ chmod 700 "$root" "$state"
 
 refresh_keybox() {
     local urls marker now last best score candidate count checked size temp
+    if [ ! -f "$state/background-updates" ]; then
+        rm -f "$state/.keybox-refresh"
+        return 0
+    fi
     urls="$state/keybox_urls.conf"
     [ -s "$urls" ] || return 0
     marker="$state/.keybox-checked"
@@ -128,6 +132,7 @@ refresh_keybox() {
     best=0
     checked=0
     while IFS= read -r candidate; do
+        [ -f "$state/background-updates" ] || break
         case "$candidate" in
             https://*) ;;
             *) continue ;;

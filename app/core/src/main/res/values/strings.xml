@@ -113,11 +113,13 @@
     <string name="theme_dark">dark</string>
     <string name="settings_accent_primary">accent color</string>
     <string name="settings_accent_secondary">accent color 2</string>
-    <string name="udonge">udonge</string>
+    <string name="udonge">reisenless</string>
+    <string name="udonge_background_updates_title">allow background updates</string>
+    <string name="udonge_background_updates_summary">auto update keyboxes</string>
     <string name="udonge_integrity_title">pass strong integrity</string>
     <string name="udonge_integrity_summary">udonge will make your device legit!</string>
-    <string name="udonge_keybox_list_title">enable</string>
-    <string name="udonge_keybox_list_summary">add or remove link(s) for keyboxes</string>
+    <string name="udonge_keybox_list_title">keybox sources</string>
+    <string name="udonge_keybox_list_summary">add or remove links for keyboxes</string>
     <string name="udonge_keybox_hint">one https link per line</string>
     <string name="udonge_rom_keywords_title">hide your system things</string>
     <string name="udonge_rom_keywords_summary">hide runtime signals and framework traces for custom ROMs</string>

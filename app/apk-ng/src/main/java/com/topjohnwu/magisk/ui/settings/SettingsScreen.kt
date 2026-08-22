@@ -519,7 +519,7 @@ private fun SuperuserSection(viewModel: SettingsViewModel) {
 @Composable
 private fun UdongeSection() {
     val scope = rememberCoroutineScope()
-    var enabled by remember { mutableStateOf(Config.udongeEnabled) }
+    var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
     var showKeyboxes by rememberSaveable { mutableStateOf(false) }
     var keyboxUrls by rememberSaveable { mutableStateOf(Config.udongeKeyboxUrls) }
     var showRomKeywords by rememberSaveable { mutableStateOf(false) }
@@ -589,17 +589,21 @@ private fun UdongeSection() {
 
     SmallTitle(text = stringResource(CoreR.string.udonge))
     Card(modifier = Modifier.fillMaxWidth()) {
-        SettingsSwitchAction(
-            title = stringResource(CoreR.string.udonge_keybox_list_title),
-            summary = stringResource(CoreR.string.udonge_keybox_list_summary),
-            checked = enabled,
-            onClick = { showKeyboxes = true },
+        SettingsSwitch(
+            title = stringResource(CoreR.string.udonge_background_updates_title),
+            summary = stringResource(CoreR.string.udonge_background_updates_summary),
+            checked = backgroundUpdates,
             onCheckedChange = { next ->
-                enabled = next
+                backgroundUpdates = next
                 scope.launch(Dispatchers.IO) {
-                    if (!Udonge.setEnabled(next)) enabled = !next
+                    if (!Udonge.setBackgroundUpdates(next)) backgroundUpdates = !next
                 }
             },
+        )
+        SettingsArrow(
+            title = stringResource(CoreR.string.udonge_keybox_list_title),
+            summary = stringResource(CoreR.string.udonge_keybox_list_summary),
+            onClick = { showKeyboxes = true },
         )
         SettingsArrow(
             title = stringResource(CoreR.string.udonge_rom_keywords_title),

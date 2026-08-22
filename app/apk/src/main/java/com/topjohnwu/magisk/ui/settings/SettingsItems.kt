@@ -191,10 +191,15 @@ object UdongeSettings : BaseSettingsItem.Section() {
     override val title = CoreR.string.udonge.asText()
 }
 
-object UdongeKeyboxes : BaseSettingsItem.SplitToggle() {
+object UdongeBackgroundUpdates : BaseSettingsItem.Toggle() {
+    override val title = CoreR.string.udonge_background_updates_title.asText()
+    override val description = CoreR.string.udonge_background_updates_summary.asText()
+    override var value by Config::udongeBackgroundUpdates
+}
+
+object UdongeKeyboxes : BaseSettingsItem.Blank() {
     override val title = CoreR.string.udonge_keybox_list_title.asText()
     override val description = CoreR.string.udonge_keybox_list_summary.asText()
-    override var value by Config::udongeEnabled
 
     override fun onPressed(view: View, handler: Handler) {
         handler.onItemPressed(view, this) {

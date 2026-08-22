@@ -50,6 +50,7 @@ object Config : PreferenceConfig, DBConfig {
         const val ASKED_HOME = "asked_home"
         const val DOH = "doh"
         const val UDONGE_ENABLED = "udonge_enabled"
+        const val UDONGE_BACKGROUND_UPDATES = "udonge_background_updates"
         const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls"
         const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
         const val REPOSITORY_SEARCHER_ENABLED = "repository_searcher_enabled"
@@ -125,6 +126,7 @@ object Config : PreferenceConfig, DBConfig {
         get() = migrateAccent(storedAccentSecondary, false)
         set(value) { storedAccentSecondary = value }
     var udongeEnabled by preference(Key.UDONGE_ENABLED, true)
+    var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
     private var storedUdongeKeyboxUrls by preference(
         Key.UDONGE_KEYBOX_URLS,
         DEFAULT_UDONGE_KEYBOX_URLS,

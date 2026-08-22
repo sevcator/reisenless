@@ -78,6 +78,7 @@ migrate_legacy_layout() {
     cp -af "$legacy/udonge" "$SECURE_DIR/$UDONGE_DIR" || return 1
   fi
   rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh"
+  rm -f "$SECURE_DIR/post-fs-data.d/$STAGE_SCRIPT" "$SECURE_DIR/service.d/$STAGE_SCRIPT"
 
   for backup in /data/ms_''backup_*; do
     [ -d "$backup" ] || continue
@@ -154,18 +155,6 @@ refresh_udonge_runtime() {
   return 1
 }
 
-install_udonge_boot_scripts() {
-  local stage dir script
-  for stage in post-fs-data service; do
-    dir=${SECURE_DIR}/$stage.d
-    script=$dir/$STAGE_SCRIPT
-    mkdir -p "$dir" || return 1
-    printf '#!/system/bin/sh\nexec %s/%s/runtime/%s.sh\n' \
-      "$SECURE_DIR" "$UDONGE_DIR" "$stage" > "$script" || return 1
-    chmod 700 "$script" || return 1
-  done
-}
-
 # $1 = install dir
 # $2 = boot partition
 direct_install() {
@@ -186,7 +175,10 @@ direct_install() {
   migrate_legacy_layout || return 3
   fix_env $1
   refresh_udonge_runtime || return 3
-  install_udonge_boot_scripts || return 3
+  # Udonge is invoked directly by the native boot-stage handler. Remove
+  # launchers from older releases so each stage executes exactly once.
+  rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh"
+  rm -f "$SECURE_DIR/post-fs-data.d/$STAGE_SCRIPT" "$SECURE_DIR/service.d/$STAGE_SCRIPT"
   run_migrations
 
   return 0

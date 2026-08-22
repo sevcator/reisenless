@@ -59,7 +59,12 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             }
             list.add(SuList)
             list.add(HideApps)
-            list.addAll(listOf(UdongeSettings, UdongeKeyboxes, UdongeRomKeywords))
+            list.addAll(listOf(
+                UdongeSettings,
+                UdongeBackgroundUpdates,
+                UdongeKeyboxes,
+                UdongeRomKeywords,
+            ))
         }
 
         if (Info.showSuperUser) {
@@ -117,16 +122,18 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
                 }
                 SnackbarEvent(R.string.reboot_apply_change).publish()
             }
-            UdongeKeyboxes -> {
-                val requested = UdongeKeyboxes.value
-                if (requested) Config.zygisk = true
+            UdongeBackgroundUpdates -> {
+                val requested = UdongeBackgroundUpdates.value
                 Shell.EXECUTOR.execute {
-                    if (!Udonge.setEnabled(requested) && Config.udongeEnabled == requested) {
-                        Config.udongeEnabled = !requested
-                        view.post { UdongeKeyboxes.notifyPropertyChanged(BR.checked) }
+                    if (!Udonge.setBackgroundUpdates(requested) &&
+                        Config.udongeBackgroundUpdates == requested
+                    ) {
+                        Config.udongeBackgroundUpdates = !requested
+                        view.post {
+                            UdongeBackgroundUpdates.notifyPropertyChanged(BR.checked)
+                        }
                     }
                 }
-                SnackbarEvent(R.string.reboot_apply_change).publish()
             }
             else -> onItemAction(view, item)
         }

@@ -230,7 +230,7 @@
     <string name="settings_sulist_config_title">設定 sulist</string>
     <string name="settings_sulist_config_summary">選擇允許使用 reisenless 的應用程式和處理程序</string>
     <string name="webui">網頁介面</string>
-    <string name="udonge">udonge</string>
+    <string name="udonge">reisenless</string>
     <string name="udonge_integrity_title">通過 strong integrity</string>
     <string name="udonge_integrity_summary">udonge 會讓你的裝置成為合法裝置！</string>
     <string name="udonge_keybox_list_title">keybox 清單</string>

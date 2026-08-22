@@ -252,7 +252,7 @@
     <string name="hide_apps_search">поиск пакетов</string>
     <string name="hide_apps_viewer_whitelist_title">приложения, которым видны скрытые приложения</string>
     <string name="webui">веб-интерфейс</string>
-    <string name="udonge">udonge</string>
+    <string name="udonge">reisenless</string>
     <string name="udonge_integrity_title">пройти strong integrity</string>
     <string name="udonge_integrity_summary">udonge сделает ваше устройство легитимным!</string>
     <string name="udonge_keybox_list_title">enable</string>
