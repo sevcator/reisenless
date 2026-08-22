@@ -112,6 +112,11 @@ fun Project.setupCoreLib() {
     setupCommon()
 
     val abiList = Config.abiList
+    val toolAbiList = Config.toolAbiList
+
+    require(toolAbiList.all(abiList::contains)) {
+        "toolAbiList must be a subset of abiList"
+    }
 
     androidComponents {
         onVariants { variant ->
@@ -125,15 +130,22 @@ fun Project.setupCoreLib() {
                 for (abi in abiList) {
                     into(abi) {
                         from(rootFile("native/out/$abi")) {
-                            include("mboot", "minit", "mpol", "magisk", "libinit-ld.so")
+                            if (abi in toolAbiList) {
+                                include("mboot", "minit", "mpol", "magisk", "libinit-ld.so")
+                            } else {
+                                // Secondary ABI only needs the core used for
+                                // 32-bit app specialization on a 64-bit phone.
+                                include("magisk")
+                            }
                             rename { if (it.endsWith(".so")) it else "lib$it.so" }
                         }
                     }
                 }
                 from(zipTree(downloadFile(BUSYBOX_DOWNLOAD_URL, BUSYBOX_ZIP_CHECKSUM)))
-                include(abiList.map { "$it/libbusybox.so" })
+                include(toolAbiList.map { "$it/libbusybox.so" })
                 onlyIf {
-                    if (inputs.sourceFiles.files.size != abiList.size * 6)
+                    val expected = abiList.size + toolAbiList.size * 5
+                    if (inputs.sourceFiles.files.size != expected)
                         throw StopExecutionException("Please build binaries first! (./build.py binary)")
                     true
                 }
@@ -191,6 +203,7 @@ fun Project.setupCoreLib() {
                     "SOCKET_NAME='${Config.socketName}'",
                     "POLICY_NAME='${Config.policyName}'",
                     "BIN32_NAME='${Config.bin32Name}'",
+                    "BUSYBOX_NAME='${Config.busyboxName}'",
                     "RAMDISK_NAME='${Config.ramdiskName}'",
                     "STUB_NAME='${Config.stubName}'",
                     "INIT_LD_NAME='${Config.initLdName}'",
@@ -307,7 +320,7 @@ fun Project.setupMainApk() {
             versionName = Config.version
             versionCode = Config.versionCode
             ndk {
-                abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64", "riscv64")
+                abiFilters += Config.abiList
                 debugSymbolLevel = "FULL"
             }
         }

@@ -59,8 +59,12 @@ data class HideAppsConfig(
             append(HideAppsConstants.RUNTIME_VERSION)
             append('\n')
             if (enabled) {
-                val hidden = hiddenPackages.asSequence()
+                // The installed manager package is generated when the app is
+                // hidden. Always include that live package, including for
+                // configs migrated from the original application ID.
+                val hidden = (hiddenPackages.asSequence() + sequenceOf(safeManager))
                     .filter(::isPackageName)
+                    .distinct()
                     .sorted()
                     .joinToString(",")
                 if (hidden.isEmpty()) return@buildString

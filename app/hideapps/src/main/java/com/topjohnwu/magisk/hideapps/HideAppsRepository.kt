@@ -3,7 +3,7 @@ package com.topjohnwu.magisk.hideapps
 import android.content.Context
 import java.io.File
 
-class HideAppsRepository(context: Context) {
+class HideAppsRepository(private val context: Context) {
     private val file = File(context.filesDir, "hide_apps.json")
 
     @Volatile
@@ -58,10 +58,17 @@ class HideAppsRepository(context: Context) {
         ))
     }
 
+    private fun defaultConfig() =
+        HideAppsConfig(enabled = true, hiddenPackages = setOf(context.packageName))
+
     @Synchronized
     private fun load(): HideAppsConfig = runCatching {
-        if (file.isFile) HideAppsConfig.parse(file.readText()) else HideAppsConfig(enabled = true, hiddenPackages = setOf("io.sevcator.reisenless"))
-    }.getOrDefault(HideAppsConfig())
+        if (file.isFile) {
+            HideAppsConfig.parse(file.readText())
+        } else {
+            defaultConfig()
+        }
+    }.getOrElse { defaultConfig() }
 
     private fun save(updated: HideAppsConfig) {
         file.writeText(updated.toJson())

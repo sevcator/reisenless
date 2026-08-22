@@ -352,6 +352,7 @@ def _build_identity() -> dict[str, str]:
             "buildId": "ms", "secureDir": config.get("secureDir", "/data/adb"),
             "dataDir": "ms", "dbName": "ms.db", "internalDir": ".ms",
             "socketName": "socket", "policyName": "mpol", "bin32Name": "ms32",
+            "busyboxName": "busybox",
             "ramdiskName": "ms",
             "stubName": "stub.apk", "initLdName": "init-ld",
             "udongeDir": "udonge", "udongeArchive": "udonge.bin",
@@ -363,7 +364,14 @@ def _build_identity() -> dict[str, str]:
             "preloadAck": "/dev/ack", "stageScript": "udonge.sh",
         }
 
-    seed = config.get("identitySeed", "reisenless-build-identity-v1")
+    # A private CI seed can make the generated names non-derivable. Keeping
+    # the seed stable preserves upgrades while all identifiers are still
+    # materialized only as part of the build.
+    seed = (
+        os.environ.get("REISENLESS_IDENTITY_SEED", "").strip()
+        or config.get("identitySeed", "").strip()
+        or "reisenless-build-identity-v1"
+    )
     namespace = _repository_namespace()
 
     def token(label: str, minimum: int = 5, maximum: int = 10) -> str:
@@ -393,6 +401,7 @@ def _build_identity() -> dict[str, str]:
         "socketName": token("daemon-socket", 6, 10),
         "policyName": token("policy-binary", 5, 9),
         "bin32Name": token("bin32-databin", 5, 9),
+        "busyboxName": token("toolbox-binary", 6, 10),
         # The ramdisk proxy must resolve to the daemon after /sbin is moved.
         "ramdiskName": main_binary,
         "stubName": token("stub-apk", 6, 10) + ".apk",
@@ -504,6 +513,7 @@ def dump_flag_header():
         "dataDir": "BUILD_DATA_DIR", "dbName": "BUILD_DB_NAME",
         "internalDir": "BUILD_INTERNAL_DIR", "socketName": "BUILD_SOCKET_NAME",
         "policyName": "BUILD_POLICY_NAME", "bin32Name": "BUILD_BIN32_NAME",
+        "busyboxName": "BUILD_BUSYBOX_NAME",
         "ramdiskName": "BUILD_RAMDISK_NAME",
         "stubName": "BUILD_STUB_NAME", "initLdName": "BUILD_INIT_LD_NAME",
         "udongeDir": "BUILD_UDONGE_DIR", "udongeArchive": "BUILD_UDONGE_ARCHIVE",

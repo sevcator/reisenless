@@ -1,6 +1,6 @@
 use crate::consts::{
-    APP_PACKAGE_NAME, BBPATH, BIN32_DATABIN_NAME, DATABIN, MAIN_BIN_NAME_32, MODULEROOT,
-    POLICY_BIN_NAME, POLICY_DATABIN_NAME, SECURE_DIR,
+    APP_PACKAGE_NAME, BBPATH, BIN32_DATABIN_NAME, BUILD_BUSYBOX_NAME, DATABIN,
+    MAIN_BIN_NAME_32, MODULEROOT, POLICY_BIN_NAME, POLICY_DATABIN_NAME, SECURE_DIR,
 };
 use crate::daemon::MagiskD;
 use crate::ffi::{
@@ -73,14 +73,14 @@ impl MagiskD {
             .log_ok();
         restorecon();
 
-        let busybox = cstr!(concatcp!(DATABIN, "/busybox"));
+        let busybox = cstr!(concatcp!(DATABIN, "/", BUILD_BUSYBOX_NAME));
         if !busybox.exists() {
             return false;
         }
 
         let tmp_bb = buf.append_path(get_magisk_tmp()).append_path(BBPATH);
         tmp_bb.mkdirs(0o755).ok();
-        tmp_bb.append_path("busybox");
+        tmp_bb.append_path(BUILD_BUSYBOX_NAME);
         busybox.copy_to(tmp_bb).ok();
         tmp_bb.follow_link().chmod(0o755).log_ok();
 

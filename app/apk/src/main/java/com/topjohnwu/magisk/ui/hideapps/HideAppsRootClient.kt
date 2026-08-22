@@ -16,8 +16,9 @@ import com.topjohnwu.magisk.hideapps.HideAppsStatus
 import com.topjohnwu.superuser.Shell
 
 object HideAppsRootClient {
-    private val state = "${Const.SECURE_DIR}/udonge/state"
-    private val runtime = "${Const.SECURE_DIR}/udonge/runtime"
+    private val root = "${Const.SECURE_DIR}/${Const.UDONGE_DIR}"
+    private val state = "$root/state"
+    private val runtime = "$root/runtime"
     private val globalLoaderMarker = "$state/hideapps-global-loader-v2"
 
     fun sync(

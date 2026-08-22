@@ -16,7 +16,7 @@
 #define DEVICEDIR     INTLROOT "/device"
 #define PREINITDEV    DEVICEDIR "/preinit"
 #define WORKERDIR     INTLROOT "/worker"
-#define BBPATH        INTLROOT "/busybox"
+#define BBPATH        INTLROOT "/" BUILD_BUSYBOX_NAME
 #define ROOTOVL       INTLROOT "/rootdir"
 #define SHELLPTS      INTLROOT "/pts"
 #define MAIN_CONFIG   INTLROOT "/config"

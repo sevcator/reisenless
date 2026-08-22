@@ -9,6 +9,7 @@ on:
       - "scripts/**"
       - "udonge/**"
       - "build.py"
+      - "config.prop.sample"
       - "config.prop"
       - ".github/actions/setup/**"
       - ".github/workflows/build.yml"
@@ -32,6 +33,16 @@ jobs:
 
       - name: Set up toolchain
         uses: ./.github/actions/setup
+
+      - name: Configure ARM release target
+        shell: bash
+        run: |
+          cat > config.prop <<'EOF'
+          randomizeBuild=true
+          randomizeSecureDir=true
+          abiList=armeabi-v7a,arm64-v8a
+          toolAbiList=arm64-v8a
+          EOF
 
       - name: Prepare release signing
         if: github.event_name != 'pull_request'
@@ -84,6 +95,12 @@ jobs:
           secure_dir="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["secureDir"])' "$identity")"
           test -s "$apk"
           unzip -tq "$apk"
+          unzip -l "$apk" | grep -Fq 'lib/arm64-v8a/libmagisk.so'
+          unzip -l "$apk" | grep -Fq 'lib/armeabi-v7a/libmagisk.so'
+          test "$(unzip -Z1 "$apk" 'lib/armeabi-v7a/*' | wc -l)" -eq 1
+          ! unzip -l "$apk" | grep -Eq 'lib/(x86|x86_64|riscv64)/'
+          unzip -p "$apk" lib/arm64-v8a/libmagisk.so > "$RUNNER_TEMP/core64"
+          ! grep -aEiq 'zygisk(32|64):|magisk32|magisk64' "$RUNNER_TEMP/core64"
           unzip -p "$apk" "assets/$udonge_archive" > "$RUNNER_TEMP/udonge.bin"
           unzip -p "$apk" "assets/$stub_name" > "$RUNNER_TEMP/stub.apk"
           test -s "$RUNNER_TEMP/udonge.bin"

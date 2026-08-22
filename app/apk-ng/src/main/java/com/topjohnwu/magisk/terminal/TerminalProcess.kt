@@ -7,7 +7,7 @@ import com.topjohnwu.superuser.Shell
 
 private val busyboxPath: String by lazy {
     Shell.cmd("readlink /proc/self/exe").exec().out.firstOrNull()
-        ?: "${Const.DATABIN}/busybox"
+        ?: "${Const.DATABIN}/${Const.BUSYBOX_NAME}"
 }
 
 private val mainHandler = Handler(Looper.getMainLooper())

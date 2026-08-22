@@ -122,6 +122,7 @@ abstract class MagiskInstallImpl protected constructor(
                         val name = when (packagedName) {
                             "mpol" -> BuildConfig.POLICY_NAME
                             "init-ld" -> BuildConfig.INIT_LD_NAME
+                            "busybox" -> BuildConfig.BUSYBOX_NAME
                             else -> packagedName
                         }
                         val dest = File(installDir, name)
@@ -145,7 +146,11 @@ abstract class MagiskInstallImpl protected constructor(
                 } ?: emptyArray()
 
                 for (lib in libs) {
-                    val name = lib.name.substring(3, lib.name.length - 3)
+                    val packagedName = lib.name.substring(3, lib.name.length - 3)
+                    val name = when (packagedName) {
+                        "busybox" -> BuildConfig.BUSYBOX_NAME
+                        else -> packagedName
+                    }
                     Os.symlink(lib.path, "$installDir/$name")
                 }
 

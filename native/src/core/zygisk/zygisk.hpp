@@ -10,15 +10,15 @@
 #define NBPROP     "ro.dalvik.vm.native.bridge"
 
 #if defined(__LP64__)
-#define ZLOGD(...) LOGD("zygisk64: " __VA_ARGS__)
-#define ZLOGE(...) LOGE("zygisk64: " __VA_ARGS__)
-#define ZLOGI(...) LOGI("zygisk64: " __VA_ARGS__)
-#define ZLOGW(...) LOGW("zygisk64: " __VA_ARGS__)
+#define ZLOGD(...) LOGD(BUILD_ID "64: " __VA_ARGS__)
+#define ZLOGE(...) LOGE(BUILD_ID "64: " __VA_ARGS__)
+#define ZLOGI(...) LOGI(BUILD_ID "64: " __VA_ARGS__)
+#define ZLOGW(...) LOGW(BUILD_ID "64: " __VA_ARGS__)
 #else
-#define ZLOGD(...) LOGD("zygisk32: " __VA_ARGS__)
-#define ZLOGE(...) LOGE("zygisk32: " __VA_ARGS__)
-#define ZLOGI(...) LOGI("zygisk32: " __VA_ARGS__)
-#define ZLOGW(...) LOGW("zygisk32: " __VA_ARGS__)
+#define ZLOGD(...) LOGD(BUILD_ID "32: " __VA_ARGS__)
+#define ZLOGE(...) LOGE(BUILD_ID "32: " __VA_ARGS__)
+#define ZLOGI(...) LOGI(BUILD_ID "32: " __VA_ARGS__)
+#define ZLOGW(...) LOGW(BUILD_ID "32: " __VA_ARGS__)
 #endif
 
 // Extreme verbose logging

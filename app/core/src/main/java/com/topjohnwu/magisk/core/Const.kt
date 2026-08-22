@@ -20,6 +20,7 @@ object Const {
     val DATABIN      = "${BuildConfig.SECURE_DIR}/${BuildConfig.DATA_DIR}"
     val MODULE_PATH  = "${BuildConfig.SECURE_DIR}/modules"
     val MAIN_BIN     = BuildConfig.MAIN_BIN_NAME
+    val BUSYBOX_NAME = BuildConfig.BUSYBOX_NAME
     val INTERNAL_DIR = BuildConfig.INTERNAL_DIR
     val STUB_NAME    = BuildConfig.STUB_NAME
     val UDONGE_DIR   = BuildConfig.UDONGE_DIR

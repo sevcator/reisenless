@@ -26,6 +26,7 @@ android {
         buildConfigField("String", "INTERNAL_DIR", "\"${Config.internalDir}\"")
         buildConfigField("String", "POLICY_NAME", "\"${Config.policyName}\"")
         buildConfigField("String", "BIN32_NAME", "\"${Config.bin32Name}\"")
+        buildConfigField("String", "BUSYBOX_NAME", "\"${Config.busyboxName}\"")
         buildConfigField("String", "STUB_NAME", "\"${Config.stubName}\"")
         buildConfigField("String", "INIT_LD_NAME", "\"${Config.initLdName}\"")
         buildConfigField("String", "UDONGE_DIR", "\"${Config.udongeDir}\"")

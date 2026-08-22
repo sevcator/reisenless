@@ -25,6 +25,8 @@ object Config {
     val versionCode: Int get() = get("magisk.versionCode")!!.toInt()
     val stubVersion: String get() = get("magisk.stubVersion")!!
     val abiList: List<String> get() = get("abiList")!!.split(",")
+    val toolAbiList: List<String> get() =
+        (get("toolAbiList") ?: get("abiList")!!).split(",")
     val secureDir: String get() = get("secureDir") ?: "/data/adb"
     val mainBinName: String get() = get("buildId") ?: "ms"
     val dataDir: String get() = get("dataDir") ?: "ms"
@@ -33,6 +35,7 @@ object Config {
     val socketName: String get() = get("socketName") ?: "socket"
     val policyName: String get() = get("policyName") ?: "mpol"
     val bin32Name: String get() = get("bin32Name") ?: "ms32"
+    val busyboxName: String get() = get("busyboxName") ?: "busybox"
     val ramdiskName: String get() = get("ramdiskName") ?: "ms"
     val stubName: String get() = get("stubName") ?: "stub.apk"
     val initLdName: String get() = get("initLdName") ?: "init-ld"

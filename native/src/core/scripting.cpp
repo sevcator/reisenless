@@ -13,9 +13,9 @@ using namespace std;
 static const char *bbpath() {
     static string path;
     path = get_magisk_tmp();
-    path += "/" BBPATH "/busybox";
+    path += "/" BBPATH "/" BUILD_BUSYBOX_NAME;
     if (access(path.data(), X_OK) != 0) {
-        path = DATABIN "/busybox";
+        path = DATABIN "/" BUILD_BUSYBOX_NAME;
     }
     return path.data();
 }

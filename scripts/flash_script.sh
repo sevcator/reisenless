@@ -57,6 +57,7 @@ for file in lib*.so; do mv "$file" "${file:3:${#file}-6}"; done
 cd /
 cp -af $INSTALLER/lib/$ABI32/libmagisk.so $BINDIR/$BIN32_NAME 2>/dev/null
 [ -f "$BINDIR/magisk" ] && mv "$BINDIR/magisk" "$BINDIR/$MAIN_BIN_NAME"
+[ -f "$BINDIR/busybox" ] && mv "$BINDIR/busybox" "$BINDIR/$BUSYBOX_NAME"
 [ -f "$BINDIR/mpol" ] && mv "$BINDIR/mpol" "$BINDIR/$POLICY_NAME"
 [ -f "$BINDIR/init-ld" ] && mv "$BINDIR/init-ld" "$BINDIR/$INIT_LD_NAME"
 

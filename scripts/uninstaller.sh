@@ -150,13 +150,13 @@ fi
 
 ui_print "- removing files"
 rm -rf \
-/cache/*magisk* /cache/unblock /data/*magisk* /data/cache/*magisk* /data/property/*magisk* \
-/data/Magisk.apk /data/busybox /data/custom_ramdisk_patch.sh /data/adb/*magisk* \
+/cache/*ma''gisk* /cache/unblock /data/*ma''gisk* /data/cache/*ma''gisk* /data/property/*ma''gisk* \
+/data/Ma''gisk.apk /data/bu''sybox /data/custom_ramdisk_patch.sh /data/a''db/*ma''gisk* \
 ${SECURE_DIR}/${DATA_DIR} ${SECURE_DIR}/${DB_NAME} ${SECURE_DIR}/${UDONGE_DIR} ${SECURE_DIR}/post-fs-data.d ${SECURE_DIR}/service.d ${SECURE_DIR}/modules* \
-/data/adb/ms /data/adb/ms.db /data/adb/udonge /data/adb/post-fs-data.d /data/adb/service.d /data/adb/modules* \
-/data/unencrypted/magisk /data/unencrypted/.mnt \
-/metadata/magisk /metadata/watchdog/magisk /metadata/watchdog/.mnt \
-/persist/magisk /persist/.mnt /mnt/vendor/persist/magisk /mnt/vendor/persist/.mnt
+/data/a''db/ms /data/a''db/ms.db /data/a''db/udonge /data/a''db/post-fs-data.d /data/a''db/service.d /data/a''db/modules* \
+/data/unencrypted/ma''gisk /data/unencrypted/.mnt \
+/metadata/ma''gisk /metadata/watchdog/ma''gisk /metadata/watchdog/.mnt \
+/persist/ma''gisk /persist/.mnt /mnt/vendor/persist/ma''gisk /mnt/vendor/persist/.mnt
 
 ADDOND=/system/addon.d/99-ms.sh
 if [ -f $ADDOND ]; then

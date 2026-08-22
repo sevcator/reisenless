@@ -1,4 +1,7 @@
-use crate::consts::{BBPATH, BUILD_UDONGE_ARCHIVE, BUILD_UDONGE_DIR, DATABIN, MAGISK_VERSION, SECURE_DIR};
+use crate::consts::{
+    BBPATH, BUILD_BUSYBOX_NAME, BUILD_UDONGE_ARCHIVE, BUILD_UDONGE_DIR, DATABIN,
+    MAGISK_VERSION, SECURE_DIR,
+};
 use crate::ffi::{exec_script, exec_script_async, get_magisk_tmp};
 use base::const_format::concatcp;
 use base::{FsPathBuilder, ResultExt, cstr};
@@ -131,7 +134,7 @@ pub fn setup_runtime() {
         let busybox = cstr::buf::default()
             .join_path(get_magisk_tmp())
             .join_path(BBPATH)
-            .join_path("busybox");
+            .join_path(BUILD_BUSYBOX_NAME);
         let extracted = Command::new(&busybox)
             .arg("unzip")
             .arg("-oq")

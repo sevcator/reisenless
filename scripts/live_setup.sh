@@ -150,7 +150,7 @@ done
 }
 cp -af ./mboot $MAGISKBIN/mboot
 cp -af ./minit $MAGISKBIN/minit
-cp -af ./busybox $MAGISKBIN/busybox
+cp -af ./busybox "$MAGISKBIN/$BUSYBOX_NAME"
 [ -f "./$UDONGE_ARCHIVE" ] && {
   chmod 600 "./$UDONGE_ARCHIVE"
   cp -af "./$UDONGE_ARCHIVE" "$MAGISKTMP/$UDONGE_ARCHIVE"

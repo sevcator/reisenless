@@ -14,7 +14,7 @@ run_delay() {
 # $1 = version string
 # $2 = version code
 env_check() {
-  for file in "$MAIN_BIN_NAME" busybox mboot minit util_functions.sh boot_patch.sh "$UDONGE_ARCHIVE"; do
+  for file in "$MAIN_BIN_NAME" "$BUSYBOX_NAME" mboot minit util_functions.sh boot_patch.sh "$UDONGE_ARCHIVE"; do
     [ -f "$MAGISKBIN/$file" ] || return 1
   done
   if [ "$2" -ge 25000 ]; then
@@ -100,12 +100,12 @@ refresh_udonge_runtime() {
   local version required
 
   [ -f "$archive" ] || return 0
-  version=$($MAGISKBIN/busybox unzip -p "$archive" version 2>/dev/null | tr -d '\r\n')
+  version=$($MAGISKBIN/$BUSYBOX_NAME unzip -p "$archive" version 2>/dev/null | tr -d '\r\n')
   [ -n "$version" ] || return 1
 
   rm -rf "$next"
   mkdir -p "$next" || return 1
-  $MAGISKBIN/busybox unzip -oq "$archive" -d "$next" || {
+  $MAGISKBIN/$BUSYBOX_NAME unzip -oq "$archive" -d "$next" || {
     rm -rf "$next"
     return 1
   }
