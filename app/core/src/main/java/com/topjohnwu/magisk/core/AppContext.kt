@@ -105,12 +105,11 @@ object AppContext : ContextWrapper(null),
         }
         resources.patch()
 
-        // Prefer the APK client because Android permits an app to execute its own
-        // native libraries. Some older installations label the tmpfs client as
-        // system_file, which Android 15 rejects as an untrusted_app entry point.
-        // Keep the mounted client only as a recovery fallback.
-        val suCmd = run {
-            val packaged = preparePackagedSu(base)
+        // Prefer the mounted client. It starts the interactive root shell
+        // directly and keeps libsu's process lifecycle identical to the core
+        // that owns the mount. The APK client remains a recovery fallback for
+        // safe-mode or partially mounted installations.
+        val (suCmd, needsArgvShim) = run {
             val tmp = try {
                 Runtime.getRuntime()
                     .exec(arrayOf(Const.MAIN_BIN, "--path"))
@@ -122,7 +121,11 @@ object AppContext : ContextWrapper(null),
                     candidate.absolutePath
                 } else null
             } else null
-            packaged ?: mounted
+            if (mounted != null) {
+                mounted to false
+            } else {
+                preparePackagedSu(base) to true
+            }
         }
         val shellBuilder = Shell.Builder.create()
             .setFlags(Shell.FLAG_MOUNT_MASTER)
@@ -130,14 +133,16 @@ object AppContext : ContextWrapper(null),
             .setContext(this)
             .setTimeout(20)
         if (suCmd != null) {
-            // Native multicall dispatch uses argv[0] to select the su applet.
-            // Keep the executable in Android's allowed native-lib directory,
-            // but present the expected applet name to the process.
-            shellBuilder.setCommands(
-                "/system/bin/sh",
-                "-c",
-                "exec -a su '$suCmd' --mount-master",
-            )
+            if (needsArgvShim) {
+                // Native multicall dispatch uses argv[0] to select the su applet.
+                shellBuilder.setCommands(
+                    "/system/bin/sh",
+                    "-c",
+                    "exec -a su '$suCmd' --mount-master",
+                )
+            } else {
+                shellBuilder.setCommands(suCmd)
+            }
         }
         Shell.setDefaultBuilder(shellBuilder)
         Shell.EXECUTOR = Dispatchers.IO.asExecutor()
