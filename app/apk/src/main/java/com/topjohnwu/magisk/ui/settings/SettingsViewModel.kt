@@ -46,9 +46,10 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         if (isRunningAsStub && ShortcutManagerCompat.isRequestPinShortcutSupported(context))
             list.add(AddShortcut)
 
-        // App
-        list.add(ReisenlessSettings)
         list.add(RepositorySearcher)
+
+        // Reisenless
+        list.add(ReisenlessSettings)
         if (Const.USER_ID == 0) {
             list.add(if (hidden) Restore else Hide)
         }
