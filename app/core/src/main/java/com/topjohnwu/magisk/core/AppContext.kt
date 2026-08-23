@@ -105,15 +105,11 @@ object AppContext : ContextWrapper(null),
         }
         resources.patch()
 
-        // Prefer the mounted client. It starts the interactive root shell
-        // directly and keeps libsu's process lifecycle identical to the core
-        // that owns the mount. The APK client remains a recovery fallback for
-        // safe-mode or partially mounted installations.
+        // Randomized app domains cannot execute the mounted client directly on
+        // Android 15. Use the APK client for the hidden stub, and give its
+        // child shell an explicit path to the live randomized core binaries.
         val (suCmd, needsArgvShim) = if (isRunningAsStub) {
-            // Java caches its executable search path before the stub appends
-            // /debug_ramdisk, so name-based discovery falls through to the
-            // packaged client. Execute the live mounted client explicitly.
-            "/debug_ramdisk/su" to false
+            preparePackagedSu(base) to true
         } else run {
             val tmp = try {
                 Runtime.getRuntime()
@@ -143,7 +139,8 @@ object AppContext : ContextWrapper(null),
                 shellBuilder.setCommands(
                     "/system/bin/sh",
                     "-c",
-                    "exec -a su '$suCmd' --mount-master",
+                    "export PATH=/debug_ramdisk:/sbin:/system/bin:/system/xbin; " +
+                        "exec -a su '$suCmd' --mount-master",
                 )
             } else {
                 shellBuilder.setCommands(suCmd)
