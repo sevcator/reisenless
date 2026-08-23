@@ -83,7 +83,15 @@ object Udonge {
         ).exec().isSuccess
     }
 
-    fun setRomKeywords(value: String): Boolean {
+    fun setRomKeywords(value: String): Boolean = setRomKeywords(value) { command ->
+        Shell.cmd(command).exec().isSuccess
+    }
+
+    fun setRomKeywords(value: String, shell: Shell): Boolean = setRomKeywords(value) { command ->
+        shell.newJob().add(command).exec().isSuccess
+    }
+
+    private fun setRomKeywords(value: String, execute: (String) -> Boolean): Boolean {
         val normalized = value.lineSequence()
             .map(String::trim)
             .filter { it.length >= 3 && it.none { c -> c.isWhitespace() } }
@@ -93,7 +101,7 @@ object Udonge {
         val encoded = Base64.encodeToString(normalized.toByteArray(), Base64.NO_WRAP)
         val command = "mkdir -p '$state' && printf '%s' '$encoded' | " +
             "base64 -d > '$state/rom_keywords.conf'"
-        val success = Shell.cmd(command).exec().isSuccess
+        val success = execute(command)
         if (success) Config.udongeRomKeywords = normalized
         return success
     }

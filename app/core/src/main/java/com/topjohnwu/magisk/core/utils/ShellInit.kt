@@ -149,6 +149,6 @@ class ShellInit : Shell.Initializer() {
         val existing = Config.udongeRomKeywords
         val combined = (existing.lineSequence().filter { it.isNotBlank() } + detected.asSequence())
             .distinct().joinToString("\n")
-        if (combined != existing) Udonge.setRomKeywords(combined)
+        if (combined != existing) Udonge.setRomKeywords(combined, shell)
     }
 }
