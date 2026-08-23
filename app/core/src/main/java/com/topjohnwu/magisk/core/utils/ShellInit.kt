@@ -70,7 +70,14 @@ class ShellInit : Shell.Initializer() {
                 )
             } else {
                 // Directly execute the file
-                add("exec $localBB sh")
+                if (isRunningAsStub) {
+                    // The mounted BusyBox filename is randomized at build time.
+                    // BusyBox dispatches on argv[0], so entering it by that
+                    // filename makes it look for a nonexistent random applet.
+                    add("exec -a sh $localBB")
+                } else {
+                    add("exec $localBB sh")
+                }
             }
 
             add(context.assets.open("app_functions.sh"))
