@@ -14,7 +14,6 @@ import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
-import android.util.Log;
 
 import com.topjohnwu.magisk.utils.APKInstall;
 import com.topjohnwu.magisk.utils.DynamicClassLoader;
@@ -66,15 +65,16 @@ public class DynLoad {
         } catch (Exception ignored) { /* Impossible */ }
     }
 
-    private static InputStream openManagerApk(Context context, String sourceDir)
-            throws IOException {
+    private static InputStream openManagerApk(Context context)
+            throws IOException, PackageManager.NameNotFoundException {
         try {
             var uri = Uri.parse("content://" + APPLICATION_ID + ".migration/apk");
             var input = context.getContentResolver().openInputStream(uri);
             if (input != null) return input;
-        } catch (SecurityException | IllegalArgumentException ignored) {
+        } catch (IOException | SecurityException | IllegalArgumentException ignored) {
         }
-        return new FileInputStream(sourceDir);
+        var info = context.getPackageManager().getApplicationInfo(APPLICATION_ID, 0);
+        return new FileInputStream(info.sourceDir);
     }
 
     // Dynamically load APK from internal, external storage, or previous app
@@ -119,9 +119,8 @@ public class DynLoad {
         // If no APK is loaded, attempt to copy from previous app
         if (!context.getPackageName().equals(APPLICATION_ID)) {
             try {
-                var info = context.getPackageManager().getApplicationInfo(APPLICATION_ID, 0);
                 apk.delete();
-                var src = openManagerApk(context, info.sourceDir);
+                var src = openManagerApk(context);
                 var out = new FileOutputStream(apk);
                 try (src; out) {
                     APKInstall.transfer(src, out);
@@ -131,10 +130,8 @@ public class DynLoad {
                     return null;
                 }
                 return new DynamicClassLoader(apk);
-            } catch (PackageManager.NameNotFoundException e) {
-                Log.e("dyn", "package", e);
+            } catch (PackageManager.NameNotFoundException ignored) {
             } catch (IOException e) {
-                Log.e("dyn", "copy", e);
                 apk.delete();
             }
         }
@@ -200,7 +197,6 @@ public class DynLoad {
             // Call Application.attachBaseContext
             attachContext(app, context);
         } catch (Exception e) {
-            Log.e("dyn", "init", e);
             apk.delete();
         } else {
             // Dynamic loading failed, use normal stub classloader
