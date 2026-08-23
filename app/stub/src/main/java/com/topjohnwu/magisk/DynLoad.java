@@ -12,7 +12,6 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
-import android.util.Log;
 
 import com.topjohnwu.magisk.utils.APKInstall;
 import com.topjohnwu.magisk.utils.DynamicClassLoader;
@@ -169,7 +168,6 @@ public class DynLoad {
             // Call Application.attachBaseContext
             attachContext(app, context);
         } catch (Exception e) {
-            Log.e("ReisenlessDynLoad", "Unable to load hidden manager", e);
             apk.delete();
         } else {
             // Dynamic loading failed, use normal stub classloader

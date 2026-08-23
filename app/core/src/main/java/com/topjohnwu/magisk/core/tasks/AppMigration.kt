@@ -119,7 +119,10 @@ object AppMigration {
                 "cp -f $AppApkPath ${currentApk.path} && " +
                 "chown $uid:$uid ${dynDir.path} ${currentApk.path} && " +
                 "chmod 700 ${dynDir.path} && " +
-                "chmod 400 ${currentApk.path} && " +
+                // PackageManager parses archive metadata in system_server, so
+                // the APK itself must be world-readable. The containing app
+                // data directory remains private to the hidden package.
+                "chmod 444 ${currentApk.path} && " +
                 "/system/bin/restorecon -RF ${dynDir.path} && " +
                 "test -s ${currentApk.path}",
         ).exec().isSuccess
