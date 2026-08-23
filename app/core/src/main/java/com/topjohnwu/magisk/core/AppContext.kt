@@ -130,9 +130,12 @@ object AppContext : ContextWrapper(null),
         }
         resources.patch()
 
-        // Prefer the tmpfs client. Safe mode deliberately skips PATH injection,
-        // so keep a private copy of the APK's client as a recovery fallback.
+        // Prefer the APK client because Android permits an app to execute its own
+        // native libraries. Some older installations label the tmpfs client as
+        // system_file, which Android 15 rejects as an untrusted_app entry point.
+        // Keep the mounted client only as a recovery fallback.
         val suCmd = run {
+            val packaged = preparePackagedSu(base)
             val tmp = try {
                 Runtime.getRuntime()
                     .exec(arrayOf(Const.MAIN_BIN, "--path"))
@@ -144,7 +147,7 @@ object AppContext : ContextWrapper(null),
                     candidate.absolutePath
                 } else null
             } else null
-            mounted ?: preparePackagedSu(base)
+            packaged ?: mounted
         }
         val shellBuilder = Shell.Builder.create()
             .setFlags(Shell.FLAG_MOUNT_MASTER)
