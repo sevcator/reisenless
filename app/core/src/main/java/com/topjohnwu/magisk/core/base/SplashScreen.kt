@@ -81,8 +81,19 @@ class SplashController<T>(private val activity: T)
                     }
                     return@getShell
                 }
-                RootUtils.Connection.await()
-                activity.initializeApp()
+                runCatching {
+                    RootUtils.Connection.await()
+                    activity.initializeApp()
+                }.onFailure { error ->
+                    // Startup helpers such as notifications and shortcuts are
+                    // not allowed to hold the whole manager on its splash.
+                    // Keep a root-readable report for diagnosis and render the
+                    // main UI with the state that initialized successfully.
+                    runCatching {
+                        File(activity.cacheDir, "reisenless-app-init-error.txt")
+                            .writeText(android.util.Log.getStackTraceString(error))
+                    }
+                }
                 activity.runOnUiThread {
                     splashShown = true
                     if (isRunningAsStub) {

@@ -18,6 +18,21 @@ import java.util.jar.JarFile
 
 class ShellInit : Shell.Initializer() {
     override fun onInit(context: Context, shell: Shell): Boolean {
+        return try {
+            initializeShell(context, shell)
+        } catch (error: Throwable) {
+            // A nonessential manager initializer must never strand the app on
+            // its splash screen. Preserve the full cause for post-boot support
+            // while keeping the already-acquired shell available to the UI.
+            runCatching {
+                File(context.cacheDir, "reisenless-shell-init-error.txt")
+                    .writeText(android.util.Log.getStackTraceString(error))
+            }
+            true
+        }
+    }
+
+    private fun initializeShell(context: Context, shell: Shell): Boolean {
         if (shell.isRoot) {
             Info.isRooted = true
             RootUtils.bindTask?.let { shell.execTask(it) }
