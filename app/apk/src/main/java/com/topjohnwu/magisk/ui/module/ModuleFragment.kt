@@ -80,7 +80,7 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
         inflater.inflate(R.menu.menu_module, menu)
         val accent = MaterialColors.getColor(
             requireView(),
-            MaterialR.attr.colorPrimary,
+            R.attr.colorPrimary,
             Color.MAGENTA,
         )
         listOf(R.id.action_module_search, R.id.action_repository_search).forEach { itemId ->

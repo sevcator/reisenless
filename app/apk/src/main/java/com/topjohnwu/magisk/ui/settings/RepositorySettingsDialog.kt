@@ -11,6 +11,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.setPadding
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.R as MaterialR
@@ -30,7 +31,7 @@ import com.topjohnwu.magisk.core.R as CoreR
 
 internal class RepositorySettingsDialog(private val anchor: View) {
     private val context = anchor.context
-    private val activity = anchor.activity
+    private val activity = anchor.activity as AppCompatActivity
     private val density = context.resources.displayMetrics.density
     private val repository = ModuleRepository(ServiceLocator.networkService)
     private val configuredContainer = verticalLayout()
@@ -220,7 +221,7 @@ internal class RepositorySettingsDialog(private val anchor: View) {
     private fun sectionTitle(textRes: Int) = TextView(context).apply {
         setText(textRes)
         setTextAppearance(R.style.AppearanceFoundation_Body)
-        setTextColor(MaterialColors.getColor(this, MaterialR.attr.colorPrimary, Color.MAGENTA))
+        setTextColor(MaterialColors.getColor(this, R.attr.colorPrimary, Color.MAGENTA))
     }
 
     private fun bodyText(value: String) = TextView(context).apply {
