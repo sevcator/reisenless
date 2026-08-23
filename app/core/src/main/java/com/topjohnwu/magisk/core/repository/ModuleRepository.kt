@@ -211,7 +211,9 @@ class ModuleRepository(private val network: NetworkService) {
                     TrustedRepository(
                         name = item.optString("name").ifBlank { url },
                         url = url.trimEnd('/') + "/",
-                        description = item.optString("description"),
+                        description = item.optString("description")
+                            .takeUnless { it.equals("null", ignoreCase = true) }
+                            .orEmpty(),
                         modulesCount = item.optInt("modules_count").takeIf { it > 0 },
                     )
                 )
