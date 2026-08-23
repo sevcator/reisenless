@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.system.Os
+import android.util.Log
 import androidx.profileinstaller.ProfileInstaller
 import com.topjohnwu.magisk.StubApk
 import com.topjohnwu.magisk.core.base.UntrackedActivity
@@ -75,8 +76,18 @@ object AppContext : ContextWrapper(null),
     override fun getApplicationContext() = application
 
     private fun preparePackagedSu(base: Context): String? = runCatching {
-        val extracted = File(base.applicationInfo.nativeLibraryDir, "libmagisk.so")
-        if (extracted.isFile) return@runCatching extracted.absolutePath
+        val appInfo = base.applicationInfo
+        val apkDir = File(appInfo.sourceDir).parentFile
+        val candidates = buildList {
+            add(File(appInfo.nativeLibraryDir, "libmagisk.so"))
+            Build.SUPPORTED_ABIS.forEach { abi ->
+                add(File(apkDir, "lib/$abi/libmagisk.so"))
+            }
+        }
+        candidates.firstOrNull(File::isFile)?.let {
+            Log.i("ReisenlessRoot", "Using packaged client: ${it.absolutePath}")
+            return@runCatching it.absolutePath
+        }
         val storage = if (SDK_INT >= Build.VERSION_CODES.N) {
             base.createDeviceProtectedStorageContext()
         } else {
@@ -102,7 +113,10 @@ object AppContext : ContextWrapper(null),
         check(target.setReadable(true, true))
         check(target.setExecutable(true, true))
         check(target.setWritable(false, false))
+        Log.i("ReisenlessRoot", "Using extracted client: ${target.absolutePath}")
         target.absolutePath
+    }.onFailure {
+        Log.e("ReisenlessRoot", "Unable to prepare packaged root client", it)
     }.getOrNull()
 
     fun attachApplication(app: Application) {
@@ -160,7 +174,10 @@ object AppContext : ContextWrapper(null),
                 "-c",
                 "exec -a su '$suCmd' --mount-master",
             )
+        } else {
+            Log.e("ReisenlessRoot", "No packaged or mounted root client is available")
         }
+        Shell.enableVerboseLogging = true
         Shell.setDefaultBuilder(shellBuilder)
         Shell.EXECUTOR = Dispatchers.IO.asExecutor()
         RootUtils.bindTask = RootService.bindOrTask(
