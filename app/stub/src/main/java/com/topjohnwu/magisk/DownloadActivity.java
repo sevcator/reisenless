@@ -96,7 +96,8 @@ public class DownloadActivity extends Activity {
         new AlertDialog.Builder(themed)
                 .setCancelable(false)
                 .setTitle(APP_NAME)
-                .setMessage(getString(upgrade_msg))
+                .setMessage(getString(upgrade_msg) + (DynLoad.failure.isEmpty()
+                        ? "" : "\n\n" + DynLoad.failure))
                 .setPositiveButton(yes, (d, w) -> dlAPK())
                 .setNegativeButton(no, (d, w) -> finish())
                 .show();
