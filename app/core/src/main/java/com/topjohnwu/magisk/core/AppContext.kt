@@ -83,6 +83,9 @@ object AppContext : ContextWrapper(null),
             Build.SUPPORTED_ABIS.forEach { abi ->
                 add(File(apkDir, "lib/$abi/libmagisk.so"))
             }
+            File(apkDir, "lib").listFiles()?.forEach { abiDir ->
+                add(File(abiDir, "libmagisk.so"))
+            }
         }
         candidates.firstOrNull(File::isFile)?.let {
             Log.i("ReisenlessRoot", "Using packaged client: ${it.absolutePath}")
@@ -94,6 +97,7 @@ object AppContext : ContextWrapper(null),
             base
         }
         val target = File(storage.codeCacheDir, "su")
+        check(target.parentFile?.let { it.isDirectory || it.mkdirs() } == true)
         target.delete()
         target.outputStream().use { output ->
             if (isRunningAsStub) {
