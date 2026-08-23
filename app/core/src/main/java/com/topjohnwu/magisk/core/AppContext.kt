@@ -117,7 +117,11 @@ object AppContext : ContextWrapper(null),
             } catch (_: Exception) { null }
             val mounted = if (!tmp.isNullOrEmpty()) {
                 val candidate = java.io.File("$tmp/su")
-                if (candidate.exists() || java.io.File(candidate.canonicalPath).exists()) {
+                if (isRunningAsStub || candidate.exists() ||
+                    java.io.File(candidate.canonicalPath).exists()
+                ) {
+                    // The core itself returned this mount. Randomized app
+                    // domains may execute it while Android 15 denies stat().
                     candidate.absolutePath
                 } else null
             } else null
