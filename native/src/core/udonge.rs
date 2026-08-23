@@ -5,6 +5,7 @@ use crate::consts::{
 use crate::ffi::{exec_script, exec_script_async, get_magisk_tmp};
 use base::const_format::concatcp;
 use base::{FsPathBuilder, ResultExt, cstr};
+use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 
 pub const UDONGE_MODULE_NAME: &str = "@udonge";
@@ -136,6 +137,7 @@ pub fn setup_runtime() {
             .join_path(BBPATH)
             .join_path(BUILD_BUSYBOX_NAME);
         let extracted = Command::new(&busybox)
+            .arg0("busybox")
             .arg("unzip")
             .arg("-oq")
             .arg(archive)

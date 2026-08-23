@@ -5,6 +5,14 @@
 #SECURE_DIR_STUB
 #BUILD_IDENTITY_STUB
 
+# BusyBox uses argv[0] to select multicall mode. Its filename is randomized
+# per build, so provide the expected argv[0] without exposing a stable path.
+run_busybox() (
+  local binary="$1"
+  shift
+  exec -a busybox "$binary" "$@"
+)
+
 # $1 = delay
 # $2 = command
 run_delay() {
@@ -101,12 +109,12 @@ refresh_udonge_runtime() {
   local version required
 
   [ -f "$archive" ] || return 0
-  version=$($MAGISKBIN/$BUSYBOX_NAME unzip -p "$archive" version 2>/dev/null | tr -d '\r\n')
+  version=$(run_busybox "$MAGISKBIN/$BUSYBOX_NAME" unzip -p "$archive" version 2>/dev/null | tr -d '\r\n')
   [ -n "$version" ] || return 1
 
   rm -rf "$next"
   mkdir -p "$next" || return 1
-  $MAGISKBIN/$BUSYBOX_NAME unzip -oq "$archive" -d "$next" || {
+  run_busybox "$MAGISKBIN/$BUSYBOX_NAME" unzip -oq "$archive" -d "$next" || {
     rm -rf "$next"
     return 1
   }

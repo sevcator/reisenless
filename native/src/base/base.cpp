@@ -115,8 +115,9 @@ int exec_command(exec_t &exec) {
     if (exec.pre_exec)
         exec.pre_exec();
 
-    execve(exec.argv[0], (char **) exec.argv, environ);
-    PLOGE("execve %s", exec.argv[0]);
+    const char *path = exec.path ? exec.path : exec.argv[0];
+    execve(path, (char **) exec.argv, environ);
+    PLOGE("execve %s", path);
     exit(-1);
 }
 

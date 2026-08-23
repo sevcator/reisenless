@@ -26,6 +26,15 @@
 # The non-volatile path where magisk executables are stored
 # MAGISKBIN=
 
+# BusyBox dispatches applets from argv[0]. The on-disk binary name is
+# randomized per build, so force the canonical multicall name without
+# creating a stable busybox path on disk.
+run_busybox() (
+  local binary="$1"
+  shift
+  exec -a busybox "$binary" "$@"
+)
+
 ###################
 # Helper Functions
 ###################
@@ -154,7 +163,7 @@ ensure_bb() {
   # Find our current arguments
   # Run in busybox environment to ensure consistent results
   # /proc/<pid>/cmdline shall be <interpreter> <script> <arguments...>
-  local cmds="$($bb sh -c "
+  local cmds="$(run_busybox "$bb" sh -c "
   for arg in \$(tr '\0' '\n' < /proc/$$/cmdline); do
     if [ -z \"\$cmds\" ]; then
       # Skip the first argument as we want to change the interpreter
@@ -166,7 +175,8 @@ ensure_bb() {
   echo \$cmds")"
 
   # Re-exec our script
-  echo $cmds | $bb xargs $bb
+  echo "$cmds" | run_busybox "$bb" xargs sh -c \
+    'binary=$1; shift; exec -a busybox "$binary" "$@"' _ "$bb"
   exit
 }
 

@@ -8,7 +8,7 @@
 
 using namespace std;
 
-#define BBEXEC_CMD bbpath(), "sh"
+#define BBEXEC_CMD "busybox", "sh"
 
 static const char *bbpath() {
     static string path;
@@ -32,7 +32,8 @@ static void set_script_env() {
 void exec_script(Utf8CStr script) {
     exec_t exec {
         .pre_exec = set_script_env,
-        .fork = fork_no_orphan
+        .fork = fork_no_orphan,
+        .path = bbpath(),
     };
     exec_command_sync(exec, BBEXEC_CMD, script.c_str());
 }
@@ -40,7 +41,8 @@ void exec_script(Utf8CStr script) {
 void exec_script_async(Utf8CStr script) {
     exec_t exec {
         .pre_exec = set_script_env,
-        .fork = fork_dont_care
+        .fork = fork_dont_care,
+        .path = bbpath(),
     };
     exec_command(exec, BBEXEC_CMD, script.c_str());
 }

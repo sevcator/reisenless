@@ -21,6 +21,7 @@ use bitflags::bitflags;
 use nix::fcntl::OFlag;
 use std::io::BufReader;
 use std::os::unix::net::UnixStream;
+use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::sync::atomic::Ordering;
 
@@ -86,6 +87,7 @@ impl MagiskD {
 
         // Install busybox applets
         Command::new(&tmp_bb)
+            .arg0("busybox")
             .arg("--install")
             .arg("-s")
             .arg(tmp_bb.parent_dir().unwrap_or_default())

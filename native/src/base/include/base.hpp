@@ -225,6 +225,7 @@ struct exec_t {
     void (*pre_exec)() = nullptr;
     int (*fork)() = xfork;
     const char **argv = nullptr;
+    const char *path = nullptr;
 };
 
 int exec_command(exec_t &exec);
