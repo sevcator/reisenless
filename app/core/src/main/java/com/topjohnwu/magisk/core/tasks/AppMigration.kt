@@ -5,6 +5,7 @@ import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import com.topjohnwu.magisk.StubApk
@@ -41,6 +42,7 @@ object AppMigration {
     // Reisenless application id. Both names must be rewritten during hiding.
     private const val LEGACY_PACKAGE_NAME = "com.topjohnwu.magisk"
     private const val SOURCE_PACKAGE_PLACEHOLDER = "source.reisenless.manager"
+    private val MIGRATION_APK_URI: Uri = Uri.parse("content://$APP_PACKAGE_NAME.migration/apk")
     private val PACKAGE_ROOTS = arrayOf(
         "com", "org", "net", "io", "co", "app", "dev", "me", "tech", "cloud",
     )
@@ -348,6 +350,15 @@ object AppMigration {
     private suspend fun launchApp(context: Context, pkg: String): Boolean {
         if (!isValidPackageName(pkg) || pkg == context.packageName) return false
         val intent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return false
+        try {
+            context.grantUriPermission(
+                pkg,
+                MIGRATION_APK_URI,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        } catch (_: RuntimeException) {
+            return false
+        }
         Config.migrationSource = context.packageName
         Config.migrationTarget = pkg
         intent.putExtra(Const.Key.PREV_CONFIG, Config.toBundle())
@@ -366,6 +377,10 @@ object AppMigration {
             }
         }
         if (!launched) {
+            context.revokeUriPermission(
+                MIGRATION_APK_URI,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
             Config.migrationSource = ""
             Config.migrationTarget = ""
         }

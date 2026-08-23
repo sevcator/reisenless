@@ -11,6 +11,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
+import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
 
@@ -21,6 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -61,6 +63,17 @@ public class DynLoad {
             m.setAccessible(true);
             m.invoke(o, context);
         } catch (Exception ignored) { /* Impossible */ }
+    }
+
+    private static InputStream openManagerApk(Context context, String sourceDir)
+            throws IOException {
+        try {
+            var uri = Uri.parse("content://" + APPLICATION_ID + ".migration/apk");
+            var input = context.getContentResolver().openInputStream(uri);
+            if (input != null) return input;
+        } catch (SecurityException | IllegalArgumentException ignored) {
+        }
+        return new FileInputStream(sourceDir);
     }
 
     // Dynamically load APK from internal, external storage, or previous app
@@ -107,11 +120,14 @@ public class DynLoad {
             try {
                 var info = context.getPackageManager().getApplicationInfo(APPLICATION_ID, 0);
                 apk.delete();
-                var src = new FileInputStream(info.sourceDir);
+                var src = openManagerApk(context, info.sourceDir);
                 var out = new FileOutputStream(apk);
-                apk.setReadOnly();
                 try (src; out) {
                     APKInstall.transfer(src, out);
+                }
+                if (!apk.setReadOnly()) {
+                    apk.delete();
+                    return null;
                 }
                 return new DynamicClassLoader(apk);
             } catch (PackageManager.NameNotFoundException ignored) {

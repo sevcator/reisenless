@@ -50,6 +50,12 @@
             android:exported="false"
             android:grantUriPermissions="true" />
 
+        <provider
+            android:name=".MigrationApkProvider"
+            android:authorities="${applicationId}.migration"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <!-- We handle initialization ourselves -->
         <provider
             android:name="androidx.startup.InitializationProvider"
