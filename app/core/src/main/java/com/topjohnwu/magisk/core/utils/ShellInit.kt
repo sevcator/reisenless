@@ -33,11 +33,13 @@ class ShellInit : Shell.Initializer() {
                 // running core. Use its mounted BusyBox directly: extracting a
                 // second copy into the randomized app cache is racy on Android
                 // 15 and can leave the first hidden launch without a shell.
-                val tmp = shell.newJob().add("${Const.MAIN_BIN} --path")
-                    .exec().out.firstOrNull()?.trim().orEmpty()
-                if (tmp.isEmpty()) return false
-                localBB = "$tmp/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME}"
-                add("export MAGISKTMP='$tmp'")
+                // Resolve the path in this initializer's shell script. Running
+                // a nested shell job here deadlocks because the same shell has
+                // not completed initialization yet.
+                add("export MAGISKTMP=\$(${Const.MAIN_BIN} --path)")
+                localBB = "\$MAGISKTMP/${Const.INTERNAL_DIR}/" +
+                    "${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME}"
+                Info.noDataExec = false
             } else {
                 // Android provides the exact extracted ABI directory here.
                 // Some Android 15 policies allow execution but deny stat(), so
@@ -48,7 +50,7 @@ class ShellInit : Shell.Initializer() {
                 ).absolutePath
             }
 
-            if (shell.isRoot) {
+            if (shell.isRoot && !isRunningAsStub) {
                 add("export MAGISKTMP=\$(${Const.MAIN_BIN} --path)")
                 // Test if we can properly execute stuff in /data
                 Info.noDataExec = !shell.newJob()
@@ -68,7 +70,7 @@ class ShellInit : Shell.Initializer() {
                 )
             } else {
                 // Directly execute the file
-                add("exec '$localBB' sh")
+                add("exec $localBB sh")
             }
 
             add(context.assets.open("app_functions.sh"))
