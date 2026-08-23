@@ -109,7 +109,12 @@ object AppContext : ContextWrapper(null),
         // directly and keeps libsu's process lifecycle identical to the core
         // that owns the mount. The APK client remains a recovery fallback for
         // safe-mode or partially mounted installations.
-        val (suCmd, needsArgvShim) = run {
+        val (suCmd, needsArgvShim) = if (isRunningAsStub) {
+            // Java caches its executable search path before the stub appends
+            // /debug_ramdisk, so name-based discovery falls through to the
+            // packaged client. Execute the live mounted client explicitly.
+            "/debug_ramdisk/su" to false
+        } else run {
             val tmp = try {
                 Runtime.getRuntime()
                     .exec(arrayOf(Const.MAIN_BIN, "--path"))
@@ -117,11 +122,7 @@ object AppContext : ContextWrapper(null),
             } catch (_: Exception) { null }
             val mounted = if (!tmp.isNullOrEmpty()) {
                 val candidate = java.io.File("$tmp/su")
-                if (isRunningAsStub || candidate.exists() ||
-                    java.io.File(candidate.canonicalPath).exists()
-                ) {
-                    // The core itself returned this mount. Randomized app
-                    // domains may execute it while Android 15 denies stat().
+                if (candidate.exists() || java.io.File(candidate.canonicalPath).exists()) {
                     candidate.absolutePath
                 } else null
             } else null
