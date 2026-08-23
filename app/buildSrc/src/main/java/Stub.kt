@@ -12,6 +12,7 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.StopExecutionException
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.assign
 import org.gradle.kotlin.dsl.register
@@ -263,6 +264,11 @@ private abstract class TaskWithDir : DefaultTask() {
     abstract val outputFolder: DirectoryProperty
 }
 
+private abstract class StubJniSync : Sync() {
+    @get:OutputDirectory
+    abstract val outputFolder: DirectoryProperty
+}
+
 fun Project.setupStubApk() {
     setupAppCommon()
 
@@ -274,7 +280,7 @@ fun Project.setupStubApk() {
 
             val syncRootClient = tasks.register(
                 "sync${variantCapped}StubRootClient",
-                TaskWithDir::class,
+                StubJniSync::class,
             ) {
                 outputFolder.set(layout.buildDirectory.dir("$variantName/rootClientJniLibs"))
                 into(outputFolder)
@@ -297,7 +303,7 @@ fun Project.setupStubApk() {
             }
             variant.sources.jniLibs?.addGeneratedSourceDirectory(
                 syncRootClient,
-                TaskWithDir::outputFolder,
+                StubJniSync::outputFolder,
             )
 
             val componentJavaOutDir = layout.buildDirectory
