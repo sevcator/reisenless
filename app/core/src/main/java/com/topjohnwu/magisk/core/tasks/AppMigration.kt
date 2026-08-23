@@ -23,6 +23,7 @@ import com.topjohnwu.magisk.core.utils.Keygen
 import com.topjohnwu.magisk.utils.APKInstall
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -432,6 +433,9 @@ object AppMigration {
                 if (!installMigrationApk(repack)) {
                     return@withContext false
                 }
+                // Package verification can report install success slightly
+                // before installd finishes publishing the new data directory.
+                delay(750)
                 installedMainPackage = newPackage
                 val newUid = installedUid(context, newPackage)
                     ?: return@withContext false

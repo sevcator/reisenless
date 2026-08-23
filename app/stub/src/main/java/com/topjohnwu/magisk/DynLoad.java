@@ -12,6 +12,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
+import android.os.SystemClock;
 
 import com.topjohnwu.magisk.utils.APKInstall;
 import com.topjohnwu.magisk.utils.DynamicClassLoader;
@@ -37,6 +38,19 @@ public class DynLoad {
         data.setClassToComponent(new HashMap<>());
         data.setRootService(StubRootService.class);
         return data;
+    }
+
+    private static PackageInfo parseArchive(PackageManager pm, File apk, int flags) {
+        // A freshly installed stub can start before installd has finished
+        // publishing its data-directory labels to system_server. Retry the
+        // archive parse instead of permanently discarding a valid full APK.
+        for (int attempt = 0; attempt < 20; ++attempt) {
+            // noinspection WrongConstant
+            var info = pm.getPackageArchiveInfo(apk.getPath(), flags);
+            if (info != null) return info;
+            SystemClock.sleep(100);
+        }
+        throw new IllegalStateException("unable to parse manager archive");
     }
 
     static void attachContext(Object o, Context context) {
@@ -135,8 +149,7 @@ public class DynLoad {
 
         final var cl = loadApk(context);
         if (cl != null) try {
-            // noinspection WrongConstant
-            var apkInfo = pm.getPackageArchiveInfo(apk.getPath(), flags);
+            var apkInfo = parseArchive(pm, apk, flags);
             var mapping = generateMapping(stubInfo, apkInfo);
 
             var data = createApkData();
