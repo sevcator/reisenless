@@ -1,7 +1,7 @@
 use crate::consts::{APP_PACKAGE_NAME, BUILD_STUB_NAME, BUILD_SU_CACHE, MAGISK_VER_CODE, SECURE_DIR};
 use crate::daemon::{AID_APP_END, AID_APP_START, AID_USER_OFFSET, MagiskD, to_app_id};
 use crate::ffi::{DbEntryKey, get_magisk_tmp};
-use base::WalkResult::{Abort, Continue, Skip};
+use base::WalkResult::{Continue, Skip};
 use base::{
     BufReadExt, Directory, FsPathBuilder, LoggedResult, ReadExt, ResultExt, Utf8CStrBuf,
     Utf8CString, cstr, error, fd_get_attr, warn,
@@ -152,24 +152,31 @@ fn read_certificate(apk: &mut File, version: i32) -> Vec<u8> {
 
 fn find_apk_path(pkg: &str) -> LoggedResult<Utf8CString> {
     let mut buf = cstr::buf::default();
+    let mut latest = None;
     Directory::open(cstr!("/data/app"))?.pre_order_walk(|e| {
         if !e.is_dir() {
             return Ok(Skip);
         }
         let name_bytes = e.name().as_bytes();
         if name_bytes.starts_with(pkg.as_bytes()) && name_bytes[pkg.len()] == b'-' {
-            // Found the APK path, we can abort now
-            e.resolve_path(&mut buf)?;
-            return Ok(Abort);
+            let mut candidate = cstr::buf::default();
+            e.resolve_path(&mut candidate)?;
+            candidate.push_str("/base.apk");
+            if let Ok(attr) = candidate.get_attr() {
+                let timestamp = (attr.st.st_ctime, attr.st.st_ctime_nsec);
+                if latest.is_none_or(|current| timestamp > current) {
+                    buf.clear();
+                    buf.push_str(candidate.as_str());
+                    latest = Some(timestamp);
+                }
+            }
+            return Ok(Skip);
         }
         if name_bytes.starts_with(b"~~") {
             return Ok(Continue);
         }
         Ok(Skip)
     })?;
-    if !buf.is_empty() {
-        buf.push_str("/base.apk");
-    }
     Ok(buf.to_owned())
 }
 
@@ -257,6 +264,30 @@ impl TrackedFile {
 }
 
 impl ManagerInfo {
+    fn check_orig_uid(&mut self, daemon: &MagiskD, user: i32, uid: i32) -> bool {
+        let Ok(apk) = find_apk_path(APP_PACKAGE_NAME) else {
+            return false;
+        };
+        if apk.is_empty() {
+            return false;
+        }
+
+        let cert = match apk.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
+            Ok(mut fd) => read_certificate(&mut fd, MAGISK_VER_CODE),
+            Err(_) => return false,
+        };
+        if cert.is_empty() || cert != self.trusted_cert {
+            return false;
+        }
+        if daemon.get_package_uid(user, APP_PACKAGE_NAME) != uid {
+            return false;
+        }
+
+        std::fs::write(APK_CACHE_FILE, apk.to_string().as_bytes()).ok();
+        self.tracked_files.insert(user, TrackedFile::new(apk));
+        true
+    }
+
     fn check_dyn(&mut self, daemon: &MagiskD, user: i32, pkg: &str) -> Status {
         let apk = cstr::buf::default()
             .join_path(daemon.app_data_dir())
@@ -458,6 +489,15 @@ impl MagiskD {
         let mut info = self.manager_info.lock();
         let (uid, _) = info.get_manager(self, user);
         uid
+    }
+
+    pub fn is_manager_uid(&self, user: i32, uid: i32) -> bool {
+        let mut info = self.manager_info.lock();
+        let manager_uid = {
+            let (manager_uid, _) = info.get_manager(self, user);
+            manager_uid
+        };
+        manager_uid == uid || info.check_orig_uid(self, user, uid)
     }
 
     pub fn get_manager(&self, user: i32) -> (i32, String) {
