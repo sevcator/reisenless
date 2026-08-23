@@ -34,6 +34,10 @@ object ReisenlessSettings : BaseSettingsItem.Section() {
     override val title = CoreR.string.home_app_title.asText()
 }
 
+object UdongeSettings : BaseSettingsItem.Section() {
+    override val title = CoreR.string.udonge.asText()
+}
+
 object Language : BaseSettingsItem.Selector() {
     private val names: Array<String> get() = LocaleSetting.available.names
     private val tags: Array<String> get() = LocaleSetting.available.tags
@@ -121,31 +125,7 @@ object RepositorySearcher : BaseSettingsItem.SplitToggle() {
 
     override fun onPressed(view: View, handler: Handler) {
         handler.onItemPressed(view, this) {
-            val input = EditText(view.context).apply {
-                hint = view.resources.getString(CoreR.string.repository_links_hint)
-                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-                minLines = 5
-                maxLines = 12
-                setText(Config.moduleRepositoryUrls)
-                setSelection(text.length)
-            }
-            MagiskDialog(view.activity).apply {
-                setTitle(CoreR.string.repository_links_title)
-                setView(input)
-                setButton(MagiskDialog.ButtonType.POSITIVE) {
-                    text = android.R.string.ok
-                    onClick {
-                        Config.moduleRepositoryUrls = input.text.lineSequence()
-                            .map(String::trim)
-                            .filter(String::isNotBlank)
-                            .distinct()
-                            .joinToString("\n")
-                    }
-                }
-                setButton(MagiskDialog.ButtonType.NEGATIVE) {
-                    text = android.R.string.cancel
-                }
-            }.show()
+            RepositorySettingsDialog(view).show()
         }
     }
 }
@@ -187,6 +167,12 @@ object HideApps : BaseSettingsItem.SplitToggle() {
         }
 
     override fun refresh() = notifyPropertyChanged(BR.checked)
+}
+
+object UdongeEnabled : BaseSettingsItem.Toggle() {
+    override val title = CoreR.string.udonge_integrity_title.asText()
+    override val description = CoreR.string.udonge_integrity_summary.asText()
+    override var value by Config::udongeEnabled
 }
 
 object UdongeBackgroundUpdates : BaseSettingsItem.SplitToggle() {

@@ -1,8 +1,5 @@
 package com.topjohnwu.magisk.ui.settings
 
-import android.annotation.SuppressLint
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
@@ -46,13 +43,11 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.ShortcutManagerCompat
-import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.Udonge
-import com.topjohnwu.magisk.hideapps.HideAppsRepository
 import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
 import com.topjohnwu.magisk.core.isRunningAsStub
 import com.topjohnwu.magisk.core.ktx.toast
@@ -72,6 +67,11 @@ import com.topjohnwu.magisk.core.R as CoreR
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
+    var showRepositorySettings by rememberSaveable { mutableStateOf(false) }
+    if (showRepositorySettings) {
+        RepositorySettingsScreen(onBack = { showRepositorySettings = false })
+        return
+    }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
         topBar = {
@@ -92,7 +92,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
         ) {
             CustomizationSection(viewModel)
             Spacer(Modifier.height(12.dp))
-            AppSettingsSection()
+            AppSettingsSection(onOpenRepositorySettings = { showRepositorySettings = true })
             if (Info.env.isActive) {
                 Spacer(Modifier.height(12.dp))
                 UdongeSection()
@@ -112,42 +112,6 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 @Composable
 private fun CustomizationSection(viewModel: SettingsViewModel) {
     val context = LocalContext.current
-    var repositoryEnabled by remember { mutableStateOf(Config.repositorySearcherEnabled) }
-    var showRepositoryLinks by rememberSaveable { mutableStateOf(false) }
-    var repositoryLinks by rememberSaveable { mutableStateOf(Config.moduleRepositoryUrls) }
-
-    if (showRepositoryLinks) {
-        AlertDialog(
-            onDismissRequest = { showRepositoryLinks = false },
-            title = { Text(stringResource(CoreR.string.repository_links_title)) },
-            text = {
-                OutlinedTextField(
-                    value = repositoryLinks,
-                    onValueChange = { repositoryLinks = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 5,
-                    maxLines = 12,
-                    label = { Text(stringResource(CoreR.string.repository_links_hint)) },
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    Config.moduleRepositoryUrls = repositoryLinks.lineSequence()
-                        .map(String::trim)
-                        .filter(String::isNotBlank)
-                        .distinct()
-                        .joinToString("\n")
-                    repositoryLinks = Config.moduleRepositoryUrls
-                    showRepositoryLinks = false
-                }) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRepositoryLinks = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
 
     SmallTitle(text = stringResource(CoreR.string.settings_customization))
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -228,16 +192,6 @@ private fun CustomizationSection(viewModel: SettingsViewModel) {
                 Config.doh = it
             }
         )
-        SettingsSwitchAction(
-            title = stringResource(CoreR.string.repository_searcher),
-            summary = stringResource(CoreR.string.repository_searcher_summary),
-            checked = repositoryEnabled,
-            onClick = { showRepositoryLinks = true },
-            onCheckedChange = { enabled ->
-                repositoryEnabled = enabled
-                Config.repositorySearcherEnabled = enabled
-            },
-        )
     }
 }
 
@@ -316,58 +270,14 @@ private fun RgbColorSetting(title: String, color: Int, onColorChange: (Int) -> U
 // --- App Settings ---
 
 @Composable
-private fun AppSettingsSection() {
+private fun AppSettingsSection(onOpenRepositorySettings: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val loadingDialog = rememberLoadingDialog()
     val isHidden = context.packageName != BuildConfig.APP_PACKAGE_NAME
     var showHideDialog by rememberSaveable { mutableStateOf(false) }
     var showRestoreDialog by rememberSaveable { mutableStateOf(false) }
-    var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
-    var backgroundModules by remember { mutableStateOf(Config.udongeBackgroundModules) }
-    var backgroundKeyboxes by remember { mutableStateOf(Config.udongeBackgroundKeyboxes) }
-    var draftBackgroundModules by remember { mutableStateOf(backgroundModules) }
-    var draftBackgroundKeyboxes by remember { mutableStateOf(backgroundKeyboxes) }
-    var showBackgroundTargets by rememberSaveable { mutableStateOf(false) }
-
-    if (showBackgroundTargets) {
-        AlertDialog(
-            onDismissRequest = { showBackgroundTargets = false },
-            title = { Text(stringResource(CoreR.string.udonge_background_updates_title)) },
-            text = {
-                Column {
-                    BackgroundUpdateTarget(
-                        title = stringResource(CoreR.string.udonge_background_updates_modules),
-                        checked = draftBackgroundModules,
-                        onCheckedChange = { draftBackgroundModules = it },
-                    )
-                    BackgroundUpdateTarget(
-                        title = stringResource(CoreR.string.udonge_background_updates_keyboxes),
-                        checked = draftBackgroundKeyboxes,
-                        onCheckedChange = { draftBackgroundKeyboxes = it },
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showBackgroundTargets = false
-                    backgroundModules = draftBackgroundModules
-                    backgroundKeyboxes = draftBackgroundKeyboxes
-                    scope.launch(Dispatchers.IO) {
-                        Udonge.setBackgroundUpdateTargets(
-                            modules = draftBackgroundModules,
-                            keyboxes = draftBackgroundKeyboxes,
-                        )
-                    }
-                }) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBackgroundTargets = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
+    var repositoryEnabled by remember { mutableStateOf(Config.repositorySearcherEnabled) }
 
     if (showHideDialog) {
         HideAppDialog(
@@ -401,32 +311,16 @@ private fun AppSettingsSection() {
 
     SmallTitle(text = stringResource(CoreR.string.home_app_title))
     Card(modifier = Modifier.fillMaxWidth()) {
-        if (Info.env.isActive) {
-            val selectedTargets = listOfNotNull(
-                stringResource(CoreR.string.udonge_background_updates_modules)
-                    .takeIf { backgroundModules },
-                stringResource(CoreR.string.udonge_background_updates_keyboxes)
-                    .takeIf { backgroundKeyboxes },
-            ).joinToString(", ").ifEmpty {
-                stringResource(CoreR.string.udonge_background_updates_none)
-            }
-            SettingsSwitchAction(
-                title = stringResource(CoreR.string.udonge_background_updates_title),
-                summary = selectedTargets,
-                checked = backgroundUpdates,
-                onClick = {
-                    draftBackgroundModules = backgroundModules
-                    draftBackgroundKeyboxes = backgroundKeyboxes
-                    showBackgroundTargets = true
-                },
-                onCheckedChange = { next ->
-                    backgroundUpdates = next
-                    scope.launch(Dispatchers.IO) {
-                        if (!Udonge.setBackgroundUpdates(next)) backgroundUpdates = !next
-                    }
-                },
-            )
-        }
+        SettingsSwitchAction(
+            title = stringResource(CoreR.string.repository_searcher),
+            summary = stringResource(CoreR.string.repository_searcher_summary),
+            checked = repositoryEnabled,
+            onClick = onOpenRepositorySettings,
+            onCheckedChange = { enabled ->
+                repositoryEnabled = enabled
+                Config.repositorySearcherEnabled = enabled
+            },
+        )
         SettingsArrow(
             title = stringResource(
                 if (isHidden) CoreR.string.settings_restore_app_title
@@ -610,10 +504,56 @@ private fun SuperuserSection(viewModel: SettingsViewModel) {
 @Composable
 private fun UdongeSection() {
     val scope = rememberCoroutineScope()
+    var enabled by remember { mutableStateOf(Config.udongeEnabled) }
+    var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
+    var backgroundModules by remember { mutableStateOf(Config.udongeBackgroundModules) }
+    var backgroundKeyboxes by remember { mutableStateOf(Config.udongeBackgroundKeyboxes) }
+    var draftBackgroundModules by remember { mutableStateOf(backgroundModules) }
+    var draftBackgroundKeyboxes by remember { mutableStateOf(backgroundKeyboxes) }
+    var showBackgroundTargets by rememberSaveable { mutableStateOf(false) }
     var showKeyboxes by rememberSaveable { mutableStateOf(false) }
     var keyboxUrls by rememberSaveable { mutableStateOf(Config.udongeKeyboxUrls) }
     var showRomKeywords by rememberSaveable { mutableStateOf(false) }
     var romKeywords by rememberSaveable { mutableStateOf(Config.udongeRomKeywords) }
+
+    if (showBackgroundTargets) {
+        AlertDialog(
+            onDismissRequest = { showBackgroundTargets = false },
+            title = { Text(stringResource(CoreR.string.udonge_background_updates_title)) },
+            text = {
+                Column {
+                    BackgroundUpdateTarget(
+                        title = stringResource(CoreR.string.udonge_background_updates_modules),
+                        checked = draftBackgroundModules,
+                        onCheckedChange = { draftBackgroundModules = it },
+                    )
+                    BackgroundUpdateTarget(
+                        title = stringResource(CoreR.string.udonge_background_updates_keyboxes),
+                        checked = draftBackgroundKeyboxes,
+                        onCheckedChange = { draftBackgroundKeyboxes = it },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBackgroundTargets = false
+                    backgroundModules = draftBackgroundModules
+                    backgroundKeyboxes = draftBackgroundKeyboxes
+                    scope.launch(Dispatchers.IO) {
+                        Udonge.setBackgroundUpdateTargets(
+                            modules = draftBackgroundModules,
+                            keyboxes = draftBackgroundKeyboxes,
+                        )
+                    }
+                }) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBackgroundTargets = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
 
     if (showKeyboxes) {
         AlertDialog(
@@ -677,7 +617,44 @@ private fun UdongeSection() {
         )
     }
 
+    val selectedTargets = listOfNotNull(
+        stringResource(CoreR.string.udonge_background_updates_modules)
+            .takeIf { backgroundModules },
+        stringResource(CoreR.string.udonge_background_updates_keyboxes)
+            .takeIf { backgroundKeyboxes },
+    ).joinToString(", ").ifEmpty {
+        stringResource(CoreR.string.udonge_background_updates_none)
+    }
+
+    SmallTitle(text = stringResource(CoreR.string.udonge))
     Card(modifier = Modifier.fillMaxWidth()) {
+        SettingsSwitch(
+            title = stringResource(CoreR.string.udonge_integrity_title),
+            summary = stringResource(CoreR.string.udonge_integrity_summary),
+            checked = enabled,
+            onCheckedChange = { next ->
+                enabled = next
+                scope.launch(Dispatchers.IO) {
+                    if (!Udonge.setEnabled(next)) enabled = !next
+                }
+            },
+        )
+        SettingsSwitchAction(
+            title = stringResource(CoreR.string.udonge_background_updates_title),
+            summary = selectedTargets,
+            checked = backgroundUpdates,
+            onClick = {
+                draftBackgroundModules = backgroundModules
+                draftBackgroundKeyboxes = backgroundKeyboxes
+                showBackgroundTargets = true
+            },
+            onCheckedChange = { next ->
+                backgroundUpdates = next
+                scope.launch(Dispatchers.IO) {
+                    if (!Udonge.setBackgroundUpdates(next)) backgroundUpdates = !next
+                }
+            },
+        )
         SettingsArrow(
             title = stringResource(CoreR.string.udonge_keybox_list_title),
             summary = stringResource(CoreR.string.udonge_keybox_list_summary),
@@ -693,26 +670,8 @@ private fun UdongeSection() {
 
 // --- Helpers ---
 
-@SuppressLint("InlinedApi", "QueryPermissionsNeeded")
 private fun syncRomKeywordsHideApps(keywords: String) {
-    val kwList = keywords.lineSequence()
-        .map(String::trim)
-        .filter { it.length >= 3 && it.none(Char::isWhitespace) }
-        .toList()
-    if (kwList.isEmpty()) return
-    val pm = AppContext.packageManager
-    @Suppress("DEPRECATION")
-    val installed = pm.getInstalledApplications(PackageManager.MATCH_UNINSTALLED_PACKAGES)
-    val romPkgs = installed
-        .filter { info -> kwList.any { kw -> info.packageName.contains(kw, ignoreCase = true) } }
-        .map { it.packageName }.toSet()
-    if (romPkgs.isEmpty()) return
-    val systemPkgs = installed.asSequence()
-        .filter { it.flags and ApplicationInfo.FLAG_SYSTEM != 0 }
-        .map { it.packageName }.toSet()
-    val repo = HideAppsRepository(AppContext)
-    repo.setHiddenAll(romPkgs)
-    HideAppsRootClient.sync(repo.config, systemPkgs)
+    HideAppsRootClient.syncRomKeywordsHideApps(keywords)
 }
 
 // --- Dialogs ---

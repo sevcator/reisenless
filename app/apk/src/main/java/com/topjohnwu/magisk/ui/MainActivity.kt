@@ -32,10 +32,12 @@ import com.topjohnwu.magisk.core.model.module.LocalModule
 import com.topjohnwu.magisk.core.tasks.AppMigration
 import com.topjohnwu.magisk.databinding.ActivityMainMd2Binding
 import com.topjohnwu.magisk.ui.home.HomeFragmentDirections
+import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
 import com.topjohnwu.magisk.ui.theme.Theme
 import com.topjohnwu.magisk.view.MagiskDialog
 import com.topjohnwu.magisk.view.Shortcuts
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import java.io.File
 import com.topjohnwu.magisk.core.R as CoreR
 
@@ -91,6 +93,12 @@ class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenH
         setContentView()
         showUnsupportedMessage()
         askForHomeShortcut()
+
+        if (Info.env.isActive && Config.udongeRomKeywords.isNotBlank()) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                HideAppsRootClient.syncRomKeywordsHideApps(Config.udongeRomKeywords)
+            }
+        }
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 

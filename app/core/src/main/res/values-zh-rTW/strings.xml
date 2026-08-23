@@ -230,7 +230,7 @@
     <string name="settings_sulist_config_title">設定 sulist</string>
     <string name="settings_sulist_config_summary">選擇允許使用 reisenless 的應用程式和處理程序</string>
     <string name="webui">網頁介面</string>
-    <string name="udonge">reisenless</string>
+    <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">允許背景更新</string>
     <string name="udonge_background_updates_summary">選擇 modules 和 keyboxes</string>
     <string name="udonge_background_updates_modules">modules</string>
@@ -252,9 +252,18 @@
     <string name="repository_searcher">儲存庫搜尋</string>
     <string name="repository_searcher_summary">設定線上模組儲存庫並顯示線上搜尋按鈕</string>
     <string name="repository_links_title">模組儲存庫連結</string>
-    <string name="repository_links_hint">每行一個 modules.json 或 GitHub 模組儲存庫網址</string>
+    <string name="repository_links_hint">每行一個 MMRL 儲存庫網址</string>
     <string name="repository_search_hint">搜尋線上模組</string>
     <string name="repository_load_failed">無法載入任何已設定的儲存庫</string>
     <string name="repository_no_results">沒有相符的線上模組</string>
+    <string name="repository_mmrl_url_hint">MMRL 儲存庫網址</string>
+    <string name="repository_mmrl_url_invalid">請輸入 HTTPS MMRL 儲存庫或 modules.json 網址</string>
+    <string name="repository_add_trusted">新增受信任儲存庫</string>
+    <string name="repository_add">新增</string>
+    <string name="repository_web">網頁</string>
+    <string name="repository_trusted">受信任的 MMRL 儲存庫</string>
+    <string name="repository_configured">已設定儲存庫</string>
+    <string name="repository_none_configured">未設定儲存庫</string>
+    <string name="repository_module_count">%1$d 個模組</string>
     <string name="module_search_installed">搜尋已安裝模組</string>
 </resources>

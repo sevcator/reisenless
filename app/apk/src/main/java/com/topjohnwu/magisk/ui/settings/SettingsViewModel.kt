@@ -45,24 +45,32 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         )
         if (isRunningAsStub && ShortcutManagerCompat.isRequestPinShortcutSupported(context))
             list.add(AddShortcut)
-        list.add(RepositorySearcher)
 
-        // Reisenless
+        // App
         list.add(ReisenlessSettings)
-        if (Info.env.isActive) {
-            list.add(UdongeBackgroundUpdates)
-        }
+        list.add(RepositorySearcher)
         if (Const.USER_ID == 0) {
             list.add(if (hidden) Restore else Hide)
         }
         if (Info.env.isActive) {
+            // Udonge
+            list.addAll(
+                listOf(
+                    UdongeSettings,
+                    UdongeEnabled,
+                    UdongeBackgroundUpdates,
+                    UdongeKeyboxes,
+                    UdongeRomKeywords,
+                )
+            )
+
+            // Core
             list.add(SystemlessHosts)
             if (Const.Version.atLeast_24_0()) {
                 list.add(Zygisk)
             }
             list.add(SuList)
             list.add(HideApps)
-            list.addAll(listOf(UdongeKeyboxes, UdongeRomKeywords))
         }
 
         if (Info.showSuperUser) {
@@ -119,6 +127,15 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
                     HideAppsRootClient.syncCurrentConfig()
                 }
                 SnackbarEvent(R.string.reboot_apply_change).publish()
+            }
+            UdongeEnabled -> {
+                val requested = UdongeEnabled.value
+                Shell.EXECUTOR.execute {
+                    if (!Udonge.setEnabled(requested) && Config.udongeEnabled == requested) {
+                        Config.udongeEnabled = !requested
+                        view.post { UdongeEnabled.notifyPropertyChanged(BR.checked) }
+                    }
+                }
             }
             UdongeBackgroundUpdates -> {
                 val requested = UdongeBackgroundUpdates.value

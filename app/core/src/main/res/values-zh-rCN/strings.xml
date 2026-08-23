@@ -239,7 +239,7 @@
     <string name="settings_sulist_config_title">配置 sulist</string>
     <string name="settings_sulist_config_summary">选择允许使用 reisenless 的应用和进程</string>
     <string name="webui">网页界面</string>
-    <string name="udonge">reisenless</string>
+    <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">允许后台更新</string>
     <string name="udonge_background_updates_summary">选择 modules 和 keyboxes</string>
     <string name="udonge_background_updates_modules">modules</string>
@@ -261,9 +261,18 @@
     <string name="repository_searcher">仓库搜索</string>
     <string name="repository_searcher_summary">配置在线模块仓库并显示在线搜索按钮</string>
     <string name="repository_links_title">模块仓库链接</string>
-    <string name="repository_links_hint">每行一个 modules.json 或 GitHub 模块仓库网址</string>
+    <string name="repository_links_hint">每行一个 MMRL 仓库网址</string>
     <string name="repository_search_hint">搜索在线模块</string>
     <string name="repository_load_failed">无法加载任何已配置的仓库</string>
     <string name="repository_no_results">没有匹配的在线模块</string>
+    <string name="repository_mmrl_url_hint">MMRL 仓库网址</string>
+    <string name="repository_mmrl_url_invalid">请输入 HTTPS MMRL 仓库或 modules.json 网址</string>
+    <string name="repository_add_trusted">添加受信任仓库</string>
+    <string name="repository_add">添加</string>
+    <string name="repository_web">网页</string>
+    <string name="repository_trusted">受信任的 MMRL 仓库</string>
+    <string name="repository_configured">已配置仓库</string>
+    <string name="repository_none_configured">未配置仓库</string>
+    <string name="repository_module_count">%1$d 个模块</string>
     <string name="module_search_installed">搜索已安装模块</string>
 </resources>

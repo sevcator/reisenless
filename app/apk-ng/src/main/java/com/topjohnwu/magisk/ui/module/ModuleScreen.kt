@@ -182,6 +182,7 @@ fun ModuleScreen(viewModel: ModuleViewModel) {
                             Icon(
                                 imageVector = if (localSearchVisible) Icons.Default.Close else Icons.Default.Search,
                                 contentDescription = stringResource(CoreR.string.module_search_installed),
+                                tint = colorScheme.primary,
                             )
                         }
                     }
@@ -190,6 +191,7 @@ fun ModuleScreen(viewModel: ModuleViewModel) {
                             Icon(
                                 imageVector = Icons.Default.TravelExplore,
                                 contentDescription = stringResource(CoreR.string.repository_searcher),
+                                tint = colorScheme.primary,
                             )
                         }
                     }
@@ -332,7 +334,13 @@ private fun RepositoryScreen(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
                         IconButton(onClick = { query = "" }) {

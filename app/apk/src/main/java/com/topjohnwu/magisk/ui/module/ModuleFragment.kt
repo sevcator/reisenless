@@ -1,6 +1,7 @@
 package com.topjohnwu.magisk.ui.module
 
 import android.os.Bundle
+import android.graphics.Color
 import android.graphics.Typeface
 import android.view.Gravity
 import android.view.Menu
@@ -12,12 +13,15 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.widget.SearchView
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.color.MaterialColors
+import com.google.android.material.R as MaterialR
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.arch.BaseFragment
 import com.topjohnwu.magisk.arch.viewModel
@@ -74,6 +78,16 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
 
     override fun onCreateMenu(menu: Menu, inflater: MenuInflater) {
         inflater.inflate(R.menu.menu_module, menu)
+        val accent = MaterialColors.getColor(
+            requireView(),
+            MaterialR.attr.colorPrimary,
+            Color.MAGENTA,
+        )
+        listOf(R.id.action_module_search, R.id.action_repository_search).forEach { itemId ->
+            menu.findItem(itemId).icon?.mutate()?.let { icon ->
+                DrawableCompat.setTint(icon, accent)
+            }
+        }
         installedSearchView = menu.findItem(R.id.action_module_search).actionView as SearchView
         installedSearchView.queryHint = getString(CoreR.string.module_search_installed)
         installedSearchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
@@ -267,6 +281,12 @@ private class RepositoryAdapter(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { setMargins(0, spacing / 2, 0, spacing / 2) }
+            strokeWidth = (resources.displayMetrics.density).toInt().coerceAtLeast(1)
+            strokeColor = MaterialColors.getColor(
+                this,
+                MaterialR.attr.colorOutline,
+                Color.GRAY,
+            )
         }
         val content = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL

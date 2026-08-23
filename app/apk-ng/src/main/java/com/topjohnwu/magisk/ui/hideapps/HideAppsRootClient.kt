@@ -8,6 +8,7 @@ import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.hideapps.HideAppsConfig
 import com.topjohnwu.magisk.hideapps.HideAppsConstants
+import com.topjohnwu.magisk.hideapps.HideAppsRepository
 import com.topjohnwu.magisk.hideapps.HideAppsStatus
 import com.topjohnwu.superuser.Shell
 
@@ -50,6 +51,33 @@ object HideAppsRootClient {
                 "'$state/${HideAppsConstants.CONFIG_FILE}' 2>/dev/null"
         ).exec().out.firstOrNull()?.trim()?.toIntOrNull() ?: 0
         return HideAppsStatus(active, HideAppsConstants.RUNTIME_VERSION, count)
+    }
+
+    fun syncRomKeywordsHideApps(keywords: String): Boolean {
+        val matches = keywords.lineSequence()
+            .map(String::trim)
+            .filter { it.length >= 3 && it.none(Char::isWhitespace) }
+            .toList()
+        if (matches.isEmpty()) return true
+
+        fun packageList(systemOnly: Boolean = false): Set<String> {
+            val option = if (systemOnly) " -s" else ""
+            return Shell.cmd("cmd package list packages$option").exec().out
+                .asSequence()
+                .map { it.removePrefix("package:").trim() }
+                .filter(::isPackageName)
+                .toSet()
+        }
+
+        val installedPackages = packageList()
+        val romPackages = installedPackages.filterTo(mutableSetOf()) { packageName ->
+            matches.any { keyword -> packageName.contains(keyword, ignoreCase = true) }
+        }
+        if (romPackages.isEmpty()) return true
+
+        val repository = HideAppsRepository(AppContext)
+        repository.setHiddenAll(romPackages)
+        return sync(repository.config, packageList(systemOnly = true))
     }
 
     private fun isPackageName(value: String): Boolean =

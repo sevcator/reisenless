@@ -46,6 +46,7 @@ import com.topjohnwu.magisk.ui.flash.FlashScreen
 import com.topjohnwu.magisk.ui.flash.FlashUtils
 import com.topjohnwu.magisk.ui.flash.FlashViewModel
 import com.topjohnwu.magisk.ui.hideapps.HideAppsScreen
+import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
 import com.topjohnwu.magisk.ui.hideapps.HideAppsViewModel
 import com.topjohnwu.magisk.ui.module.ActionScreen
 import com.topjohnwu.magisk.ui.module.ActionViewModel
@@ -55,6 +56,7 @@ import com.topjohnwu.magisk.ui.navigation.Route
 import com.topjohnwu.magisk.ui.navigation.rememberNavigator
 import com.topjohnwu.magisk.view.Shortcuts
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.topjohnwu.magisk.core.R as CoreR
 
@@ -94,6 +96,12 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
     override fun onCreateUi(savedInstanceState: Bundle?) {
         showUnsupportedMessage()
         askForHomeShortcut()
+
+        if (Info.env.isActive && Config.udongeRomKeywords.isNotBlank()) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                HideAppsRootClient.syncRomKeywordsHideApps(Config.udongeRomKeywords)
+            }
+        }
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 

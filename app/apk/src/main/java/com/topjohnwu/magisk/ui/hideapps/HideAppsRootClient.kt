@@ -1,9 +1,6 @@
 package com.topjohnwu.magisk.ui.hideapps
 
 import android.util.Base64
-import android.annotation.SuppressLint
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES
 import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
@@ -52,31 +49,23 @@ object HideAppsRootClient {
         return true
     }
 
-    @SuppressLint("InlinedApi", "QueryPermissionsNeeded")
     fun syncCurrentConfig(): Boolean {
-        val apps = AppContext.packageManager
-            .getInstalledApplications(MATCH_UNINSTALLED_PACKAGES)
         return sync(
             HideAppsRepository(AppContext).config,
-            apps.mapTo(mutableSetOf(), ApplicationInfo::packageName),
-            apps.asSequence()
-                .filter { it.flags and ApplicationInfo.FLAG_SYSTEM != 0 }
-                .mapTo(mutableSetOf(), ApplicationInfo::packageName),
+            packageList(),
+            packageList(systemOnly = true),
         )
     }
 
-    @SuppressLint("InlinedApi", "QueryPermissionsNeeded")
     fun syncRomKeywordsHideApps(keywords: String): Boolean {
         val kwList = keywords.lineSequence()
             .map(String::trim)
             .filter { it.length >= 3 && it.none(Char::isWhitespace) }
             .toList()
         if (kwList.isEmpty()) return true
-        val installed = AppContext.packageManager
-            .getInstalledApplications(MATCH_UNINSTALLED_PACKAGES)
-        val romPkgs = installed
-            .filter { info -> kwList.any { kw -> info.packageName.contains(kw, ignoreCase = true) } }
-            .mapTo(mutableSetOf(), ApplicationInfo::packageName)
+        val romPkgs = packageList().filterTo(mutableSetOf()) { packageName ->
+            kwList.any { keyword -> packageName.contains(keyword, ignoreCase = true) }
+        }
         if (romPkgs.isEmpty()) return true
         HideAppsRepository(AppContext).setHiddenAll(romPkgs)
         return syncCurrentConfig()
@@ -92,4 +81,16 @@ object HideAppsRootClient {
         ).exec().out.firstOrNull()?.trim()?.toIntOrNull() ?: 0
         return HideAppsStatus(active, HideAppsConstants.RUNTIME_VERSION, count)
     }
+
+    private fun packageList(systemOnly: Boolean = false): Set<String> {
+        val option = if (systemOnly) " -s" else ""
+        return Shell.cmd("cmd package list packages$option").exec().out
+            .asSequence()
+            .map { it.removePrefix("package:").trim() }
+            .filter(::isPackageName)
+            .toSet()
+    }
+
+    private fun isPackageName(value: String): Boolean =
+        value.matches(Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+"))
 }

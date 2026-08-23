@@ -7,6 +7,13 @@ import kotlinx.coroutines.coroutineScope
 import org.json.JSONArray
 import org.json.JSONObject
 
+data class TrustedRepository(
+    val name: String,
+    val url: String,
+    val description: String = "",
+    val modulesCount: Int? = null,
+)
+
 data class RepositoryModule(
     val id: String,
     val name: String,
@@ -39,13 +46,13 @@ data class RepositoryCandidate(
     val propUrl: String = "",
 )
 
-/** Reads both common modules.json indexes and direct GitHub module repositories. */
+/** Reads repositories generated for MMRL/MRepo. */
 class ModuleRepository(private val network: NetworkService) {
 
     suspend fun loadSources(rawSources: String): List<RepositoryCandidate> = coroutineScope {
         rawSources.lineSequence()
             .map(String::trim)
-            .filter { it.startsWith("https://") || it.startsWith("http://") }
+            .mapNotNull(::normalizeRepositoryUrl)
             .distinct()
             .take(MAX_SOURCES)
             .map { source -> async { runCatching { loadSource(source) }.getOrDefault(emptyList()) } }
@@ -56,6 +63,11 @@ class ModuleRepository(private val network: NetworkService) {
             .distinctBy { it.id.lowercase() to it.zipUrl }
     }
 
+    suspend fun loadTrustedRepositories(): List<TrustedRepository> = runCatching {
+        parseTrustedRepositories(network.fetchString(TRUSTED_REPOSITORIES_URL))
+            .ifEmpty { fallbackTrustedRepositories }
+    }.getOrDefault(fallbackTrustedRepositories)
+
     suspend fun resolve(candidates: List<RepositoryCandidate>): List<RepositoryModule> =
         coroutineScope {
             candidates.take(MAX_RESULTS).map { candidate ->
@@ -64,59 +76,18 @@ class ModuleRepository(private val network: NetworkService) {
         }
 
     private suspend fun loadSource(source: String): List<RepositoryCandidate> {
-        githubRepository(source)?.let { github ->
-            val (owner, repository, requestedBranch) = github
-            val branches = listOfNotNull(requestedBranch, "main", "master").distinct()
-            for (branch in branches) {
-                val propUrl = "https://raw.githubusercontent.com/$owner/$repository/$branch/module.prop"
-                val prop = runCatching { network.fetchString(propUrl) }.getOrNull() ?: continue
-                val values = parseProperties(prop)
-                val id = values["id"].orEmpty().ifBlank { repository }
-                return listOf(
-                    candidateFromProperties(
-                        id = id,
-                        values = values,
-                        zipUrl = "https://github.com/$owner/$repository/archive/refs/heads/$branch.zip",
-                        notesUrl = "https://raw.githubusercontent.com/$owner/$repository/$branch/README.md",
-                        propUrl = propUrl,
-                    )
-                )
-            }
-            return emptyList()
-        }
-
-        val normalized = githubBlobToRaw(source)
-        val body = network.fetchString(normalized)
+        val body = network.fetchString(source)
         val trimmed = body.trimStart()
-        return when {
-            trimmed.startsWith("{") -> parseJsonObject(JSONObject(trimmed))
-            trimmed.startsWith("[") -> parseJsonArray(JSONArray(trimmed))
-            normalized.endsWith("module.prop", ignoreCase = true) -> {
-                val values = parseProperties(body)
-                val id = values["id"].orEmpty()
-                val zipUrl = values["zipUrl"].orEmpty().ifBlank {
-                    values["zip_url"].orEmpty()
-                }
-                listOf(candidateFromProperties(id, values, zipUrl, "", normalized))
-            }
-            else -> emptyList()
-        }
+        if (!trimmed.startsWith("{")) return emptyList()
+        val root = JSONObject(trimmed)
+        // MMRL repositories expose their catalogue as an object containing
+        // a modules array. Reject generic JSON and direct module/GitHub URLs.
+        if (root.optJSONArray("modules") == null) return emptyList()
+        return parseJsonObject(root)
     }
 
-    private fun parseJsonObject(root: JSONObject): List<RepositoryCandidate> {
-        val modules = root.optJSONArray("modules") ?: root.optJSONArray("data")
-        if (modules != null) return parseJsonArray(modules)
-        if (root.opt("id") is String) return listOfNotNull(parseEntry(root))
-        return buildList {
-            val keys = root.keys()
-            while (keys.hasNext()) {
-                val id = keys.next()
-                val module = root.optJSONObject(id) ?: continue
-                if (!module.has("id")) module.put("id", id)
-                parseEntry(module)?.let(::add)
-            }
-        }
-    }
+    private fun parseJsonObject(root: JSONObject): List<RepositoryCandidate> =
+        parseJsonArray(root.getJSONArray("modules"))
 
     private fun parseJsonArray(array: JSONArray): List<RepositoryCandidate> = buildList {
         for (index in 0 until array.length()) {
@@ -229,26 +200,72 @@ class ModuleRepository(private val network: NetworkService) {
         }
     }
 
-    private fun githubBlobToRaw(url: String): String {
-        val match = Regex(
-            "https?://github\\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.*)",
-            RegexOption.IGNORE_CASE,
-        ).matchEntire(url) ?: return url
-        val (owner, repository, branch, path) = match.destructured
-        return "https://raw.githubusercontent.com/$owner/$repository/$branch/$path"
-    }
-
-    private fun githubRepository(url: String): Triple<String, String, String?>? {
-        val match = Regex(
-            "https?://github\\.com/([^/]+)/([^/#?]+)(?:/tree/([^/#?]+))?/?(?:[?#].*)?",
-            RegexOption.IGNORE_CASE,
-        ).matchEntire(url) ?: return null
-        val (owner, rawRepository, branch) = match.destructured
-        return Triple(owner, rawRepository.removeSuffix(".git"), branch.ifBlank { null })
+    private fun parseTrustedRepositories(body: String): List<TrustedRepository> {
+        val array = JSONArray(body)
+        return buildList {
+            for (index in 0 until array.length()) {
+                val item = array.optJSONObject(index) ?: continue
+                val url = item.optString("url").trim()
+                if (normalizeRepositoryUrl(url) == null) continue
+                add(
+                    TrustedRepository(
+                        name = item.optString("name").ifBlank { url },
+                        url = url.trimEnd('/') + "/",
+                        description = item.optString("description"),
+                        modulesCount = item.optInt("modules_count").takeIf { it > 0 },
+                    )
+                )
+            }
+        }.distinctBy { it.url.lowercase() }
     }
 
     companion object {
         private const val MAX_SOURCES = 20
         private const val MAX_RESULTS = 50
+        private const val TRUSTED_REPOSITORIES_URL =
+            "https://mmrl.dev/api/repositories.json"
+
+        fun normalizeRepositoryUrl(raw: String): String? {
+            val source = raw.trim()
+            if (!source.startsWith("https://", ignoreCase = true)) return null
+            val clean = source.substringBefore('#').substringBefore('?').trimEnd('/')
+            return when {
+                clean.endsWith("/json/modules.json", ignoreCase = true) -> clean
+                clean.endsWith("/modules.json", ignoreCase = true) -> clean
+                else -> "$clean/json/modules.json"
+            }
+        }
+
+        private val fallbackTrustedRepositories = listOf(
+            TrustedRepository("Googlers Magisk Repo", "https://gr.dergoogler.com/gmr/"),
+            TrustedRepository(
+                "Magisk Modules Alternative Repo",
+                "https://magisk-modules-alt-repo.github.io/json-v2/",
+            ),
+            TrustedRepository(
+                "IzzyOnDroid Magisk Repository",
+                "https://apt.izzysoft.de/magisk/",
+            ),
+            TrustedRepository(
+                "Magisk Modules Rikj000 Repo",
+                "https://rikj000.github.io/Magisk-Modules-Rikj000-Repo/",
+            ),
+            TrustedRepository(
+                "Celica Magisk Modules Repo",
+                "https://natsumerinchan.github.io/celica-magisk-modules-repo/",
+            ),
+            TrustedRepository(
+                "Magisk Font Collection Repository",
+                "https://codeberg.org/fruitsnack/magisk-font-repo/raw/branch/main/",
+            ),
+            TrustedRepository("LelouBil Magisk Repo", "https://leloubil.github.io/magisk-repo/"),
+            TrustedRepository("ZG089’s modules repo", "https://zguation-projects.github.io/ZG-R/"),
+            TrustedRepository("Rem01 Projects", "https://mrepo.rem01gaming.dev/"),
+            TrustedRepository(
+                "SSMG4’s Magisk Modules Repository",
+                "https://ssmg4.github.io/SSR/",
+            ),
+            TrustedRepository("Modules Repo by Julia", "https://juliazero.github.io/mrbj/"),
+        )
     }
 }

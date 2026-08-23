@@ -239,7 +239,7 @@
     <string name="settings_sulist_config_title">sulist を設定</string>
     <string name="settings_sulist_config_summary">reisenless の使用を許可するアプリとプロセスを選択します</string>
     <string name="webui">webui</string>
-    <string name="udonge">reisenless</string>
+    <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">バックグラウンド更新を許可</string>
     <string name="udonge_background_updates_summary">modules と keyboxes を選択</string>
     <string name="udonge_background_updates_modules">modules</string>
@@ -261,10 +261,19 @@
     <string name="repository_searcher">リポジトリ検索</string>
     <string name="repository_searcher_summary">オンラインモジュールリポジトリとオンライン検索ボタンを設定します</string>
     <string name="repository_links_title">モジュールリポジトリのリンク</string>
-    <string name="repository_links_hint">1 行につき 1 つの modules.json または GitHub モジュールリポジトリ URL</string>
+    <string name="repository_links_hint">1 行につき 1 つの MMRL リポジトリ URL</string>
     <string name="repository_search_hint">オンラインモジュールを検索</string>
     <string name="repository_load_failed">設定されたリポジトリを読み込めませんでした</string>
     <string name="repository_no_results">一致するオンラインモジュールはありません</string>
+    <string name="repository_mmrl_url_hint">MMRL リポジトリ URL</string>
+    <string name="repository_mmrl_url_invalid">HTTPS の MMRL リポジトリまたは modules.json URL を入力してください</string>
+    <string name="repository_add_trusted">信頼済みリポジトリを追加</string>
+    <string name="repository_add">追加</string>
+    <string name="repository_web">ウェブ</string>
+    <string name="repository_trusted">信頼済み MMRL リポジトリ</string>
+    <string name="repository_configured">設定済みリポジトリ</string>
+    <string name="repository_none_configured">リポジトリが設定されていません</string>
+    <string name="repository_module_count">%1$d モジュール</string>
     <string name="module_search_installed">インストール済みモジュールを検索</string>
 
 </resources>

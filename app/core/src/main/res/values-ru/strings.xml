@@ -252,7 +252,7 @@
     <string name="hide_apps_search">поиск пакетов</string>
     <string name="hide_apps_viewer_whitelist_title">приложения, которым видны скрытые приложения</string>
     <string name="webui">веб-интерфейс</string>
-    <string name="udonge">reisenless</string>
+    <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">разрешить фоновые обновления</string>
     <string name="udonge_background_updates_summary">выберите modules и keyboxes</string>
     <string name="udonge_background_updates_modules">modules</string>
@@ -274,9 +274,18 @@
     <string name="repository_searcher">поиск по репозиториям</string>
     <string name="repository_searcher_summary">настройка онлайн-репозиториев модулей и кнопки онлайн-поиска</string>
     <string name="repository_links_title">ссылки на репозитории модулей</string>
-    <string name="repository_links_hint">по одной ссылке на modules.json или GitHub-репозиторий модуля на строку</string>
+    <string name="repository_links_hint">по одной ссылке на MMRL-репозиторий на строку</string>
     <string name="repository_search_hint">поиск модулей онлайн</string>
     <string name="repository_load_failed">не удалось загрузить ни один настроенный репозиторий</string>
     <string name="repository_no_results">подходящие онлайн-модули не найдены</string>
+    <string name="repository_mmrl_url_hint">URL MMRL-репозитория</string>
+    <string name="repository_mmrl_url_invalid">введите HTTPS-ссылку на MMRL-репозиторий или modules.json</string>
+    <string name="repository_add_trusted">добавить доверенные репозитории</string>
+    <string name="repository_add">добавить</string>
+    <string name="repository_web">сайт</string>
+    <string name="repository_trusted">доверенный MMRL-репозиторий</string>
+    <string name="repository_configured">настроенные репозитории</string>
+    <string name="repository_none_configured">репозитории не настроены</string>
+    <string name="repository_module_count">модулей: %1$d</string>
     <string name="module_search_installed">поиск установленных модулей</string>
 </resources>
