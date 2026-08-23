@@ -13,6 +13,25 @@ run_busybox() (
   exec -a busybox "$binary" "$@"
 )
 
+merge_missing_tree() {
+  local source="$1"
+  local destination="$2"
+  local item name target
+
+  mkdir -p "$destination" || return 1
+  for item in "$source"/* "$source"/.[!.]* "$source"/..?*; do
+    [ -e "$item" ] || [ -L "$item" ] || continue
+    name=${item##*/}
+    target="$destination/$name"
+    if [ -d "$item" ]; then
+      merge_missing_tree "$item" "$target" || return 1
+    elif [ ! -e "$target" ] && [ ! -L "$target" ]; then
+      cp -af "$item" "$target" || return 1
+    fi
+  done
+  return 0
+}
+
 # $1 = delay
 # $2 = command
 run_delay() {
@@ -77,8 +96,7 @@ migrate_legacy_layout() {
   # already randomized. Merge only files absent from the current location,
   # then remove the stale path so it cannot remain as a detection signal.
   if [ "$UDONGE_DIR" != "udonge" ] && [ -d "$legacy_udonge" ]; then
-    mkdir -p "$current_udonge" || return 1
-    cp -afn "$legacy_udonge/." "$current_udonge/" || return 1
+    merge_missing_tree "$legacy_udonge" "$current_udonge" || return 1
     rm -rf "$legacy_udonge" || return 1
   fi
 
