@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.system.Os
-import android.util.Log
 import androidx.profileinstaller.ProfileInstaller
 import com.topjohnwu.magisk.StubApk
 import com.topjohnwu.magisk.core.base.UntrackedActivity
@@ -80,7 +79,6 @@ object AppContext : ContextWrapper(null),
         val appInfo = base.applicationInfo
         val apkDir = File(appInfo.sourceDir).parentFile
         (base.classLoader as? BaseDexClassLoader)?.findLibrary("magisk")?.let {
-            Log.i("ReisenlessRoot", "Using class-loader client: $it")
             return@runCatching it
         }
         val candidates = buildList {
@@ -100,10 +98,8 @@ object AppContext : ContextWrapper(null),
             }
         }
         candidates.firstOrNull(File::isFile)?.let {
-            Log.i("ReisenlessRoot", "Using packaged client: ${it.absolutePath}")
             return@runCatching it.absolutePath
         }
-        Log.e("ReisenlessRoot", "Packaged candidates: ${candidates.joinToString { "${it.path}=${it.isFile}" }}")
         val target = File(base.filesDir, "su")
         check(target.parentFile?.let { it.isDirectory || it.mkdirs() } == true)
         target.delete()
@@ -125,10 +121,7 @@ object AppContext : ContextWrapper(null),
         check(target.setReadable(true, true))
         check(target.setExecutable(true, true))
         check(target.setWritable(false, false))
-        Log.i("ReisenlessRoot", "Using extracted client: ${target.absolutePath}")
         target.absolutePath
-    }.onFailure {
-        Log.e("ReisenlessRoot", "Unable to prepare packaged root client", it)
     }.getOrNull()
 
     fun attachApplication(app: Application) {
@@ -186,10 +179,7 @@ object AppContext : ContextWrapper(null),
                 "-c",
                 "exec -a su '$suCmd' --mount-master",
             )
-        } else {
-            Log.e("ReisenlessRoot", "No packaged or mounted root client is available")
         }
-        Shell.enableVerboseLogging = true
         Shell.setDefaultBuilder(shellBuilder)
         Shell.EXECUTOR = Dispatchers.IO.asExecutor()
         RootUtils.bindTask = RootService.bindOrTask(
