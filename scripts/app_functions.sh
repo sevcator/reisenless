@@ -69,6 +69,19 @@ fix_env() {
 
 migrate_legacy_layout() {
   local legacy=/data/a''db
+  local legacy_udonge=${SECURE_DIR}/udonge
+  local current_udonge=${SECURE_DIR}/${UDONGE_DIR}
+
+  # Builds predating per-build Udonge paths stored user state under the
+  # recognizable "udonge" directory even when the main secure root was
+  # already randomized. Merge only files absent from the current location,
+  # then remove the stale path so it cannot remain as a detection signal.
+  if [ "$UDONGE_DIR" != "udonge" ] && [ -d "$legacy_udonge" ]; then
+    mkdir -p "$current_udonge" || return 1
+    cp -afn "$legacy_udonge/." "$current_udonge/" || return 1
+    rm -rf "$legacy_udonge" || return 1
+  fi
+
   [ "$SECURE_DIR" = "$legacy" ] && return 0
   [ -d "$legacy" ] || return 0
 
