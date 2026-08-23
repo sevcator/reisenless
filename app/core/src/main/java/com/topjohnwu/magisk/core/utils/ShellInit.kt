@@ -30,16 +30,38 @@ class ShellInit : Shell.Initializer() {
             if (isRunningAsStub) {
                 if (!shell.isRoot)
                     return true
-                val jar = JarFile(StubApk.current(context))
-                val bb = jar.getJarEntry("lib/${Const.CPU_ABI}/libbusybox.so")
                 localBB = context.deviceProtectedContext.cachedFile("busybox")
                 localBB.delete()
                 runBlocking {
-                    jar.getInputStream(bb).writeTo(localBB, dispatcher = Dispatchers.Unconfined)
+                    JarFile(StubApk.current(context)).use { jar ->
+                        val bb = jar.getJarEntry("lib/${Const.CPU_ABI}/libbusybox.so")
+                            ?: error("missing packaged busybox")
+                        jar.getInputStream(bb).writeTo(
+                            localBB,
+                            dispatcher = Dispatchers.Unconfined,
+                        )
+                    }
                 }
                 localBB.setExecutable(true)
             } else {
-                localBB = File(context.applicationInfo.nativeLibraryDir, "libbusybox.so")
+                val extracted = File(context.applicationInfo.nativeLibraryDir, "libbusybox.so")
+                if (extracted.isFile) {
+                    localBB = extracted
+                } else {
+                    localBB = context.deviceProtectedContext.cachedFile("busybox")
+                    localBB.delete()
+                    runBlocking {
+                        JarFile(context.packageResourcePath).use { jar ->
+                            val bb = jar.getJarEntry("lib/${Const.CPU_ABI}/libbusybox.so")
+                                ?: error("missing packaged busybox")
+                            jar.getInputStream(bb).writeTo(
+                                localBB,
+                                dispatcher = Dispatchers.Unconfined,
+                            )
+                        }
+                    }
+                    localBB.setExecutable(true)
+                }
             }
 
             if (shell.isRoot) {
