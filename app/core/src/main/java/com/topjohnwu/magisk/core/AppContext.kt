@@ -75,6 +75,10 @@ object AppContext : ContextWrapper(null),
     override fun getApplicationContext() = application
 
     private fun preparePackagedSu(base: Context): String? = runCatching {
+        if (!isRunningAsStub) {
+            val extracted = File(base.applicationInfo.nativeLibraryDir, "libmagisk.so")
+            if (extracted.isFile) return@runCatching extracted.absolutePath
+        }
         val storage = if (SDK_INT >= Build.VERSION_CODES.N) {
             base.createDeviceProtectedStorageContext()
         } else {
@@ -90,15 +94,10 @@ object AppContext : ContextWrapper(null),
                     apk.getInputStream(entry).use { it.copyTo(output) }
                 }
             } else {
-                val extracted = File(base.applicationInfo.nativeLibraryDir, "libmagisk.so")
-                if (extracted.isFile) {
-                    extracted.inputStream().use { it.copyTo(output) }
-                } else {
-                    JarFile(base.packageResourcePath).use { apk ->
-                        val entry = apk.getJarEntry("lib/${Const.CPU_ABI}/libmagisk.so")
-                            ?: error("missing packaged root client")
-                        apk.getInputStream(entry).use { it.copyTo(output) }
-                    }
+                JarFile(base.packageResourcePath).use { apk ->
+                    val entry = apk.getJarEntry("lib/${Const.CPU_ABI}/libmagisk.so")
+                        ?: error("missing packaged root client")
+                    apk.getInputStream(entry).use { it.copyTo(output) }
                 }
             }
         }
