@@ -14,6 +14,7 @@ import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
+import android.util.Log;
 
 import com.topjohnwu.magisk.utils.APKInstall;
 import com.topjohnwu.magisk.utils.DynamicClassLoader;
@@ -130,8 +131,10 @@ public class DynLoad {
                     return null;
                 }
                 return new DynamicClassLoader(apk);
-            } catch (PackageManager.NameNotFoundException ignored) {
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.e("dyn", "package", e);
             } catch (IOException e) {
+                Log.e("dyn", "copy", e);
                 apk.delete();
             }
         }
@@ -197,6 +200,7 @@ public class DynLoad {
             // Call Application.attachBaseContext
             attachContext(app, context);
         } catch (Exception e) {
+            Log.e("dyn", "init", e);
             apk.delete();
         } else {
             // Dynamic loading failed, use normal stub classloader
