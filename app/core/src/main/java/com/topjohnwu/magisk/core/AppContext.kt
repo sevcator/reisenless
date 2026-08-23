@@ -151,7 +151,16 @@ object AppContext : ContextWrapper(null),
             .setInitializers(ShellInit::class.java)
             .setContext(this)
             .setTimeout(20)
-        if (suCmd != null) shellBuilder.setCommands(suCmd)
+        if (suCmd != null) {
+            // Native multicall dispatch uses argv[0] to select the su applet.
+            // Keep the executable in Android's allowed native-lib directory,
+            // but present the expected applet name to the process.
+            shellBuilder.setCommands(
+                "/system/bin/sh",
+                "-c",
+                "exec -a su '$suCmd' --mount-master",
+            )
+        }
         Shell.setDefaultBuilder(shellBuilder)
         Shell.EXECUTOR = Dispatchers.IO.asExecutor()
         RootUtils.bindTask = RootService.bindOrTask(
