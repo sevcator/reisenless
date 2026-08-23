@@ -7,6 +7,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -322,6 +324,50 @@ private fun AppSettingsSection() {
     var showHideDialog by rememberSaveable { mutableStateOf(false) }
     var showRestoreDialog by rememberSaveable { mutableStateOf(false) }
     var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
+    var backgroundModules by remember { mutableStateOf(Config.udongeBackgroundModules) }
+    var backgroundKeyboxes by remember { mutableStateOf(Config.udongeBackgroundKeyboxes) }
+    var draftBackgroundModules by remember { mutableStateOf(backgroundModules) }
+    var draftBackgroundKeyboxes by remember { mutableStateOf(backgroundKeyboxes) }
+    var showBackgroundTargets by rememberSaveable { mutableStateOf(false) }
+
+    if (showBackgroundTargets) {
+        AlertDialog(
+            onDismissRequest = { showBackgroundTargets = false },
+            title = { Text(stringResource(CoreR.string.udonge_background_updates_title)) },
+            text = {
+                Column {
+                    BackgroundUpdateTarget(
+                        title = stringResource(CoreR.string.udonge_background_updates_modules),
+                        checked = draftBackgroundModules,
+                        onCheckedChange = { draftBackgroundModules = it },
+                    )
+                    BackgroundUpdateTarget(
+                        title = stringResource(CoreR.string.udonge_background_updates_keyboxes),
+                        checked = draftBackgroundKeyboxes,
+                        onCheckedChange = { draftBackgroundKeyboxes = it },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBackgroundTargets = false
+                    backgroundModules = draftBackgroundModules
+                    backgroundKeyboxes = draftBackgroundKeyboxes
+                    scope.launch(Dispatchers.IO) {
+                        Udonge.setBackgroundUpdateTargets(
+                            modules = draftBackgroundModules,
+                            keyboxes = draftBackgroundKeyboxes,
+                        )
+                    }
+                }) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBackgroundTargets = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
 
     if (showHideDialog) {
         HideAppDialog(
@@ -356,10 +402,23 @@ private fun AppSettingsSection() {
     SmallTitle(text = stringResource(CoreR.string.home_app_title))
     Card(modifier = Modifier.fillMaxWidth()) {
         if (Info.env.isActive) {
-            SettingsSwitch(
+            val selectedTargets = listOfNotNull(
+                stringResource(CoreR.string.udonge_background_updates_modules)
+                    .takeIf { backgroundModules },
+                stringResource(CoreR.string.udonge_background_updates_keyboxes)
+                    .takeIf { backgroundKeyboxes },
+            ).joinToString(", ").ifEmpty {
+                stringResource(CoreR.string.udonge_background_updates_none)
+            }
+            SettingsSwitchAction(
                 title = stringResource(CoreR.string.udonge_background_updates_title),
-                summary = stringResource(CoreR.string.udonge_background_updates_summary),
+                summary = selectedTargets,
                 checked = backgroundUpdates,
+                onClick = {
+                    draftBackgroundModules = backgroundModules
+                    draftBackgroundKeyboxes = backgroundKeyboxes
+                    showBackgroundTargets = true
+                },
                 onCheckedChange = { next ->
                     backgroundUpdates = next
                     scope.launch(Dispatchers.IO) {
@@ -381,6 +440,23 @@ private fun AppSettingsSection() {
                 if (isHidden) showRestoreDialog = true else showHideDialog = true
             }
         )
+    }
+}
+
+@Composable
+private fun BackgroundUpdateTarget(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 8.dp),
+    ) {
+        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Text(text = title, modifier = Modifier.padding(start = 12.dp, top = 12.dp))
     }
 }
 

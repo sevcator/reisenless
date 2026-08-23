@@ -51,6 +51,8 @@ object Config : PreferenceConfig, DBConfig {
         const val DOH = "doh"
         const val UDONGE_ENABLED = "udonge_enabled"
         const val UDONGE_BACKGROUND_UPDATES = "udonge_background_updates"
+        const val UDONGE_BACKGROUND_MODULES = "udonge_background_modules"
+        const val UDONGE_BACKGROUND_KEYBOXES = "udonge_background_keyboxes"
         const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls"
         const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
         const val REPOSITORY_SEARCHER_ENABLED = "repository_searcher_enabled"
@@ -127,6 +129,8 @@ object Config : PreferenceConfig, DBConfig {
         set(value) { storedAccentSecondary = value }
     var udongeEnabled by preference(Key.UDONGE_ENABLED, true)
     var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
+    var udongeBackgroundModules by preference(Key.UDONGE_BACKGROUND_MODULES, true)
+    var udongeBackgroundKeyboxes by preference(Key.UDONGE_BACKGROUND_KEYBOXES, true)
     private var storedUdongeKeyboxUrls by preference(
         Key.UDONGE_KEYBOX_URLS,
         DEFAULT_UDONGE_KEYBOX_URLS,

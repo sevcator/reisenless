@@ -115,7 +115,10 @@
     <string name="settings_accent_secondary">accent color 2</string>
     <string name="udonge">reisenless</string>
     <string name="udonge_background_updates_title">allow background updates</string>
-    <string name="udonge_background_updates_summary">auto update keyboxes</string>
+    <string name="udonge_background_updates_summary">select modules and keyboxes</string>
+    <string name="udonge_background_updates_modules">modules</string>
+    <string name="udonge_background_updates_keyboxes">keyboxes</string>
+    <string name="udonge_background_updates_none">no update categories selected</string>
     <string name="udonge_integrity_title">pass strong integrity</string>
     <string name="udonge_integrity_summary">udonge will make your device legit!</string>
     <string name="udonge_keybox_list_title">keybox sources</string>

@@ -10,6 +10,7 @@ import com.topjohnwu.magisk.MainDirections
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.arch.AsyncLoadViewModel
 import com.topjohnwu.magisk.core.AppContext
+import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.base.ContentResultCallback
 import com.topjohnwu.magisk.core.model.module.LocalModule
@@ -61,7 +62,9 @@ class ModuleViewModel : AsyncLoadViewModel() {
             }
         }
         loading = false
-        loadUpdateInfo()
+        if (Config.udongeBackgroundUpdates && Config.udongeBackgroundModules) {
+            loadUpdateInfo()
+        }
     }
 
     override fun onNetworkChanged(network: Boolean) = startLoading()

@@ -6,6 +6,7 @@ import android.os.Build
 import android.text.InputType
 import android.view.View
 import android.widget.EditText
+import android.widget.LinearLayout
 import androidx.databinding.Bindable
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.R
@@ -20,6 +21,7 @@ import com.topjohnwu.magisk.hideapps.HideAppsRepository
 import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
 import com.topjohnwu.magisk.view.MagiskDialog
 import com.topjohnwu.superuser.Shell
+import com.google.android.material.checkbox.MaterialCheckBox
 import com.topjohnwu.magisk.core.R as CoreR
 
 // --- App
@@ -187,10 +189,49 @@ object HideApps : BaseSettingsItem.SplitToggle() {
     override fun refresh() = notifyPropertyChanged(BR.checked)
 }
 
-object UdongeBackgroundUpdates : BaseSettingsItem.Toggle() {
+object UdongeBackgroundUpdates : BaseSettingsItem.SplitToggle() {
     override val title = CoreR.string.udonge_background_updates_title.asText()
     override val description = CoreR.string.udonge_background_updates_summary.asText()
     override var value by Config::udongeBackgroundUpdates
+
+    override fun onPressed(view: View, handler: Handler) {
+        handler.onItemPressed(view, this) {
+            val density = view.resources.displayMetrics.density
+            val padding = (16 * density).toInt()
+            val modules = MaterialCheckBox(view.context).apply {
+                text = view.resources.getString(CoreR.string.udonge_background_updates_modules)
+                isChecked = Config.udongeBackgroundModules
+            }
+            val keyboxes = MaterialCheckBox(view.context).apply {
+                text = view.resources.getString(CoreR.string.udonge_background_updates_keyboxes)
+                isChecked = Config.udongeBackgroundKeyboxes
+            }
+            val targets = LinearLayout(view.context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(padding, padding / 2, padding, padding / 2)
+                addView(modules)
+                addView(keyboxes)
+            }
+            MagiskDialog(view.activity).apply {
+                setTitle(CoreR.string.udonge_background_updates_title)
+                setView(targets)
+                setButton(MagiskDialog.ButtonType.POSITIVE) {
+                    text = android.R.string.ok
+                    onClick {
+                        Shell.EXECUTOR.execute {
+                            Udonge.setBackgroundUpdateTargets(
+                                modules = modules.isChecked,
+                                keyboxes = keyboxes.isChecked,
+                            )
+                        }
+                    }
+                }
+                setButton(MagiskDialog.ButtonType.NEGATIVE) {
+                    text = android.R.string.cancel
+                }
+            }.show()
+        }
+    }
 }
 
 object UdongeKeyboxes : BaseSettingsItem.Blank() {

@@ -20,7 +20,8 @@ object Udonge {
     }
 
     fun setBackgroundUpdates(enabled: Boolean): Boolean {
-        val action = if (enabled) {
+        val keyboxUpdates = enabled && Config.udongeBackgroundKeyboxes
+        val action = if (keyboxUpdates) {
             "mkdir -p '$state' && : > '$state/background-updates' && " +
                 ": > '$state/.keybox-refresh' && " +
                 "('$runtime/service.sh' </dev/null >/dev/null 2>&1 &)"
@@ -32,8 +33,16 @@ object Udonge {
         return success
     }
 
+    fun setBackgroundUpdateTargets(modules: Boolean, keyboxes: Boolean): Boolean {
+        Config.udongeBackgroundModules = modules
+        Config.udongeBackgroundKeyboxes = keyboxes
+        return setBackgroundUpdates(Config.udongeBackgroundUpdates)
+    }
+
     fun syncBackgroundUpdates(shell: Shell): Boolean {
-        val action = if (Config.udongeBackgroundUpdates) {
+        val action = if (
+            Config.udongeBackgroundUpdates && Config.udongeBackgroundKeyboxes
+        ) {
             "mkdir -p '$state' && : > '$state/background-updates'"
         } else {
             "rm -f '$state/background-updates' '$state/.keybox-refresh'"
@@ -50,7 +59,9 @@ object Udonge {
             .joinToString("\n")
             .ifBlank { Config.DEFAULT_UDONGE_KEYBOX_URLS }
         val encoded = Base64.encodeToString(normalized.toByteArray(), Base64.NO_WRAP)
-        val refresh = if (Config.udongeBackgroundUpdates) {
+        val refresh = if (
+            Config.udongeBackgroundUpdates && Config.udongeBackgroundKeyboxes
+        ) {
             " && : > '$state/.keybox-refresh'"
         } else {
             " && rm -f '$state/.keybox-refresh'"
@@ -63,7 +74,7 @@ object Udonge {
     }
 
     fun refreshKeyboxes(): Boolean {
-        if (!Config.udongeBackgroundUpdates) {
+        if (!Config.udongeBackgroundUpdates || !Config.udongeBackgroundKeyboxes) {
             return Shell.cmd("rm -f '$state/.keybox-refresh'").exec().isSuccess
         }
         return Shell.cmd(

@@ -101,7 +101,9 @@ class ModuleViewModel : AsyncLoadViewModel() {
                 LocalModule.installed().map { ModuleItem(it) }
             }
             _uiState.update { it.copy(loading = false, modules = modules) }
-            loadUpdateInfo()
+            if (Config.udongeBackgroundUpdates && Config.udongeBackgroundModules) {
+                loadUpdateInfo()
+            }
         } else {
             _uiState.update { it.copy(loading = false) }
         }
