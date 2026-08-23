@@ -12,6 +12,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.R as AppCompatR
 import androidx.core.view.setPadding
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.R as MaterialR
@@ -221,7 +222,7 @@ internal class RepositorySettingsDialog(private val anchor: View) {
     private fun sectionTitle(textRes: Int) = TextView(context).apply {
         setText(textRes)
         setTextAppearance(R.style.AppearanceFoundation_Body)
-        setTextColor(MaterialColors.getColor(this, R.attr.colorPrimary, Color.MAGENTA))
+        setTextColor(MaterialColors.getColor(this, AppCompatR.attr.colorPrimary, Color.MAGENTA))
     }
 
     private fun bodyText(value: String) = TextView(context).apply {

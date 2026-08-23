@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.widget.SearchView
+import androidx.appcompat.R as AppCompatR
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.lifecycleScope
@@ -80,7 +81,7 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
         inflater.inflate(R.menu.menu_module, menu)
         val accent = MaterialColors.getColor(
             requireView(),
-            R.attr.colorPrimary,
+            AppCompatR.attr.colorPrimary,
             Color.MAGENTA,
         )
         listOf(R.id.action_module_search, R.id.action_repository_search).forEach { itemId ->
