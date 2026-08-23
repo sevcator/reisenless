@@ -25,7 +25,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.launch
+import java.io.File
 import java.lang.ref.WeakReference
+import java.util.jar.JarFile
 import kotlin.system.exitProcess
 
 lateinit var AppApkPath: String
@@ -72,6 +74,27 @@ object AppContext : ContextWrapper(null),
 
     override fun getApplicationContext() = application
 
+    private fun preparePackagedSu(base: Context): String? = runCatching {
+        val target = File(base.createDeviceProtectedStorageContext().codeCacheDir, "su")
+        target.delete()
+        target.outputStream().use { output ->
+            if (isRunningAsStub) {
+                JarFile(StubApk.current(base)).use { apk ->
+                    val entry = apk.getJarEntry("lib/${Const.CPU_ABI}/libmagisk.so")
+                        ?: error("missing packaged root client")
+                    apk.getInputStream(entry).use { it.copyTo(output) }
+                }
+            } else {
+                File(base.applicationInfo.nativeLibraryDir, "libmagisk.so")
+                    .inputStream().use { it.copyTo(output) }
+            }
+        }
+        check(target.setReadable(true, true))
+        check(target.setExecutable(true, true))
+        check(target.setWritable(false, false))
+        target.absolutePath
+    }.getOrNull()
+
     fun attachApplication(app: Application) {
         application = app
         val base = app.baseContext
@@ -94,19 +117,21 @@ object AppContext : ContextWrapper(null),
         }
         resources.patch()
 
-        // Use su from magisk tmpfs when the PATH symlink is broken (su -> ./magisk bug)
+        // Prefer the tmpfs client. Safe mode deliberately skips PATH injection,
+        // so keep a private copy of the APK's client as a recovery fallback.
         val suCmd = run {
             val tmp = try {
                 Runtime.getRuntime()
                     .exec(arrayOf(Const.MAIN_BIN, "--path"))
                     .inputStream.bufferedReader().readLine()?.trim()
             } catch (_: Exception) { null }
-            if (!tmp.isNullOrEmpty()) {
+            val mounted = if (!tmp.isNullOrEmpty()) {
                 val candidate = java.io.File("$tmp/su")
                 if (candidate.exists() || java.io.File(candidate.canonicalPath).exists()) {
                     candidate.absolutePath
                 } else null
             } else null
+            mounted ?: preparePackagedSu(base)
         }
         val shellBuilder = Shell.Builder.create()
             .setFlags(Shell.FLAG_MOUNT_MASTER)
