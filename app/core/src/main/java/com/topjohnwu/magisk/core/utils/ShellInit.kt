@@ -1,20 +1,13 @@
 package com.topjohnwu.magisk.core.utils
 
 import android.content.Context
-import com.topjohnwu.magisk.StubApk
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.core.isRunningAsStub
-import com.topjohnwu.magisk.core.ktx.cachedFile
-import com.topjohnwu.magisk.core.ktx.deviceProtectedContext
-import com.topjohnwu.magisk.core.ktx.writeTo
 import com.topjohnwu.superuser.Shell
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import java.io.File
-import java.util.jar.JarFile
 
 class ShellInit : Shell.Initializer() {
     override fun onInit(context: Context, shell: Shell): Boolean {
@@ -26,29 +19,27 @@ class ShellInit : Shell.Initializer() {
         shell.newJob().apply {
             add("export ASH_STANDALONE=1")
 
-            val localBB: File
+            val localBB: String
             if (isRunningAsStub) {
                 if (!shell.isRoot)
                     return true
-                localBB = context.deviceProtectedContext.cachedFile("busybox")
-                localBB.parentFile?.mkdirs()
-                localBB.delete()
-                runBlocking {
-                    JarFile(StubApk.current(context)).use { jar ->
-                        val bb = jar.getJarEntry("lib/${Const.CPU_ABI}/libbusybox.so")
-                            ?: error("missing packaged busybox")
-                        jar.getInputStream(bb).writeTo(
-                            localBB,
-                            dispatcher = Dispatchers.Unconfined,
-                        )
-                    }
-                }
-                localBB.setExecutable(true)
+                // The hidden stub already has a rooted connection to the
+                // running core. Use its mounted BusyBox directly: extracting a
+                // second copy into the randomized app cache is racy on Android
+                // 15 and can leave the first hidden launch without a shell.
+                val tmp = shell.newJob().add("${Const.MAIN_BIN} --path")
+                    .exec().out.firstOrNull()?.trim().orEmpty()
+                if (tmp.isEmpty()) return false
+                localBB = "$tmp/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME}"
+                add("export MAGISKTMP='$tmp'")
             } else {
                 // Android provides the exact extracted ABI directory here.
                 // Some Android 15 policies allow execution but deny stat(), so
                 // probing File.isFile incorrectly selects a broken fallback.
-                localBB = File(context.applicationInfo.nativeLibraryDir, "libbusybox.so")
+                localBB = File(
+                    context.applicationInfo.nativeLibraryDir,
+                    "libbusybox.so",
+                ).absolutePath
             }
 
             if (shell.isRoot) {
@@ -71,7 +62,7 @@ class ShellInit : Shell.Initializer() {
                 )
             } else {
                 // Directly execute the file
-                add("exec $localBB sh")
+                add("exec '$localBB' sh")
             }
 
             add(context.assets.open("app_functions.sh"))
