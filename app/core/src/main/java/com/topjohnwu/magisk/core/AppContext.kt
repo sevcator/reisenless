@@ -28,7 +28,6 @@ import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.launch
 import java.io.File
 import java.lang.ref.WeakReference
-import java.util.jar.JarFile
 import kotlin.system.exitProcess
 
 lateinit var AppApkPath: String
@@ -77,51 +76,11 @@ object AppContext : ContextWrapper(null),
 
     private fun preparePackagedSu(base: Context): String? = runCatching {
         val appInfo = base.applicationInfo
-        val apkDir = File(appInfo.sourceDir).parentFile
-        (base.classLoader as? BaseDexClassLoader)?.findLibrary("magisk")?.let {
-            return@runCatching it
-        }
-        val candidates = buildList {
-            add(File(appInfo.nativeLibraryDir, "libmagisk.so"))
-            Build.SUPPORTED_ABIS.forEach { abi ->
-                add(File(apkDir, "lib/$abi/libmagisk.so"))
-                val instructionSet = when {
-                    abi.startsWith("arm64") -> "arm64"
-                    abi.startsWith("armeabi") -> "arm"
-                    abi == "x86_64" -> "x86_64"
-                    else -> "x86"
-                }
-                add(File(appInfo.nativeLibraryDir, "$instructionSet/libmagisk.so"))
-            }
-            File(apkDir, "lib").listFiles()?.forEach { abiDir ->
-                add(File(abiDir, "libmagisk.so"))
-            }
-        }
-        candidates.firstOrNull(File::isFile)?.let {
-            return@runCatching it.absolutePath
-        }
-        val target = File(base.filesDir, "su")
-        check(target.parentFile?.let { it.isDirectory || it.mkdirs() } == true)
-        target.delete()
-        target.outputStream().use { output ->
-            if (isRunningAsStub) {
-                JarFile(StubApk.current(base)).use { apk ->
-                    val entry = apk.getJarEntry("lib/${Const.CPU_ABI}/libmagisk.so")
-                        ?: error("missing packaged root client")
-                    apk.getInputStream(entry).use { it.copyTo(output) }
-                }
-            } else {
-                JarFile(base.packageResourcePath).use { apk ->
-                    val entry = apk.getJarEntry("lib/${Const.CPU_ABI}/libmagisk.so")
-                        ?: error("missing packaged root client")
-                    apk.getInputStream(entry).use { it.copyTo(output) }
-                }
-            }
-        }
-        check(target.setReadable(true, true))
-        check(target.setExecutable(true, true))
-        check(target.setWritable(false, false))
-        target.absolutePath
+        // Android supplies the exact ABI extraction directory here. Some ROMs
+        // allow executing its libraries but intentionally deny metadata probes.
+        // Trust the platform path instead of checking File.isFile first.
+        (base.classLoader as? BaseDexClassLoader)?.findLibrary("magisk")
+            ?: File(appInfo.nativeLibraryDir, "libmagisk.so").absolutePath
     }.getOrNull()
 
     fun attachApplication(app: Application) {
