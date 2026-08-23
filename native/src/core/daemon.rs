@@ -197,8 +197,10 @@ impl MagiskD {
         let is_root = cred.uid == 0;
         let is_shell = cred.uid == 2000;
         let is_zygote = &context == "u:r:zygote:s0";
+        let manager_uid = self.get_manager_uid(to_user_id(cred.uid as i32));
+        let is_manager = manager_uid == cred.uid as i32;
 
-        if !is_root && !is_zygote && !self.is_client(cred.pid.unwrap_or(-1)) {
+        if !is_root && !is_zygote && !is_manager && !self.is_client(cred.pid.unwrap_or(-1)) {
             // Unsupported client state
             client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
             return;
