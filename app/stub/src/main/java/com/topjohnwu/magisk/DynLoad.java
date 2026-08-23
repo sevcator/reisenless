@@ -21,8 +21,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -33,13 +31,6 @@ public class DynLoad {
 
     static Object componentFactory;
     static ClassLoader activeClassLoader = DynLoad.class.getClassLoader();
-    static String failure = "";
-
-    private static String stackTrace(Throwable e) {
-        var output = new StringWriter();
-        e.printStackTrace(new PrintWriter(output));
-        return output.toString();
-    }
 
     static StubApk.Data createApkData() {
         var data = new StubApk.Data();
@@ -123,15 +114,12 @@ public class DynLoad {
                     APKInstall.transfer(src, out);
                 }
                 return new DynamicClassLoader(apk);
-            } catch (PackageManager.NameNotFoundException e) {
-                failure = "source package missing: " + APPLICATION_ID;
+            } catch (PackageManager.NameNotFoundException ignored) {
             } catch (IOException e) {
-                failure = stackTrace(e);
                 apk.delete();
             }
         }
 
-        if (failure.isEmpty()) failure = "manager payload is missing";
         return null;
     }
 
@@ -193,7 +181,6 @@ public class DynLoad {
             // Call Application.attachBaseContext
             attachContext(app, context);
         } catch (Exception e) {
-            failure = stackTrace(e);
             apk.delete();
         } else {
             // Dynamic loading failed, use normal stub classloader

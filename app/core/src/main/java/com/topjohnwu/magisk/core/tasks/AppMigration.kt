@@ -40,6 +40,7 @@ object AppMigration {
     // still contain the upstream package even though this build uses the
     // Reisenless application id. Both names must be rewritten during hiding.
     private const val LEGACY_PACKAGE_NAME = "com.topjohnwu.magisk"
+    private const val SOURCE_PACKAGE_PLACEHOLDER = "source.reisenless.manager"
     private val PACKAGE_ROOTS = arrayOf(
         "com", "org", "net", "io", "co", "app", "dev", "me", "tech", "cloud",
     )
@@ -273,6 +274,7 @@ object AppMigration {
                 val sourcePackages = setOf(APP_PACKAGE_NAME, LEGACY_PACKAGE_NAME)
                 val p = xml.patchStrings {
                     when {
+                        it == SOURCE_PACKAGE_PLACEHOLDER -> APP_PACKAGE_NAME
                         sourcePackages.any(it::contains) -> sourcePackages.fold(it) { value, source ->
                             value.replace(source, identity.packageName)
                         }
