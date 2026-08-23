@@ -81,7 +81,13 @@ class SplashController<T>(private val activity: T)
                     }
                     return@getShell
                 }
-                RootUtils.Connection.await()
+                // A randomized stub can start its auxiliary root service but
+                // never receive the custom-service callback on Android 15.
+                // Migration and the manager UI only require the rooted shell;
+                // do not hold the entire hidden app on that optional binder.
+                if (!isRunningAsStub) {
+                    RootUtils.Connection.await()
+                }
                 activity.initializeApp()
                 activity.runOnUiThread {
                     splashShown = true
