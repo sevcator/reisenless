@@ -13,13 +13,7 @@ class ShellInit : Shell.Initializer() {
     override fun onInit(context: Context, shell: Shell): Boolean {
         if (shell.isRoot) {
             Info.isRooted = true
-            // Randomized stubs can launch this optional root service on
-            // Android 15 without ever completing its custom binder handshake,
-            // which blocks the shell initializer before migration can run.
-            // Stub functionality uses the rooted shell directly.
-            RootUtils.bindTask?.let {
-                if (!isRunningAsStub) shell.execTask(it)
-            }
+            RootUtils.bindTask?.let { shell.execTask(it) }
             RootUtils.bindTask = null
         }
         shell.newJob().apply {
