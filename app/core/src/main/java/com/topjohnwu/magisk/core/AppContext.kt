@@ -22,6 +22,7 @@ import com.topjohnwu.magisk.core.utils.ShellInit
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.internal.UiThreadHandler
 import com.topjohnwu.superuser.ipc.RootService
+import dalvik.system.BaseDexClassLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.asExecutor
@@ -79,6 +80,9 @@ object AppContext : ContextWrapper(null),
         val appInfo = base.applicationInfo
         val apkDir = File(appInfo.sourceDir).parentFile
         val candidates = buildList {
+            (base.classLoader as? BaseDexClassLoader)?.findLibrary("magisk")?.let {
+                add(File(it))
+            }
             add(File(appInfo.nativeLibraryDir, "libmagisk.so"))
             Build.SUPPORTED_ABIS.forEach { abi ->
                 add(File(apkDir, "lib/$abi/libmagisk.so"))
@@ -91,12 +95,7 @@ object AppContext : ContextWrapper(null),
             Log.i("ReisenlessRoot", "Using packaged client: ${it.absolutePath}")
             return@runCatching it.absolutePath
         }
-        val storage = if (SDK_INT >= Build.VERSION_CODES.N) {
-            base.createDeviceProtectedStorageContext()
-        } else {
-            base
-        }
-        val target = File(storage.codeCacheDir, "su")
+        val target = File(base.codeCacheDir, "su")
         check(target.parentFile?.let { it.isDirectory || it.mkdirs() } == true)
         target.delete()
         target.outputStream().use { output ->
