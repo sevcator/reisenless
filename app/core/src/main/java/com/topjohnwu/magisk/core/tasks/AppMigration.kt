@@ -435,7 +435,7 @@ object AppMigration {
                 }
                 // Package verification can report install success slightly
                 // before installd finishes publishing the new data directory.
-                delay(750)
+                delay(5_000)
                 installedMainPackage = newPackage
                 val newUid = installedUid(context, newPackage)
                     ?: return@withContext false

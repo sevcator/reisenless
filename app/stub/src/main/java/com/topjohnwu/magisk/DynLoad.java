@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -182,9 +181,6 @@ public class DynLoad {
             // Call Application.attachBaseContext
             attachContext(app, context);
         } catch (Exception e) {
-            try (var writer = new PrintWriter(new File(apk.getParentFile(), "load-error.txt"))) {
-                e.printStackTrace(writer);
-            } catch (Exception ignored) {}
             apk.delete();
         } else {
             // Dynamic loading failed, use normal stub classloader
