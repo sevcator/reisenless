@@ -63,10 +63,14 @@ class ModuleRepository(private val network: NetworkService) {
             .distinctBy { it.id.lowercase() to it.zipUrl }
     }
 
-    suspend fun loadTrustedRepositories(): List<TrustedRepository> = runCatching {
-        parseTrustedRepositories(network.fetchString(TRUSTED_REPOSITORIES_URL))
-            .ifEmpty { fallbackTrustedRepositories }
-    }.getOrDefault(fallbackTrustedRepositories)
+    suspend fun loadTrustedRepositories(): List<TrustedRepository> {
+        val online = runCatching {
+            parseTrustedRepositories(network.fetchString(TRUSTED_REPOSITORIES_URL))
+        }.getOrDefault(emptyList())
+        return (online + fallbackTrustedRepositories).distinctBy {
+            normalizeRepositoryUrl(it.url)?.lowercase() ?: it.url.lowercase()
+        }
+    }
 
     suspend fun resolve(candidates: List<RepositoryCandidate>): List<RepositoryModule> =
         coroutineScope {
@@ -239,26 +243,35 @@ class ModuleRepository(private val network: NetworkService) {
         }
 
         private val fallbackTrustedRepositories = listOf(
-            TrustedRepository("Googlers Magisk Repo", "https://gr.dergoogler.com/gmr/"),
+            TrustedRepository(
+                "Googlers Magisk Repo",
+                "https://gr.dergoogler.com/gmr/",
+                "Popular repository listed by MMRL's official directory.",
+            ),
             TrustedRepository(
                 "Magisk Modules Alternative Repo",
                 "https://magisk-modules-alt-repo.github.io/json-v2/",
+                "Popular repository listed by MMRL's official directory.",
             ),
             TrustedRepository(
                 "IzzyOnDroid Magisk Repository",
                 "https://apt.izzysoft.de/magisk/",
+                "Trusted repository maintained by IzzyOnDroid and listed by MMRL.",
             ),
             TrustedRepository(
                 "Magisk Modules Rikj000 Repo",
                 "https://rikj000.github.io/Magisk-Modules-Rikj000-Repo/",
+                "Curated repository listed by MMRL's official directory.",
             ),
             TrustedRepository(
                 "Celica Magisk Modules Repo",
                 "https://natsumerinchan.github.io/celica-magisk-modules-repo/",
+                "Curated repository listed by MMRL's official directory.",
             ),
             TrustedRepository(
                 "Magisk Font Collection Repository",
                 "https://codeberg.org/fruitsnack/magisk-font-repo/raw/branch/main/",
+                "Popular systemless font repository listed by MMRL.",
             ),
             TrustedRepository("LelouBil Magisk Repo", "https://leloubil.github.io/magisk-repo/"),
             TrustedRepository("ZG089’s modules repo", "https://zguation-projects.github.io/ZG-R/"),

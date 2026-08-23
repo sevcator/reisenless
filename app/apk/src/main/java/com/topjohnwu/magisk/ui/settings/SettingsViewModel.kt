@@ -46,32 +46,31 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         if (isRunningAsStub && ShortcutManagerCompat.isRequestPinShortcutSupported(context))
             list.add(AddShortcut)
 
-        list.add(RepositorySearcher)
-
         // Reisenless
         list.add(ReisenlessSettings)
+        list.add(RepositorySearcher)
         if (Const.USER_ID == 0) {
             list.add(if (hidden) Restore else Hide)
         }
         if (Info.env.isActive) {
-            // Udonge
-            list.addAll(
-                listOf(
-                    UdongeSettings,
-                    UdongeEnabled,
-                    UdongeBackgroundUpdates,
-                    UdongeKeyboxes,
-                    UdongeRomKeywords,
-                )
-            )
+            list.add(UdongeBackgroundUpdates)
 
-            // Core
             list.add(SystemlessHosts)
             if (Const.Version.atLeast_24_0()) {
                 list.add(Zygisk)
             }
             list.add(SuList)
             list.add(HideApps)
+
+            // Udonge contains only integrity, keyboxes, and ROM hiding.
+            list.addAll(
+                listOf(
+                    UdongeSettings,
+                    UdongeEnabled,
+                    UdongeKeyboxes,
+                    UdongeRomKeywords,
+                )
+            )
         }
 
         if (Info.showSuperUser) {

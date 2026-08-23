@@ -15,7 +15,9 @@ object Config : PreferenceConfig, DBConfig {
         "https://gist.githubusercontent.com/GreyElaina/2401596f3b8a01f8602768ad5221e2fd/raw/kb_b.xml"
 
     const val DEFAULT_MODULE_REPOSITORIES =
-        "https://gr.dergoogler.com/gmr/"
+        "https://gr.dergoogler.com/gmr/\n" +
+        "https://magisk-modules-alt-repo.github.io/json-v2/\n" +
+        "https://rikj000.github.io/Magisk-Modules-Rikj000-Repo/"
 
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB
