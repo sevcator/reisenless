@@ -75,10 +75,8 @@ object AppContext : ContextWrapper(null),
     override fun getApplicationContext() = application
 
     private fun preparePackagedSu(base: Context): String? = runCatching {
-        if (!isRunningAsStub) {
-            val extracted = File(base.applicationInfo.nativeLibraryDir, "libmagisk.so")
-            if (extracted.isFile) return@runCatching extracted.absolutePath
-        }
+        val extracted = File(base.applicationInfo.nativeLibraryDir, "libmagisk.so")
+        if (extracted.isFile) return@runCatching extracted.absolutePath
         val storage = if (SDK_INT >= Build.VERSION_CODES.N) {
             base.createDeviceProtectedStorageContext()
         } else {

@@ -11,6 +11,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.StopExecutionException
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.assign
 import org.gradle.kotlin.dsl.register
@@ -270,6 +271,34 @@ fun Project.setupStubApk() {
             val variantName = variant.name
             val variantCapped = variantName.replaceFirstChar { it.uppercase() }
             val variantLowered = variantName.lowercase()
+
+            val syncRootClient = tasks.register(
+                "sync${variantCapped}StubRootClient",
+                TaskWithDir::class,
+            ) {
+                outputFolder.set(layout.buildDirectory.dir("$variantName/rootClientJniLibs"))
+                into(outputFolder)
+                for (abi in Config.abiList) {
+                    into(abi) {
+                        from(rootFile("native/out/$abi")) {
+                            include("magisk")
+                            rename { "libmagisk.so" }
+                        }
+                    }
+                }
+                onlyIf {
+                    if (inputs.sourceFiles.files.size != Config.abiList.size) {
+                        throw StopExecutionException(
+                            "Please build binaries first! (./build.py binary)"
+                        )
+                    }
+                    true
+                }
+            }
+            variant.sources.jniLibs?.addGeneratedSourceDirectory(
+                syncRootClient,
+                TaskWithDir::outputFolder,
+            )
 
             val componentJavaOutDir = layout.buildDirectory
                 .dir("generated/${variantLowered}/components").get().asFile
