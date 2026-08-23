@@ -5,9 +5,9 @@ import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.core.net.toUri
 import com.topjohnwu.magisk.StubApk
 import com.topjohnwu.magisk.core.AppApkPath
 import com.topjohnwu.magisk.core.BuildConfig.APP_PACKAGE_NAME
@@ -42,7 +42,7 @@ object AppMigration {
     // Reisenless application id. Both names must be rewritten during hiding.
     private const val LEGACY_PACKAGE_NAME = "com.topjohnwu.magisk"
     private const val SOURCE_PACKAGE_PLACEHOLDER = "source.reisenless.manager"
-    private val MIGRATION_APK_URI: Uri = Uri.parse("content://$APP_PACKAGE_NAME.migration/apk")
+    private val MIGRATION_APK_URI = "content://$APP_PACKAGE_NAME.migration/apk".toUri()
     private val PACKAGE_ROOTS = arrayOf(
         "com", "org", "net", "io", "co", "app", "dev", "me", "tech", "cloud",
     )

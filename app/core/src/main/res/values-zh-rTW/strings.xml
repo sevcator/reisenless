@@ -231,6 +231,11 @@
     <string name="settings_sulist_config_summary">選擇允許使用 reisenless 的應用程式和處理程序</string>
     <string name="webui">網頁介面</string>
     <string name="udonge">reisenless</string>
+    <string name="udonge_background_updates_title">允許背景更新</string>
+    <string name="udonge_background_updates_summary">選擇 modules 和 keyboxes</string>
+    <string name="udonge_background_updates_modules">modules</string>
+    <string name="udonge_background_updates_keyboxes">keyboxes</string>
+    <string name="udonge_background_updates_none">未選擇更新類別</string>
     <string name="udonge_integrity_title">通過 strong integrity</string>
     <string name="udonge_integrity_summary">udonge 會讓你的裝置成為合法裝置！</string>
     <string name="udonge_keybox_list_title">keybox 清單</string>

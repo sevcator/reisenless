@@ -75,7 +75,12 @@ object AppContext : ContextWrapper(null),
     override fun getApplicationContext() = application
 
     private fun preparePackagedSu(base: Context): String? = runCatching {
-        val target = File(base.createDeviceProtectedStorageContext().codeCacheDir, "su")
+        val storage = if (SDK_INT >= Build.VERSION_CODES.N) {
+            base.createDeviceProtectedStorageContext()
+        } else {
+            base
+        }
+        val target = File(storage.codeCacheDir, "su")
         target.delete()
         target.outputStream().use { output ->
             if (isRunningAsStub) {

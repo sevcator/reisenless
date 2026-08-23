@@ -240,6 +240,11 @@
     <string name="settings_sulist_config_summary">reisenless の使用を許可するアプリとプロセスを選択します</string>
     <string name="webui">webui</string>
     <string name="udonge">reisenless</string>
+    <string name="udonge_background_updates_title">バックグラウンド更新を許可</string>
+    <string name="udonge_background_updates_summary">modules と keyboxes を選択</string>
+    <string name="udonge_background_updates_modules">modules</string>
+    <string name="udonge_background_updates_keyboxes">keyboxes</string>
+    <string name="udonge_background_updates_none">更新カテゴリが選択されていません</string>
     <string name="udonge_integrity_title">strong integrity を通過</string>
     <string name="udonge_integrity_summary">udonge がデバイスを正規の状態にします！</string>
     <string name="udonge_keybox_list_title">keybox リスト</string>
