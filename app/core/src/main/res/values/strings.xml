@@ -135,8 +135,8 @@
     <string name="color_teal">teal</string>
     <string name="color_gray">gray</string>
     <string name="settings_hide_app_title">hide reisenless</string>
-    <string name="repository_searcher">Repository searcher</string>
-    <string name="repository_searcher_summary">Configure online module repositories and show the online search button</string>
+    <string name="repository_searcher">repository searcher</string>
+    <string name="repository_searcher_summary">configure online module repositories and show the online search button</string>
     <string name="repository_links_title">Module repository links</string>
     <string name="repository_links_hint">One modules.json or GitHub module repository URL per line</string>
     <string name="repository_search_hint">Search online modules</string>

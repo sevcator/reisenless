@@ -92,9 +92,10 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             Spacer(Modifier.height(12.dp))
             AppSettingsSection()
             if (Info.env.isActive) {
-                MagiskSection(viewModel)
                 Spacer(Modifier.height(12.dp))
                 UdongeSection()
+                Spacer(Modifier.height(12.dp))
+                MagiskSection(viewModel)
             }
             if (Info.showSuperUser) {
                 Spacer(Modifier.height(12.dp))
@@ -109,6 +110,42 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 @Composable
 private fun CustomizationSection(viewModel: SettingsViewModel) {
     val context = LocalContext.current
+    var repositoryEnabled by remember { mutableStateOf(Config.repositorySearcherEnabled) }
+    var showRepositoryLinks by rememberSaveable { mutableStateOf(false) }
+    var repositoryLinks by rememberSaveable { mutableStateOf(Config.moduleRepositoryUrls) }
+
+    if (showRepositoryLinks) {
+        AlertDialog(
+            onDismissRequest = { showRepositoryLinks = false },
+            title = { Text(stringResource(CoreR.string.repository_links_title)) },
+            text = {
+                OutlinedTextField(
+                    value = repositoryLinks,
+                    onValueChange = { repositoryLinks = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 5,
+                    maxLines = 12,
+                    label = { Text(stringResource(CoreR.string.repository_links_hint)) },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    Config.moduleRepositoryUrls = repositoryLinks.lineSequence()
+                        .map(String::trim)
+                        .filter(String::isNotBlank)
+                        .distinct()
+                        .joinToString("\n")
+                    repositoryLinks = Config.moduleRepositoryUrls
+                    showRepositoryLinks = false
+                }) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRepositoryLinks = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
 
     SmallTitle(text = stringResource(CoreR.string.settings_customization))
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -188,6 +225,16 @@ private fun CustomizationSection(viewModel: SettingsViewModel) {
                 doh = it
                 Config.doh = it
             }
+        )
+        SettingsSwitchAction(
+            title = stringResource(CoreR.string.repository_searcher),
+            summary = stringResource(CoreR.string.repository_searcher_summary),
+            checked = repositoryEnabled,
+            onClick = { showRepositoryLinks = true },
+            onCheckedChange = { enabled ->
+                repositoryEnabled = enabled
+                Config.repositorySearcherEnabled = enabled
+            },
         )
     }
 }
@@ -274,42 +321,7 @@ private fun AppSettingsSection() {
     val isHidden = context.packageName != BuildConfig.APP_PACKAGE_NAME
     var showHideDialog by rememberSaveable { mutableStateOf(false) }
     var showRestoreDialog by rememberSaveable { mutableStateOf(false) }
-    var repositoryEnabled by remember { mutableStateOf(Config.repositorySearcherEnabled) }
-    var showRepositoryLinks by rememberSaveable { mutableStateOf(false) }
-    var repositoryLinks by rememberSaveable { mutableStateOf(Config.moduleRepositoryUrls) }
-
-    if (showRepositoryLinks) {
-        AlertDialog(
-            onDismissRequest = { showRepositoryLinks = false },
-            title = { Text(stringResource(CoreR.string.repository_links_title)) },
-            text = {
-                OutlinedTextField(
-                    value = repositoryLinks,
-                    onValueChange = { repositoryLinks = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 5,
-                    maxLines = 12,
-                    label = { Text(stringResource(CoreR.string.repository_links_hint)) },
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    Config.moduleRepositoryUrls = repositoryLinks.lineSequence()
-                        .map(String::trim)
-                        .filter(String::isNotBlank)
-                        .distinct()
-                        .joinToString("\n")
-                    repositoryLinks = Config.moduleRepositoryUrls
-                    showRepositoryLinks = false
-                }) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRepositoryLinks = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
+    var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
 
     if (showHideDialog) {
         HideAppDialog(
@@ -343,6 +355,19 @@ private fun AppSettingsSection() {
 
     SmallTitle(text = stringResource(CoreR.string.home_app_title))
     Card(modifier = Modifier.fillMaxWidth()) {
+        if (Info.env.isActive) {
+            SettingsSwitch(
+                title = stringResource(CoreR.string.udonge_background_updates_title),
+                summary = stringResource(CoreR.string.udonge_background_updates_summary),
+                checked = backgroundUpdates,
+                onCheckedChange = { next ->
+                    backgroundUpdates = next
+                    scope.launch(Dispatchers.IO) {
+                        if (!Udonge.setBackgroundUpdates(next)) backgroundUpdates = !next
+                    }
+                },
+            )
+        }
         SettingsArrow(
             title = stringResource(
                 if (isHidden) CoreR.string.settings_restore_app_title
@@ -355,16 +380,6 @@ private fun AppSettingsSection() {
             onClick = {
                 if (isHidden) showRestoreDialog = true else showHideDialog = true
             }
-        )
-        SettingsSwitchAction(
-            title = stringResource(CoreR.string.repository_searcher),
-            summary = stringResource(CoreR.string.repository_searcher_summary),
-            checked = repositoryEnabled,
-            onClick = { showRepositoryLinks = true },
-            onCheckedChange = { enabled ->
-                repositoryEnabled = enabled
-                Config.repositorySearcherEnabled = enabled
-            },
         )
     }
 }
@@ -519,7 +534,6 @@ private fun SuperuserSection(viewModel: SettingsViewModel) {
 @Composable
 private fun UdongeSection() {
     val scope = rememberCoroutineScope()
-    var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
     var showKeyboxes by rememberSaveable { mutableStateOf(false) }
     var keyboxUrls by rememberSaveable { mutableStateOf(Config.udongeKeyboxUrls) }
     var showRomKeywords by rememberSaveable { mutableStateOf(false) }
@@ -587,19 +601,7 @@ private fun UdongeSection() {
         )
     }
 
-    SmallTitle(text = stringResource(CoreR.string.udonge))
     Card(modifier = Modifier.fillMaxWidth()) {
-        SettingsSwitch(
-            title = stringResource(CoreR.string.udonge_background_updates_title),
-            summary = stringResource(CoreR.string.udonge_background_updates_summary),
-            checked = backgroundUpdates,
-            onCheckedChange = { next ->
-                backgroundUpdates = next
-                scope.launch(Dispatchers.IO) {
-                    if (!Udonge.setBackgroundUpdates(next)) backgroundUpdates = !next
-                }
-            },
-        )
         SettingsArrow(
             title = stringResource(CoreR.string.udonge_keybox_list_title),
             summary = stringResource(CoreR.string.udonge_keybox_list_summary),

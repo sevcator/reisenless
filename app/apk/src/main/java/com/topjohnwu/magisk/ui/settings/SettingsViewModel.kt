@@ -45,13 +45,16 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         )
         if (isRunningAsStub && ShortcutManagerCompat.isRequestPinShortcutSupported(context))
             list.add(AddShortcut)
+        list.add(RepositorySearcher)
 
         // Reisenless
         list.add(ReisenlessSettings)
+        if (Info.env.isActive) {
+            list.add(UdongeBackgroundUpdates)
+        }
         if (Const.USER_ID == 0) {
             list.add(if (hidden) Restore else Hide)
         }
-        list.add(RepositorySearcher)
         if (Info.env.isActive) {
             list.add(SystemlessHosts)
             if (Const.Version.atLeast_24_0()) {
@@ -59,12 +62,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             }
             list.add(SuList)
             list.add(HideApps)
-            list.addAll(listOf(
-                UdongeSettings,
-                UdongeBackgroundUpdates,
-                UdongeKeyboxes,
-                UdongeRomKeywords,
-            ))
+            list.addAll(listOf(UdongeKeyboxes, UdongeRomKeywords))
         }
 
         if (Info.showSuperUser) {

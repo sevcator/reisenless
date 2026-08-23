@@ -171,7 +171,8 @@ private abstract class ManifestUpdater: DefaultTask() {
         val manifest = mergedManifest.asFile.get().readText().replace(Regex(".*\\<application"), """
             |<application
             |    android:appComponentFactory="${factoryClass.get()}"
-            |    android:icon="@drawable/ic_hidden"
+            |    android:icon="@mipmap/ic_hidden"
+            |    android:roundIcon="@mipmap/ic_hidden"
             |    android:name="${appClass.get()}"""".ind(1)
         ).replace(Regex(".*\\<\\/application"), "$components\n    </application")
         outputManifest.get().asFile.writeText(manifest)

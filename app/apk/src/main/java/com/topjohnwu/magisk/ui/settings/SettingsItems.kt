@@ -187,10 +187,6 @@ object HideApps : BaseSettingsItem.SplitToggle() {
     override fun refresh() = notifyPropertyChanged(BR.checked)
 }
 
-object UdongeSettings : BaseSettingsItem.Section() {
-    override val title = CoreR.string.udonge.asText()
-}
-
 object UdongeBackgroundUpdates : BaseSettingsItem.Toggle() {
     override val title = CoreR.string.udonge_background_updates_title.asText()
     override val description = CoreR.string.udonge_background_updates_summary.asText()

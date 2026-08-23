@@ -42,15 +42,8 @@ object AppMigration {
     private val PACKAGE_ROOTS = arrayOf(
         "com", "org", "net", "io", "co", "app", "dev", "me", "tech", "cloud",
     )
-    private val FALLBACK_APP_NAMES = arrayOf(
-        "telegram", "whatsapp", "chrome", "camera", "calendar", "gallery", "notes",
-        "music", "weather", "drive", "maps", "photos", "clock", "files",
-    )
     private val ICON_MARKER = Regex("M0\\.1(?:0[1-9]|[12][0-9]|3[0-2]),")
-    private val ICON_BACKGROUNDS = intArrayOf(
-        0xFFD778B5.toInt(), 0xFFC95BC8.toInt(), 0xFFE284BC.toInt(),
-        0xFFB85AD4.toInt(), 0xFFDF6AAA.toInt(), 0xFFA958C8.toInt(),
-    )
+    private val ICON_BACKGROUND = 0xFFC95BC8.toInt()
     private val ICON_PIXELS = intArrayOf(
         0xFFFFFFFF.toInt(), 0xFFF9D9EE.toInt(), 0xFF4A1942.toInt(),
         0xFF742F76.toInt(), 0xFF221020.toInt(), 0xFFFFB8DE.toInt(),
@@ -132,36 +125,17 @@ object AppMigration {
         ).exec().isSuccess
     }
 
-    @Suppress("DEPRECATION")
-    private fun generateIdentity(context: Context): HiddenIdentity {
+    private fun generateIdentity(): HiddenIdentity {
         val random = SecureRandom()
-        val installedLabels = context.packageManager.getInstalledApplications(0)
-            .asSequence()
-            .map { it.loadLabel(context.packageManager).toString().lowercase() }
-            .map { label -> label.filter { it in 'a'..'z' } }
-            .filter { it.length >= 3 }
-            .distinct()
-            .toMutableList()
-            .apply { addAll(FALLBACK_APP_NAMES) }
-            .distinct()
-
-        val first = installedLabels[random.nextInt(installedLabels.size)]
-        var second = installedLabels[random.nextInt(installedLabels.size)]
-        while (installedLabels.size > 1 && second == first) {
-            second = installedLabels[random.nextInt(installedLabels.size)]
-        }
-        val kRandom = random.asKotlinRandom()
-        val length = 3 + random.nextInt(2)
-        val mixed = buildList {
-            add(first[random.nextInt(first.length)])
-            add(second[random.nextInt(second.length)])
-            addAll((first + second).toList().shuffled(kRandom).take(length - 2))
-        }.shuffled(kRandom)
-        val labelLower = mixed.joinToString("")
-        val label = labelLower.replaceFirstChar(Char::uppercaseChar)
-
         fun randomWord(length: Int) = buildString(length) {
             repeat(length) { append(ALPHA[random.nextInt(ALPHA.length)]) }
+        }
+
+        val labelLower = randomWord(3 + random.nextInt(9))
+        val label = if (random.nextBoolean()) {
+            labelLower.replaceFirstChar(Char::uppercaseChar)
+        } else {
+            labelLower
         }
 
         val packageName = buildString {
@@ -210,9 +184,8 @@ object AppMigration {
                 } || markerCount != 32
             ) continue
 
-            val background = ICON_BACKGROUNDS[random.nextInt(ICON_BACKGROUNDS.size)]
             if (!xml.patchIntAttributes("fillColor") { index ->
-                    if (index == 0) background
+                    if (index == 0) ICON_BACKGROUND
                     else ICON_PIXELS[random.nextInt(ICON_PIXELS.size)]
                 }
             ) return false
@@ -412,7 +385,7 @@ object AppMigration {
                     return@withContext false
                 }
 
-                val identity = generateSequence { generateIdentity(context) }
+                val identity = generateSequence { generateIdentity() }
                     .take(8)
                     .firstOrNull {
                         !isInstalled(context, it.packageName) &&
