@@ -89,9 +89,9 @@ impl MagiskD {
         match code {
             RequestCode::CHECK_VERSION => {
                 #[cfg(debug_assertions)]
-                let s = concatcp!(MAGISK_VERSION, ":MAGISK:D");
+                let s = concatcp!(MAGISK_VERSION, "::D");
                 #[cfg(not(debug_assertions))]
-                let s = concatcp!(MAGISK_VERSION, ":MAGISK:R");
+                let s = concatcp!(MAGISK_VERSION, "::R");
 
                 client.write_encodable(s).log_ok();
             }

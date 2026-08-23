@@ -177,9 +177,9 @@ impl MagiskAction {
         match self {
             LocalVersion(_) => {
                 #[cfg(debug_assertions)]
-                println!("{MAGISK_VERSION}:MAGISK:D ({MAGISK_VER_CODE})");
+                println!("{MAGISK_VERSION}::D ({MAGISK_VER_CODE})");
                 #[cfg(not(debug_assertions))]
-                println!("{MAGISK_VERSION}:MAGISK:R ({MAGISK_VER_CODE})");
+                println!("{MAGISK_VERSION}::R ({MAGISK_VER_CODE})");
             }
             Version(_) => {
                 let mut fd = connect_daemon(RequestCode::CHECK_VERSION, false)?;
