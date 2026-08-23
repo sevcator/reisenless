@@ -90,8 +90,16 @@ object AppContext : ContextWrapper(null),
                     apk.getInputStream(entry).use { it.copyTo(output) }
                 }
             } else {
-                File(base.applicationInfo.nativeLibraryDir, "libmagisk.so")
-                    .inputStream().use { it.copyTo(output) }
+                val extracted = File(base.applicationInfo.nativeLibraryDir, "libmagisk.so")
+                if (extracted.isFile) {
+                    extracted.inputStream().use { it.copyTo(output) }
+                } else {
+                    JarFile(base.packageResourcePath).use { apk ->
+                        val entry = apk.getJarEntry("lib/${Const.CPU_ABI}/libmagisk.so")
+                            ?: error("missing packaged root client")
+                        apk.getInputStream(entry).use { it.copyTo(output) }
+                    }
+                }
             }
         }
         check(target.setReadable(true, true))
