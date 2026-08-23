@@ -79,10 +79,11 @@ object AppContext : ContextWrapper(null),
     private fun preparePackagedSu(base: Context): String? = runCatching {
         val appInfo = base.applicationInfo
         val apkDir = File(appInfo.sourceDir).parentFile
+        (base.classLoader as? BaseDexClassLoader)?.findLibrary("magisk")?.let {
+            Log.i("ReisenlessRoot", "Using class-loader client: $it")
+            return@runCatching it
+        }
         val candidates = buildList {
-            (base.classLoader as? BaseDexClassLoader)?.findLibrary("magisk")?.let {
-                add(File(it))
-            }
             add(File(appInfo.nativeLibraryDir, "libmagisk.so"))
             Build.SUPPORTED_ABIS.forEach { abi ->
                 add(File(apkDir, "lib/$abi/libmagisk.so"))
