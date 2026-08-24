@@ -13,6 +13,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <set>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -35,6 +36,8 @@
 namespace cloak {
 
 static const Config *g_cfg = nullptr;
+static zygisk::Api *g_api = nullptr;
+static bool g_props_only = false;
 
 static unsigned char ascii_lower(unsigned char c) {
     return c >= 'A' && c <= 'Z' ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
@@ -159,6 +162,28 @@ static void    (*o_prop_read_cb)(const void *, void (*)(void *, const char *, co
 static struct dirent *(*o_readdir)(DIR *);
 static char   *(*o_getenv)(const char *);
 static void   *(*o_dlsym)(void *, const char *);
+static void   *(*o_dlopen)(const char *, int);
+static void   *(*o_android_dlopen_ext)(const char *, int, const void *);
+
+static void refresh_late_library_hooks() {
+    static thread_local bool refreshing = false;
+    if (refreshing || !g_api || !g_cfg) return;
+    refreshing = true;
+    install_hooks(g_api, g_cfg, g_props_only);
+    refreshing = false;
+}
+
+static void *h_dlopen(const char *filename, int flags) {
+    void *handle = o_dlopen(filename, flags);
+    if (handle) refresh_late_library_hooks();
+    return handle;
+}
+
+static void *h_android_dlopen_ext(const char *filename, int flags, const void *info) {
+    void *handle = o_android_dlopen_ext(filename, flags, info);
+    if (handle) refresh_late_library_hooks();
+    return handle;
+}
 
 // ---- file-existence hiding ----
 static int h_faccessat(int d, const char *p, int m, int f) {
@@ -722,6 +747,9 @@ static const HookSpec kHooks[] = {
     {"readdir",    (void *)h_readdir,    (void **)&o_readdir},
     {"getenv",     (void *)h_getenv,     (void **)&o_getenv},
     {"dlsym",      (void *)h_dlsym,      (void **)&o_dlsym},
+    {"dlopen",     (void *)h_dlopen,     (void **)&o_dlopen},
+    {"android_dlopen_ext", (void *)h_android_dlopen_ext,
+                            (void **)&o_android_dlopen_ext},
     {"__system_property_get",           (void *)h_prop_get,     (void **)&o_prop_get},
     {"__system_property_read_callback", (void *)h_prop_read_cb, (void **)&o_prop_read_cb},
 };
@@ -732,11 +760,15 @@ static const HookSpec kPropsHooks[] = {
 };
 
 void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
+    static std::mutex hook_mutex;
+    std::lock_guard<std::mutex> lock(hook_mutex);
     // Copy into static storage: survives DLCLOSE_MODULE_LIBRARY which may
     // destroy the caller's Config before the library is actually unmapped.
     static Config s_cfg;
     s_cfg = *cfg;
     g_cfg = &s_cfg;
+    g_api = api;
+    g_props_only = props_only;
 
     const HookSpec *hooks = props_only ? kPropsHooks : kHooks;
     size_t nhooks  = props_only ? sizeof(kPropsHooks) / sizeof(kPropsHooks[0])
@@ -745,7 +777,7 @@ void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
     FILE *maps = fopen("/proc/self/maps", "re");
     if (!maps) return;
 
-    std::set<std::pair<dev_t, ino_t>> seen;
+    static std::set<std::pair<dev_t, ino_t>> seen;
     char line[512];
     while (fgets(line, sizeof line, maps)) {
         unsigned long start, end, off;
