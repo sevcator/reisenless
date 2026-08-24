@@ -490,7 +490,7 @@ object AppMigration {
                 }
 
 
-                delay(5_000)
+                delay(15_000)
                 installedMainPackage = newPackage
                 val newUid = installedUid(context, newPackage)
                     ?: return@withContext false
