@@ -7,24 +7,32 @@ import com.topjohnwu.magisk.core.download.DownloadNotifier
 import com.topjohnwu.magisk.core.download.DownloadProcessor
 import com.topjohnwu.magisk.core.tasks.FlashZip
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils
+import com.topjohnwu.superuser.CallbackList
 import com.topjohnwu.superuser.Shell
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import org.apache.commons.compress.archivers.zip.ZipFile
 import java.io.File
+import java.util.Collections
+import java.util.concurrent.atomic.AtomicReference
 
 data class RepositoryQueueProgress(
     val position: Int,
     val total: Int,
     val module: RepositoryModule,
     val installing: Boolean,
+    val elapsedSeconds: Int = 0,
+    val detail: String = "",
 )
 
 data class RepositoryQueueResult(
     val completed: Int,
     val total: Int,
     val failedModule: RepositoryModule? = null,
+    val failureDetail: String = "",
 ) {
     val successful get() = completed == total
 }
@@ -47,25 +55,50 @@ class RepositoryQueueProcessor(
         onProgress: (RepositoryQueueProgress) -> Unit = {},
     ): RepositoryQueueResult {
         modules.forEachIndexed { index, module ->
-            onProgress(
-                RepositoryQueueProgress(
-                    position = index + 1,
-                    total = modules.size,
-                    module = module,
-                    installing = install,
-                )
+            val progress = RepositoryQueueProgress(
+                position = index + 1,
+                total = modules.size,
+                module = module,
+                installing = install,
             )
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    if (install) installModule(module, index) else downloadModule(module)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    false
+            onProgress(progress)
+            val detail = AtomicReference("")
+            val success = coroutineScope {
+                val operation = async(Dispatchers.IO) {
+                    try {
+                        if (install) {
+                            installModule(module, index) { line -> detail.set(line) }
+                        } else {
+                            downloadModule(module)
+                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        false
+                    }
                 }
+                var elapsed = 0
+                while (!operation.isCompleted) {
+                    delay(PROGRESS_INTERVAL_MILLIS)
+                    elapsed++
+                    if (!operation.isCompleted) {
+                        onProgress(
+                            progress.copy(
+                                elapsedSeconds = elapsed,
+                                detail = detail.get(),
+                            )
+                        )
+                    }
+                }
+                operation.await()
             }
             if (!success) {
-                return RepositoryQueueResult(index, modules.size, module)
+                return RepositoryQueueResult(
+                    completed = index,
+                    total = modules.size,
+                    failedModule = module,
+                    failureDetail = detail.get(),
+                )
             }
         }
         return RepositoryQueueResult(modules.size, modules.size)
@@ -79,7 +112,11 @@ class RepositoryQueueProcessor(
         return true
     }
 
-    private suspend fun installModule(module: RepositoryModule, index: Int): Boolean {
+    private suspend fun installModule(
+        module: RepositoryModule,
+        index: Int,
+        onOutput: (String) -> Unit,
+    ): Boolean {
         val queueDir = File(AppContext.cacheDir, "repository-queue").apply { mkdirs() }
         val archive = File(queueDir, "$index.zip")
         return try {
@@ -89,10 +126,30 @@ class RepositoryQueueProcessor(
                 }
             }
             val moduleId = readModuleId(archive) ?: return false
-            if (!FlashZip(archive.toUri(), mutableListOf(), mutableListOf()).exec()) {
+            val active = "${Const.MODULE_PATH}/$moduleId"
+            val pending = "${Const.SECURE_DIR}/modules_update/$moduleId"
+            val hadActiveModule = Shell.cmd("[ -f '$active/module.prop' ]").exec().isSuccess
+            val console = object : CallbackList<String>(
+                Collections.synchronizedList(mutableListOf<String>())
+            ) {
+                override fun onAddElement(line: String?) {
+                    line?.trim()
+                        ?.takeIf { it.isNotBlank() && it != "! installation failed" }
+                        ?.let(onOutput)
+                }
+            }
+            val logs = Collections.synchronizedList(mutableListOf<String>())
+            val installed = FlashZip(
+                archive.toUri(),
+                console,
+                logs,
+                INSTALL_TIMEOUT_SECONDS,
+            ).exec()
+            if (!installed || !verifyInstalled(moduleId)) {
+                rollbackFailedInstall(active, pending, hadActiveModule)
                 return false
             }
-            verifyInstalled(moduleId)
+            true
         } finally {
             archive.delete()
             if (queueDir.list().isNullOrEmpty()) queueDir.delete()
@@ -118,7 +175,15 @@ class RepositoryQueueProcessor(
         return Shell.cmd("[ -f '$active' ] || [ -f '$pending' ]").exec().isSuccess
     }
 
+    private fun rollbackFailedInstall(active: String, pending: String, hadActiveModule: Boolean) {
+        val commands = mutableListOf("rm -rf '$pending'")
+        if (!hadActiveModule) commands.add("rm -rf '$active'")
+        Shell.cmd(*commands.toTypedArray()).exec()
+    }
+
     private companion object {
         val MODULE_ID = Regex("[A-Za-z][A-Za-z0-9._-]{0,63}")
+        const val PROGRESS_INTERVAL_MILLIS = 1_000L
+        const val INSTALL_TIMEOUT_SECONDS = 10 * 60L
     }
 }

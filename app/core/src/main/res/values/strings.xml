@@ -154,9 +154,12 @@
     <string name="repository_remove_from_queue">remove from queue</string>
     <string name="repository_queue_downloading">downloading %1$d/%2$d: %3$s</string>
     <string name="repository_queue_installing">installing %1$d/%2$d: %3$s</string>
+    <string name="repository_queue_progress_elapsed">%1$s · %2$ds</string>
+    <string name="repository_queue_progress_detail">%1$s\n%2$s · %3$ds</string>
     <string name="repository_queue_downloaded">downloaded %1$d modules</string>
     <string name="repository_queue_installed">installed %1$d modules; reboot to activate</string>
     <string name="repository_queue_failed">failed at %1$s</string>
+    <string name="repository_queue_failed_reason">failed at %1$s: %2$s</string>
     <string name="repository_web">web</string>
     <string name="repository_trusted">trusted MMRL repository</string>
     <string name="repository_configured">configured repositories</string>

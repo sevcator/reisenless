@@ -287,9 +287,12 @@
     <string name="repository_remove_from_queue">убрать из очереди</string>
     <string name="repository_queue_downloading">скачивание %1$d/%2$d: %3$s</string>
     <string name="repository_queue_installing">установка %1$d/%2$d: %3$s</string>
+    <string name="repository_queue_progress_elapsed">%1$s · %2$d с</string>
+    <string name="repository_queue_progress_detail">%1$s\n%2$s · %3$d с</string>
     <string name="repository_queue_downloaded">скачано модулей: %1$d</string>
     <string name="repository_queue_installed">установлено модулей: %1$d; перезагрузите устройство для активации</string>
     <string name="repository_queue_failed">ошибка на модуле %1$s</string>
+    <string name="repository_queue_failed_reason">ошибка на модуле %1$s: %2$s</string>
     <string name="repository_web">сайт</string>
     <string name="repository_trusted">доверенный MMRL-репозиторий</string>
     <string name="repository_configured">настроенные репозитории</string>

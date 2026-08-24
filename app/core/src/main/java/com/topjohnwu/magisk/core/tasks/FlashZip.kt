@@ -17,7 +17,8 @@ import java.io.IOException
 open class FlashZip(
     private val mUri: Uri,
     private val console: MutableList<String>,
-    private val logs: MutableList<String>
+    private val logs: MutableList<String>,
+    private val timeoutSeconds: Long = 0,
 ) {
 
     private val installDir = File(AppContext.cacheDir, "flash")
@@ -55,8 +56,18 @@ open class FlashZip(
 
         console.add("- installing ${mUri.displayName.lowercase()}")
 
-        return Shell.cmd("sh $installDir/update-binary dummy 1 \'$zipFile\'")
-            .to(console, logs).exec().isSuccess
+        val installCommand = "sh $installDir/update-binary dummy 1 \'$zipFile\'"
+        val command = if (timeoutSeconds > 0) {
+            "timeout -s KILL ${timeoutSeconds}s $installCommand; " +
+                "rc=\$?; [ \$rc -eq 137 ] && echo '$TIMEOUT_MARKER'; exit \$rc"
+        } else {
+            installCommand
+        }
+        val result = Shell.cmd(command).to(console, logs).exec()
+        if (console.remove(TIMEOUT_MARKER)) {
+            console.add("! installation timed out after ${timeoutSeconds / 60} minutes")
+        }
+        return result.isSuccess
     }
 
     open suspend fun exec() = withContext(Dispatchers.IO) {
@@ -72,5 +83,9 @@ open class FlashZip(
         } finally {
             Shell.cmd("cd /", "rm -rf $installDir ${Const.TMPDIR}").submit()
         }
+    }
+
+    private companion object {
+        const val TIMEOUT_MARKER = "__REISENLESS_INSTALL_TIMEOUT__"
     }
 }

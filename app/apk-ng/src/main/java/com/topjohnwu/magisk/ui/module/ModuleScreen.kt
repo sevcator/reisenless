@@ -305,6 +305,8 @@ private fun RepositoryScreen(
     var processing by remember { mutableStateOf(false) }
     var operationStatus by remember { mutableStateOf("") }
 
+    BackHandler(enabled = processing) { }
+
     fun updateQueue(module: RepositoryModule) {
         queued = LinkedHashMap(queued).apply {
             val key = repositoryQueueKey(module)
@@ -318,14 +320,26 @@ private fun RepositoryScreen(
         scope.launch {
             processing = true
             val result = processor.process(snapshot, install) { current ->
-                operationStatus = current.module.name.let { name ->
-                    resources.getString(
-                        if (current.installing) CoreR.string.repository_queue_installing
-                        else CoreR.string.repository_queue_downloading,
-                        current.position,
-                        current.total,
-                        name,
+                val base = resources.getString(
+                    if (current.installing) CoreR.string.repository_queue_installing
+                    else CoreR.string.repository_queue_downloading,
+                    current.position,
+                    current.total,
+                    current.module.name,
+                )
+                operationStatus = when {
+                    current.detail.isNotBlank() -> resources.getString(
+                        CoreR.string.repository_queue_progress_detail,
+                        base,
+                        current.detail.take(160),
+                        current.elapsedSeconds,
                     )
+                    current.elapsedSeconds > 0 -> resources.getString(
+                        CoreR.string.repository_queue_progress_elapsed,
+                        base,
+                        current.elapsedSeconds,
+                    )
+                    else -> base
                 }
             }
             queued = LinkedHashMap(queued).apply {
@@ -338,10 +352,18 @@ private fun RepositoryScreen(
                     result.completed,
                 )
             } else {
-                resources.getString(
-                    CoreR.string.repository_queue_failed,
-                    result.failedModule?.name.orEmpty(),
-                )
+                if (result.failureDetail.isBlank()) {
+                    resources.getString(
+                        CoreR.string.repository_queue_failed,
+                        result.failedModule?.name.orEmpty(),
+                    )
+                } else {
+                    resources.getString(
+                        CoreR.string.repository_queue_failed_reason,
+                        result.failedModule?.name.orEmpty(),
+                        result.failureDetail.take(160),
+                    )
+                }
             }
             if (install && result.completed > 0) viewModel.startLoading()
             processing = false
@@ -357,7 +379,7 @@ private fun RepositoryScreen(
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(enabled = !processing, onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(android.R.string.cancel),
@@ -397,7 +419,7 @@ private fun RepositoryScreen(
                     Text(stringResource(CoreR.string.install))
                 }
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onBack) {
+                TextButton(enabled = !processing, onClick = onBack) {
                     Icon(Icons.Default.Close, contentDescription = null)
                     Spacer(Modifier.size(4.dp))
                     Text(stringResource(android.R.string.cancel))
@@ -414,6 +436,7 @@ private fun RepositoryScreen(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
+                enabled = !processing,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
@@ -427,7 +450,7 @@ private fun RepositoryScreen(
                 },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = { query = "" }) {
+                        IconButton(enabled = !processing, onClick = { query = "" }) {
                             Icon(Icons.Default.Close, contentDescription = null)
                         }
                     }
@@ -481,6 +504,7 @@ private fun RepositoryScreen(
                         RepositoryModuleCard(
                             module = module,
                             queued = repositoryQueueKey(module) in queued,
+                            enabled = !processing,
                             onToggleQueue = { updateQueue(module) },
                         )
                     }
@@ -494,6 +518,7 @@ private fun RepositoryScreen(
 private fun RepositoryModuleCard(
     module: RepositoryModule,
     queued: Boolean,
+    enabled: Boolean,
     onToggleQueue: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -527,7 +552,7 @@ private fun RepositoryModuleCard(
                     .padding(top = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             ) {
-                TextButton(onClick = onToggleQueue) {
+                TextButton(enabled = enabled, onClick = onToggleQueue) {
                     Icon(
                         if (queued) Icons.AutoMirrored.Filled.Undo else Icons.Default.Add,
                         contentDescription = null,
@@ -546,7 +571,7 @@ private fun RepositoryModuleCard(
 }
 
 private fun repositoryQueueKey(module: RepositoryModule) =
-    "${module.id.lowercase()}|${module.zipUrl}"
+    module.id.lowercase()
 
 @Composable
 private fun ModuleCard(

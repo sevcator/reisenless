@@ -60,7 +60,10 @@ class ModuleRepository(private val network: NetworkService) {
             .awaitAll()
             .flatten()
             .filter { it.id.isNotBlank() && (it.zipUrl.isNotBlank() || it.propUrl.isNotBlank()) }
-            .distinctBy { it.id.lowercase() to it.zipUrl }
+            // The same popular module is commonly mirrored by several MMRL
+            // repositories. Respect repository order and show each module ID
+            // once instead of filling the first page with duplicates.
+            .distinctBy { it.id.lowercase() }
     }
 
     suspend fun loadTrustedRepositories(): List<TrustedRepository> {
@@ -76,7 +79,7 @@ class ModuleRepository(private val network: NetworkService) {
         coroutineScope {
             candidates.take(MAX_RESULTS).map { candidate ->
                 async { runCatching { resolve(candidate) }.getOrNull() }
-            }.awaitAll().filterNotNull()
+            }.awaitAll().filterNotNull().distinctBy { it.id.lowercase() }
         }
 
     private suspend fun loadSource(source: String): List<RepositoryCandidate> {

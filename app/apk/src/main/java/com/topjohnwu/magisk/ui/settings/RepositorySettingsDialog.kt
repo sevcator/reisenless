@@ -174,6 +174,8 @@ internal class RepositorySettingsDialog(private val anchor: View) {
         MaterialButton(context).apply {
             setText(textRes)
             isAllCaps = false
+            elevation = 0f
+            stateListAnimator = null
             val colorAttr = if (destructive) MaterialR.attr.colorErrorContainer else MaterialR.attr.colorSecondaryContainer
             backgroundTintList = ColorStateList.valueOf(
                 MaterialColors.getColor(this, colorAttr, Color.LTGRAY)

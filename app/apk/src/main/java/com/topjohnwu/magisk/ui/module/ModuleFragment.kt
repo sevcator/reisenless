@@ -137,6 +137,8 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
         lateinit var dialog: MagiskDialog
         lateinit var downloadButton: MagiskDialog.Button
         lateinit var installButton: MagiskDialog.Button
+        lateinit var cancelButton: MagiskDialog.Button
+        lateinit var adapter: RepositoryAdapter
         var processingJob: Job? = null
         var processing = false
         fun updateDialogState() {
@@ -149,15 +151,19 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
             )
             downloadButton.isEnabled = queued.isNotEmpty() && !processing
             installButton.isEnabled = queued.isNotEmpty() && !processing
+            cancelButton.isEnabled = !processing
+            adapter.setProcessing(processing)
+            dialog.setCancelable(!processing)
         }
-        lateinit var adapter: RepositoryAdapter
         adapter = RepositoryAdapter(
             isQueued = { repositoryQueueKey(it) in queued },
             onToggle = { module ->
-                val key = repositoryQueueKey(module)
-                if (queued.remove(key) == null) queued[key] = module
-                adapter.notifyQueueChanged()
-                updateDialogState()
+                if (!processing) {
+                    val key = repositoryQueueKey(module)
+                    if (queued.remove(key) == null) queued[key] = module
+                    adapter.notifyQueueChanged()
+                    updateDialogState()
+                }
             },
         )
         val container = LinearLayout(context).apply {
@@ -243,17 +249,24 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
             }
         })
 
+        fun setSearchEnabled(enabled: Boolean) {
+            search.isEnabled = enabled
+            search.findViewById<View>(AppCompatR.id.search_src_text)?.isEnabled = enabled
+            search.findViewById<View>(AppCompatR.id.search_close_btn)?.isEnabled = enabled
+            if (!enabled) search.clearFocus()
+        }
+
         fun processQueue(install: Boolean) {
             if (processing || queued.isEmpty()) return
             val snapshot = queued.values.toList()
             processing = true
             updateDialogState()
             processingJob = viewLifecycleOwner.lifecycleScope.launch {
-                search.isEnabled = false
+                setSearchEnabled(false)
                 progress.visibility = View.VISIBLE
                 status.visibility = View.VISIBLE
                 val result = processor.process(snapshot, install) { current ->
-                    status.text = getString(
+                    val base = getString(
                         if (current.installing) {
                             CoreR.string.repository_queue_installing
                         } else {
@@ -263,6 +276,20 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
                         current.total,
                         current.module.name,
                     )
+                    status.text = when {
+                        current.detail.isNotBlank() -> getString(
+                            CoreR.string.repository_queue_progress_detail,
+                            base,
+                            current.detail.take(160),
+                            current.elapsedSeconds,
+                        )
+                        current.elapsedSeconds > 0 -> getString(
+                            CoreR.string.repository_queue_progress_elapsed,
+                            base,
+                            current.elapsedSeconds,
+                        )
+                        else -> base
+                    }
                 }
                 snapshot.take(result.completed).forEach { queued.remove(repositoryQueueKey(it)) }
                 adapter.notifyQueueChanged()
@@ -275,9 +302,20 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
                         result.completed,
                     )
                 } else {
-                    getString(CoreR.string.repository_queue_failed, result.failedModule?.name.orEmpty())
+                    if (result.failureDetail.isBlank()) {
+                        getString(
+                            CoreR.string.repository_queue_failed,
+                            result.failedModule?.name.orEmpty(),
+                        )
+                    } else {
+                        getString(
+                            CoreR.string.repository_queue_failed_reason,
+                            result.failedModule?.name.orEmpty(),
+                            result.failureDetail.take(160),
+                        )
+                    }
                 }
-                search.isEnabled = true
+                setSearchEnabled(true)
                 processing = false
                 processingJob = null
                 if (install && result.completed > 0) viewModel.startLoading()
@@ -303,6 +341,7 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
                 onClick { processQueue(true) }
             }
             setButton(MagiskDialog.ButtonType.POSITIVE) {
+                cancelButton = this
                 text = android.R.string.cancel
             }
         }
@@ -338,6 +377,7 @@ private class RepositoryAdapter(
 ) : RecyclerView.Adapter<RepositoryAdapter.Holder>() {
 
     private var modules = emptyList<RepositoryModule>()
+    private var processing = false
 
     fun submit(value: List<RepositoryModule>) {
         modules = value
@@ -345,6 +385,12 @@ private class RepositoryAdapter(
     }
 
     fun notifyQueueChanged() = notifyDataSetChanged()
+
+    fun setProcessing(value: Boolean) {
+        if (processing == value) return
+        processing = value
+        notifyDataSetChanged()
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
         val context = parent.context
@@ -383,6 +429,8 @@ private class RepositoryAdapter(
         }
         val queue = MaterialButton(context).apply {
             isAllCaps = false
+            elevation = 0f
+            stateListAnimator = null
             val accent = MaterialColors.getColor(
                 this,
                 AppCompatR.attr.colorPrimary,
@@ -421,6 +469,7 @@ private class RepositoryAdapter(
         holder.queue.setIconResource(
             if (queued) R.drawable.ic_close_md2 else R.drawable.ic_download_md2
         )
+        holder.queue.isEnabled = !processing
         holder.queue.setOnClickListener { onToggle(module) }
     }
 
@@ -436,4 +485,4 @@ private class RepositoryAdapter(
 }
 
 private fun repositoryQueueKey(module: RepositoryModule) =
-    "${module.id.lowercase()}|${module.zipUrl}"
+    module.id.lowercase()
