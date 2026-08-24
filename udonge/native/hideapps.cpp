@@ -149,11 +149,12 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
             }
             jmethodID wrap_services = env->GetStaticMethodID(
                     proxy_class, "wrapServiceManager",
-                    "(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;");
+                    "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;");
+            jstring service_caller = env->NewStringUTF(caller.c_str());
             jstring keyword_string = env->NewStringUTF(joined.c_str());
             jobject service_proxy = wrap_services
                     ? env->CallStaticObjectMethod(proxy_class, wrap_services,
-                                                  manager, keyword_string)
+                                                  manager, service_caller, keyword_string)
                     : nullptr;
             if (service_proxy && !clear_exception(env, "ServiceManager proxy")) {
                 env->SetStaticObjectField(service_manager, manager_field, service_proxy);

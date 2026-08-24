@@ -74,14 +74,27 @@ public final class PackageManagerProxy implements InvocationHandler {
                 new PackageManagerProxy(delegate, caller, rule));
     }
 
-    public static Object wrapServiceManager(Object delegate, String keywords) {
-        if (delegate == null || keywords == null || keywords.isEmpty()) return delegate;
+    public static Object wrapServiceManager(Object delegate, String caller, String keywords) {
+        if (delegate == null || caller == null || isSystemProcess(caller)
+                || keywords == null || keywords.isEmpty()) return delegate;
         Class<?>[] interfaces = delegate.getClass().getInterfaces();
         if (interfaces.length == 0) return delegate;
         return Proxy.newProxyInstance(
                 PackageManagerProxy.class.getClassLoader(),
                 interfaces,
                 new ServiceManagerFilter(delegate, keywords));
+    }
+
+    private static boolean isSystemProcess(String caller) {
+        return "android".equals(caller)
+                || caller.startsWith("android.")
+                || caller.startsWith("com.android.")
+                || caller.startsWith("com.google.android.")
+                || caller.startsWith("com.oneplus.")
+                || caller.startsWith("com.qualcomm.")
+                || caller.startsWith("lineageos.")
+                || caller.startsWith("org.lineageos.")
+                || caller.startsWith("vendor.");
     }
 
     private static final class ServiceManagerFilter implements InvocationHandler {
