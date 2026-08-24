@@ -6,17 +6,22 @@
         <item name="postSplashScreenTheme">@style/ThemeFoundationMD2</item>
     </style>
 
+    <color name="reisenless_accent">#C95BC8</color>
+    <color name="reisenless_accent_variant">#80C95BC8</color>
+    <color name="reisenless_on_accent">#101010</color>
+    <color name="reisenless_on_accent_variant">#D9101010</color>
+
     <style name="ThemeFoundationMD2" parent="Foundation.Default">
-        <item name="colorPrimary">#C95BC8</item>
-        <item name="colorPrimaryVariant">#80C95BC8</item>
-        <item name="colorSecondary">#C95BC8</item>
-        <item name="colorSecondaryVariant">#80C95BC8</item>
+        <item name="colorPrimary">@color/reisenless_accent</item>
+        <item name="colorPrimaryVariant">@color/reisenless_accent_variant</item>
+        <item name="colorSecondary">@color/reisenless_accent</item>
+        <item name="colorSecondaryVariant">@color/reisenless_accent_variant</item>
         <item name="colorSurface">#F9F9F9</item>
         <item name="colorSurfaceVariant">#EEEEEE</item>
         <item name="colorSurfaceSurfaceVariant">?colorSurface</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-        <item name="colorOnSecondary">#101010</item>
+        <item name="colorOnPrimary">@color/reisenless_on_accent</item>
+        <item name="colorOnPrimaryVariant">@color/reisenless_on_accent_variant</item>
+        <item name="colorOnSecondary">@color/reisenless_on_accent</item>
         <item name="colorOnBackground">?colorOnSurface</item>
         <item name="colorError">#CC0047</item>
         <item name="colorOnError">#F9F9F9</item>
@@ -26,77 +31,13 @@
         <item name="colorDisabledVariant">#66808080</item>
     </style>
 
-    <style name="ThemeOverlay.Reisenless.Accent.Pink" parent="">
-        <item name="colorPrimary">#C95BC8</item>
-        <item name="colorPrimaryVariant">#80C95BC8</item>
-        <item name="colorSecondary">#C95BC8</item>
-        <item name="colorSecondaryVariant">#80C95BC8</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-        <item name="colorOnSecondary">#101010</item>
+    <style name="ThemeOverlay.Reisenless.Accent" parent="">
+        <item name="colorPrimary">@color/reisenless_accent</item>
+        <item name="colorPrimaryVariant">@color/reisenless_accent_variant</item>
+        <item name="colorSecondary">@color/reisenless_accent</item>
+        <item name="colorSecondaryVariant">@color/reisenless_accent_variant</item>
+        <item name="colorOnPrimary">@color/reisenless_on_accent</item>
+        <item name="colorOnPrimaryVariant">@color/reisenless_on_accent_variant</item>
+        <item name="colorOnSecondary">@color/reisenless_on_accent</item>
     </style>
-    <style name="ThemeOverlay.Reisenless.Accent.Purple" parent="">
-        <item name="colorPrimary">#7E57C2</item>
-        <item name="colorPrimaryVariant">#807E57C2</item>
-        <item name="colorSecondary">#7E57C2</item>
-        <item name="colorSecondaryVariant">#807E57C2</item>
-        <item name="colorOnPrimary">#F9F9F9</item>
-        <item name="colorOnPrimaryVariant">#D9E6E6E6</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
-    </style>
-    <style name="ThemeOverlay.Reisenless.Accent.Blue" parent="">
-        <item name="colorPrimary">#4EAFF5</item>
-        <item name="colorPrimaryVariant">#804EAFF5</item>
-        <item name="colorSecondary">#4EAFF5</item>
-        <item name="colorSecondaryVariant">#804EAFF5</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-        <item name="colorOnSecondary">#101010</item>
-    </style>
-    <style name="ThemeOverlay.Reisenless.Accent.Green" parent="">
-        <item name="colorPrimary">#68A17F</item>
-        <item name="colorPrimaryVariant">#8068A17F</item>
-        <item name="colorSecondary">#68A17F</item>
-        <item name="colorSecondaryVariant">#8068A17F</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-        <item name="colorOnSecondary">#101010</item>
-    </style>
-    <style name="ThemeOverlay.Reisenless.Accent.Amber" parent="">
-        <item name="colorPrimary">#F2B90D</item>
-        <item name="colorPrimaryVariant">#80F2B90D</item>
-        <item name="colorSecondary">#F2B90D</item>
-        <item name="colorSecondaryVariant">#80F2B90D</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-        <item name="colorOnSecondary">#101010</item>
-    </style>
-    <style name="ThemeOverlay.Reisenless.Accent.Red" parent="">
-        <item name="colorPrimary">#DB7366</item>
-        <item name="colorPrimaryVariant">#80DB7366</item>
-        <item name="colorSecondary">#DB7366</item>
-        <item name="colorSecondaryVariant">#80DB7366</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-        <item name="colorOnSecondary">#101010</item>
-    </style>
-    <style name="ThemeOverlay.Reisenless.Accent.Teal" parent="">
-        <item name="colorPrimary">#009688</item>
-        <item name="colorPrimaryVariant">#80009688</item>
-        <item name="colorSecondary">#009688</item>
-        <item name="colorSecondaryVariant">#80009688</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-        <item name="colorOnSecondary">#101010</item>
-    </style>
-    <style name="ThemeOverlay.Reisenless.Accent.Gray" parent="">
-        <item name="colorPrimary">#607D8B</item>
-        <item name="colorPrimaryVariant">#80607D8B</item>
-        <item name="colorSecondary">#607D8B</item>
-        <item name="colorSecondaryVariant">#80607D8B</item>
-        <item name="colorOnPrimary">#F9F9F9</item>
-        <item name="colorOnPrimaryVariant">#D9E6E6E6</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
-    </style>
-
 </resources>
