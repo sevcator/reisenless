@@ -168,6 +168,7 @@ public:
             // Patch Build.TYPE and Build.TAGS static constants so Java-level
             // cross-checks (Build.TYPE vs fingerprint tail) see clean values.
             cloak::spoof_build_type(env_);
+            cloak::spoof_rom_framework(env_, cfg_);
         }
         if (!keep_loaded_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
     }

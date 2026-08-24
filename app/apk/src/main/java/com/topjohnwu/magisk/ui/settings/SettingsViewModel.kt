@@ -153,6 +153,20 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
                     }
                 }
             }
+            UdongeRomKeywords -> {
+                val requested = UdongeRomKeywords.value
+                Shell.EXECUTOR.execute {
+                    if (Udonge.setRomHidingEnabled(requested)) {
+                        HideAppsRootClient.syncRomKeywordsHideApps(
+                            if (requested) Udonge.DEFAULT_ROM_KEYWORDS else ""
+                        )
+                        SnackbarEvent(R.string.reboot_apply_change).publish()
+                    } else if (Config.udongeRomHidingEnabled == requested) {
+                        Config.udongeRomHidingEnabled = !requested
+                        view.post { UdongeRomKeywords.notifyPropertyChanged(BR.checked) }
+                    }
+                }
+            }
             else -> onItemAction(view, item)
         }
     }

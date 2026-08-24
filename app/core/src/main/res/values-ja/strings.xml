@@ -250,7 +250,7 @@
     <string name="udonge_keybox_list_title">keybox リスト</string>
     <string name="udonge_keybox_list_summary">keybox のリンクを追加または削除</string>
     <string name="udonge_keybox_hint">1 行につき 1 つの https リンク</string>
-    <string name="udonge_rom_keywords_title">システムの痕跡を隠す</string>
+    <string name="udonge_rom_keywords_title">hide something wrong</string>
     <string name="udonge_rom_keywords_summary">カスタム ROM のランタイムシグナルとフレームワークの痕跡を隠します</string>
     <string name="udonge_rom_keywords_hint">1 行につき 1 つの ROM 名（例: lineage、protonaosp）</string>
     <string name="hide_app_randomize_confirmation">アプリ名、パッケージ、Android バージョン、アプリバージョン、バージョンコード、アイコンをランダムに生成します。続行しますか？</string>
@@ -259,7 +259,18 @@
     <string name="webui_webview_required_summary">このデバイスには使用可能な Android WebView プロバイダーがありません。Android System WebView をインストールまたは有効にして、もう一度お試しください。</string>
     <string name="webui_install_webview">WebView をインストール</string>
     <string name="repository_searcher">リポジトリ検索</string>
+    <string name="repository_searcher_queue_count">リポジトリ検索（%1$d）</string>
     <string name="repository_searcher_summary">オンラインモジュールリポジトリとオンライン検索ボタンを設定します</string>
+    <string name="repository_add_to_queue">キューに追加</string>
+    <string name="repository_remove_from_queue">キューから削除</string>
+    <string name="repository_queue_downloading">ダウンロード中 %1$d/%2$d: %3$s</string>
+    <string name="repository_queue_installing">インストール中 %1$d/%2$d: %3$s</string>
+    <string name="repository_queue_progress_elapsed">%1$s · %2$d秒</string>
+    <string name="repository_queue_progress_detail">%1$s\n%2$s · %3$d秒</string>
+    <string name="repository_queue_downloaded">%1$d 個のモジュールをダウンロードしました</string>
+    <string name="repository_queue_installed">%1$d 個のモジュールをインストールしました。再起動して有効化してください</string>
+    <string name="repository_queue_failed">%1$s で失敗しました</string>
+    <string name="repository_queue_failed_reason">%1$s で失敗しました: %2$s</string>
     <string name="repository_links_title">モジュールリポジトリのリンク</string>
     <string name="repository_links_hint">1 行につき 1 つの MMRL リポジトリ URL</string>
     <string name="repository_search_hint">オンラインモジュールを検索</string>

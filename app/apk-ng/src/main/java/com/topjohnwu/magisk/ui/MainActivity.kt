@@ -32,6 +32,7 @@ import com.topjohnwu.magisk.arch.VMFactory
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
+import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.core.base.ActivityExtension
 import com.topjohnwu.magisk.core.base.SplashController
 import com.topjohnwu.magisk.core.base.SplashScreenHost
@@ -92,9 +93,11 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
     override fun onCreateUi(savedInstanceState: Bundle?) {
         showUnsupportedMessage()
 
-        if (Info.env.isActive && Config.udongeRomKeywords.isNotBlank()) {
+        if (Info.env.isActive && Config.udongeRomHidingEnabled) {
             lifecycleScope.launch(Dispatchers.IO) {
-                HideAppsRootClient.syncRomKeywordsHideApps(Config.udongeRomKeywords)
+                if (Udonge.setRomHidingEnabled(true)) {
+                    HideAppsRootClient.syncRomKeywordsHideApps(Udonge.DEFAULT_ROM_KEYWORDS)
+                }
             }
         }
 

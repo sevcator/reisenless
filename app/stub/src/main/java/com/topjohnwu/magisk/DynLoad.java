@@ -227,27 +227,24 @@ public class DynLoad {
         {
             var src = stub.activities;
             var dest = app.activities;
-
-            final ActivityInfo sa;
-            final ActivityInfo da;
-            final ActivityInfo sb;
-            final ActivityInfo db;
-            if (src[0].exported) {
-                sa = src[0];
-                sb = src[1];
-            } else {
-                sa = src[1];
-                sb = src[0];
+            for (ActivityInfo source : src) {
+                ActivityInfo match = null;
+                for (ActivityInfo target : dest) {
+                    if (source.exported == target.exported &&
+                            hasEmptyTaskAffinity(source) == hasEmptyTaskAffinity(target)) {
+                        // Main is the only exported activity, the SU request is
+                        // the only one with an empty task affinity, and WebUI is
+                        // the remaining activity. This stays stable when the
+                        // stub component order is randomized at build time.
+                        match = target;
+                        break;
+                    }
+                }
+                if (match == null) {
+                    throw new IllegalStateException("unable to map manager activity");
+                }
+                mapping.put(source.name, match.name);
             }
-            if (dest[0].exported) {
-                da = dest[0];
-                db = dest[1];
-            } else {
-                da = dest[1];
-                db = dest[0];
-            }
-            mapping.put(sa.name, da.name);
-            mapping.put(sb.name, db.name);
         }
 
         {
@@ -288,5 +285,9 @@ public class DynLoad {
             mapping.put(src[0].name, dest[0].name);
         }
         return mapping;
+    }
+
+    private static boolean hasEmptyTaskAffinity(ActivityInfo info) {
+        return info.taskAffinity == null || info.taskAffinity.isEmpty();
     }
 }

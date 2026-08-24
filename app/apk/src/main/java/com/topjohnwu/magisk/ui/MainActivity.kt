@@ -23,6 +23,7 @@ import com.topjohnwu.magisk.arch.viewModel
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
+import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.core.base.SplashController
 import com.topjohnwu.magisk.core.base.SplashScreenHost
 import com.topjohnwu.magisk.core.isRunningAsStub
@@ -91,9 +92,11 @@ class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenH
         setContentView()
         showUnsupportedMessage()
 
-        if (Info.env.isActive && Config.udongeRomKeywords.isNotBlank()) {
+        if (Info.env.isActive && Config.udongeRomHidingEnabled) {
             lifecycleScope.launch(Dispatchers.IO) {
-                HideAppsRootClient.syncRomKeywordsHideApps(Config.udongeRomKeywords)
+                if (Udonge.setRomHidingEnabled(true)) {
+                    HideAppsRootClient.syncRomKeywordsHideApps(Udonge.DEFAULT_ROM_KEYWORDS)
+                }
             }
         }
 

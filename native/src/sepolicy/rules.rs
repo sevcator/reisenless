@@ -116,7 +116,6 @@ impl SePolicy {
             // Zygisk rules
             allow(["zygote"], ["zygote"], ["process"], ["execmem"]);
             allow(["zygote"], ["fs_type"], ["filesystem"], ["unmount"]);
-            allow(["system_server"], ["system_server"], ["process"], ["execmem"]);
 
             // Shut llkd up
             dontaudit(["llkd"], [proc], ["process"], ["ptrace"]);

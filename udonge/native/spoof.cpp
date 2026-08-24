@@ -65,4 +65,13 @@ void spoof_build_type(JNIEnv *env) {
     env->DeleteLocalRef(build);
 }
 
+void spoof_rom_framework(JNIEnv *env, const Config &cfg) {
+    if (!env || cfg.rom_keywords.empty()) return;
+    jclass assets = env->FindClass("android/content/res/AssetManager");
+    if (!assets) { env->ExceptionClear(); return; }
+    set_str(env, assets, "LINEAGE_APK_PATH", "");
+    env->ExceptionClear();
+    env->DeleteLocalRef(assets);
+}
+
 } // namespace cloak

@@ -19,4 +19,7 @@ void spoof_display(JNIEnv *env, const Config &cfg);
 // native/reflection path; this covers the static Java constant.
 void spoof_build_type(JNIEnv *env);
 
+// Clear ROM-added framework constants exposed through Java reflection.
+void spoof_rom_framework(JNIEnv *env, const Config &cfg);
+
 } // namespace cloak

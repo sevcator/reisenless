@@ -65,6 +65,7 @@ object Config : PreferenceConfig, DBConfig {
         const val UDONGE_BACKGROUND_KEYBOXES = "udonge_background_keyboxes"
         const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls"
         const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
+        const val UDONGE_ROM_HIDING = "udonge_rom_hiding"
         const val REPOSITORY_SEARCHER_ENABLED = "repository_searcher_enabled"
         const val MODULE_REPOSITORY_URLS = "module_repository_urls"
         const val MODULE_REPOSITORY_DEFAULTS_VERSION = "module_repository_defaults_version"
@@ -150,6 +151,7 @@ object Config : PreferenceConfig, DBConfig {
         get() = storedUdongeKeyboxUrls.ifBlank { DEFAULT_UDONGE_KEYBOX_URLS }
         set(value) { storedUdongeKeyboxUrls = value }
     var udongeRomKeywords by preference(Key.UDONGE_ROM_KEYWORDS, "")
+    var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, true)
     var repositorySearcherEnabled by preference(Key.REPOSITORY_SEARCHER_ENABLED, true)
     private var storedModuleRepositoryUrls by preference(
         Key.MODULE_REPOSITORY_URLS,

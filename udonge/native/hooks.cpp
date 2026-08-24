@@ -35,6 +35,26 @@ namespace cloak {
 
 static const Config *g_cfg = nullptr;
 
+static unsigned char ascii_lower(unsigned char c) {
+    return c >= 'A' && c <= 'Z' ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
+}
+
+static bool contains_ci(const char *text, size_t text_len, const char *needle, size_t needle_len) {
+    if (!text || !needle || needle_len == 0 || needle_len > text_len) return false;
+    for (size_t i = 0; i + needle_len <= text_len; ++i) {
+        size_t j = 0;
+        while (j < needle_len &&
+               ascii_lower(static_cast<unsigned char>(text[i + j])) ==
+               ascii_lower(static_cast<unsigned char>(needle[j]))) ++j;
+        if (j == needle_len) return true;
+    }
+    return false;
+}
+
+static bool contains_ci(const char *text, const std::string &needle) {
+    return text && contains_ci(text, strlen(text), needle.data(), needle.size());
+}
+
 // ---- path blocklist ----
 static const char *const kBlockedSubstr[] = {
     // Magisk / Zygisk core
@@ -76,9 +96,42 @@ static bool basename_is_su(const char *path) {
 // Return true if the path contains any user-configured ROM keyword.
 // Called from is_blocked(), which is already guarded by a !path check.
 static bool is_rom_path(const char *path) {
-    if (!g_cfg) return false;
+    if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
     for (const auto &kw : g_cfg->rom_keywords)
-        if (strstr(path, kw.c_str())) return true;
+        if (contains_ci(path, kw)) return true;
+
+    // Duck Detector's ROM framework/recovery catalog also contains neutral
+    // path names that cannot be matched by a ROM keyword.
+    static const char *const exact_paths[] = {
+        "/system/addon.d",
+        "/system/framework/org.lineageos.platform-res.apk",
+        "/system_ext/framework/org.lineageos.platform.jar",
+        "/system/framework/crdroid-res.apk",
+        "/system/framework/pixelexperience-res.apk",
+        "/system/framework/evolution-res.apk",
+        "/system/framework/aospa-res.apk",
+        "/system/framework/protonaosp-res.apk",
+        "/system/framework/omni-res.apk",
+        "/product/framework/org.lineageos.platform-res.apk",
+        "/product/overlay/LineageSettingsProvider.apk",
+    };
+    for (const char *blocked : exact_paths) {
+        const size_t length = strlen(blocked);
+        if (strncmp(path, blocked, length) == 0 &&
+            (path[length] == '\0' || path[length] == '/')) return true;
+    }
+    return false;
+}
+
+static bool is_rom_policy_source(const char *path) {
+    if (!path || !g_cfg || g_cfg->rom_keywords.empty()) return false;
+    static const char *const sources[] = {
+        "/vendor/etc/selinux/vendor_sepolicy.cil",
+        "/system_ext/etc/selinux/system_ext_sepolicy.cil",
+        "/vendor/etc/selinux/vendor_file_contexts",
+    };
+    for (const char *source : sources)
+        if (strcmp(path, source) == 0) return true;
     return false;
 }
 
@@ -194,7 +247,7 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
         // Also filter lines containing ROM keywords (e.g. lineage framework files in maps)
         if (keep && g_cfg) {
             for (const auto &kw : g_cfg->rom_keywords) {
-                if (memmem(p, len, kw.c_str(), kw.size())) { keep = false; break; }
+                if (contains_ci(p, len, kw.data(), kw.size())) { keep = false; break; }
             }
         }
         if (keep) out.insert(out.end(), p, p + len);
@@ -278,6 +331,19 @@ static int open_filtered_proc(const char *path, ProcFilter filter) {
     return anon;
 }
 
+static int filter_rom_policy_fd(int real_fd) {
+    if (real_fd < 0) return real_fd;
+    auto raw = read_all_fd(real_fd);
+    auto filtered = filter_blocked_lines(raw, false);
+    int anon = make_anon_fd(filtered);
+    if (anon >= 0) {
+        ::close(real_fd);
+        return anon;
+    }
+    lseek(real_fd, 0, SEEK_SET);
+    return real_fd;
+}
+
 // ---- open / openat hooks ----
 static int h_open(const char *p, int fl, ...) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
@@ -287,6 +353,8 @@ static int h_open(const char *p, int fl, ...) {
         if (is_self_proc_file(p, "maps"))   return open_filtered_proc(p, kFilterMaps);
         if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
         if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
+        if (is_rom_policy_source(p))         return filter_rom_policy_fd(
+            o_open(p, O_RDONLY | O_CLOEXEC));
     }
     return o_open(p, fl, mode);
 }
@@ -298,6 +366,8 @@ static int h_openat(int d, const char *p, int fl, ...) {
         if (is_self_proc_file(p, "maps"))   return open_filtered_proc(p, kFilterMaps);
         if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
         if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
+        if (is_rom_policy_source(p))         return filter_rom_policy_fd(
+            o_openat(d, p, O_RDONLY | O_CLOEXEC));
     }
     return o_openat(d, p, fl, mode);
 }
@@ -310,6 +380,10 @@ static ssize_t h_readlink(const char *p, char *b, size_t n) {
     if (ret > 0) {
         for (const char *s : kBlockedSubstr)
             if (memmem(b, (size_t)ret, s, strlen(s))) { errno = ENOENT; return -1; }
+        if (g_cfg) for (const auto &kw : g_cfg->rom_keywords)
+            if (contains_ci(b, static_cast<size_t>(ret), kw.data(), kw.size())) {
+                errno = ENOENT; return -1;
+            }
     }
     return ret;
 }
@@ -319,6 +393,10 @@ static ssize_t h_readlinkat(int d, const char *p, char *b, size_t n) {
     if (ret > 0) {
         for (const char *s : kBlockedSubstr)
             if (memmem(b, (size_t)ret, s, strlen(s))) { errno = ENOENT; return -1; }
+        if (g_cfg) for (const auto &kw : g_cfg->rom_keywords)
+            if (contains_ci(b, static_cast<size_t>(ret), kw.data(), kw.size())) {
+                errno = ENOENT; return -1;
+            }
     }
     return ret;
 }
@@ -475,7 +553,7 @@ static bool is_deleted_prop(const char *name) {
     // Dynamic: any prop whose NAME contains a ROM keyword is suppressed
     if (g_cfg) {
         for (const auto &kw : g_cfg->rom_keywords)
-            if (strstr(name, kw.c_str())) return true;
+            if (contains_ci(name, kw)) return true;
     }
     return false;
 }
@@ -484,7 +562,7 @@ static bool is_deleted_prop(const char *name) {
 static bool value_has_rom_keyword(const char *value) {
     if (!value || !g_cfg) return false;
     for (const auto &kw : g_cfg->rom_keywords)
-        if (strstr(value, kw.c_str())) return true;
+        if (contains_ci(value, kw)) return true;
     return false;
 }
 

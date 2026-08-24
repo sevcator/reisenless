@@ -592,8 +592,7 @@ private fun UdongeSection() {
     var enabled by remember { mutableStateOf(Config.udongeEnabled) }
     var showKeyboxes by rememberSaveable { mutableStateOf(false) }
     var keyboxUrls by rememberSaveable { mutableStateOf(Config.udongeKeyboxUrls) }
-    var showRomKeywords by rememberSaveable { mutableStateOf(false) }
-    var romKeywords by rememberSaveable { mutableStateOf(Config.udongeRomKeywords) }
+    var romHiding by remember { mutableStateOf(Config.udongeRomHidingEnabled) }
 
     if (showKeyboxes) {
         AlertDialog(
@@ -625,38 +624,6 @@ private fun UdongeSection() {
         )
     }
 
-    if (showRomKeywords) {
-        AlertDialog(
-            onDismissRequest = { showRomKeywords = false },
-            title = { Text(stringResource(CoreR.string.udonge_rom_keywords_title)) },
-            text = {
-                OutlinedTextField(
-                    value = romKeywords,
-                    onValueChange = { romKeywords = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 4,
-                    maxLines = 10,
-                    label = { Text(stringResource(CoreR.string.udonge_rom_keywords_hint)) },
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showRomKeywords = false
-                    scope.launch(Dispatchers.IO) {
-                        if (Udonge.setRomKeywords(romKeywords)) {
-                            syncRomKeywordsHideApps(romKeywords)
-                        }
-                    }
-                }) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRomKeywords = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
-
     SmallTitle(text = stringResource(CoreR.string.udonge))
     Card(modifier = Modifier.fillMaxWidth()) {
         SettingsSwitch(
@@ -675,10 +642,20 @@ private fun UdongeSection() {
             summary = stringResource(CoreR.string.udonge_keybox_list_summary),
             onClick = { showKeyboxes = true },
         )
-        SettingsArrow(
+        SettingsSwitch(
             title = stringResource(CoreR.string.udonge_rom_keywords_title),
             summary = stringResource(CoreR.string.udonge_rom_keywords_summary),
-            onClick = { showRomKeywords = true },
+            checked = romHiding,
+            onCheckedChange = { next ->
+                romHiding = next
+                scope.launch(Dispatchers.IO) {
+                    if (Udonge.setRomHidingEnabled(next)) {
+                        syncRomKeywordsHideApps(if (next) Udonge.DEFAULT_ROM_KEYWORDS else "")
+                    } else {
+                        romHiding = !next
+                    }
+                }
+            },
         )
     }
 }

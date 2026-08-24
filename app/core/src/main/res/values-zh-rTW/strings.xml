@@ -241,7 +241,7 @@
     <string name="udonge_keybox_list_title">keybox 清單</string>
     <string name="udonge_keybox_list_summary">新增或移除 keybox 連結</string>
     <string name="udonge_keybox_hint">每行一個 https 連結</string>
-    <string name="udonge_rom_keywords_title">隱藏系統痕跡</string>
+    <string name="udonge_rom_keywords_title">hide something wrong</string>
     <string name="udonge_rom_keywords_summary">隱藏自訂 ROM 的執行階段訊號和框架痕跡</string>
     <string name="udonge_rom_keywords_hint">每行一個 ROM 名稱（例如 lineage、protonaosp）</string>
     <string name="hide_app_randomize_confirmation">將隨機產生應用程式名稱、套件名稱、Android 版本、應用程式版本、版本代碼和圖示。是否繼續？</string>
@@ -250,7 +250,18 @@
     <string name="webui_webview_required_summary">此裝置沒有可用的 Android WebView 提供者。請安裝或啟用 Android System WebView，然後再試一次。</string>
     <string name="webui_install_webview">安裝 WebView</string>
     <string name="repository_searcher">儲存庫搜尋</string>
+    <string name="repository_searcher_queue_count">儲存庫搜尋（%1$d）</string>
     <string name="repository_searcher_summary">設定線上模組儲存庫並顯示線上搜尋按鈕</string>
+    <string name="repository_add_to_queue">新增至佇列</string>
+    <string name="repository_remove_from_queue">從佇列移除</string>
+    <string name="repository_queue_downloading">正在下載 %1$d/%2$d：%3$s</string>
+    <string name="repository_queue_installing">正在安裝 %1$d/%2$d：%3$s</string>
+    <string name="repository_queue_progress_elapsed">%1$s · %2$d秒</string>
+    <string name="repository_queue_progress_detail">%1$s\n%2$s · %3$d秒</string>
+    <string name="repository_queue_downloaded">已下載 %1$d 個模組</string>
+    <string name="repository_queue_installed">已安裝 %1$d 個模組；重新啟動後生效</string>
+    <string name="repository_queue_failed">在 %1$s 失敗</string>
+    <string name="repository_queue_failed_reason">在 %1$s 失敗：%2$s</string>
     <string name="repository_links_title">模組儲存庫連結</string>
     <string name="repository_links_hint">每行一個 MMRL 儲存庫網址</string>
     <string name="repository_search_hint">搜尋線上模組</string>

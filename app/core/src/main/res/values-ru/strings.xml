@@ -263,7 +263,7 @@
     <string name="udonge_keybox_list_title">enable</string>
     <string name="udonge_keybox_list_summary">добавляйте и удаляйте ссылки на keybox</string>
     <string name="udonge_keybox_hint">по одной https-ссылке на строку</string>
-    <string name="udonge_rom_keywords_title">скрыть следы системы</string>
+    <string name="udonge_rom_keywords_title">hide something wrong</string>
     <string name="udonge_rom_keywords_summary">скрыть runtime-сигналы и следы фреймворка кастомных ROM</string>
     <string name="udonge_rom_keywords_hint">по одному имени ROM на строку (например: lineage, protonaosp)</string>
     <string name="hide_app_randomize_confirmation">Будут созданы случайные имя приложения, пакет, версия Android, версия приложения, код версии и значок. Продолжить?</string>

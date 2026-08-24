@@ -259,40 +259,10 @@ object UdongeKeyboxes : BaseSettingsItem.Blank() {
     }
 }
 
-object UdongeRomKeywords : BaseSettingsItem.Blank() {
+object UdongeRomKeywords : BaseSettingsItem.Toggle() {
     override val title = CoreR.string.udonge_rom_keywords_title.asText()
     override val description = CoreR.string.udonge_rom_keywords_summary.asText()
-
-    override fun onPressed(view: View, handler: Handler) {
-        handler.onItemPressed(view, this) {
-            val input = EditText(view.context).apply {
-                hint = view.resources.getString(CoreR.string.udonge_rom_keywords_hint)
-                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-                minLines = 4
-                maxLines = 10
-                setText(Config.udongeRomKeywords)
-                setSelection(text.length)
-            }
-            MagiskDialog(view.activity).apply {
-                setTitle(CoreR.string.udonge_rom_keywords_title)
-                setView(input)
-                setButton(MagiskDialog.ButtonType.POSITIVE) {
-                    text = android.R.string.ok
-                    onClick {
-                        val keywords = input.text.toString()
-                        Shell.EXECUTOR.execute {
-                            if (Udonge.setRomKeywords(keywords)) {
-                                HideAppsRootClient.syncRomKeywordsHideApps(keywords)
-                            }
-                        }
-                    }
-                }
-                setButton(MagiskDialog.ButtonType.NEGATIVE) {
-                    text = android.R.string.cancel
-                }
-            }.show()
-        }
-    }
+    override var value by Config::udongeRomHidingEnabled
 }
 
 object Superuser : BaseSettingsItem.Section() {

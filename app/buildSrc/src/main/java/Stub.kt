@@ -152,6 +152,17 @@ private abstract class ManifestUpdater: DefaultTask() {
             |</activity>""".ind(2)
         )
 
+        // The hidden stub must publish every activity that the dynamically
+        // loaded manager can launch explicitly. WebUI used to be absent here,
+        // so the package manager rejected its intent before DynLoad could map
+        // the randomized component back to the real activity class.
+        cmpList.add("""
+            |<activity
+            |    android:name="x.COMPONENT_PLACEHOLDER_6"
+            |    android:exported="false"
+            |    android:screenOrientation="unspecified" />""".ind(2)
+        )
+
         cmpList.add("""
             |<service
             |    android:name="x.COMPONENT_PLACEHOLDER_4"

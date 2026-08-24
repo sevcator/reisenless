@@ -124,8 +124,8 @@
     <string name="udonge_keybox_list_title">keybox sources</string>
     <string name="udonge_keybox_list_summary">add or remove links for keyboxes</string>
     <string name="udonge_keybox_hint">one https link per line</string>
-    <string name="udonge_rom_keywords_title">hide your system things</string>
-    <string name="udonge_rom_keywords_summary">hide runtime signals and framework traces for custom ROMs</string>
+    <string name="udonge_rom_keywords_title">hide something wrong</string>
+    <string name="udonge_rom_keywords_summary">hide custom ROM paths, packages, properties, and framework traces</string>
     <string name="udonge_rom_keywords_hint">one ROM name per line (e.g. lineage, protonaosp)</string>
     <string name="color_preview">color preview</string>
     <string name="color_white">white</string>

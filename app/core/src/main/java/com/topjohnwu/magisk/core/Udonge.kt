@@ -4,6 +4,32 @@ import android.util.Base64
 import com.topjohnwu.superuser.Shell
 
 object Udonge {
+    /** ROM families covered by Duck Detector's property, package and path catalogs. */
+    const val DEFAULT_ROM_KEYWORDS =
+        "lineage\n" +
+        "crdroid\n" +
+        "aospa\n" +
+        "paranoid\n" +
+        "pixelexperience\n" +
+        "evolution\n" +
+        "omnirom\n" +
+        "protonaosp\n" +
+        "havoc\n" +
+        "resurrection\n" +
+        "cyanogenmod\n" +
+        "blissrom\n" +
+        "arrowos\n" +
+        "pixelos\n" +
+        "risingos\n" +
+        "derpfest\n" +
+        "projectelixir\n" +
+        "voltageos\n" +
+        "superioros\n" +
+        "sparkos\n" +
+        "cherishos\n" +
+        "ancientos\n" +
+        "corvus"
+
     private val root = "${Const.SECURE_DIR}/${Const.UDONGE_DIR}"
     private val state = "$root/state"
     private val runtime = "$root/runtime"
@@ -85,6 +111,12 @@ object Udonge {
 
     fun setRomKeywords(value: String): Boolean = setRomKeywords(value) { command ->
         Shell.cmd(command).exec().isSuccess
+    }
+
+    fun setRomHidingEnabled(enabled: Boolean): Boolean {
+        val success = setRomKeywords(if (enabled) DEFAULT_ROM_KEYWORDS else "")
+        if (success) Config.udongeRomHidingEnabled = enabled
+        return success
     }
 
     fun setRomKeywords(value: String, shell: Shell): Boolean = setRomKeywords(value) { command ->
