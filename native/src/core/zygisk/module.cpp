@@ -3,6 +3,8 @@
 #include <sys/syscall.h>
 #include <android/dlext.h>
 #include <dlfcn.h>
+#include <cstring>
+#include <elf.h>
 
 #include <lsplt.hpp>
 
@@ -78,7 +80,21 @@ bool ZygiskModule::RegisterModuleImpl(ApiTable *api, long *module) {
         api->v4.pltHookRegister = [](dev_t dev, ino_t inode, const char *symbol, void *fn, void **backup) {
             if (dev == 0 || inode == 0 || symbol == nullptr || fn == nullptr)
                 return;
-            lsplt::RegisterHook(dev, inode, symbol, fn, backup);
+            bool registered = false;
+            for (const auto &map : lsplt::MapInfo::Scan()) {
+                if (map.dev != dev || map.inode != inode || !map.is_private ||
+                    !(map.perms & PROT_READ) || map.end - map.start < SELFMAG)
+                    continue;
+                const auto *header = reinterpret_cast<const unsigned char *>(map.start);
+                if (memcmp(header, ELFMAG, SELFMAG) != 0) continue;
+                // Native libraries stored uncompressed in an APK share the APK
+                // inode but have an ELF header at the ZIP entry's non-zero file
+                // offset. Register that exact image range instead of assuming
+                // every ELF begins at offset zero.
+                lsplt::RegisterHook(dev, inode, map.offset, 1, symbol, fn, backup);
+                registered = true;
+            }
+            if (!registered) lsplt::RegisterHook(dev, inode, symbol, fn, backup);
         };
         api->v4.exemptFd = [](int fd) { return g_ctx && g_ctx->exempt_fd(fd); };
     }
