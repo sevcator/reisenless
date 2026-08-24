@@ -19,6 +19,7 @@ import androidx.webkit.WebViewAssetLoader
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.R as CoreR
+import com.topjohnwu.magisk.core.cmp
 import com.topjohnwu.magisk.core.ktx.toast
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
@@ -154,7 +155,7 @@ class WebUIActivity : ComponentActivity() {
         const val EXTRA_MODULE_NAME = "module_name"
 
         fun intent(context: Context, moduleId: String, moduleName: String) =
-            Intent(context, WebUIActivity::class.java).apply {
+            Intent().setComponent(WebUIActivity::class.java.cmp(context.packageName)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 putExtra(EXTRA_MODULE_ID, moduleId)
                 putExtra(EXTRA_MODULE_NAME, moduleName)
