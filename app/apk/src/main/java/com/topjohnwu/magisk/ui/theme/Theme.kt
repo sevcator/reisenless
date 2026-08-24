@@ -19,13 +19,13 @@ object Theme {
     }
 
     fun apply(activity: Activity) {
-        applyAccentResources(activity)
         activity.setTheme(R.style.ThemeFoundationMD2)
         activity.theme.applyStyle(R.style.ThemeOverlay_Reisenless_Accent, true)
+        applyAccentResources(activity)
     }
 
     fun applyOverlays(activity: Activity) {
-        applyAccentResources(activity)
         activity.theme.applyStyle(R.style.ThemeOverlay_Reisenless_Accent, true)
+        applyAccentResources(activity)
     }
 }
