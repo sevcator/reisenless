@@ -19,12 +19,12 @@ object ServiceLocator {
     val deContext by lazy { AppContext.deviceProtectedContext }
     val timeoutPrefs by lazy { deContext.getSharedPreferences("su_timeout", 0) }
 
-    // Database
+
     val policyDB = PolicyDao()
     val settingsDB = SettingsDao()
     val stringDB = StringDao()
 
-    // Networking
+
     val okhttp by lazy { createOkHttpClient(AppContext) }
     val retrofit by lazy { createRetrofit(okhttp) }
     val markwon by lazy { createMarkwon(AppContext) }

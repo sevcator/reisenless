@@ -26,7 +26,7 @@ class ConsoleItem(
         val view = binding.root as TextView
         view.measure(0, 0)
 
-        // We want our recyclerView at least as wide as screen
+
         val desiredWidth = max(view.measuredWidth, parentWidth)
 
         view.updateLayoutParams { width = desiredWidth }

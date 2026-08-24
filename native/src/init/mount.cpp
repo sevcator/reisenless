@@ -21,8 +21,8 @@ struct devinfo {
 
 static vector<devinfo> dev_list;
 
-// When this boolean is set, this means we are currently
-// running magiskinit on legacy SAR AVD emulator
+
+
 bool avd_hack = false;
 
 static void parse_device(devinfo *dev, const char *uevent) {
@@ -61,7 +61,7 @@ void MagiskInit::collect_devices() const noexcept {
             if (auto it = std::ranges::find_if(config.partition_map, [&](const auto &i) {
                 return i.key == dev.devname;
             }); dev.partname[0] == '\0' && it != config.partition_map.end()) {
-                // use androidboot.partition_map as partname fallback.
+
                 strscpy(dev.partname, it->value.data(), sizeof(dev.partname));
             }
             sprintf(path, "/sys/dev/block/%s", entry->d_name);
@@ -92,13 +92,13 @@ uint64_t MagiskInit::find_block(const char *partname) const noexcept {
             LOGD("Found %s: [%s] (%d, %d)\n", name, dev.devname, dev.major, dev.minor);
             return makedev(dev.major, dev.minor);
         }
-        // Wait 10ms and try again
+
         usleep(10000);
         dev_list.clear();
         collect_devices();
     }
 
-    // The requested partname does not exist
+
     return 0;
 }
 
@@ -112,21 +112,21 @@ void MagiskInit::mount_preinit_dir() noexcept {
     xmknod(PREINITDEV, S_IFBLK | 0600, dev);
     xmkdir(MIRRDIR, 0);
     bool mounted = false;
-    // First, find if it is already mounted
+
     std::string mnt_point;
     if (rust::is_device_mounted(dev, mnt_point)) {
-        // Already mounted, just bind mount
+
         xmount(mnt_point.data(), MIRRDIR, nullptr, MS_BIND, nullptr);
         mounted = true;
     }
 
-    // Since we are mounting the block device directly, make sure to ONLY mount the partitions
-    // as read-only, or else the kernel might crash due to crappy drivers.
-    // After the device boots up, magiskd will properly symlink the correct path at PREINITMIRR as writable.
+
+
+
     if (mounted || mount(PREINITDEV, MIRRDIR, "ext4", MS_RDONLY, nullptr) == 0 ||
         mount(PREINITDEV, MIRRDIR, "f2fs", MS_RDONLY, nullptr) == 0) {
         string preinit_dir = resolve_preinit_dir(MIRRDIR);
-        // Create bind mount
+
         xmkdirs(PREINITMIRR, 0);
         if (access(preinit_dir.data(), F_OK)) {
             LOGW("empty preinit: %s\n", preinit_dir.data());
@@ -137,40 +137,40 @@ void MagiskInit::mount_preinit_dir() noexcept {
         xumount2(MIRRDIR, MNT_DETACH);
     } else {
         PLOGE("Mount preinit %s", preinit_dev.c_str());
-        // Do NOT delete the block device. Even though we cannot mount it here,
-        // it might get formatted later in the boot process.
+
+
     }
 }
 
 bool MagiskInit::mount_system_root() noexcept {
     LOGD("Mounting system_root\n");
 
-    // there's no /dev in stub cpio
+
     xmkdir("/dev", 0777);
 
     dev_t dev;
     do {
-        // Try legacy SAR dm-verity
+
         dev = find_block("vroot");
         if (dev > 0)
             goto mount_root;
 
-        // Try NVIDIA naming scheme
+
         dev = find_block("APP");
         if (dev > 0)
             goto mount_root;
 
-        // Try normal partname
+
         char sys_part[32];
         sprintf(sys_part, "system%s", config.slot.data());
         dev = find_block(sys_part);
         if (dev > 0)
             goto mount_root;
 
-        // Poll forever if rootwait was given in cmdline
+
     } while (config.rootwait);
 
-    // We don't really know what to do at this point...
+
     LOGE("Cannot find root partition, abort\n");
     exit(1);
 
@@ -180,7 +180,7 @@ mount_root:
 
     if (xmount("/dev/root", "/system_root", "ext4", MS_RDONLY, nullptr)) {
         if (xmount("/dev/root", "/system_root", "erofs", MS_RDONLY, nullptr)) {
-            // We don't really know what to do at this point...
+
             LOGE("Cannot mount root partition, abort\n");
             exit(1);
         }
@@ -188,18 +188,18 @@ mount_root:
 
     rust::switch_root("/system_root");
 
-    // Make dev writable
+
     xmount("tmpfs", "/dev", "tmpfs", 0, "mode=755");
     mount_list.emplace_back("/dev");
 
     bool is_two_stage = access("/system/bin/init", F_OK) == 0;
     LOGD("is_two_stage: [%d]\n", is_two_stage);
 
-    // For API 28 AVD, it uses legacy SAR setup that requires
-    // special hacks in magiskinit to work properly.
+
+
     if (!is_two_stage && config.emulator) {
         avd_hack = true;
-        // These values are hardcoded for API 28 AVD
+
         auto vendor_dev = find_block("vendor");
         xmkdir("/dev/block", 0755);
         xmknod("/dev/block/vde1", S_IFBLK | 0600, vendor_dev);
@@ -222,7 +222,7 @@ void MagiskInit::setup_tmp(const char *path) noexcept {
     cp_afc(BACKUP_CONFIG, MAIN_CONFIG);
     rm_rf(".backup");
 
-    // Create applet symlinks
+
     for (int i = 0; applet_names[i]; ++i)
         xsymlink("./" MAIN_BIN_NAME, applet_names[i]);
     xsymlink("./" POLICY_BIN_NAME, "supolicy");
@@ -231,10 +231,10 @@ void MagiskInit::setup_tmp(const char *path) noexcept {
 
     chdir(path);
 
-    // Prepare worker
+
     xmount(WORKER_SOURCE, WORKERDIR, "tmpfs", 0, "mode=755");
 
-    // Use isolated devpts if kernel support
+
     if (access("/dev/pts/ptmx", F_OK) == 0) {
         xmkdirs(SHELLPTS, 0755);
         xmount("devpts", SHELLPTS, "devpts", MS_NOSUID | MS_NOEXEC, "newinstance");

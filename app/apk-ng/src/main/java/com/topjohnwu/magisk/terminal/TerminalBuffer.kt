@@ -2,30 +2,30 @@ package com.topjohnwu.magisk.terminal
 
 import java.util.Arrays
 
-/**
- * A circular buffer of [TerminalRow]s which keeps notes about what is visible on a logical screen and the scroll
- * history.
- *
- * See [externalToInternalRow] for how to map from logical screen rows to array indices.
- */
+
+
+
+
+
+
 class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
 
     var lines: Array<TerminalRow?>
 
-    /** The length of [lines]. */
+
     var totalRows: Int = totalRows
         private set
 
-    /** The number of rows and columns visible on the screen. */
+
     var screenRows: Int = screenRows
 
     var columns: Int = columns
 
-    /** The number of rows kept in history. */
+
     var activeTranscriptRows: Int = 0
         private set
 
-    /** The index in the circular buffer where the visible screen starts. */
+
     private var screenFirstRow = 0
 
     init {
@@ -119,27 +119,27 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
 
     val activeRows: Int get() = activeTranscriptRows + screenRows
 
-    /**
-     * Convert a row value from the public external coordinate system to our internal private coordinate system.
-     *
-     * ```
-     * - External coordinate system: -activeTranscriptRows to screenRows-1, with the screen being 0..screenRows-1.
-     * - Internal coordinate system: the screenRows lines starting at screenFirstRow comprise the screen, while the
-     *   activeTranscriptRows lines ending at screenFirstRow-1 form the transcript (as a circular buffer).
-     *
-     * External <-> Internal:
-     *
-     * [ ...                            ]     [ ...                                     ]
-     * [ -activeTranscriptRows         ]     [ screenFirstRow - activeTranscriptRows ]
-     * [ ...                            ]     [ ...                                     ]
-     * [ 0 (visible screen starts here) ]  <->  [ screenFirstRow                         ]
-     * [ ...                            ]     [ ...                                     ]
-     * [ screenRows-1                  ]     [ screenFirstRow + screenRows-1         ]
-     * ```
-     *
-     * @param externalRow a row in the external coordinate system.
-     * @return The row corresponding to the input argument in the private coordinate system.
-     */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     fun externalToInternalRow(externalRow: Int): Int {
         if (externalRow < -activeTranscriptRows || externalRow > screenRows)
             throw IllegalArgumentException("extRow=$externalRow, screenRows=$screenRows, activeTranscriptRows=$activeTranscriptRows")
@@ -159,21 +159,21 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
         lines[externalToInternalRow(row)]!!.lineWrap = false
     }
 
-    /**
-     * Resize the screen which this transcript backs. Currently, this only works if the number of columns does not
-     * change or the rows expand (that is, it only works when shrinking the number of rows).
-     *
-     * @param newColumns The number of columns the screen should have.
-     * @param newRows    The number of rows the screen should have.
-     * @param cursor     An int[2] containing the (column, row) cursor location.
-     */
+
+
+
+
+
+
+
+
     fun resize(newColumns: Int, newRows: Int, newTotalRows: Int, cursor: IntArray, currentStyle: Long, altScreen: Boolean) {
-        // newRows > totalRows should not normally happen since totalRows is TRANSCRIPT_ROWS (10000):
+
         if (newColumns == columns && newRows <= totalRows) {
-            // Fast resize where just the rows changed.
+
             var shiftDownOfTopRow = screenRows - newRows
             if (shiftDownOfTopRow > 0 && shiftDownOfTopRow < screenRows) {
-                // Shrinking. Check if we can skip blank rows at bottom below cursor.
+
                 for (i in screenRows - 1 downTo 1) {
                     if (cursor[1] >= i) break
                     val r = externalToInternalRow(i)
@@ -182,7 +182,7 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
                     }
                 }
             } else if (shiftDownOfTopRow < 0) {
-                // Negative shift down = expanding. Only move screen up if there is transcript to show:
+
                 val actualShift = maxOf(shiftDownOfTopRow, -activeTranscriptRows)
                 if (shiftDownOfTopRow != actualShift) {
                     for (i in 0 until actualShift - shiftDownOfTopRow)
@@ -197,7 +197,7 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
             cursor[1] -= shiftDownOfTopRow
             screenRows = newRows
         } else {
-            // Copy away old state and update new:
+
             val oldLines = lines
             lines = arrayOfNulls(newTotalRows)
             for (i in 0 until newTotalRows)
@@ -251,8 +251,8 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
                     if (cursorAtThisRow) justToCursor = true
                 } else {
                     for (i in 0 until oldLine.spaceUsed)
-                        // NEWLY INTRODUCED BUG! Should not index oldLine.styles with char indices
-                        if (oldLine.text[i] != ' '/* || oldLine.styles[i] != currentStyle */)
+
+                        if (oldLine.text[i] != ' '                                          )
                             lastNonSpaceIndex = i + 1
                 }
 
@@ -313,20 +313,20 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
             cursor[1] = newCursorRow
         }
 
-        // Handle cursor scrolling off screen:
+
         if (cursor[0] < 0 || cursor[1] < 0) {
             cursor[0] = 0
             cursor[1] = 0
         }
     }
 
-    /**
-     * Block copy lines and associated metadata from one location to another in the circular buffer, taking wraparound
-     * into account.
-     *
-     * @param srcInternal The first line to be copied.
-     * @param len         The number of lines to be copied.
-     */
+
+
+
+
+
+
+
     private fun blockCopyLinesDown(srcInternal: Int, len: Int) {
         if (len == 0) return
 
@@ -337,13 +337,13 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
         lines[srcInternal % totalRows] = lineToBeOverWritten
     }
 
-    /**
-     * Scroll the screen down one line. To scroll the whole screen of a 24 line screen, the arguments would be (0, 24).
-     *
-     * @param topMargin    First line that is scrolled.
-     * @param bottomMargin One line after the last line that is scrolled.
-     * @param style        the style for the newly exposed line.
-     */
+
+
+
+
+
+
+
     fun scrollDownOneLine(topMargin: Int, bottomMargin: Int, style: Long) {
         if (topMargin > bottomMargin - 1 || topMargin < 0 || bottomMargin > screenRows)
             throw IllegalArgumentException("topMargin=$topMargin, bottomMargin=$bottomMargin, screenRows=$screenRows")
@@ -362,18 +362,18 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
         }
     }
 
-    /**
-     * Block copy characters from one position in the screen to another. The two positions can overlap. All characters
-     * of the source and destination must be within the bounds of the screen, or else an InvalidParameterException will
-     * be thrown.
-     *
-     * @param sx source X coordinate
-     * @param sy source Y coordinate
-     * @param w  width
-     * @param h  height
-     * @param dx destination X coordinate
-     * @param dy destination Y coordinate
-     */
+
+
+
+
+
+
+
+
+
+
+
+
     fun blockCopy(sx: Int, sy: Int, w: Int, h: Int, dx: Int, dy: Int) {
         if (w == 0) return
         if (sx < 0 || sx + w > columns || sy < 0 || sy + h > screenRows || dx < 0 || dx + w > columns || dy < 0 || dy + h > screenRows)
@@ -386,11 +386,11 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
         }
     }
 
-    /**
-     * Block set characters. All characters must be within the bounds of the screen, or else an
-     * InvalidParameterException will be thrown. Typically this is called with a "val" argument of 32 to clear a block
-     * of characters.
-     */
+
+
+
+
+
     fun blockSet(sx: Int, sy: Int, w: Int, h: Int, `val`: Int, style: Long) {
         if (sx < 0 || sx + w > columns || sy < 0 || sy + h > screenRows) {
             throw IllegalArgumentException(
@@ -416,7 +416,7 @@ class TerminalBuffer(columns: Int, totalRows: Int, screenRows: Int) {
         return allocateFullLineIfNecessary(externalToInternalRow(externalRow)).getStyle(column)
     }
 
-    /** Support for http://vt100.net/docs/vt510-rm/DECCARA and http://vt100.net/docs/vt510-rm/DECCARA */
+
     fun setOrClearEffect(bits: Int, setOrClear: Boolean, reverse: Boolean, rectangular: Boolean, leftMargin: Int, rightMargin: Int, top: Int, left: Int,
                          bottom: Int, right: Int) {
         for (y in top until bottom) {

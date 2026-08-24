@@ -1,15 +1,15 @@
 <resources>
 
-    <!--Sections-->
+
     <string name="modules">модули</string>
-    <string name="superuser">superuser</string> <!--Do not translate! #6016-->
+    <string name="superuser">superuser</string>
     <string name="settings">настройки</string>
     <string name="install">установка</string>
     <string name="section_home">главная</string>
     <string name="section_theme">тема</string>
     <string name="sulist">sulist</string>
 
-    <!--Home-->
+
     <string name="no_connection">нет подключения к сети</string>
     <string name="app_changelog">изменения</string>
     <string name="loading">загрузка…</string>
@@ -29,7 +29,7 @@
     <string name="uninstall_magisk_title">удаление reisenless</string>
     <string name="uninstall_magisk_msg">все модули будут отключены либо удалены!\nroot-доступ будет недоступен!\nбудет активировано шифрование /data (если отключалось при установке)!</string>
 
-    <!--Install-->
+
     <string name="keep_force_encryption">не отключать шифрование /data</string>
     <string name="keep_dm_verity">не отключать avb 2.0/dm-verity</string>
     <string name="recovery_mode">патчить образ recovery вместо boot</string>
@@ -47,7 +47,7 @@
     <string name="reboot_delay_toast">перезагрузка через 5 секунд…</string>
     <string name="flash_screen_title">установка</string>
 
-    <!--Superuser-->
+
     <string name="su_request_title">запрос прав суперпользователя</string>
     <string name="touch_filtered_warning">одно из приложений отображается поверх окна reisenless, выдача root-прав недоступна</string>
     <string name="deny">запретить</string>
@@ -75,22 +75,22 @@
     <string name="superuser_toggle_revoke">отозвать</string>
     <string name="superuser_policy_none">приложения ещё не запрашивали права суперпользователя</string>
 
-    <!--Logs-->
+
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">целевой uid: %1$d</string>
     <string name="target_pid">целевой pid пространства имён: %s</string>
     <string name="selinux_context">контекст selinux: %s</string>
     <string name="supp_group">дополнительная группа: %s</string>
 
-    <!--SafetyNet-->
 
-    <!--ReisenlessHide-->
+
+
     <string name="show_system_app">системные приложения</string>
     <string name="show_os_app">встроенные приложения</string>
     <string name="hide_filter_hint">введите имя</string>
     <string name="hide_search">поиск</string>
 
-    <!--Module-->
+
     <string name="no_info_provided">(нет информации)</string>
     <string name="reboot_userspace">перезапуск оболочки</string>
     <string name="reboot_recovery">перезагрузка в recovery</string>
@@ -108,12 +108,11 @@
     <string name="confirm_install">установить модуль %1$s?</string>
     <string name="confirm_install_title">подтверждение установки</string>
 
-    <!--Settings-->
+
     <string name="settings_theme_mode">тема</string>
     <string name="theme_light">светлая</string>
     <string name="theme_dark">тёмная</string>
-    <string name="settings_accent_primary">акцентный цвет</string>
-    <string name="settings_accent_secondary">акцентный цвет 2</string>
+    <string name="settings_accent_color">акцентный цвет</string>
     <string name="color_preview">предпросмотр цвета</string>
     <string name="color_white">белый</string>
     <string name="color_blue">синий</string>
@@ -179,13 +178,13 @@
     <string name="requester_summary">сессии суперпользователя наследуют пространство имён запрашивающего</string>
     <string name="isolate_summary">сессии суперпользователя используют изолированные пространства имён</string>
 
-    <!--Notifications-->
+
     <string name="progress_channel">уведомления о прогрессе</string>
     <string name="updated_channel">обновление завершено</string>
     <string name="download_complete">загрузка завершена</string>
     <string name="download_file_error">ошибка загрузки файла</string>
 
-    <!--Toasts, Dialogs-->
+
     <string name="yes">да</string>
     <string name="no">нет</string>
     <string name="repo_install_title">установка %1$s %2$s(%3$d)</string>
@@ -271,32 +270,5 @@
     <string name="webui_webview_required">Требуется Android System WebView</string>
     <string name="webui_webview_required_summary">На устройстве нет рабочего поставщика Android WebView. Установите или включите Android System WebView и повторите попытку.</string>
     <string name="webui_install_webview">установить WebView</string>
-    <string name="repository_searcher">поиск по репозиториям</string>
-    <string name="repository_searcher_queue_count">поиск по репозиториям (%1$d)</string>
-    <string name="repository_searcher_summary">настройка онлайн-репозиториев модулей и кнопки онлайн-поиска</string>
-    <string name="repository_links_title">ссылки на репозитории модулей</string>
-    <string name="repository_links_hint">по одной ссылке на MMRL-репозиторий на строку</string>
-    <string name="repository_search_hint">поиск модулей онлайн</string>
-    <string name="repository_load_failed">не удалось загрузить ни один настроенный репозиторий</string>
-    <string name="repository_no_results">подходящие онлайн-модули не найдены</string>
-    <string name="repository_mmrl_url_hint">URL MMRL-репозитория</string>
-    <string name="repository_mmrl_url_invalid">введите HTTPS-ссылку на MMRL-репозиторий или modules.json</string>
-    <string name="repository_add_trusted">добавить доверенные репозитории</string>
-    <string name="repository_add">добавить</string>
-    <string name="repository_add_to_queue">добавить в очередь</string>
-    <string name="repository_remove_from_queue">убрать из очереди</string>
-    <string name="repository_queue_downloading">скачивание %1$d/%2$d: %3$s</string>
-    <string name="repository_queue_installing">установка %1$d/%2$d: %3$s</string>
-    <string name="repository_queue_progress_elapsed">%1$s · %2$d с</string>
-    <string name="repository_queue_progress_detail">%1$s\n%2$s · %3$d с</string>
-    <string name="repository_queue_downloaded">скачано модулей: %1$d</string>
-    <string name="repository_queue_installed">установлено модулей: %1$d; перезагрузите устройство для активации</string>
-    <string name="repository_queue_failed">ошибка на модуле %1$s</string>
-    <string name="repository_queue_failed_reason">ошибка на модуле %1$s: %2$s</string>
-    <string name="repository_web">сайт</string>
-    <string name="repository_trusted">доверенный MMRL-репозиторий</string>
-    <string name="repository_configured">настроенные репозитории</string>
-    <string name="repository_none_configured">репозитории не настроены</string>
-    <string name="repository_module_count">модулей: %1$d</string>
     <string name="module_search_installed">поиск установленных модулей</string>
 </resources>

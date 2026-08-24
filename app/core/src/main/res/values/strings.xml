@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
 
-    <!--Sections-->
+
     <string name="modules">modules</string>
     <string name="superuser">superuser</string>
     <string name="settings">settings</string>
@@ -9,7 +9,7 @@
     <string name="section_theme">theme</string>
     <string name="sulist">sulist</string>
 
-    <!--Home-->
+
     <string name="no_connection">no connection available</string>
     <string name="app_changelog">changelog</string>
     <string name="loading">loading…</string>
@@ -28,7 +28,7 @@
     <string name="uninstall_magisk_title">uninstall reisenless</string>
     <string name="uninstall_magisk_msg">all modules will be disabled/removed!\nroot will be removed!\nany internal storage unencrypted through the use of reisenless will be re-encrypted!</string>
 
-    <!--Install-->
+
     <string name="keep_force_encryption">preserve force encryption</string>
     <string name="keep_dm_verity">preserve avb 2.0/dm-verity</string>
     <string name="recovery_mode">recovery mode</string>
@@ -46,7 +46,7 @@
     <string name="reboot_delay_toast">rebooting in 5 seconds…</string>
     <string name="flash_screen_title">installation</string>
 
-    <!--Superuser-->
+
     <string name="su_request_title">superuser request</string>
     <string name="touch_filtered_warning">because an app is obscuring a superuser request, reisenless can\'t verify your response.</string>
     <string name="deny">deny</string>
@@ -74,20 +74,20 @@
     <string name="superuser_toggle_revoke">revoke</string>
     <string name="superuser_policy_none">no apps have asked for superuser permission yet.</string>
 
-    <!--Logs-->
+
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">target uid: %1$d</string>
     <string name="target_pid">target pid: %s</string>
     <string name="selinux_context">selinux context: %s</string>
     <string name="supp_group">supplementary group: %s</string>
 
-    <!--ReisenlessHide-->
+
     <string name="show_system_app">show system apps</string>
     <string name="show_os_app">show os apps</string>
     <string name="hide_filter_hint">filter by name</string>
     <string name="hide_search">search</string>
 
-    <!--Module-->
+
     <string name="no_info_provided">(no info provided)</string>
     <string name="reboot_userspace">soft reboot</string>
     <string name="reboot_recovery">reboot to recovery</string>
@@ -107,12 +107,11 @@
     <string name="confirm_install">install module %1$s?</string>
     <string name="confirm_install_title">install confirmation</string>
 
-    <!--Settings-->
+
     <string name="settings_theme_mode">theme</string>
     <string name="theme_light">light</string>
     <string name="theme_dark">dark</string>
-    <string name="settings_accent_primary">accent color</string>
-    <string name="settings_accent_secondary">accent color 2</string>
+    <string name="settings_accent_color">accent color</string>
     <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">allow background updates</string>
     <string name="udonge_background_updates_summary">select modules and keyboxes</string>
@@ -138,33 +137,6 @@
     <string name="color_teal">teal</string>
     <string name="color_gray">gray</string>
     <string name="settings_hide_app_title">hide reisenless</string>
-    <string name="repository_searcher">repository searcher</string>
-    <string name="repository_searcher_queue_count">repository searcher (%1$d)</string>
-    <string name="repository_searcher_summary">configure online module repositories and show the online search button</string>
-    <string name="repository_links_title">Module repository links</string>
-    <string name="repository_links_hint">One MMRL repository URL per line</string>
-    <string name="repository_search_hint">Search online modules</string>
-    <string name="repository_load_failed">Could not load any configured repository</string>
-    <string name="repository_no_results">No matching online modules</string>
-    <string name="repository_mmrl_url_hint">MMRL repository URL</string>
-    <string name="repository_mmrl_url_invalid">Enter an HTTPS MMRL repository or modules.json URL</string>
-    <string name="repository_add_trusted">add trusted repositories</string>
-    <string name="repository_add">add</string>
-    <string name="repository_add_to_queue">add to queue</string>
-    <string name="repository_remove_from_queue">remove from queue</string>
-    <string name="repository_queue_downloading">downloading %1$d/%2$d: %3$s</string>
-    <string name="repository_queue_installing">installing %1$d/%2$d: %3$s</string>
-    <string name="repository_queue_progress_elapsed">%1$s · %2$ds</string>
-    <string name="repository_queue_progress_detail">%1$s\n%2$s · %3$ds</string>
-    <string name="repository_queue_downloaded">downloaded %1$d modules</string>
-    <string name="repository_queue_installed">installed %1$d modules; reboot to activate</string>
-    <string name="repository_queue_failed">failed at %1$s</string>
-    <string name="repository_queue_failed_reason">failed at %1$s: %2$s</string>
-    <string name="repository_web">web</string>
-    <string name="repository_trusted">trusted MMRL repository</string>
-    <string name="repository_configured">configured repositories</string>
-    <string name="repository_none_configured">no repositories configured</string>
-    <string name="repository_module_count">%1$d modules</string>
     <string name="module_search_installed">Search installed modules</string>
     <string name="settings_hide_app_summary">reisensense &gt;w&lt;</string>
     <string name="hide_app_randomize_confirmation">a random app name, package, android version, version number, version code, and icon will be generated. continue?</string>
@@ -221,13 +193,13 @@
     <string name="requester_summary">root sessions will inherit their requester\'s namespace</string>
     <string name="isolate_summary">each root session will have its own isolated namespace</string>
 
-    <!--Notifications-->
+
     <string name="progress_channel">progress notifications</string>
     <string name="updated_channel">update complete</string>
     <string name="download_complete">download complete</string>
     <string name="download_file_error">error downloading file</string>
 
-    <!--Toasts, Dialogs-->
+
     <string name="yes">yes</string>
     <string name="no">no</string>
     <string name="repo_install_title">install %1$s %2$s(%3$d)</string>

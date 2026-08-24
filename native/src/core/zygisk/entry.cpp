@@ -23,7 +23,7 @@ static void zygiskd(int socket) {
     set_nice_name(ZYGISKD32);
 #endif
 
-    // Load modules
+
     vector<comp_entry> modules;
     {
         auto module_fds = recv_fds(socket);
@@ -46,20 +46,20 @@ static void zygiskd(int socket) {
         }
     }
 
-    // ack
+
     write_int(socket, 0);
 
-    // Start accepting requests
+
     pollfd pfd = { socket, POLLIN, 0 };
     for (;;) {
         poll(&pfd, 1, -1);
         if (pfd.revents && !(pfd.revents & POLLIN)) {
-            // Something bad happened in magiskd, terminate zygiskd
+
             exit(0);
         }
         int client = recv_fd(socket);
         if (client < 0) {
-            // Something bad happened in magiskd, terminate zygiskd
+
             exit(0);
         }
         int module_id = read_int(client);
@@ -71,8 +71,8 @@ static void zygiskd(int socket) {
     }
 }
 
-// Entrypoint where we need to re-exec ourselves
-// This should only ever be called internally
+
+
 int zygisk_main(int argc, char *argv[]) {
     android_logging();
     if (argc == 3 && argv[1] == "companion"sv) {
@@ -81,7 +81,7 @@ int zygisk_main(int argc, char *argv[]) {
     return 0;
 }
 
-// Entrypoint of code injection
+
 extern "C" [[maybe_unused]] NativeBridgeCallbacks NativeBridgeItf {
     .version = 2,
     .padding = {},

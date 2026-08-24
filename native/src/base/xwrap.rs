@@ -1,4 +1,4 @@
-// Functions in this file are only for exporting to C++, DO NOT USE IN RUST
+
 
 use crate::cxx_extern::readlinkat;
 use crate::{Directory, LibcReturn, ResultExt, Utf8CStr, cstr, slice_from_ptr, slice_from_ptr_mut};

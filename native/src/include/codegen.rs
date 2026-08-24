@@ -1,4 +1,4 @@
-// This file hosts shared build script logic
+
 
 use std::fmt::Display;
 use std::fs::File;
@@ -27,7 +27,7 @@ impl<T, E: Display> ResultExt<T> for Result<T, E> {
 fn write_if_diff<P: AsRef<Path>>(path: P, bytes: &[u8]) -> io::Result<()> {
     let path = path.as_ref();
     if let Ok(orig) = fs::read(path) {
-        // Do not modify the file if content is the same to make incremental build more optimal
+
         if orig.as_slice() == bytes {
             return Ok(());
         }

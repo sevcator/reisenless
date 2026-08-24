@@ -39,7 +39,7 @@ lzma-rust2 = { version = "0.18.0", default-features = false }
 nix = "0.31.3"
 bitflags = "2.13.1"
 
-# Rust crypto crates are tied together
+
 sha1 = "0.11.0"
 sha2 = "0.11.0"
 digest = "0.11.3"

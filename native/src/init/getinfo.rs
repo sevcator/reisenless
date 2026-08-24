@@ -44,9 +44,9 @@ impl MagiskInit {
         cstr!("/first_stage_ramdisk").exists() ||
             cstr!("/second_stage_resources").exists() ||
             cstr!("/system/bin/init").exists() ||
-            // Use the apex folder to determine whether 2SI (Android 10+)
+
             cstr!("/apex").exists() ||
-            // If we still have no indication, parse the original init and see what's up
+
             MappedFile::open(Some(cstr!("/init.real")).take_if(|p| p.exists()).unwrap_or(backup_init()))
                 .map(|data| data.contains(b"selinux_setup"))
                 .unwrap_or(false)

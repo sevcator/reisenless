@@ -1,25 +1,25 @@
-#####################################################################
-#   AVD Magisk Setup
-#####################################################################
-#
-# Support API level: 23 - 36
-#
-# For developing Magisk, just use:
-# ./build.py emulator
-#
-# This script will stop zygote, simulate the Magisk start up process
-# that would've happened before zygote was started, and finally
-# restart zygote. This is useful for setting up the emulator for
-# developing Magisk, testing modules, and developing root apps using
-# the official Android emulator (AVD) instead of a real device.
-#
-# This only covers the "core" features of Magisk. For testing
-# magiskinit, please checkout avd_patch.sh.
-#
-#####################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 mount_tmpfs() {
-  # If a file matches the tmpfs source label, mount may treat it as a path.
+
   local source=${MAIN_BIN_NAME:-ms}
   [ -f "$source" ] && mv "$source" "$source.tmp"
   mount -t tmpfs -o 'mode=0755' "$source" $1
@@ -32,7 +32,7 @@ mount_sbin() {
 }
 
 if [ ! -f /system/build.prop ]; then
-  # Running on PC
+
   echo 'please run `./build.py emulator` instead of directly executing the script!'
   exit 1
 fi
@@ -44,17 +44,17 @@ if [ -z "$FIRST_STAGE" ]; then
   export FIRST_STAGE=1
   export ASH_STANDALONE=1
   if [ $(./busybox id -u) -ne 0 ]; then
-    # Re-exec script with root
+
     exec /system/xbin/su 0 /data/local/tmp/busybox sh $0
   else
-    # Re-exec script with busybox
+
     exec ./busybox sh $0
   fi
 fi
 
 pm install -r -g $(pwd)/magisk.apk
 
-# Extract files from APK
+
 unzip -oj magisk.apk 'assets/util_functions.sh'
 . ./util_functions.sh
 unzip -oj magisk.apk "assets/$STUB_NAME" "assets/$UDONGE_ARCHIVE"
@@ -77,26 +77,26 @@ fi
 [ -f mpol ] && mv mpol "$POLICY_NAME"
 [ -f init-ld ] && mv init-ld "$INIT_LD_NAME"
 
-# Stop zygote (and previous setup if exists)
+
 ./$MAIN_BIN_NAME --stop 2>/dev/null
 stop
 if [ -d /debug_ramdisk ]; then
   umount -l /debug_ramdisk 2>/dev/null
 fi
 
-# Make sure boot completed props are not set to 1
+
 setprop sys.boot_completed 0
 
-# Mount /cache if not already mounted
+
 if ! grep -q ' /cache ' /proc/mounts; then
   mount -t tmpfs -o 'mode=0755' tmpfs /cache
 fi
 
 MAGISKTMP=/sbin
 
-# Setup bin overlay
+
 if mount | grep -q rootfs; then
-  # Legacy rootfs
+
   mount -o rw,remount /
   rm -rf /root
   mkdir /root /sbin 2>/dev/null
@@ -106,7 +106,7 @@ if mount | grep -q rootfs; then
   mount_sbin
   ln -s /root/* /sbin
 elif [ -e /sbin ]; then
-  # Legacy SAR
+
   mount_sbin
   mkdir -p /dev/sysroot
   block=$(mount | grep ' / ' | awk '{ print $1 }')
@@ -125,12 +125,12 @@ elif [ -e /sbin ]; then
   umount -l /dev/sysroot
   rm -rf /dev/sysroot
 else
-  # Android Q+ without sbin
+
   MAGISKTMP=/debug_ramdisk
   mount_tmpfs /debug_ramdisk
 fi
 
-# Magisk stuff
+
 mkdir -p $MAGISKBIN 2>/dev/null
 unzip -oj magisk.apk 'assets/*.sh' -d $MAGISKBIN
 mkdir ${SECURE_DIR}/modules 2>/dev/null
@@ -174,7 +174,7 @@ RULESCMD=""
 rule="$MAGISKTMP/$INTERNAL_DIR/preinit/sepolicy.rule"
 [ -f "$rule" ] && RULESCMD="--apply $rule"
 
-# SELinux stuffs
+
 if [ -d /sys/fs/selinux ]; then
   if [ -f /vendor/etc/selinux/precompiled_sepolicy ]; then
     ./mpol --load /vendor/etc/selinux/precompiled_sepolicy --live --rules $RULESCMD 2>&1
@@ -185,10 +185,10 @@ if [ -d /sys/fs/selinux ]; then
   fi
 fi
 
-# Boot up
+
 $MAGISKTMP/$MAIN_BIN_NAME --post-fs-data
 start
 $MAGISKTMP/$MAIN_BIN_NAME --service
-# Make sure reset nb prop after zygote starts
+
 sleep 2
 $MAGISKTMP/$MAIN_BIN_NAME --boot-complete

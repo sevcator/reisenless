@@ -1,12 +1,12 @@
-##################################
-# Magisk app internal scripts
-##################################
 
-#SECURE_DIR_STUB
-#BUILD_IDENTITY_STUB
 
-# BusyBox uses argv[0] to select multicall mode. Its filename is randomized
-# per build, so provide the expected argv[0] without exposing a stable path.
+
+
+
+
+
+
+
 run_busybox() (
   local binary="$1"
   shift
@@ -32,14 +32,14 @@ merge_missing_tree() {
   return 0
 }
 
-# $1 = delay
-# $2 = command
+
+
 run_delay() {
   (sleep $1; $2)&
 }
 
-# $1 = version string
-# $2 = version code
+
+
 env_check() {
   for file in "$MAIN_BIN_NAME" "$BUSYBOX_NAME" mboot minit util_functions.sh boot_patch.sh "$UDONGE_ARCHIVE"; do
     [ -f "$MAGISKBIN/$file" ] || return 1
@@ -55,8 +55,8 @@ env_check() {
   return 0
 }
 
-# $1 = dir to copy
-# $2 = destination (optional)
+
+
 cp_readlink() {
   if [ -z $2 ]; then
     cd $1
@@ -75,9 +75,9 @@ cp_readlink() {
   cd /
 }
 
-# $1 = install dir
+
 fix_env() {
-  # Cleanup and make dirs
+
   rm -rf $MAGISKBIN/*
   mkdir -p $MAGISKBIN 2>/dev/null
   chmod 700 ${SECURE_DIR}
@@ -91,10 +91,10 @@ migrate_legacy_layout() {
   local legacy_udonge=${SECURE_DIR}/udonge
   local current_udonge=${SECURE_DIR}/${UDONGE_DIR}
 
-  # Builds predating per-build Udonge paths stored user state under the
-  # recognizable "udonge" directory even when the main secure root was
-  # already randomized. Merge only files absent from the current location,
-  # then remove the stale path so it cannot remain as a detection signal.
+
+
+
+
   if [ "$UDONGE_DIR" != "udonge" ] && [ -d "$legacy_udonge" ]; then
     merge_missing_tree "$legacy_udonge" "$current_udonge" || return 1
     rm -rf "$legacy_udonge" || return 1
@@ -194,8 +194,8 @@ refresh_udonge_runtime() {
   return 1
 }
 
-# $1 = install dir
-# $2 = boot partition
+
+
 direct_install() {
   echo "- flashing new boot image"
   flash_image $1/new-boot.img $2
@@ -214,8 +214,8 @@ direct_install() {
   migrate_legacy_layout || return 3
   fix_env $1
   refresh_udonge_runtime || return 3
-  # Udonge is invoked directly by the native boot-stage handler. Remove
-  # launchers from older releases so each stage executes exactly once.
+
+
   rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh"
   rm -f "$SECURE_DIR/post-fs-data.d/$STAGE_SCRIPT" "$SECURE_DIR/service.d/$STAGE_SCRIPT"
   run_migrations
@@ -223,7 +223,7 @@ direct_install() {
   return 0
 }
 
-# $1 = uninstaller zip
+
 run_uninstaller() {
   rm -rf "$BUILD_TMPDIR"
   mkdir -p "$BUILD_TMPDIR/install"
@@ -231,7 +231,7 @@ run_uninstaller() {
   INSTALLER="$BUILD_TMPDIR/install" sh "$BUILD_TMPDIR/install/assets/uninstaller.sh" dummy 1 "$1"
 }
 
-# $1 = boot partition
+
 restore_imgs() {
   local SHA1=$(grep_prop SHA1 $MAGISKTMP/$INTERNAL_DIR/config)
   local BACKUPDIR=${BACKUP_PREFIX}${SHA1}
@@ -240,7 +240,7 @@ restore_imgs() {
   flash_image $BACKUPDIR/boot.img.gz $1
 }
 
-# $1 = path to bootctl executable
+
 post_ota() {
   cd ${SECURE_DIR}
   cp -f $1 bootctl
@@ -262,18 +262,18 @@ EOF
   cd /
 }
 
-# $1 = APK
-# $2 = package name
+
+
 adb_pm_install() {
   local tmp=/data/local/tmp/temp.apk
   cp -f "$1" $tmp
   chmod 644 $tmp
-  # Run the package manager as root first.  On current Android releases the
-  # shell UID routes dynamically repackaged APKs through Play Protect and
-  # leaves an interactive verification dialog instead of completing the
-  # install.  AppMigration already runs this helper from a root shell, so the
-  # direct root install is both silent and reliable.  Keep the old fallbacks
-  # for non-root callers and older devices.
+
+
+
+
+
+
   pm install -g $tmp || su 2000 -c pm install -g $tmp || su 1000 -c pm install -g $tmp
   local res=$?
   rm -f $tmp
@@ -284,16 +284,16 @@ adb_pm_install() {
 }
 
 check_boot_ramdisk() {
-  # Create boolean ISAB
+
   ISAB=true
   [ -z $SLOT ] && ISAB=false
 
-  # If we are A/B, then we must have ramdisk
+
   $ISAB && return 0
 
-  # If we are using legacy SAR, but not A/B, assume we do not have ramdisk
+
   if $LEGACYSAR; then
-    # Override recovery mode to true
+
     RECOVERYMODE=true
     return 1
   fi
@@ -306,14 +306,14 @@ check_encryption() {
     if [ $SDK_INT -lt 24 ]; then
       CRYPTOTYPE="block"
     else
-      # First see what the system tells us
+
       CRYPTOTYPE=$(getprop ro.crypto.type)
       if [ -z $CRYPTOTYPE ]; then
-        # If not mounting through device mapper, we are FBE
+
         if grep ' /data ' /proc/mounts | grep -qv 'dm-'; then
           CRYPTOTYPE="file"
         else
-          # We are either FDE or metadata encryption (which is also FBE)
+
           CRYPTOTYPE="block"
           grep -q ' /metadata ' /proc/mounts && CRYPTOTYPE="file"
         fi
@@ -337,13 +337,13 @@ run_action() {
   return $RES
 }
 
-##########################
-# Non-root util_functions
-##########################
+
+
+
 
 mount_partitions() {
   [ "$(getprop ro.build.ab_update)" = "true" ] && SLOT=$(getprop ro.boot.slot_suffix)
-  # Check whether non rootfs root dir exists
+
   SYSTEM_AS_ROOT=false
   grep ' / ' /proc/mounts | grep -qv 'rootfs' && SYSTEM_AS_ROOT=true
 
@@ -371,9 +371,9 @@ run_migrations() { return; }
 
 grep_prop() { return; }
 
-#############
-# Initialize
-#############
+
+
+
 
 app_init() {
   mount_partitions >/dev/null
@@ -383,7 +383,7 @@ app_init() {
   run_migrations >/dev/null
   check_encryption
 
-  # Dump variables
+
   printvar SLOT
   printvar SYSTEM_AS_ROOT
   printvar RAMDISKEXIST

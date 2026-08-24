@@ -76,8 +76,8 @@ object Info {
         val isActive = versionCode > 0
         val isCurrentBuild
             get() = isActive && if (versionString.isNotBlank()) {
-                // The short Git commit is the stable build identity. It works
-                // unchanged in every fork and avoids timestamp-only collisions.
+
+
                 versionString == BuildConfig.APP_VERSION_NAME
             } else {
                 versionCode == BuildConfig.APP_VERSION_CODE
@@ -118,7 +118,7 @@ object Info {
         legacySAR = getBool("LEGACYSAR")
         isVendorBoot = getBool("VENDORBOOT")
 
-        // Default presets
+
         Config.recovery = getBool("RECOVERYMODE")
         Config.keepVerity = getBool("KEEPVERITY")
         Config.keepEnc = getBool("KEEPFORCEENCRYPT")

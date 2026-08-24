@@ -43,11 +43,11 @@ macro_rules! rules {
 
 impl SePolicy {
     pub fn magisk_rules(&mut self) {
-        // Temp suppress warnings
+
         set_log_level_state(LogLevel::Warn, false);
         rules! {
             use self;
-            // Prevent anything to change sepolicy except ourselves
+
             deny(all, ["kernel"], ["security"], ["load_policy"]);
             type_(proc, ["domain"]);
             typeattribute([proc], ["mlstrustedsubject", "netdomain", "appdomain"]);
@@ -58,69 +58,69 @@ impl SePolicy {
             allow(["keystore"], [BUILD_UDONGE_FILE_TYPE], ["file"],
                 ["open", "read", "getattr", "map", "execute"]);
 
-            // Create unconstrained file type
+
             allow(["domain"], [file],
                 ["file", "dir", "fifo_file", "chr_file", "lnk_file", "sock_file"], all);
 
-            // Make our root domain unconstrained
+
             allow([proc], [
                 "fs_type", "dev_type", "file_type", "domain",
                 "service_manager_type", "hwservice_manager_type", "vndservice_manager_type",
                 "port_type", "node_type", "property_type"
             ], all, all);
 
-            // Allow us to do any ioctl
+
             allowxperm([proc], ["fs_type", "dev_type", "file_type", "domain"],
                 ["blk_file", "fifo_file", "chr_file"], xall);
             allowxperm([proc], [proc], ["tcp_socket", "udp_socket", "rawip_socket"], xall);
 
-            // Let binder work with our processes
+
             allow(svcmgr, [proc], ["dir"], ["search"]);
             allow(svcmgr, [proc], ["file"], ["open", "read", "map"]);
             allow(svcmgr, [proc], ["process"], ["getattr"]);
             allow(["domain"], [proc], ["binder"], ["call", "transfer"]);
 
-            // Other common IPC
+
             allow(["domain"], [proc], ["process"], ["sigchld"]);
             allow(["domain"], [proc], ["fd"], ["use"]);
             allow(["domain"], [proc], ["fifo_file"], ["write", "read", "open", "getattr"]);
 
-            // Allow these processes to access MagiskSU and output logs
+
             allow(["zygote", "shell", "platform_app",
                 "system_app", "priv_app", "untrusted_app", "untrusted_app_all"],
                 [proc], ["unix_stream_socket"], ["connectto", "getopt"]);
 
-            // Let selected domains access tmpfs files
-            // For tmpfs overlay on 2SI, Zygisk on lower Android versions and AVD scripts
+
+
             allow(["init", "zygote", "shell"], ["tmpfs"], ["file"], all);
 
-            // Allow magiskinit daemon to log to kmsg
+
             allow(["kernel"], ["rootfs", "tmpfs"], ["chr_file"], ["write"]);
 
-            // Allow magiskinit daemon to handle mock selinuxfs
+
             allow(["kernel"], ["tmpfs"], ["fifo_file"], ["open", "read", "write"]);
 
-            // For relabelling files
+
             allow(["rootfs"], ["labeledfs", "tmpfs"], ["filesystem"], ["associate"]);
             allow([file], ["pipefs", "devpts"], ["filesystem"], ["associate"]);
             allow(["kernel"], all, ["file"], ["relabelto"]);
             allow(["kernel"], ["tmpfs"], ["file"], ["relabelfrom"]);
 
-            // Let init transit to SEPOL_PROC_DOMAIN
+
             allow(["kernel"], ["kernel"], ["process"], ["setcurrent"]);
             allow(["kernel"], [proc], ["process"], ["dyntransition"]);
 
-            // Let init run stuffs
+
             allow(["init"], [proc], ["process"], all);
 
-            // Zygisk rules
+
             allow(["zygote"], ["zygote"], ["process"], ["execmem"]);
             allow(["zygote"], ["fs_type"], ["filesystem"], ["unmount"]);
 
-            // Shut llkd up
+
             dontaudit(["llkd"], [proc], ["process"], ["ptrace"]);
 
-            // Keep /data/adb/* context
+
             deny(["init"], ["adb_data_file"], ["dir"], ["search"]);
             deny(["vendor_init"], ["adb_data_file"], ["dir"], ["search"]);
         }

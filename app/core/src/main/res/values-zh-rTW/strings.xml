@@ -1,6 +1,6 @@
 <resources>
 
-    <!--Sections-->
+
     <string name="modules">模組</string>
     <string name="superuser">超級使用者</string>
     <string name="settings">設定</string>
@@ -9,7 +9,7 @@
     <string name="section_theme">主題</string>
     <string name="sulist">sulist</string>
 
-    <!--Home-->
+
     <string name="no_connection">無法連線</string>
     <string name="app_changelog">變更紀錄</string>
     <string name="loading">載入中……</string>
@@ -29,7 +29,7 @@
     <string name="uninstall_magisk_title">解除安裝 reisenless</string>
     <string name="uninstall_magisk_msg">所有模組將會被停用並移除！\nroot 將會被移除且未被加密的資料將可能被加密！</string>
 
-    <!--Install-->
+
     <string name="keep_force_encryption">保持強制加密</string>
     <string name="keep_dm_verity">保持 avb 2.0/dm-verity</string>
     <string name="recovery_mode">安裝至 recovery</string>
@@ -47,7 +47,7 @@
     <string name="reboot_delay_toast">將在 5 秒後重新啟動……</string>
     <string name="flash_screen_title">安裝</string>
 
-    <!--Superuser-->
+
     <string name="su_request_title">超級使用者要求</string>
     <string name="touch_filtered_warning">由於某個應用程式遮蔽了超級使用者要求的視窗，因此 reisenless 無法驗證您的回應</string>
     <string name="deny">拒絕</string>
@@ -75,19 +75,19 @@
     <string name="superuser_toggle_revoke">撤銷</string>
     <string name="superuser_policy_none">目前沒有任何應用程式要求超級使用者的權限。</string>
 
-    <!--Logs-->
+
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">目標 uid: %1$d</string>
 
-    <!--SafetyNet-->
 
-    <!-- ReisenlessHide -->
+
+
     <string name="show_system_app">顯示系統應用程式</string>
     <string name="show_os_app">顯示作業系统</string>
     <string name="hide_filter_hint">過濾名稱</string>
     <string name="hide_search">搜尋</string>
 
-    <!--Module -->
+
     <string name="no_info_provided">（未提供資訊）</string>
     <string name="reboot_userspace">快速重新啟動</string>
     <string name="reboot_recovery">重新啟動至 recovery</string>
@@ -105,12 +105,11 @@
     <string name="confirm_install">安裝模組 %1$s？</string>
     <string name="confirm_install_title">安裝確認</string>
 
-    <!--Settings -->
+
     <string name="settings_theme_mode">主題</string>
     <string name="theme_light">淺色</string>
     <string name="theme_dark">深色</string>
-    <string name="settings_accent_primary">強調色</string>
-    <string name="settings_accent_secondary">強調色 2</string>
+    <string name="settings_accent_color">強調色</string>
     <string name="color_preview">顏色預覽</string>
     <string name="color_white">白色</string>
     <string name="color_blue">藍色</string>
@@ -171,13 +170,13 @@
     <string name="requester_summary">所有 root 工作階段皆繼承原程式的命名空間</string>
     <string name="isolate_summary">所有 root 工作階段皆擁有獨立的命名空間</string>
 
-    <!--Notifications-->
+
     <string name="progress_channel">進度通知</string>
     <string name="updated_channel">更新完成</string>
     <string name="download_complete">下載完成</string>
     <string name="download_file_error">下載錯誤</string>
 
-    <!--Toasts, Dialogs-->
+
     <string name="yes">是</string>
     <string name="no">否</string>
     <string name="repo_install_title">安裝 %1$s %2$s(%3$d)</string>
@@ -249,32 +248,5 @@
     <string name="webui_webview_required">需要 Android System WebView</string>
     <string name="webui_webview_required_summary">此裝置沒有可用的 Android WebView 提供者。請安裝或啟用 Android System WebView，然後再試一次。</string>
     <string name="webui_install_webview">安裝 WebView</string>
-    <string name="repository_searcher">儲存庫搜尋</string>
-    <string name="repository_searcher_queue_count">儲存庫搜尋（%1$d）</string>
-    <string name="repository_searcher_summary">設定線上模組儲存庫並顯示線上搜尋按鈕</string>
-    <string name="repository_add_to_queue">新增至佇列</string>
-    <string name="repository_remove_from_queue">從佇列移除</string>
-    <string name="repository_queue_downloading">正在下載 %1$d/%2$d：%3$s</string>
-    <string name="repository_queue_installing">正在安裝 %1$d/%2$d：%3$s</string>
-    <string name="repository_queue_progress_elapsed">%1$s · %2$d秒</string>
-    <string name="repository_queue_progress_detail">%1$s\n%2$s · %3$d秒</string>
-    <string name="repository_queue_downloaded">已下載 %1$d 個模組</string>
-    <string name="repository_queue_installed">已安裝 %1$d 個模組；重新啟動後生效</string>
-    <string name="repository_queue_failed">在 %1$s 失敗</string>
-    <string name="repository_queue_failed_reason">在 %1$s 失敗：%2$s</string>
-    <string name="repository_links_title">模組儲存庫連結</string>
-    <string name="repository_links_hint">每行一個 MMRL 儲存庫網址</string>
-    <string name="repository_search_hint">搜尋線上模組</string>
-    <string name="repository_load_failed">無法載入任何已設定的儲存庫</string>
-    <string name="repository_no_results">沒有相符的線上模組</string>
-    <string name="repository_mmrl_url_hint">MMRL 儲存庫網址</string>
-    <string name="repository_mmrl_url_invalid">請輸入 HTTPS MMRL 儲存庫或 modules.json 網址</string>
-    <string name="repository_add_trusted">新增受信任儲存庫</string>
-    <string name="repository_add">新增</string>
-    <string name="repository_web">網頁</string>
-    <string name="repository_trusted">受信任的 MMRL 儲存庫</string>
-    <string name="repository_configured">已設定儲存庫</string>
-    <string name="repository_none_configured">未設定儲存庫</string>
-    <string name="repository_module_count">%1$d 個模組</string>
     <string name="module_search_installed">搜尋已安裝模組</string>
 </resources>

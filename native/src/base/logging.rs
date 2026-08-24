@@ -27,8 +27,8 @@ pub enum LogLevel {
     Debug = LogLevelCxx::Debug.repr,
 }
 
-// We don't need to care about thread safety, because all
-// logger changes will only happen on the main thread.
+
+
 pub static mut LOGGER: Logger = Logger {
     write: |_, _| {},
     flags: LogFlag::empty(),

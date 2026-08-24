@@ -32,7 +32,7 @@ enum : int {
 };
 }
 
-// CLI entries
+
 int enable_deny();
 int disable_deny();
 int add_list(int client);

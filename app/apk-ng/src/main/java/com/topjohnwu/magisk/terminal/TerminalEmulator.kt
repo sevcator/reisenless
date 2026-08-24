@@ -3,21 +3,21 @@ package com.topjohnwu.magisk.terminal
 import android.util.Base64
 import java.util.Stack
 
-/**
- * Renders text into a screen. Contains all the terminal-specific knowledge and state. Emulates a subset of the X Window
- * System xterm terminal, which in turn is an emulator for a subset of the Digital Equipment Corporation vt100 terminal.
- *
- * References:
- * - http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
- * - http://en.wikipedia.org/wiki/ANSI_escape_code
- * - http://man.he.net/man4/console_codes
- * - http://bazaar.launchpad.net/~leonerd/libvterm/trunk/view/head:/src/state.c
- * - http://www.columbia.edu/~kermit/k95manual/iso2022.html
- * - http://www.vt100.net/docs/vt510-rm/chapter4
- * - http://en.wikipedia.org/wiki/ISO/IEC_2022 - for 7-bit and 8-bit GL GR explanation
- * - http://bjh21.me.uk/all-escapes/all-escapes.txt - extensive!
- * - http://woldlab.caltech.edu/~diane/kde4.10/workingdir/kubuntu/konsole/doc/developer/old-documents/VT100/techref.html
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class TerminalEmulator(
     columns: Int,
     rows: Int,
@@ -27,7 +27,7 @@ class TerminalEmulator(
 ) {
 
     companion object {
-        /** Used for invalid data - http://en.wikipedia.org/wiki/Replacement_character#Replacement_character */
+
         const val UNICODE_REPLACEMENT_CHAR = 0xFFFD
 
         private const val ESC_NONE = 0
@@ -306,7 +306,7 @@ class TerminalEmulator(
                     mUtf8ToFollow = 0
 
                     if (codePoint in 0x80..0x9F) {
-                        // C1 control character, ignore
+
                     } else {
                         when (Character.getType(codePoint).toByte()) {
                             Character.UNASSIGNED, Character.SURROGATE ->
@@ -350,7 +350,7 @@ class TerminalEmulator(
         }
 
         when (b) {
-            0 -> { /* NUL, do nothing */ }
+            0 -> {                       }
             7 -> {
                 if (mEscapeState == ESC_OSC) doOsc(b)
             }
@@ -476,7 +476,7 @@ class TerminalEmulator(
                                             }
                                         }
                                         if (reverse && !setOrClear) {
-                                            // Reverse attributes in rectangular area ignores non-(1,4,5,7) bits.
+
                                         } else {
                                             screen.setOrClearEffect(
                                                 bits, setOrClear, reverse, isDecsetInternalBitSet(DECSET_BIT_RECTANGULAR_CHANGEATTRIBUTE),
@@ -521,7 +521,7 @@ class TerminalEmulator(
                             else -> unknownSequence(b)
                         }
                     }
-                    ESC_PERCENT -> { /* ignore */ }
+                    ESC_PERCENT -> {              }
                     ESC_OSC -> doOsc(b)
                     ESC_OSC_ESC -> doOscEsc(b)
                     ESC_P -> doDeviceControl(b)
@@ -536,7 +536,7 @@ class TerminalEmulator(
                                 3, 4 -> cursorStyle = TERMINAL_CURSOR_STYLE_UNDERLINE
                                 5, 6 -> cursorStyle = TERMINAL_CURSOR_STYLE_BAR
                             }
-                            't'.code, 'u'.code -> { /* Set margin-bell volume - ignore */ }
+                            't'.code, 'u'.code -> {                                       }
                             else -> unknownSequence(b)
                         }
                     }
@@ -679,7 +679,7 @@ class TerminalEmulator(
             setDecsetinternalBit(internalBit, setting)
         }
         when (externalBit) {
-            1 -> { /* Application Cursor Keys (DECCKM) */ }
+            1 -> {                                        }
             3 -> {
                 mLeftMargin = 0
                 mTopMargin = 0
@@ -689,18 +689,18 @@ class TerminalEmulator(
                 blockClear(0, 0, mColumns, mRows)
                 setCursorRowCol(0, 0)
             }
-            4 -> { /* DECSCLM-Scrolling Mode. Ignore */ }
-            5 -> { /* Reverse video. No action */ }
+            4 -> {                                      }
+            5 -> {                                }
             6 -> if (setting) setCursorPosition(0, 0)
-            7, 8, 9, 12, 25 -> { /* Cursor state change - ignored for read-only */ }
-            40, 45, 66 -> { /* Ignore */ }
+            7, 8, 9, 12, 25 -> {                                                   }
+            40, 45, 66 -> {              }
             69 -> {
                 if (!setting) {
                     mLeftMargin = 0
                     mRightMargin = mColumns
                 }
             }
-            1000, 1001, 1002, 1003, 1004, 1005, 1006, 1015, 1034 -> { /* Ignore */ }
+            1000, 1001, 1002, 1003, 1004, 1005, 1006, 1015, 1034 -> {              }
             1048 -> if (setting) saveCursor() else restoreCursor()
             47, 1047, 1049 -> {
                 val newScreen = if (setting) mAltBuffer else mMainBuffer
@@ -722,14 +722,14 @@ class TerminalEmulator(
                         newScreen.blockSet(0, 0, mColumns, mRows, ' '.code, style)
                 }
             }
-            2004 -> { /* Bracketed paste mode - setting bit is enough */ }
+            2004 -> {                                                    }
             else -> unknownParameter(externalBit)
         }
     }
 
     private fun doCsiBiggerThan(b: Int) {
         when (b) {
-            'c'.code -> { /* Secondary device attributes - ignored for read-only */ }
+            'c'.code -> {                                                           }
             'm'.code -> Unit
             else -> parseArg(b)
         }
@@ -816,7 +816,7 @@ class TerminalEmulator(
                     cursorRow--
                 }
             }
-            'N'.code, '0'.code -> { /* SS2/SS3, ignore */ }
+            'N'.code, '0'.code -> {                       }
             'P'.code -> {
                 mOSCOrDeviceControlArgs.clear()
                 continueSequence(ESC_P)
@@ -979,7 +979,7 @@ class TerminalEmulator(
                 val numRepeat = getArg0(1)
                 for (i in 0 until numRepeat) emitCodePoint(mLastEmittedCodePoint)
             }
-            'c'.code -> { /* Primary device attributes - ignored for read-only */ }
+            'c'.code -> {                                                         }
             'd'.code -> setCursorRow(minOf(maxOf(1, getArg0(1)), mRows) - 1)
             'e'.code -> setCursorPosition(cursorCol, cursorRow + getArg0(1))
             'g'.code -> {
@@ -991,7 +991,7 @@ class TerminalEmulator(
             'h'.code -> doSetMode(true)
             'l'.code -> doSetMode(false)
             'm'.code -> selectGraphicRendition()
-            'n'.code -> { /* Device Status Report - ignored for read-only */ }
+            'n'.code -> {                                                    }
             'r'.code -> {
                 mTopMargin = maxOf(0, minOf(getArg0(1) - 1, mRows - 2))
                 mBottomMargin = maxOf(mTopMargin + 2, minOf(getArg1(mRows), mRows))
@@ -1066,8 +1066,8 @@ class TerminalEmulator(
                 code == 7 -> mEffect = mEffect or TextStyle.CHARACTER_ATTRIBUTE_INVERSE
                 code == 8 -> mEffect = mEffect or TextStyle.CHARACTER_ATTRIBUTE_INVISIBLE
                 code == 9 -> mEffect = mEffect or TextStyle.CHARACTER_ATTRIBUTE_STRIKETHROUGH
-                code == 10 -> { /* Exit alt charset (TERM=linux) - ignore */ }
-                code == 11 -> { /* Enter alt charset (TERM=linux) - ignore */ }
+                code == 10 -> {                                              }
+                code == 11 -> {                                               }
                 code == 22 -> mEffect = mEffect and (TextStyle.CHARACTER_ATTRIBUTE_BOLD or TextStyle.CHARACTER_ATTRIBUTE_DIM).inv()
                 code == 23 -> mEffect = mEffect and TextStyle.CHARACTER_ATTRIBUTE_ITALIC.inv()
                 code == 24 -> mEffect = mEffect and TextStyle.CHARACTER_ATTRIBUTE_UNDERLINE.inv()
@@ -1183,7 +1183,7 @@ class TerminalEmulator(
                             }
                         }
                     } else if (parsingPairStart >= 0) {
-                        // Passing through color spec
+
                     } else if (parsingPairStart < 0 && ch in '0'..'9') {
                         colorIndex = (if (colorIndex < 0) 0 else colorIndex * 10) + (ch - '0')
                     } else {
@@ -1212,7 +1212,7 @@ class TerminalEmulator(
                                 break
                             lastSemiIndex = charIndex
                         } catch (_: NumberFormatException) {
-                            // Ignore
+
                         }
                     }
                     charIndex++
@@ -1242,7 +1242,7 @@ class TerminalEmulator(
                                 charIndex++
                                 lastIndex = charIndex
                             } catch (_: NumberFormatException) {
-                                // Ignore
+
                             }
                         }
                         charIndex++
@@ -1252,7 +1252,7 @@ class TerminalEmulator(
             110, 111, 112 -> {
                 mColors.reset(TextStyle.COLOR_INDEX_FOREGROUND + (value - 110))
             }
-            119 -> { /* Reset highlight color - ignore */ }
+            119 -> {                                      }
             else -> unknownParameter(value)
         }
         finishSequence()
@@ -1273,7 +1273,7 @@ class TerminalEmulator(
         when (modeBit) {
             4 -> mInsertMode = newValue
             20 -> unknownParameter(modeBit)
-            34 -> { /* Normal cursor visibility - ignore */ }
+            34 -> {                                         }
             else -> unknownParameter(modeBit)
         }
     }
@@ -1372,38 +1372,38 @@ class TerminalEmulator(
         if (if (mUseLineDrawingUsesG0) mUseLineDrawingG0 else mUseLineDrawingG1) {
             when (cp) {
                 '_'.code -> cp = ' '.code
-                '`'.code -> cp = '\u25C6'.code // Diamond
-                '0'.code -> cp = '\u2588'.code // Solid block
-                'a'.code -> cp = '\u2592'.code // Checker board
-                'b'.code -> cp = '\u2409'.code // Horizontal tab
-                'c'.code -> cp = '\u240C'.code // Form feed
-                'd'.code -> cp = '\r'.code     // Carriage return
-                'e'.code -> cp = '\u240A'.code // Linefeed
-                'f'.code -> cp = '\u00B0'.code // Degree
-                'g'.code -> cp = '\u00B1'.code // Plus-minus
-                'h'.code -> cp = '\n'.code     // Newline
-                'i'.code -> cp = '\u240B'.code // Vertical tab
-                'j'.code -> cp = '\u2518'.code // Lower right corner
-                'k'.code -> cp = '\u2510'.code // Upper right corner
-                'l'.code -> cp = '\u250C'.code // Upper left corner
-                'm'.code -> cp = '\u2514'.code // Lower left corner
-                'n'.code -> cp = '\u253C'.code // Crossing lines
-                'o'.code -> cp = '\u23BA'.code // Horizontal line - scan 1
-                'p'.code -> cp = '\u23BB'.code // Horizontal line - scan 3
-                'q'.code -> cp = '\u2500'.code // Horizontal line - scan 5
-                'r'.code -> cp = '\u23BC'.code // Horizontal line - scan 7
-                's'.code -> cp = '\u23BD'.code // Horizontal line - scan 9
-                't'.code -> cp = '\u251C'.code // T facing rightwards
-                'u'.code -> cp = '\u2524'.code // T facing leftwards
-                'v'.code -> cp = '\u2534'.code // T facing upwards
-                'w'.code -> cp = '\u252C'.code // T facing downwards
-                'x'.code -> cp = '\u2502'.code // Vertical line
-                'y'.code -> cp = '\u2264'.code // Less than or equal to
-                'z'.code -> cp = '\u2265'.code // Greater than or equal to
-                '{'.code -> cp = '\u03C0'.code // Pi
-                '|'.code -> cp = '\u2260'.code // Not equal to
-                '}'.code -> cp = '\u00A3'.code // UK pound
-                '~'.code -> cp = '\u00B7'.code // Centered dot
+                '`'.code -> cp = '\u25C6'.code
+                '0'.code -> cp = '\u2588'.code
+                'a'.code -> cp = '\u2592'.code
+                'b'.code -> cp = '\u2409'.code
+                'c'.code -> cp = '\u240C'.code
+                'd'.code -> cp = '\r'.code
+                'e'.code -> cp = '\u240A'.code
+                'f'.code -> cp = '\u00B0'.code
+                'g'.code -> cp = '\u00B1'.code
+                'h'.code -> cp = '\n'.code
+                'i'.code -> cp = '\u240B'.code
+                'j'.code -> cp = '\u2518'.code
+                'k'.code -> cp = '\u2510'.code
+                'l'.code -> cp = '\u250C'.code
+                'm'.code -> cp = '\u2514'.code
+                'n'.code -> cp = '\u253C'.code
+                'o'.code -> cp = '\u23BA'.code
+                'p'.code -> cp = '\u23BB'.code
+                'q'.code -> cp = '\u2500'.code
+                'r'.code -> cp = '\u23BC'.code
+                's'.code -> cp = '\u23BD'.code
+                't'.code -> cp = '\u251C'.code
+                'u'.code -> cp = '\u2524'.code
+                'v'.code -> cp = '\u2534'.code
+                'w'.code -> cp = '\u252C'.code
+                'x'.code -> cp = '\u2502'.code
+                'y'.code -> cp = '\u2264'.code
+                'z'.code -> cp = '\u2265'.code
+                '{'.code -> cp = '\u03C0'.code
+                '|'.code -> cp = '\u2260'.code
+                '}'.code -> cp = '\u00A3'.code
+                '~'.code -> cp = '\u00B7'.code
             }
         }
 

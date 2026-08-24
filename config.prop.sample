@@ -1,84 +1,36 @@
-##########################################################
-# All variables in config.prop are optional
-# Removing or leaving them blank will keep default values
-##########################################################
 
-# The version name of Magisk. Default: git HEAD short SHA1
+
+
+
+
+
 version=string
 
-# Optional fixed secure directory. It is used only when randomizeSecureDir=false.
-# secureDir=/data/.system
 
-# Output path. Default: out
+
+
+
 outdir=string
 
-# List of ABIs to build, separated with ','
-# Default: armeabi-v7a,x86,arm64-v8a,x86_64
+
+
 abiList=[string]
 
-# ABIs that receive the full boot/policy tool set. Secondary ABIs omitted here
-# retain only the core binary needed for mixed-bitness app specialization.
-# Default: the complete abiList
-# toolAbiList=arm64-v8a
 
-#####################################################
-# Signing configs for signing zips and APKs
-# These 4 variables has to be either all set or not
-#####################################################
 
-# Path to keystore file
+
+
+
+
+
+
+
+
+
 keyStore=string
-# Keystore password
+
 keyStorePass=string
-# The desired key alias in the keystore
+
 keyAlias=string
-# Password of specified key alias
+
 keyPass=string
-
-###########################################################
-# Build Spoof — override ro.build.* to pass Play Integrity
-# Leave empty to disable spoofing entirely
-###########################################################
-
-# Full build fingerprint (single string, overrides individual fields below)
-# Example: google/tokay/tokay:15/AP4A.241205.013/12621605:user/release-keys
-# spoofFingerprint=
-
-# ro.product.manufacturer
-# spoofManufacturer=Google
-
-# ro.product.model
-# spoofModel=Pixel 9
-
-# ro.product.name (device codename)
-# spoofProduct=tokay
-
-# ro.product.device
-# spoofDevice=tokay
-
-# ro.build.id
-# spoofBuildId=AP4A.241205.013
-
-# ro.build.version.security_patch (YYYY-MM-DD)
-# spoofSecurityPatch=2024-12-05
-
-# ro.build.version.release (Android version string)
-# spoofVersionRelease=15
-
-###########################################################
-# Repository Build Identity
-###########################################################
-
-# Derive opaque names for all Reisenless-owned runtime paths and identifiers.
-# Values are stable for upgrades of one repository and differ between forks.
-# randomizeBuild=true
-
-# Include the secure data root in the generated identity (default: true).
-# randomizeSecureDir=true
-
-# Optional private salt and namespace overrides. CI can provide the salt through
-# REISENLESS_IDENTITY_SEED. Keep it stable so upgrades remain compatible.
-# GitHub Actions uses GITHUB_REPOSITORY as the namespace; local builds use the
-# origin remote URL.
-# identitySeed=long-random-string
-# identityNamespace=owner/repository

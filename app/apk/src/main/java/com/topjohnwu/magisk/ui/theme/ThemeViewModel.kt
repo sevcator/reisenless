@@ -33,15 +33,13 @@ object ThemeModeSetting : BaseSettingsItem.Selector() {
         }
 }
 
-private abstract class AccentColorSetting(
-    private val primary: Boolean,
-) : BaseSettingsItem.Blank() {
+private object AccentColorSetting : BaseSettingsItem.Blank() {
 
     private var value: Int
-        get() = if (primary) Config.accentPrimary else Config.accentSecondary
-        set(value) {
-            if (primary) Config.accentPrimary = value else Config.accentSecondary = value
-        }
+        get() = Config.accentColor
+        set(value) { Config.accentColor = value }
+
+    override val title = CoreR.string.settings_accent_color.asText()
 
     override val description = object : TextHolder() {
         override fun getText(resources: Resources): String {
@@ -93,7 +91,7 @@ private abstract class AccentColorSetting(
                         if (value != color) {
                             value = color
                             notifyPropertyChanged(BR.description)
-                            handler.onItemAction(view, this@AccentColorSetting)
+                            handler.onItemAction(view, AccentColorSetting)
                         }
                     }
                 }
@@ -105,19 +103,10 @@ private abstract class AccentColorSetting(
     }
 }
 
-private object PrimaryAccentSetting : AccentColorSetting(primary = true) {
-    override val title = CoreR.string.settings_accent_primary.asText()
-}
-
-private object SecondaryAccentSetting : AccentColorSetting(primary = false) {
-    override val title = CoreR.string.settings_accent_secondary.asText()
-}
-
 class ThemeViewModel : BaseViewModel(), BaseSettingsItem.Handler {
 
     val themeMode: BaseSettingsItem = ThemeModeSetting
-    val primaryAccent: BaseSettingsItem = PrimaryAccentSetting
-    val secondaryAccent: BaseSettingsItem = SecondaryAccentSetting
+    val accentColor: BaseSettingsItem = AccentColorSetting
 
     override fun onItemPressed(
         view: View,

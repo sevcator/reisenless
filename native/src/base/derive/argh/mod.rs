@@ -1,12 +1,12 @@
-// Copyright (c) 2020 Google LLC All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+
+
+
 
 use syn::ext::IdentExt as _;
 
-/// Implementation of the `FromArgs` and `argh(...)` derive attributes.
-///
-/// For more thorough documentation, see the `argh` crate itself.
+
+
+
 extern crate proc_macro;
 
 use errors::Errors;
@@ -21,8 +21,8 @@ use syn::{GenericArgument, LitStr, PathArguments, Type};
 mod errors;
 mod parse_attrs;
 
-/// Transform the input into a token stream containing any generated implementations,
-/// as well as all errors that occurred.
+
+
 pub(crate) fn impl_from_args(input: &syn::DeriveInput) -> TokenStream {
     let errors = &Errors::default();
     let type_attrs = &TypeAttrs::parse(errors, input);
@@ -42,7 +42,7 @@ pub(crate) fn impl_from_args(input: &syn::DeriveInput) -> TokenStream {
     output_tokens
 }
 
-/// The kind of optionality a parameter has.
+
 enum Optionality {
     None,
     Defaulted(TokenStream),
@@ -54,52 +54,52 @@ enum Optionality {
 impl PartialEq<Optionality> for Optionality {
     fn eq(&self, other: &Optionality) -> bool {
         use Optionality::*;
-        // NB: (Defaulted, Defaulted) can't contain the same token streams
+
         matches!((self, other), (Optional, Optional) | (Repeating, Repeating))
     }
 }
 
 impl Optionality {
-    /// Whether or not this is `Optionality::None`
+
     fn is_required(&self) -> bool {
         matches!(self, Optionality::None)
     }
 }
 
-/// A field of a `#![derive(FromArgs)]` struct with attributes and some other
-/// notable metadata appended.
+
+
 struct StructField<'a> {
-    /// The original parsed field
+
     field: &'a syn::Field,
-    /// The parsed attributes of the field
+
     attrs: FieldAttrs,
-    /// The field name. This is contained optionally inside `field`,
-    /// but is duplicated non-optionally here to indicate that all field that
-    /// have reached this point must have a field name, and it no longer
-    /// needs to be unwrapped.
+
+
+
+
     name: &'a syn::Ident,
-    /// Similar to `name` above, this is contained optionally inside `FieldAttrs`,
-    /// but here is fully present to indicate that we only have to consider fields
-    /// with a valid `kind` at this point.
+
+
+
     kind: FieldKind,
-    // If `field.ty` is `Vec<T>` or `Option<T>`, this is `T`, otherwise it's `&field.ty`.
-    // This is used to enable consistent parsing code between optional and non-optional
-    // keyed and subcommand fields.
+
+
+
     ty_without_wrapper: &'a syn::Type,
-    // Whether the field represents an optional value, such as an `Option` subcommand field
-    // or an `Option` or `Vec` keyed argument, or if it has a `default`.
+
+
     optionality: Optionality,
-    // The `--`-prefixed name of the option, if one exists.
+
     long_name: Option<String>,
 }
 
 impl<'a> StructField<'a> {
-    /// Attempts to parse a field of a `#[derive(FromArgs)]` struct, pulling out the
-    /// fields required for code generation.
+
+
     fn new(errors: &Errors, field: &'a syn::Field, attrs: FieldAttrs) -> Option<Self> {
         let name = field.ident.as_ref().expect("missing ident for named field");
 
-        // Ensure that one "kind" is present (switch, option, subcommand, positional)
+
         let kind = if let Some(field_type) = &attrs.field_type {
             field_type.kind
         } else {
@@ -113,7 +113,7 @@ impl<'a> StructField<'a> {
             return None;
         };
 
-        // Parse out whether a field is optional (`Option` or `Vec`).
+
         let optionality;
         let ty_without_wrapper;
         match kind {
@@ -133,7 +133,7 @@ impl<'a> StructField<'a> {
                             return None;
                         }
                     };
-                    // Set the span of the generated tokens to the string literal
+
                     let tokens: TokenStream = tokens
                         .into_iter()
                         .map(|mut tree| {
@@ -174,9 +174,9 @@ impl<'a> StructField<'a> {
             }
         }
 
-        // Determine the "long" name of options and switches.
-        // Defaults to the kebab-cased field name if `#[argh(long = "...")]` is omitted.
-        // If `#[argh(long = none)]` is explicitly set, no long name will be set.
+
+
+
         let long_name = match kind {
             FieldKind::Switch | FieldKind::Option => {
                 let long_name = match &attrs.long {
@@ -243,7 +243,7 @@ fn to_kebab_case(s: &str) -> String {
     res
 }
 
-/// Implements `FromArgs` and `TopLevelCommand` or `SubCommand` for a `#[derive(FromArgs)]` struct.
+
 fn impl_from_args_struct(
     errors: &Errors,
     name: &syn::Ident,
@@ -419,12 +419,12 @@ fn impl_from_args_struct_from_args<'a>(
     method_impl
 }
 
-/// get help triggers vector from type_attrs.help_triggers as a [`Vec<String>`]
-///
-/// Defaults to vec!["-h", "--help"] if type_attrs.help_triggers is None
+
+
+
 fn get_help_triggers(type_attrs: &TypeAttrs) -> Vec<String> {
     if type_attrs.is_subcommand.is_some() {
-        // Subcommands should never have any help triggers
+
         Vec::new()
     } else {
         type_attrs.help_triggers.as_ref().map_or_else(
@@ -446,7 +446,7 @@ fn get_help_triggers(type_attrs: &TypeAttrs) -> Vec<String> {
     }
 }
 
-/// Ensures that only trailing positional args are non-required.
+
 fn ensure_only_trailing_positionals_are_optional(errors: &Errors, fields: &[StructField<'_>]) {
     let mut first_non_required_span = None;
     for field in fields {
@@ -471,7 +471,7 @@ fn ensure_only_trailing_positionals_are_optional(errors: &Errors, fields: &[Stru
     }
 }
 
-/// Ensures that only one short or long name is used.
+
 fn ensure_unique_names(errors: &Errors, fields: &[StructField<'_>]) {
     let mut seen_short_names = HashMap::new();
     let mut seen_long_names = HashMap::new();
@@ -507,7 +507,7 @@ fn ensure_unique_names(errors: &Errors, fields: &[StructField<'_>]) {
     }
 }
 
-/// Implement `argh::TopLevelCommand` or `argh::SubCommand` as appropriate.
+
 fn top_or_sub_cmd_impl(
     errors: &Errors,
     name: &syn::Ident,
@@ -517,7 +517,7 @@ fn top_or_sub_cmd_impl(
     let description = String::new();
     let (impl_generics, ty_generics, where_clause) = generic_args.split_for_impl();
     if type_attrs.is_subcommand.is_none() {
-        // Not a subcommand
+
         quote! {
             #[automatically_derived]
             impl #impl_generics argh::TopLevelCommand for #name #ty_generics #where_clause {}
@@ -543,11 +543,11 @@ fn top_or_sub_cmd_impl(
     }
 }
 
-/// Declare a local slots to store each field in during parsing.
-///
-/// Most fields are stored in `Option<FieldType>` locals.
-/// `argh(option)` fields are stored in a `ParseValueSlotTy` along with a
-/// function that knows how to decode the appropriate value.
+
+
+
+
+
 fn declare_local_storage_for_from_args_fields<'a>(
     fields: &'a [StructField<'a>],
 ) -> impl Iterator<Item = TokenStream> + 'a {
@@ -555,7 +555,7 @@ fn declare_local_storage_for_from_args_fields<'a>(
         let field_name = &field.field.ident;
         let field_type = &field.ty_without_wrapper;
 
-        // Wrap field types in `Option` if they aren't already `Option` or `Vec`-wrapped.
+
         let field_slot_type = match field.optionality {
             Optionality::Optional | Optionality::Repeating => (&field.field.ty).into_token_stream(),
             Optionality::None | Optionality::Defaulted(_) => {
@@ -595,7 +595,7 @@ fn declare_local_storage_for_from_args_fields<'a>(
     })
 }
 
-/// Unwrap non-optional fields and take options out of their tuple slots.
+
 fn unwrap_from_args_fields<'a>(
     fields: &'a [StructField<'a>],
 ) -> impl Iterator<Item = TokenStream> + 'a {
@@ -625,8 +625,8 @@ fn unwrap_from_args_fields<'a>(
     })
 }
 
-/// Entries of tokens like `("--some-flag-key", 5)` that map from a flag key string
-/// to an index in the output table.
+
+
 fn flag_str_to_output_table_map_entries<'a>(fields: &'a [StructField<'a>]) -> Vec<TokenStream> {
     let mut flag_str_to_output_table_map = vec![];
 
@@ -642,9 +642,9 @@ fn flag_str_to_output_table_map_entries<'a>(fields: &'a [StructField<'a>]) -> Ve
     flag_str_to_output_table_map
 }
 
-/// For each non-optional field, add an entry to the `argh::MissingRequirements`.
+
 fn append_missing_requirements<'a>(
-    // missing_requirements_ident
+
     mri: &syn::Ident,
     fields: &'a [StructField<'a>],
 ) -> impl Iterator<Item = TokenStream> + 'a {
@@ -693,8 +693,8 @@ fn append_missing_requirements<'a>(
         })
 }
 
-/// Require that a type can be a `switch`.
-/// Throws an error for all types except booleans and integers
+
+
 fn ty_expect_switch(errors: &Errors, ty: &syn::Type) -> bool {
     fn ty_can_be_switch(ty: &syn::Type) -> bool {
         if let syn::Type::Path(path) = ty {
@@ -705,7 +705,7 @@ fn ty_expect_switch(errors: &Errors, ty: &syn::Type) -> bool {
                 return false;
             }
             let ident = &path.path.segments[0].ident;
-            // `Option<bool>` can be used as a `switch`.
+
             if ident == "Option"
                 && let PathArguments::AngleBracketed(args) = &path.path.segments[0].arguments
                 && let GenericArgument::Type(Type::Path(p)) = &args.args[0]
@@ -733,17 +733,17 @@ fn ty_expect_switch(errors: &Errors, ty: &syn::Type) -> bool {
     res
 }
 
-/// Returns `Some(T)` if a type is `wrapper_name<T>` for any `wrapper_name` in `wrapper_names`.
+
 fn ty_inner<'a>(wrapper_names: &[&str], ty: &'a syn::Type) -> Option<&'a syn::Type> {
     if let syn::Type::Path(path) = ty {
         if path.qself.is_some() {
             return None;
         }
-        // Since we only check the last path segment, it isn't necessarily the case that
-        // we're referring to `std::vec::Vec` or `std::option::Option`, but there isn't
-        // a fool proof way to check these since name resolution happens after macro expansion,
-        // so this is likely "good enough" (so long as people don't have their own types called
-        // `Option` or `Vec` that take one generic parameter they're looking to parse).
+
+
+
+
+
         let last_segment = path.path.segments.last()?;
         if !wrapper_names.iter().any(|name| last_segment.ident == *name) {
             return None;
@@ -758,7 +758,7 @@ fn ty_inner<'a>(wrapper_names: &[&str], ty: &'a syn::Type) -> Option<&'a syn::Ty
     None
 }
 
-/// Implements `FromArgs` and `SubCommands` for a `#![derive(FromArgs)]` enum.
+
 fn impl_from_args_enum(
     errors: &Errors,
     name: &syn::Ident,
@@ -768,7 +768,7 @@ fn impl_from_args_enum(
 ) -> TokenStream {
     parse_attrs::check_enum_type_attrs(errors, type_attrs, &de.enum_token.span);
 
-    // An enum variant like `<name>(<ty>)`
+
     struct SubCommandVariant<'a> {
         name: &'a syn::Ident,
         ty: &'a syn::Type,
@@ -855,8 +855,8 @@ fn impl_from_args_enum(
     }
 }
 
-/// Returns `Some(Bar)` if the field is a single-field unnamed variant like `Foo(Bar)`.
-/// Otherwise, generates an error.
+
+
 fn enum_only_single_field_unnamed_variants<'a>(
     errors: &Errors,
     variant_fields: &'a syn::Fields,
@@ -903,7 +903,7 @@ fn enum_only_single_field_unnamed_variants<'a>(
                 );
                 None
             } else {
-                // `unwrap` is okay because of the length check above.
+
                 let first_field = fields.unnamed.first().unwrap();
                 Some(&first_field.ty)
             }

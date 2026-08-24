@@ -152,12 +152,12 @@ SePolicy SePolicy::compile_split() noexcept {
     fclose(f);
     cil_set_policy_version(db, policy_ver);
 
-    // Get mapping version
+
     f = xfopen(VEND_POLICY_DIR "plat_sepolicy_vers.txt", "re");
     fscanf(f, "%s", plat_ver);
     fclose(f);
 
-    // plat
+
     load_cil(db, SPLIT_PLAT_CIL);
 
     sprintf(path, PLAT_POLICY_DIR "mapping/%s.cil", plat_ver);
@@ -167,7 +167,7 @@ SePolicy SePolicy::compile_split() noexcept {
     if (access(path, R_OK) == 0)
         load_cil(db, path);
 
-    // system_ext
+
     sprintf(path, SYSEXT_POLICY_DIR "mapping/%s.cil", plat_ver);
     if (access(path, R_OK) == 0)
         load_cil(db, path);
@@ -180,7 +180,7 @@ SePolicy SePolicy::compile_split() noexcept {
     if (access(cil_file, R_OK) == 0)
         load_cil(db, cil_file);
 
-    // product
+
     sprintf(path, PROD_POLICY_DIR "mapping/%s.cil", plat_ver);
     if (access(path, R_OK) == 0)
         load_cil(db, path);
@@ -189,7 +189,7 @@ SePolicy SePolicy::compile_split() noexcept {
     if (access(cil_file, R_OK) == 0)
         load_cil(db, cil_file);
 
-    // vendor
+
     cil_file = VEND_POLICY_DIR "nonplat_sepolicy.cil";
     if (access(cil_file, R_OK) == 0)
         load_cil(db, cil_file);
@@ -202,7 +202,7 @@ SePolicy SePolicy::compile_split() noexcept {
     if (access(cil_file, R_OK) == 0)
         load_cil(db, cil_file);
 
-    // odm
+
     cil_file = ODM_POLICY_DIR "odm_sepolicy.cil";
     if (access(cil_file, R_OK) == 0)
         load_cil(db, cil_file);
@@ -237,11 +237,11 @@ static int vec_write(void *v, const char *buf, int len) {
 }
 
 bool SePolicy::to_file(::Utf8CStr file) const noexcept {
-    // No partial writes are allowed to /sys/fs/selinux/load, thus the reason why we
-    // first dump everything into memory, then directly call write system call
+
+
     vector<char> out;
     FILE *fp = funopen(&out, nullptr, vec_write, nullptr, nullptr);
-    // Since we're directly writing to memory, disable buffering
+
     setbuf(fp, nullptr);
 
     policy_file_t pf;

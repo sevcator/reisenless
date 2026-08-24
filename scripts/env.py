@@ -67,7 +67,7 @@ def run_once(func):
 
 @run_once
 def ensure_toolchain():
-    # Verify NDK install
+
     try:
         with open(paths().ndk / "ONDK_VERSION", "r") as ondk_ver:
             assert ondk_ver.read().strip(" \t\r\n") == ondk_version
@@ -88,15 +88,15 @@ def ensure_cargo():
 
     os.environ["CARGO_BUILD_RUSTFLAGS"] = f"-Z threads={min(8, cpu_count)}"
     if shutil.which("rustup"):
-        # Go through rustup proxies by default if available
+
         os.environ["RUSTUP_TOOLCHAIN"] = str(paths().rust_sysroot)
     else:
         os.environ["PATH"] = (
             f"{paths().rust_sysroot / 'bin'}{os.pathsep}{os.environ['PATH']}"
         )
-        # Cargo calls executables in $RUSTROOT/lib/rustlib/$TRIPLE/bin, we need
-        # to make sure the runtime linker also search $RUSTROOT/lib for libraries.
-        # This is only required on Unix, as Windows search dlls from PATH.
+
+
+
         if os_name == "darwin":
             os.environ["DYLD_FALLBACK_LIBRARY_PATH"] = str(paths().rust_sysroot / "lib")
         elif os_name == "linux":
@@ -135,11 +135,11 @@ def ensure_jdk():
         )
 
 
-# OS detection
+
 os_name = platform.system().lower()
 is_windows = False
 if os_name != "linux" and os_name != "darwin":
-    # It's possible we're using MSYS/Cygwin/MinGW, treat them all as Windows
+
     is_windows = True
     os_name = "windows"
 EXE_EXT = ".exe" if is_windows else ""
@@ -151,16 +151,16 @@ if is_windows:
 
         colorama.init()
     except ImportError:
-        # We can't do ANSI color codes in terminal on Windows without colorama
+
         no_color = True
 
-# Environment detection
+
 if not sys.version_info >= (3, 8):
     error("Requires Python 3.8+")
 
 cpu_count = multiprocessing.cpu_count()
 
-# When directly invoked, make it a command wrapper
+
 if __name__ == "__main__":
     ensure_cargo()
     ensure_jdk()

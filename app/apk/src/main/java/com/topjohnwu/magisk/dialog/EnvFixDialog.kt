@@ -48,7 +48,7 @@ class EnvFixDialog(private val vm: HomeViewModel, private val code: Int) : Dialo
             }
         }
 
-        if (code == 2 || // No rules block, module policy not loaded
+        if (code == 2 ||
             !Info.env.isCurrentBuild) {
             dialog.setMessage(R.string.env_full_fix_msg)
             dialog.setButton(MagiskDialog.ButtonType.POSITIVE) {

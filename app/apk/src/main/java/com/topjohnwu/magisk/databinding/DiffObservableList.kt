@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.AbstractList
 
-// Only expose the immutable List types
+
 interface DiffList<T : DiffItem<*>> : List<T> {
     fun calculateDiff(newItems: List<T>): DiffUtil.DiffResult
 
@@ -121,7 +121,7 @@ private class FilterableDiffObservableList<T : DiffItem<*>>(
     private var job: Job? = null
     private var lastFilter: ((T) -> Boolean)? = null
 
-    // ---
+
 
     override fun filter(filter: (T) -> Boolean) {
         lastFilter = filter
@@ -137,7 +137,7 @@ private class FilterableDiffObservableList<T : DiffItem<*>>(
         }
     }
 
-    // ---
+
 
     override fun get(index: Int): T {
         return sublist[index]

@@ -16,7 +16,7 @@ std::string as_str(const Arg &arg) {
     }
 }
 
-// Print out all rules going through public API for debugging
+
 template<typename ...Args>
 static void print_rule(const char *action, Args ...args) {
     std::string s;

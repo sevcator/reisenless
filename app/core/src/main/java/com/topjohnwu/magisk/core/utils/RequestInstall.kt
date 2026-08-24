@@ -13,7 +13,7 @@ class RequestInstall : ActivityResultContract<Unit, Boolean>() {
 
     @TargetApi(26)
     override fun createIntent(context: Context, input: Unit): Intent {
-        // This will only be called on API 26+
+
         return Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
             .setData(Uri.parse("package:${context.packageName}"))
     }

@@ -1,4 +1,4 @@
-// Functions in this file are only for exporting to C++, DO NOT USE IN RUST
+
 
 use std::fs::File;
 use std::io::BufReader;
@@ -79,8 +79,8 @@ pub(crate) unsafe fn readlinkat(
     bufsz: usize,
 ) -> isize {
     unsafe {
-        // readlinkat() may fail on x86 platform, returning random value
-        // instead of number of bytes placed in buf (length of link)
+
+
         cfg_if! {
             if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
                 libc::memset(buf.cast(), 0, bufsz);

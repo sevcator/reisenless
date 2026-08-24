@@ -31,10 +31,10 @@ object MediaStoreUtils {
         values.put(MediaStore.MediaColumns.RELATIVE_PATH, relPath)
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
 
-        // When a file with the same name exists and was not created by us:
-        // - Before Android 11, insert will return null
-        // - On Android 11+, the system will automatically create a new name
-        // Thus the reason to restrict this method call to API 30+
+
+
+
+
         val fileUri = cr.insert(collection, values)
             ?: throw IOException("Can't insert $displayName.")
 
@@ -55,7 +55,7 @@ object MediaStoreUtils {
     @RequiresApi(api = 29)
     private fun queryFile(collection: Uri, displayName: String, relPath: String): UriFile? {
         val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DATA)
-        // Before Android 10, we wrote the DISPLAY_NAME field when insert, so it can be used.
+
         val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} == ?"
         val selectionArgs = arrayOf(displayName)
         val sortOrder = "${MediaStore.MediaColumns.DATE_ADDED} DESC"
@@ -80,7 +80,7 @@ object MediaStoreUtils {
     fun getFile(displayName: String, subFolder: String = ""): UriFile {
         val rp = downloadRelPath(subFolder)
         return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            // Fallback to file based I/O pre Android 11
+
             val parent = File(Environment.getExternalStorageDirectory(), rp)
             parent.mkdirs()
             LegacyUriFile(File(parent, displayName))
@@ -113,7 +113,7 @@ object MediaStoreUtils {
 
     val Uri.displayName: String get() {
         if (scheme == "file") {
-            // Simple uri wrapper over file, directly get file name
+
             return toFile().name
         }
         require(scheme == "content") { "Uri lacks 'content' scheme: $this" }

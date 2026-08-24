@@ -13,8 +13,7 @@ import com.topjohnwu.magisk.core.Config
 
 object ThemeState {
     var darkTheme by mutableIntStateOf(Config.darkTheme)
-    var primaryAccent by mutableIntStateOf(Config.accentPrimary)
-    var secondaryAccent by mutableIntStateOf(Config.accentSecondary)
+    var accentColor by mutableIntStateOf(Config.accentColor)
 }
 
 private fun contentColor(background: Color) =
@@ -24,22 +23,21 @@ private fun contentColor(background: Color) =
 fun MagiskTheme(
     content: @Composable () -> Unit
 ) {
-    val primary = Color(ThemeState.primaryAccent)
-    val secondary = Color(ThemeState.secondaryAccent)
+    val accent = Color(ThemeState.accentColor)
     val base = if (ThemeState.darkTheme == Config.Value.THEME_DARK) {
         darkColorScheme()
     } else {
         lightColorScheme()
     }
     val colorScheme = base.copy(
-        primary = primary,
-        onPrimary = contentColor(primary),
-        primaryContainer = primary,
-        onPrimaryContainer = contentColor(primary),
-        secondary = secondary,
-        onSecondary = contentColor(secondary),
-        secondaryContainer = secondary,
-        onSecondaryContainer = contentColor(secondary),
+        primary = accent,
+        onPrimary = contentColor(accent),
+        primaryContainer = accent,
+        onPrimaryContainer = contentColor(accent),
+        secondary = accent,
+        onSecondary = contentColor(accent),
+        secondaryContainer = accent,
+        onSecondaryContainer = contentColor(accent),
     )
 
     MaterialTheme(

@@ -86,7 +86,7 @@ inline fun <T, R> Flow<T>.concurrentMap(crossinline transform: suspend (T) -> R)
 
 fun Long.toTime(format: DateTimeFormatter): String = format.format(Instant.ofEpochMilli(this))
 
-// Some devices don't allow filenames containing ":"
+
 val timeFormatStandard: DateTimeFormatter by lazy {
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH.mm.ss").withZone(ZoneId.systemDefault())
 }

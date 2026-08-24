@@ -9,7 +9,7 @@ using namespace std;
 #define DB_VERSION     13
 #define DB_VERSION_STR "13"
 
-// SQLite APIs
+
 
 static int (*sqlite3_open_v2)(const char *filename, sqlite3 **ppDb, int flags, const char *zVfs);
 static int (*sqlite3_close)(sqlite3 *db);
@@ -25,7 +25,7 @@ static int (*sqlite3_column_int)(sqlite3_stmt*, int iCol);
 static int (*sqlite3_step)(sqlite3_stmt*);
 static int (*sqlite3_finalize)(sqlite3_stmt *pStmt);
 
-// Internal Android linker APIs
+
 
 static void (*android_get_LD_LIBRARY_PATH)(char *buffer, size_t buffer_size);
 static void (*android_update_LD_LIBRARY_PATH)(const char *ld_library_path);
@@ -55,14 +55,14 @@ static bool load_sqlite() {
 
     auto sqlite = dlopen("libsqlite.so", RTLD_LAZY);
     if (!sqlite) {
-        // Should only happen on Android 10+
+
         auto dl = dlopen("libdl_android.so", RTLD_LAZY);
         DLERR(dl);
 
         DLOAD(dl, android_get_LD_LIBRARY_PATH);
         DLOAD(dl, android_update_LD_LIBRARY_PATH);
 
-        // Inject APEX into LD_LIBRARY_PATH
+
         char ld_path[4096];
         memcpy(ld_path, apex_path, sizeof(apex_path));
         constexpr int len = sizeof(apex_path) - 1;
@@ -70,7 +70,7 @@ static bool load_sqlite() {
         android_update_LD_LIBRARY_PATH(ld_path);
         sqlite = dlopen("libsqlite.so", RTLD_LAZY);
 
-        // Revert LD_LIBRARY_PATH just in case
+
         android_update_LD_LIBRARY_PATH(ld_path + len);
     }
     DLERR(sqlite);
@@ -99,7 +99,7 @@ using sql_exec_callback_real = void(*)(void*, StringSlice, sqlite3_stmt*);
 
 #define sql_chk(fn, ...) if (int rc = fn(__VA_ARGS__); rc != SQLITE_OK) return rc
 
-// Exports to Rust
+
 extern "C" int sql_exec_impl(
         sqlite3 *db, rust::Str zSql,
         sql_bind_callback bind_cb = nullptr, void *bind_cookie = nullptr,
@@ -108,7 +108,7 @@ extern "C" int sql_exec_impl(
     unique_ptr<sqlite3_stmt, decltype(sqlite3_finalize)> stmt(nullptr, sqlite3_finalize);
 
     while (sql != zSql.end()) {
-        // Step 1: prepare statement
+
         {
             sqlite3_stmt *st = nullptr;
             sql_chk(sqlite3_prepare_v2, db, sql, zSql.end() - sql, &st, &sql);
@@ -116,7 +116,7 @@ extern "C" int sql_exec_impl(
             stmt.reset(st);
         }
 
-        // Step 2: bind arguments
+
         if (bind_cb) {
             if (int count = sqlite3_bind_parameter_count(stmt.get())) {
                 auto real_cb = reinterpret_cast<sql_bind_callback_real>(bind_cb);
@@ -126,7 +126,7 @@ extern "C" int sql_exec_impl(
             }
         }
 
-        // Step 3: execute
+
         bool first = true;
         StringVec columns;
         for (;;) {
@@ -182,7 +182,7 @@ sqlite3 *open_and_init_db() {
     unique_ptr<sqlite3, decltype(sqlite3_close)> db(nullptr, sqlite3_close);
     {
         sqlite3 *sql;
-        // We open the connection with SQLITE_OPEN_NOMUTEX because we are guarding it ourselves
+
         sql_chk_log(sqlite3_open_v2, MAGISKDB, &sql,
                     SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nullptr);
         db.reset(sql);
@@ -195,7 +195,7 @@ sqlite3 *open_and_init_db() {
     };
     sql_chk_log(sql_exec_impl, db.get(), "PRAGMA user_version", nullptr, nullptr, ver_cb, &ver);
     if (ver > DB_VERSION) {
-        // Don't support downgrading database, delete and retry
+
         LOGE("sqlite3: Downgrading database is not supported\n");
         unlink(MAGISKDB);
         return open_and_init_db();
@@ -223,25 +223,25 @@ sqlite3 *open_and_init_db() {
                 "(package_name TEXT, process TEXT, PRIMARY KEY(package_name, process))");
     };
 
-    // Database changelog:
-    //
-    // 0 - 6: DB stored in app private data. There are no longer any code in the project to
-    //        migrate these data, so no need to take any of these versions into consideration.
-    // 7 : create table `hidelist` (process TEXT, PRIMARY KEY(process))
-    // 8 : add new column (package_name TEXT) to table `hidelist`
-    // 9 : rebuild table `hidelist` to change primary key (PRIMARY KEY(package_name, process))
-    // 10: remove table `logs`
-    // 11: remove table `hidelist` and create table `denylist` (same data structure)
-    // 12: rebuild table `policies` to drop column `package_name`
-    // 13: replace denylist with the inverse `sulist`
 
-    if (/* 0, 1, 2, 3, 4, 5, 6 */ ver <= 6) {
+
+
+
+
+
+
+
+
+
+
+
+    if (                          ver <= 6) {
         sql_chk_log(create_policy);
         sql_chk_log(create_settings);
         sql_chk_log(create_strings);
         sql_chk_log(create_sulist);
 
-        // Directly jump to latest
+
         ver = DB_VERSION;
         upgrade = true;
     }
@@ -254,7 +254,7 @@ sqlite3 *open_and_init_db() {
                 "INSERT INTO hidelist SELECT process as package_name, process FROM hidelist_tmp;"
                 "DROP TABLE hidelist_tmp;"
                 "COMMIT;");
-        // Directly jump to version 9
+
         ver = 9;
         upgrade = true;
     }
@@ -307,14 +307,14 @@ sqlite3 *open_and_init_db() {
     }
 
     if (upgrade) {
-        // Set version
+
         sql_chk_log(sql_exec_impl, db.get(), "PRAGMA user_version=" DB_VERSION_STR);
     }
 
     return db.release();
 }
 
-// Exported from Rust
+
 extern "C" int sql_exec_rs(
         rust::Str zSql,
         sql_bind_callback bind_cb, void *bind_cookie,

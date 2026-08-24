@@ -133,7 +133,7 @@ impl MagiskD {
         {
             let mut access = info.access.lock();
 
-            // Talk to su manager
+
             let mut app = SuAppContext {
                 cred,
                 info: &info,
@@ -142,7 +142,7 @@ impl MagiskD {
             };
             app.connect_app();
 
-            // Before unlocking, refresh the timestamp
+
             access.refresh();
 
             if access.settings.policy == SuPolicy::Restrict {
@@ -156,16 +156,16 @@ impl MagiskD {
             }
         }
 
-        // At this point, the root access is granted.
-        // Fork a child root process and monitor its exit value.
+
+
         let child = unsafe { libc::fork() };
         if child == 0 {
             debug!("su: fork handler");
 
-            // Abort upon any error occurred
+
             exit_on_error(true);
 
-            // ack
+
             client.write_pod(&0).ok();
 
             exec_root_shell(
@@ -181,7 +181,7 @@ impl MagiskD {
             return;
         }
 
-        // Wait result
+
         debug!("su: waiting child pid=[{}]", child);
         let mut status = 0;
         let code = unsafe {
@@ -215,7 +215,7 @@ impl MagiskD {
         let result = || -> LoggedResult<Arc<SuInfo>> {
             let cfg = self.get_db_settings()?;
 
-            // Check multiuser settings
+
             let eval_uid = match cfg.multiuser_mode {
                 MultiuserMode::OwnerOnly => {
                     if to_user_id(uid) != 0 {
@@ -230,7 +230,7 @@ impl MagiskD {
             let mut access = RootSettings::default();
             self.get_root_settings(eval_uid, &mut access)?;
 
-            // We need to talk to the manager, get the app info
+
             let (mgr_uid, mgr_pkg) =
                 if cfg.sulist || access.policy == SuPolicy::Query || access.notify {
                     self.get_manager(to_user_id(eval_uid))
@@ -238,7 +238,7 @@ impl MagiskD {
                     (-1, String::new())
                 };
 
-            // If it's the manager, allow it silently
+
             if to_app_id(uid) == to_app_id(mgr_uid) {
                 return Ok(Arc::new(SuInfo::allow(uid)));
             }
@@ -248,7 +248,7 @@ impl MagiskD {
                 return Ok(Arc::new(SuInfo::deny(uid)));
             }
 
-            // Check su access settings
+
             match cfg.root_access {
                 RootAccess::Disabled => {
                     warn!("Root access is disabled!");
@@ -269,12 +269,12 @@ impl MagiskD {
                 _ => {}
             };
 
-            // If still not determined, check if manager exists
+
             if access.policy == SuPolicy::Query && mgr_uid < 0 {
                 return Ok(Arc::new(SuInfo::deny(uid)));
             }
 
-            // Finally, the SuInfo
+
             Ok(Arc::new(SuInfo {
                 uid,
                 eval_uid,

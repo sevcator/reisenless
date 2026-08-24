@@ -23,21 +23,21 @@ class ShellInit : Shell.Initializer() {
             if (isRunningAsStub) {
                 if (!shell.isRoot)
                     return true
-                // The hidden stub already has a rooted connection to the
-                // running core. Use its mounted BusyBox directly: extracting a
-                // second copy into the randomized app cache is racy on Android
-                // 15 and can leave the first hidden launch without a shell.
-                // Resolve the path in this initializer's shell script. Running
-                // a nested shell job here deadlocks because the same shell has
-                // not completed initialization yet.
+
+
+
+
+
+
+
                 add("export MAGISKTMP=\$(${Const.MAIN_BIN} --path)")
                 localBB = "\$MAGISKTMP/${Const.INTERNAL_DIR}/" +
                     "${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME}"
                 Info.noDataExec = false
             } else {
-                // Android provides the exact extracted ABI directory here.
-                // Some Android 15 policies allow execution but deny stat(), so
-                // probing File.isFile incorrectly selects a broken fallback.
+
+
+
                 localBB = File(
                     context.applicationInfo.nativeLibraryDir,
                     "libbusybox.so",
@@ -46,13 +46,13 @@ class ShellInit : Shell.Initializer() {
 
             if (shell.isRoot && !isRunningAsStub) {
                 add("export MAGISKTMP=\$(${Const.MAIN_BIN} --path)")
-                // Test if we can properly execute stuff in /data
+
                 Info.noDataExec = !shell.newJob()
                     .add("$localBB sh -c '$localBB true'").exec().isSuccess
             }
 
             if (Info.noDataExec) {
-                // Copy it out of /data to workaround Samsung bullshit
+
                 add(
                     "if [ -x \$MAGISKTMP/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME} ]; then",
                     "  cp -af $localBB \$MAGISKTMP/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME}",
@@ -63,11 +63,11 @@ class ShellInit : Shell.Initializer() {
                     "fi"
                 )
             } else {
-                // Directly execute the file
+
                 if (isRunningAsStub) {
-                    // The mounted BusyBox filename is randomized at build time.
-                    // BusyBox dispatches on argv[0], so entering it by that
-                    // filename makes it look for a nonexistent random applet.
+
+
+
                     add("exec -a sh $localBB")
                 } else {
                     add("exec $localBB sh")
@@ -82,8 +82,8 @@ class ShellInit : Shell.Initializer() {
 
         Info.init(shell)
 
-        // Cache Allow policy in DB so future launches skip the slow /data/app/ scan.
-        // This runs from the root shell (UID 0) so SQLITE_CMD is permitted.
+
+
         if (shell.isRoot) {
             val myUid = android.os.Process.myUid()
             shell.newJob().add(
@@ -154,9 +154,9 @@ class ShellInit : Shell.Initializer() {
         identityKeywords.forEach { (signal, keywords) ->
             if (identity.contains(signal)) detected.addAll(keywords)
         }
-        // Udonge can sanitize ROM properties before the manager starts.
-        // Installed framework/overlay package names remain available and are
-        // a reliable fallback on already-cleaned systems.
+
+
+
         val installedPackages = runCatching {
             context.packageManager.getInstalledPackages(0)
                 .asSequence()
@@ -164,9 +164,9 @@ class ShellInit : Shell.Initializer() {
                 .toList()
         }.getOrDefault(emptyList())
         identityKeywords.forEach { (signal, keywords) ->
-            // A single app can be shared across unrelated ROMs (for example,
-            // Lineage ships Calyx's contacts-backup app). Require multiple ROM
-            // components before treating package names as an OS identity.
+
+
+
             if (installedPackages.count { it.contains(signal) } >= 2) {
                 detected.addAll(keywords)
             }

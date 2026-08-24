@@ -38,7 +38,7 @@ static int zygisk_request(int req) {
 
 ZygiskModule::ZygiskModule(int id, void *handle, void *entry)
     : id(id), handle(handle), entry{entry}, api{}, mod{nullptr} {
-    // Make sure all pointers are null
+
     memset(&api, 0, sizeof(api));
     api.base.impl = this;
     api.base.registerModule = &ZygiskModule::RegisterModuleImpl;
@@ -49,14 +49,14 @@ bool ZygiskModule::RegisterModuleImpl(ApiTable *api, long *module) {
         return false;
 
     long api_version = *module;
-    // Unsupported version
+
     if (api_version > ZYGISK_API_VERSION)
         return false;
 
-    // Set the actual module_abi*
+
     api->base.impl->mod = { module };
 
-    // Fill in API accordingly with module API version
+
     if (api_version >= 1) {
         api->v1.hookJniNativeMethods = hookJniNativeMethods;
         api->v1.pltHookRegister = [](auto a, auto b, auto c, auto d) {
@@ -144,7 +144,7 @@ void ZygiskModule::tryUnload() const {
     if (unload) dlclose(handle);
 }
 
-// -----------------------------------------------------------------
+
 
 #define call_app(method)               \
 switch (*mod.api_version) {            \
@@ -177,7 +177,7 @@ void ZygiskModule::postServerSpecialize(const ServerSpecializeArgs_v1 *args) con
     mod.v1->postServerSpecialize(mod.v1->impl, args);
 }
 
-// -----------------------------------------------------------------
+
 
 void ZygiskContext::plt_hook_register(const char *regex, const char *symbol, void *fn, void **backup) {
     if (regex == nullptr || symbol == nullptr || fn == nullptr)
@@ -238,7 +238,7 @@ bool ZygiskContext::plt_hook_commit() {
     return lsplt::CommitHook();
 }
 
-// -----------------------------------------------------------------
+
 
 int ZygiskContext::get_module_info(int uid, rust::Vec<int> &fds) {
     if (int fd = zygisk_request(+ZygiskRequest::GetInfo); fd >= 0) {
@@ -298,7 +298,7 @@ void ZygiskContext::sanitize_fds() {
         }
     }
 
-    // Close all forbidden fds to prevent crashing
+
     auto dir = xopen_dir("/proc/self/fd");
     int dfd = dirfd(dir.get());
     for (dirent *entry; (entry = xreaddir(dir.get()));) {
@@ -330,15 +330,15 @@ static int sigmask(int how, int signum) {
 }
 
 void ZygiskContext::fork_pre() {
-    // Do our own fork before loading any 3rd party code
-    // First block SIGCHLD, unblock after original fork is done
+
+
     sigmask(SIG_BLOCK, SIGCHLD);
     pid = old_fork();
 
     if (!is_child())
         return;
 
-    // Record all open fds
+
     auto dir = xopen_dir("/proc/self/fd");
     for (dirent *entry; (entry = xreaddir(dir.get()));) {
         int fd = parse_int(entry->d_name);
@@ -348,12 +348,12 @@ void ZygiskContext::fork_pre() {
         }
         allowed_fds[fd] = true;
     }
-    // The dirfd will be closed once out of scope
+
     allowed_fds[dirfd(dir.get())] = false;
 }
 
 void ZygiskContext::fork_post() {
-    // Unblock SIGCHLD in case the original method didn't
+
     sigmask(SIG_UNBLOCK, SIGCHLD);
 }
 
@@ -431,7 +431,7 @@ void ZygiskContext::app_specialize_post() {
         setenv("ZYG_ENABLED", "1", 1);
     }
 
-    // Cleanups
+
     env->ReleaseStringUTFChars(args.app->nice_name, process);
 }
 
@@ -443,7 +443,7 @@ void ZygiskContext::server_specialize_pre() {
         } else {
             run_modules_pre(module_fds);
 
-            // Find all failed module ids and send it back to magiskd
+
             vector<int> failed_ids;
             for (int i = 0; i < module_fds.size(); ++i) {
                 if (module_fds[i] < 0) {
@@ -459,7 +459,7 @@ void ZygiskContext::server_specialize_post() {
     run_modules_post();
 }
 
-// -----------------------------------------------------------------
+
 
 void ZygiskContext::nativeSpecializeAppProcess_pre() {
     process = env->GetStringUTFChars(args.app->nice_name, nullptr);

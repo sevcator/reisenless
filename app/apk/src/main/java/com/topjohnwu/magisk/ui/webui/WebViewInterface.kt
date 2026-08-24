@@ -91,9 +91,9 @@ internal class WebViewInterface(
     }
 
     private fun runCommand(command: String, timeoutSeconds: Int? = 5): CommandResult {
-        // A broken module command must not leave the WebUI promise pending forever.
-        // Keep long-running streams on the spawn path, while ordinary exec calls
-        // get a bounded lifetime like the standalone KernelSU WebUI bridge.
+
+
+
         val commandLine = timeoutSeconds?.let { "timeout $it sh -c ${shellQuote(command)}" } ?: command
         val result = Shell.cmd(commandLine).exec()
         return CommandResult(result.code, result.out.joinToString("\n"), result.err.joinToString("\n"))

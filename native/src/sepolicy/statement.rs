@@ -66,10 +66,10 @@ fn parse_id<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, &'a str> {
     }
 }
 
-// names ::= ID(n) { vec![n] };
-// names ::= names(mut v) ID(n) { v.push(n); v };
-// term ::= ID(n) { vec![n] }
-// term ::= LB names(n) RB { n };
+
+
+
+
 fn parse_term<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, Vec<&'a str>> {
     match tokens.next() {
         Some(Token::ID(name)) => Ok(vec![name]),
@@ -88,13 +88,13 @@ fn parse_term<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, Vec<&'a str>> {
     }
 }
 
-// names ::= ST { vec![] }
-// names ::= ID(n) { vec![n] };
-// names ::= names(mut v) ID(n) { v.push(n); v };
-// names ::= names(n) ST { vec![] };
-// sterm ::= ST { vec![] }
-// sterm ::= ID(n) { vec![n] }
-// sterm ::= LB names(n) RB { n };
+
+
+
+
+
+
+
 fn parse_sterm<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, Vec<&'a str>> {
     match tokens.next() {
         Some(Token::ID(name)) => Ok(vec![name]),
@@ -119,8 +119,8 @@ fn parse_sterm<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, Vec<&'a str>> {
     }
 }
 
-// xperm ::= HX(low) { Xperm{low, high: low, reset: false} };
-// xperm ::= HX(low) HP HX(high) { Xperm{low, high, reset: false} };
+
+
 fn parse_xperm<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, Xperm> {
     let low = match tokens.next() {
         Some(Token::HX(low)) => low,
@@ -143,13 +143,13 @@ fn parse_xperm<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, Xperm> {
     })
 }
 
-// xperms ::= HX(low) { if low > 0 { vec![Xperm{low, high: low, reset: false}] } else { vec![Xperm{low: 0x0000, high: 0xFFFF, reset: true}] }};
-// xperms ::= LB xperm_list(l) RB { l };
-// xperms ::= TL LB xperm_list(mut l) RB { l.iter_mut().for_each(|x| { x.reset = true; }); l };
-// xperms ::= ST { vec![Xperm{low: 0x0000, high: 0xFFFF, reset: false}] };
-//
-// xperm_list ::= xperm(p) { vec![p] }
-// xperm_list ::= xperm_list(mut l) xperm(p) { l.push(p); l }
+
+
+
+
+
+
+
 fn parse_xperms<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, Vec<Xperm>> {
     let mut xperms = Vec::new();
     let reset = match tokens.peek() {
@@ -164,7 +164,7 @@ fn parse_xperms<'a>(tokens: &mut Tokens<'a>) -> ParseResult<'a, Vec<Xperm>> {
     };
     match tokens.next() {
         Some(Token::LB) => {
-            // parse xperm_list
+
             loop {
                 let mut xperm = parse_xperm(tokens)?;
                 xperm.reset = reset;
@@ -308,24 +308,24 @@ impl SePolicy {
         }
     }
 
-    // statement ::= AL sterm(s) sterm(t) sterm(c) sterm(p) { sepolicy.allow(s, t, c, p); };
-    // statement ::= DN sterm(s) sterm(t) sterm(c) sterm(p) { sepolicy.deny(s, t, c, p); };
-    // statement ::= AA sterm(s) sterm(t) sterm(c) sterm(p) { sepolicy.auditallow(s, t, c, p); };
-    // statement ::= DA sterm(s) sterm(t) sterm(c) sterm(p) { sepolicy.dontaudit(s, t, c, p); };
-    // statement ::= AX sterm(s) sterm(t) sterm(c) ID(i) xperms(p) { sepolicy.allowxperm(s, t, c, p); };
-    // statement ::= AY sterm(s) sterm(t) sterm(c) ID(i) xperms(p) { sepolicy.auditallowxperm(s, t, c, p); };
-    // statement ::= DX sterm(s) sterm(t) sterm(c) ID(i) xperms(p) { sepolicy.dontauditxperm(s, t, c, p); };
-    // statement ::= PM sterm(t) { sepolicy.permissive(t); };
-    // statement ::= EF sterm(t) { sepolicy.enforce(t); };
-    // statement ::= TA term(t) term(a) { sepolicy.typeattribute(t, a); };
-    // statement ::= TY ID(t) { sepolicy.type_(t, vec![]);};
-    // statement ::= TY ID(t) term(a) { sepolicy.type_(t, a);};
-    // statement ::= AT ID(t) { sepolicy.attribute(t); };
-    // statement ::= TT ID(s) ID(t) ID(c) ID(d) { sepolicy.type_transition(s, t, c, d, vec![]); };
-    // statement ::= TT ID(s) ID(t) ID(c) ID(d) ID(o) { sepolicy.type_transition(s, t, c, d, vec![o]); };
-    // statement ::= TC ID(s) ID(t) ID(c) ID(d) { sepolicy.type_change(s, t, c, d); };
-    // statement ::= TM ID(s) ID(t) ID(c) ID(d) { sepolicy.type_member(s, t, c, d);};
-    // statement ::= GF ID(s) ID(t) ID(c) { sepolicy.genfscon(s, t, c); };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     fn exec_statement<'a>(&mut self, tokens: &mut Tokens<'a>) -> ParseResult<'a, ()> {
         let action = match tokens.next() {
             Some(token) => token,
@@ -489,7 +489,7 @@ impl SePolicy {
     }
 }
 
-// Token to string
+
 impl Display for Token<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -62,10 +62,10 @@ class SplashController<T>(private val activity: T)
                     val alreadyRetried =
                         activity.intent.getBooleanExtra(MIGRATION_ROOT_RETRY, false)
                     if (migrationLaunch && !alreadyRetried) {
-                        // Package installation and daemon manager validation can
-                        // briefly race on the first hidden process. Preserve the
-                        // migration payload and retry once in a fresh process;
-                        // the cached failed shell must not survive that retry.
+
+
+
+
                         val retryIntent = Intent(activity.intent).apply {
                             putExtra(MIGRATION_ROOT_RETRY, true)
                         }
@@ -86,7 +86,7 @@ class SplashController<T>(private val activity: T)
                 activity.runOnUiThread {
                     splashShown = true
                     if (isRunningAsStub) {
-                        // Re-launch main activity without splash theme
+
                         activity.relaunch()
                     } else {
                         if (activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
@@ -136,11 +136,11 @@ class SplashController<T>(private val activity: T)
             return
         }
 
-        // Validate stub APK
+
         if (isRunningAsStub && (
-                // Version mismatch
+
                 Info.stub!!.version != BuildConfig.STUB_VERSION ||
-                // Not properly patched
+
                 intent.component!!.className.contains(AppMigration.PLACEHOLDER))
         ) {
             withPermission(REQUEST_INSTALL_PACKAGES) { granted ->

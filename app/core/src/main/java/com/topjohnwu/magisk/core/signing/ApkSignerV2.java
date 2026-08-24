@@ -27,30 +27,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * APK Signature Scheme v2 signer.
- *
- * <p>APK Signature Scheme v2 is a whole-file signature scheme which aims to protect every single
- * bit of the APK, as opposed to the JAR Signature Scheme which protects only the names and
- * uncompressed contents of ZIP entries.
- */
+
+
+
+
+
+
+
 public abstract class ApkSignerV2 {
-    /*
-     * The two main goals of APK Signature Scheme v2 are:
-     * 1. Detect any unauthorized modifications to the APK. This is achieved by making the signature
-     *    cover every byte of the APK being signed.
-     * 2. Enable much faster signature and integrity verification. This is achieved by requiring
-     *    only a minimal amount of APK parsing before the signature is verified, thus completely
-     *    bypassing ZIP entry decompression and by making integrity verification parallelizable by
-     *    employing a hash tree.
-     *
-     * The generated signature block is wrapped into an APK Signing Block and inserted into the
-     * original APK immediately before the start of ZIP Central Directory. This is to ensure that
-     * JAR and ZIP parsers continue to work on the signed APK. The APK Signing Block is designed for
-     * extensibility. For example, a future signature scheme could insert its signatures there as
-     * well. The contract of the APK Signing Block is that all contents outside of the block must be
-     * protected by signatures inside the block.
-     */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     public static final int SIGNATURE_RSA_PSS_WITH_SHA256 = 0x0101;
     public static final int SIGNATURE_RSA_PSS_WITH_SHA512 = 0x0102;
@@ -61,13 +61,13 @@ public abstract class ApkSignerV2 {
     public static final int SIGNATURE_DSA_WITH_SHA256 = 0x0301;
     public static final int SIGNATURE_DSA_WITH_SHA512 = 0x0302;
 
-    /**
-     * {@code .SF} file header section attribute indicating that the APK is signed not just with
-     * JAR signature scheme but also with APK Signature Scheme v2 or newer. This attribute
-     * facilitates v2 signature stripping detection.
-     *
-     * <p>The attribute contains a comma-separated set of signature scheme IDs.
-     */
+
+
+
+
+
+
+
     public static final String SF_ATTRIBUTE_ANDROID_APK_SIGNED_NAME = "X-Android-APK-Signed";
     public static final String SF_ATTRIBUTE_ANDROID_APK_SIGNED_VALUE = "2";
 
@@ -85,56 +85,56 @@ public abstract class ApkSignerV2 {
 
     private ApkSignerV2() {}
 
-    /**
-     * Signer configuration.
-     */
+
+
+
     public static final class SignerConfig {
-        /** Private key. */
+
         public PrivateKey privateKey;
 
-        /**
-         * Certificates, with the first certificate containing the public key corresponding to
-         * {@link #privateKey}.
-         */
+
+
+
+
         public List<X509Certificate> certificates;
 
-        /**
-         * List of signature algorithms with which to sign (see {@code SIGNATURE_...} constants).
-         */
+
+
+
         public List<Integer> signatureAlgorithms;
     }
 
-    /**
-     * Signs the provided APK using APK Signature Scheme v2 and returns the signed APK as a list of
-     * consecutive chunks.
-     *
-     * <p>NOTE: To enable APK signature verifier to detect v2 signature stripping, header sections
-     * of META-INF/*.SF files of APK being signed must contain the
-     * {@code X-Android-APK-Signed: true} attribute.
-     *
-     * @param inputApk contents of the APK to be signed. The APK starts at the current position
-     *        of the buffer and ends at the limit of the buffer.
-     * @param signerConfigs signer configurations, one for each signer.
-     *
-     * @throws ApkParseException if the APK cannot be parsed.
-     * @throws InvalidKeyException if a signing key is not suitable for this signature scheme or
-     *         cannot be used in general.
-     * @throws SignatureException if an error occurs when computing digests of generating
-     *         signatures.
-     */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     public static ByteBuffer[] sign(
             ByteBuffer inputApk,
             List<SignerConfig> signerConfigs)
                     throws ApkParseException, InvalidKeyException, SignatureException {
-        // Slice/create a view in the inputApk to make sure that:
-        // 1. inputApk is what's between position and limit of the original inputApk, and
-        // 2. changes to position, limit, and byte order are not reflected in the original.
+
+
+
         ByteBuffer originalInputApk = inputApk;
         inputApk = originalInputApk.slice();
         inputApk.order(ByteOrder.LITTLE_ENDIAN);
 
-        // Locate ZIP End of Central Directory (EoCD), Central Directory, and check that Central
-        // Directory is immediately followed by the ZIP End of Central Directory.
+
+
         int eocdOffset = ZipUtils.findZipEndOfCentralDirectoryRecord(inputApk);
         if (eocdOffset == -1) {
             throw new ApkParseException("Failed to locate ZIP End of Central Directory");
@@ -168,18 +168,18 @@ public abstract class ApkSignerV2 {
                             + ", EoCD start: " + eocdOffset);
         }
 
-        // Create ByteBuffers holding the contents of everything before ZIP Central Directory,
-        // ZIP Central Directory, and ZIP End of Central Directory.
+
+
         inputApk.clear();
         ByteBuffer beforeCentralDir = getByteBuffer(inputApk, centralDirOffset);
         ByteBuffer centralDir = getByteBuffer(inputApk, eocdOffset - centralDirOffset);
-        // Create a copy of End of Central Directory because we'll need modify its contents later.
+
         byte[] eocdBytes = new byte[inputApk.remaining()];
         inputApk.get(eocdBytes);
         ByteBuffer eocd = ByteBuffer.wrap(eocdBytes);
         eocd.order(inputApk.order());
 
-        // Figure which which digests to use for APK contents.
+
         Set<Integer> contentDigestAlgorithms = new HashSet<>();
         for (SignerConfig signerConfig : signerConfigs) {
             for (int signatureAlgorithm : signerConfig.signatureAlgorithms) {
@@ -188,8 +188,8 @@ public abstract class ApkSignerV2 {
             }
         }
 
-        // Compute digests of APK contents.
-        Map<Integer, byte[]> contentDigests; // digest algorithm ID -> digest
+
+        Map<Integer, byte[]> contentDigests;
         try {
             contentDigests =
                     computeContentDigests(
@@ -199,27 +199,27 @@ public abstract class ApkSignerV2 {
             throw new SignatureException("Failed to compute digests of APK", e);
         }
 
-        // Sign the digests and wrap the signatures and signer info into an APK Signing Block.
+
         ByteBuffer apkSigningBlock =
                 ByteBuffer.wrap(generateApkSigningBlock(signerConfigs, contentDigests));
 
-        // Update Central Directory Offset in End of Central Directory Record. Central Directory
-        // follows the APK Signing Block and thus is shifted by the size of the APK Signing Block.
+
+
         centralDirOffset += apkSigningBlock.remaining();
         eocd.clear();
         ZipUtils.setZipEocdCentralDirectoryOffset(eocd, centralDirOffset);
 
-        // Follow the Java NIO pattern for ByteBuffer whose contents have been consumed.
+
         originalInputApk.position(originalInputApk.limit());
 
-        // Reset positions (to 0) and limits (to capacity) in the ByteBuffers below to follow the
-        // Java NIO pattern for ByteBuffers which are ready for their contents to be read by caller.
-        // Contrary to the name, this does not clear the contents of these ByteBuffer.
+
+
+
         beforeCentralDir.clear();
         centralDir.clear();
         eocd.clear();
 
-        // Insert APK Signing Block immediately before the ZIP Central Directory.
+
         return new ByteBuffer[] {
             beforeCentralDir,
             apkSigningBlock,
@@ -231,15 +231,15 @@ public abstract class ApkSignerV2 {
     private static Map<Integer, byte[]> computeContentDigests(
             Set<Integer> digestAlgorithms,
             ByteBuffer[] contents) throws DigestException {
-        // For each digest algorithm the result is computed as follows:
-        // 1. Each segment of contents is split into consecutive chunks of 1 MB in size.
-        //    The final chunk will be shorter iff the length of segment is not a multiple of 1 MB.
-        //    No chunks are produced for empty (zero length) segments.
-        // 2. The digest of each chunk is computed over the concatenation of byte 0xa5, the chunk's
-        //    length in bytes (uint32 little-endian) and the chunk's contents.
-        // 3. The output digest is computed over the concatenation of the byte 0x5a, the number of
-        //    chunks (uint32 little-endian) and the concatenation of digests of chunks of all
-        //    segments in-order.
+
+
+
+
+
+
+
+
+
 
         int chunkCount = 0;
         for (ByteBuffer input : contents) {
@@ -260,7 +260,7 @@ public abstract class ApkSignerV2 {
         int chunkIndex = 0;
         byte[] chunkContentPrefix = new byte[5];
         chunkContentPrefix[0] = (byte) 0xa5;
-        // Optimization opportunity: digests of chunks can be computed in parallel.
+
         for (ByteBuffer input : contents) {
             while (input.hasRemaining()) {
                 int chunkSize =
@@ -276,9 +276,9 @@ public abstract class ApkSignerV2 {
                         throw new DigestException(
                                 jcaAlgorithmName + " MessageDigest not supported", e);
                     }
-                    // Reset position to 0 and limit to capacity. Position would've been modified
-                    // by the preceding iteration of this loop. NOTE: Contrary to the method name,
-                    // this does not modify the contents of the chunk.
+
+
+
                     chunk.clear();
                     setUnsignedInt32LittleEngian(chunk.remaining(), chunkContentPrefix, 1);
                     md.update(chunkContentPrefix);
@@ -338,20 +338,20 @@ public abstract class ApkSignerV2 {
     }
 
     private static byte[] generateApkSigningBlock(byte[] apkSignatureSchemeV2Block) {
-        // FORMAT:
-        // uint64:  size (excluding this field)
-        // repeated ID-value pairs:
-        //     uint64:           size (excluding this field)
-        //     uint32:           ID
-        //     (size - 4) bytes: value
-        // uint64:  size (same as the one above)
-        // uint128: magic
+
+
+
+
+
+
+
+
 
         int resultSize =
-                8 // size
-                + 8 + 4 + apkSignatureSchemeV2Block.length // v2Block as ID-value pair
-                + 8 // size
-                + 16 // magic
+                8
+                + 8 + 4 + apkSignatureSchemeV2Block.length
+                + 8
+                + 16
                 ;
         ByteBuffer result = ByteBuffer.allocate(resultSize);
         result.order(ByteOrder.LITTLE_ENDIAN);
@@ -372,8 +372,8 @@ public abstract class ApkSignerV2 {
     private static byte[] generateApkSignatureSchemeV2Block(
             List<SignerConfig> signerConfigs,
             Map<Integer, byte[]> contentDigests) throws InvalidKeyException, SignatureException {
-        // FORMAT:
-        // * length-prefixed sequence of length-prefixed signer blocks.
+
+
 
         List<byte[]> signerBlocks = new ArrayList<>(signerConfigs.size());
         int signerNumber = 0;
@@ -431,19 +431,19 @@ public abstract class ApkSignerV2 {
         signedData.digests = digests;
 
         V2SignatureSchemeBlock.Signer signer = new V2SignatureSchemeBlock.Signer();
-        // FORMAT:
-        // * length-prefixed sequence of length-prefixed digests:
-        //   * uint32: signature algorithm ID
-        //   * length-prefixed bytes: digest of contents
-        // * length-prefixed sequence of certificates:
-        //   * length-prefixed bytes: X.509 certificate (ASN.1 DER encoded).
-        // * length-prefixed sequence of length-prefixed additional attributes:
-        //   * uint32: ID
-        //   * (length - 4) bytes: value
+
+
+
+
+
+
+
+
+
         signer.signedData = encodeAsSequenceOfLengthPrefixedElements(new byte[][] {
             encodeAsSequenceOfLengthPrefixedPairsOfIntAndLengthPrefixedBytes(signedData.digests),
             encodeAsSequenceOfLengthPrefixedElements(signedData.certificates),
-            // additional attributes
+
             new byte[0],
         });
         signer.publicKey = encodedPublicKey;
@@ -491,12 +491,12 @@ public abstract class ApkSignerV2 {
             signer.signatures.add(Pair.create(signatureAlgorithm, signatureBytes));
         }
 
-        // FORMAT:
-        // * length-prefixed signed data
-        // * length-prefixed sequence of length-prefixed signatures:
-        //   * uint32: signature algorithm ID
-        //   * length-prefixed bytes: signature of signed data
-        // * length-prefixed bytes: public key (X.509 SubjectPublicKeyInfo, ASN.1 DER encoded)
+
+
+
+
+
+
         return encodeAsSequenceOfLengthPrefixedElements(
                 new byte[][] {
                     signer.signedData,
@@ -591,15 +591,15 @@ public abstract class ApkSignerV2 {
         return result.array();
     }
 
-    /**
-     * Relative <em>get</em> method for reading {@code size} number of bytes from the current
-     * position of this buffer.
-     *
-     * <p>This method reads the next {@code size} bytes at this buffer's current position,
-     * returning them as a {@code ByteBuffer} with start set to 0, limit and capacity set to
-     * {@code size}, byte order set to this buffer's byte order; and then increments the position by
-     * {@code size}.
-     */
+
+
+
+
+
+
+
+
+
     private static ByteBuffer getByteBuffer(ByteBuffer source, int size) {
         if (size < 0) {
             throw new IllegalArgumentException("size: " + size);
@@ -696,9 +696,9 @@ public abstract class ApkSignerV2 {
         }
     }
 
-    /**
-     * Indicates that APK file could not be parsed.
-     */
+
+
+
     public static class ApkParseException extends Exception {
         private static final long serialVersionUID = 1L;
 
@@ -711,9 +711,9 @@ public abstract class ApkSignerV2 {
         }
     }
 
-    /**
-     * Pair of two elements.
-     */
+
+
+
     private static class Pair<A, B> {
         private final A mFirst;
         private final B mSecond;

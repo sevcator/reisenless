@@ -1,15 +1,15 @@
 #!/sbin/sh
 
-#################
-# Initialization
-#################
 
-#SECURE_DIR_STUB
-#BUILD_IDENTITY_STUB
+
+
+
+
+
 
 umask 022
 
-# echo before loading util_functions
+
 ui_print() { echo "$1"; }
 
 require_new_magisk() {
@@ -19,9 +19,9 @@ require_new_magisk() {
   exit 1
 }
 
-#########################
-# Load util_functions.sh
-#########################
+
+
+
 
 OUTFD=$2
 ZIPFILE=$3

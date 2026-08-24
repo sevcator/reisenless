@@ -20,7 +20,7 @@ static_assert(BLKGETSIZE64 == 0x80081272);
 static_assert(BLKGETSIZE64 == 0x80041272);
 #endif
 
-// Override libc++ new implementation to optimize final build size
+
 
 void* operator new(std::size_t s) { return std::malloc(s); }
 void* operator new[](std::size_t s) { return std::malloc(s); }
@@ -99,7 +99,7 @@ int exec_command(exec_t &exec) {
         return pid;
     }
 
-    // Unblock all signals
+
     sigset_t set;
     sigfillset(&set);
     pthread_sigmask(SIG_UNBLOCK, &set, nullptr);
@@ -111,7 +111,7 @@ int exec_command(exec_t &exec) {
         close(outfd);
     }
 
-    // Call the pre-exec callback
+
     if (exec.pre_exec)
         exec.pre_exec();
 
@@ -175,10 +175,10 @@ static T parse_num(string_view s) {
     return val;
 }
 
-/*
- * Bionic's atoi runs through strtol().
- * Use our own implementation for faster conversion.
- */
+
+
+
+
 int parse_int(string_view s) {
     return parse_num<int, 10>(s);
 }
@@ -198,9 +198,9 @@ int switch_mnt_ns(int pid) {
         char mnt[32];
         ssprintf(mnt, sizeof(mnt), "/proc/%d/ns/mnt", pid);
         fd = open(mnt, O_RDONLY);
-        if (fd < 0) return 1; // Maybe process died..
+        if (fd < 0) return 1;
 
-        // Switch to its namespace
+
         ret = xsetns(fd, 0);
         close(fd);
     }
@@ -263,13 +263,13 @@ static int fmt_and_log_with_rs(LogLevel level, const char *fmt, va_list ap) {
     constexpr int sz = 4096;
     char buf[sz];
     buf[0] = '\0';
-    // Fortify logs when a fatal error occurs. Do not run through fortify again
+
     int len = std::min(__call_bypassing_fortify(vsnprintf)(buf, sz, fmt, ap), sz - 1);
     log_with_rs(level, Utf8CStr(buf, len + 1));
     return len;
 }
 
-// Used to override external C library logging
+
 extern "C" int magisk_log_print(int prio, const char *tag, const char *fmt, ...) {
     LogLevel level;
     switch (prio) {
@@ -292,10 +292,10 @@ extern "C" int magisk_log_print(int prio, const char *tag, const char *fmt, ...)
 
     char fmt_buf[4096];
     auto len = strscpy(fmt_buf, tag, sizeof(fmt_buf) - 1);
-    // Prevent format specifications in the tag
+
     std::replace(fmt_buf, fmt_buf + len, '%', '_');
     len = ssprintf(fmt_buf + len, sizeof(fmt_buf) - len - 1, ": %s", fmt) + len;
-    // Ensure the fmt string always ends with newline
+
     if (fmt_buf[len - 1] != '\n') {
         fmt_buf[len] = '\n';
         fmt_buf[len + 1] = '\0';
@@ -313,7 +313,7 @@ extern "C" int magisk_log_print(int prio, const char *tag, const char *fmt, ...)
     fmt_and_log_with_rs(LogLevel::level, fmt, argv); \
     va_end(argv);         \
 
-// LTO will optimize out the NOP function
+
 #if MAGISK_DEBUG
 void LOGD(const char *fmt, ...) { LOG_BODY(Debug) }
 #else
@@ -323,7 +323,7 @@ void LOGI(const char *fmt, ...) { LOG_BODY(Info) }
 void LOGW(const char *fmt, ...) { LOG_BODY(Warn) }
 void LOGE(const char *fmt, ...) { LOG_BODY(Error) }
 
-// Export raw symbol to fortify compat
+
 extern "C" void __vloge(const char* fmt, va_list ap) {
     fmt_and_log_with_rs(LogLevel::Error, fmt, ap);
 }
@@ -410,7 +410,7 @@ string resolve_preinit_dir(const char *base_dir) {
     return dir;
 }
 
-// FFI for Utf8CStr
+
 
 extern "C" void cxx$utf8str$new(Utf8CStr *self, const void *s, size_t len);
 extern "C" const char *cxx$utf8str$ptr(const Utf8CStr *self);

@@ -26,7 +26,7 @@ fun Context.patch(): Context {
     return this
 }
 
-// Wrapping is only necessary for ContextThemeWrapper to support configuration overrides
+
 fun Context.wrap(): Context {
     patch()
     return object : ContextWrapper(this) {
@@ -41,8 +41,8 @@ fun Class<*>.cmp(pkg: String) =
 
 inline fun <reified T> Context.intent() = Intent().setComponent(T::class.java.cmp(packageName))
 
-// Keep a reference to these resources to prevent it from
-// being removed when running "remove unused resources"
+
+
 val shouldKeepResources = listOf(
     R.string.no_info_provided,
     R.string.release_notes,

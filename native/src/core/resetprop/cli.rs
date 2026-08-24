@@ -124,14 +124,14 @@ impl ResetProp {
         let mut skip_svc = self.skip_svc;
         let mut info = SYS_PROP.find_mut(key);
 
-        // Delete existing read-only properties if they are or will be long properties,
-        // which cannot directly go through __system_property_update
+
+
         if key.starts_with("ro.") {
             skip_svc = true;
             if let Some(pi) = &info
                 && (pi.is_long() || val.len() >= PROP_VALUE_MAX as usize)
             {
-                // Skip pruning nodes as we will add it back ASAP
+
                 SYS_PROP.delete(key, false);
                 info = None;
             }
@@ -160,8 +160,8 @@ impl ResetProp {
             debug!("resetprop: create prop [{key}]=[{val}] by {msg}");
         }
 
-        // When bypassing property_service, persistent props won't be stored in storage.
-        // Explicitly handle this situation.
+
+
         if skip_svc && self.persist && key.starts_with("persist.") {
             persist_set_prop(key, val).log_ok();
         }
@@ -181,7 +181,7 @@ impl ResetProp {
         let key = &self.args[0];
         let val = self.args.get(1).map(|s| &**s);
 
-        // Find PropInfo
+
         let info: &PropInfo;
         loop {
             let i = SYS_PROP.find(key);
@@ -297,11 +297,11 @@ pub fn resetprop_main(argc: i32, argv: *mut *mut c_char) -> i32 {
     if cli.run().is_ok() { 0 } else { 1 }
 }
 
-// Magisk's own helper functions
+
 
 pub fn set_prop(key: &Utf8CStr, val: &Utf8CStr) {
     let prop = ResetProp {
-        // All Magisk's internal usage should skip property_service
+
         skip_svc: true,
         ..Default::default()
     };
@@ -310,7 +310,7 @@ pub fn set_prop(key: &Utf8CStr, val: &Utf8CStr) {
 
 pub fn load_prop_file(file: &Utf8CStr) {
     let prop = ResetProp {
-        // All Magisk's internal usage should skip property_service
+
         skip_svc: true,
         ..Default::default()
     };

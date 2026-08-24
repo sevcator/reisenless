@@ -105,11 +105,11 @@ pub fn extract_boot_from_payload(
     let mut out_file =
         File::create(out_path).log_with_msg(|w| write!(w, "Cannot write to '{out_path}'"))?;
 
-    // Skip the manifest signature
+
     reader.skip(manifest_sig_len as usize)?;
 
-    // Sort the install operations with data_offset so we will only ever need to seek forward
-    // This makes it possible to support non-seekable input file descriptors
+
+
     let mut operations = partition.operations.clone();
     operations.sort_by_key(|e| e.data_offset.unwrap_or(0));
     let mut curr_data_offset: u64 = 0;
@@ -128,7 +128,7 @@ pub fn extract_boot_from_payload(
         buf.resize(data_len, 0u8);
         let data = &mut buf[..data_len];
 
-        // Skip to the next offset and read data
+
         let skip = data_offset - curr_data_offset;
         reader.skip(skip as usize)?;
         reader.read_exact(data)?;

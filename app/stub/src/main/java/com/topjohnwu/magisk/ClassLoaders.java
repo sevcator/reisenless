@@ -9,8 +9,8 @@ import com.topjohnwu.magisk.dummy.DummyService;
 import java.util.HashMap;
 import java.util.Map;
 
-// Wrap the actual classloader as we only want to resolve classname
-// mapping when loading from platform (via LoadedApk.mClassLoader)
+
+
 class MappingClassLoader extends ClassLoader {
 
     private final Map<String, String> mapping;

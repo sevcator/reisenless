@@ -12,14 +12,14 @@
 using namespace std;
 
 struct logger_entry {
-    uint16_t len;      /* length of the payload */
-    uint16_t hdr_size; /* sizeof(struct logger_entry) */
-    int32_t pid;       /* generating process's pid */
-    uint32_t tid;      /* generating process's tid */
-    uint32_t sec;      /* seconds since Epoch */
-    uint32_t nsec;     /* nanoseconds */
-    uint32_t lid;      /* log id of the payload, bottom 4 bits currently */
-    uint32_t uid;      /* generating process's uid */
+    uint16_t len;
+    uint16_t hdr_size;
+    int32_t pid;
+    uint32_t tid;
+    uint32_t sec;
+    uint32_t nsec;
+    uint32_t lid;
+    uint32_t uid;
 };
 
 #define LOGGER_ENTRY_MAX_LEN (5 * 1024)
@@ -44,26 +44,26 @@ struct AndroidLogEntry {
 };
 
 struct [[gnu::packed]] android_event_header_t {
-    int32_t tag;    // Little Endian Order
+    int32_t tag;
 };
 
 struct [[gnu::packed]] android_event_int_t {
-    int8_t type;    // EVENT_TYPE_INT
-    int32_t data;   // Little Endian Order
+    int8_t type;
+    int32_t data;
 };
 
 struct [[gnu::packed]] android_event_string_t {
-    int8_t type;    // EVENT_TYPE_STRING;
-    int32_t length; // Little Endian Order
+    int8_t type;
+    int32_t length;
     char data[];
 };
 
 struct [[gnu::packed]] android_event_list_t {
-    int8_t type;    // EVENT_TYPE_LIST
+    int8_t type;
     int8_t element_count;
 } ;
 
-// 30014 am_proc_start (User|1|5),(PID|1|5),(UID|1|5),(Process Name|3),(Type|3),(Component|3)
+
 struct [[gnu::packed]] android_event_am_proc_start {
     android_event_header_t tag;
     android_event_list_t list;
@@ -71,11 +71,11 @@ struct [[gnu::packed]] android_event_am_proc_start {
     android_event_int_t pid;
     android_event_int_t uid;
     android_event_string_t process_name;
-//  android_event_string_t type;
-//  android_event_string_t component;
+
+
 };
 
-// 3040 boot_progress_ams_ready (time|2|3)
+
 
 extern "C" {
 
@@ -87,7 +87,7 @@ extern "C" {
 
 }
 
-// zygote pid -> mnt ns
+
 static map<int, struct stat> zygote_map;
 bool logcat_exit;
 
@@ -103,7 +103,7 @@ static int parse_ppid(int pid) {
     sprintf(path, "/proc/%d/stat", pid);
     auto stat = open_file(path, "re");
     if (!stat) return -1;
-    // PID COMM STATE PPID .....
+
     fscanf(stat.get(), "%*d %*s %*c %d", &ppid);
     return ppid;
 }
@@ -268,9 +268,9 @@ static void process_events_buffer(struct log_msg *msg) {
             break;
         }
 
-        // A healthy logger blocks in android_logger_list_read and consumes no
-        // CPU. If logd is unavailable, back off reconnect attempts to avoid a
-        // permanent once-per-second wakeup loop.
+
+
+
         sleep(retry_delay);
         retry_delay = std::min(retry_delay * 2, 5U);
     }

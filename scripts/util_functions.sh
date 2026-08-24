@@ -1,11 +1,11 @@
-############################################
-# Magisk General Utility Functions
-############################################
 
-#MAGISK_VERSION_STUB
-#SECURE_DIR_STUB
-#MAIN_BIN_NAME_STUB
-#BUILD_IDENTITY_STUB
+
+
+
+
+
+
+
 
 [ -n "$MAIN_BIN_NAME" ] || MAIN_BIN_NAME=ms
 [ -n "$DATA_DIR" ] || DATA_DIR=ms
@@ -13,31 +13,31 @@
 [ -n "$BUILD_TMPDIR" ] || BUILD_TMPDIR=/dev/tmp
 [ -n "$BACKUP_PREFIX" ] || BACKUP_PREFIX=/data/ms_backup_
 
-###################
-# Global Variables
-###################
 
-# True if the script is running on booted Android, not something like recovery
-# BOOTMODE=
 
-# The path to store temporary files that don't need to persist
-# TMPDIR=
 
-# The non-volatile path where magisk executables are stored
-# MAGISKBIN=
 
-# BusyBox dispatches applets from argv[0]. The on-disk binary name is
-# randomized per build, so force the canonical multicall name without
-# creating a stable busybox path on disk.
+
+
+
+
+
+
+
+
+
+
+
+
 run_busybox() (
   local binary="$1"
   shift
   exec -a busybox "$binary" "$@"
 )
 
-###################
-# Helper Functions
-###################
+
+
+
 
 ui_print() {
   if $BOOTMODE; then
@@ -69,7 +69,7 @@ grep_prop() {
 grep_get_prop() {
   local result=$(grep_prop $@)
   if [ -z "$result" ]; then
-    # Fallback to getprop
+
     getprop "$1"
   else
     echo $result
@@ -112,15 +112,15 @@ print_title() {
   ui_print "$bar"
 }
 
-######################
-# Environment Related
-######################
+
+
+
 
 setup_flashable() {
   ensure_bb
   $BOOTMODE && return
   if [ -z $OUTFD ] || readlink /proc/$$/fd/$OUTFD | grep -q /tmp; then
-    # We will have to manually find out OUTFD
+
     for FD in $(ls /proc/$$/fd); do
       if readlink /proc/$$/fd/$FD | grep -q pipe; then
         if ps | grep -v grep | grep -qE " 3 $FD |status_fd=$FD"; then
@@ -135,12 +135,12 @@ setup_flashable() {
 
 ensure_bb() {
   if set -o | grep -q standalone; then
-    # We are definitely in busybox ash
+
     set -o standalone
     return
   fi
 
-  # Find our busybox binary
+
   local bb
   if [ -f $TMPDIR/busybox ]; then
     bb=$TMPDIR/busybox
@@ -151,7 +151,7 @@ ensure_bb() {
   fi
   chmod 755 $bb
 
-  # Busybox could be a script, make sure /system/bin/sh exists
+
   if [ ! -f /system/bin/sh ]; then
     umount -l /system 2>/dev/null
     mkdir -p /system/bin
@@ -160,13 +160,12 @@ ensure_bb() {
 
   export ASH_STANDALONE=1
 
-  # Find our current arguments
-  # Run in busybox environment to ensure consistent results
-  # /proc/<pid>/cmdline shall be <interpreter> <script> <arguments...>
+
+
+
   local cmds="$(run_busybox "$bb" sh -c "
   for arg in \$(tr '\0' '\n' < /proc/$$/cmdline); do
     if [ -z \"\$cmds\" ]; then
-      # Skip the first argument as we want to change the interpreter
       cmds=\"sh\"
     else
       cmds=\"\$cmds '\$arg'\"
@@ -174,16 +173,13 @@ ensure_bb() {
   done
   echo \$cmds")"
 
-  # Re-exec our script
   echo "$cmds" | run_busybox "$bb" xargs sh -c \
     'binary=$1; shift; exec -a busybox "$binary" "$@"' _ "$bb"
   exit
 }
 
 recovery_actions() {
-  # Make sure random won't get blocked
   mount -o bind /dev/urandom /dev/random
-  # Unset library paths
   OLD_LD_LIB=$LD_LIBRARY_PATH
   OLD_LD_PRE=$LD_PRELOAD
   OLD_LD_CFG=$LD_CONFIG_FILE
@@ -217,10 +213,8 @@ recovery_cleanup() {
 }
 
 #######################
-# Installation Related
 #######################
 
-# find_block [partname...]
 find_block() {
   local BLOCK DEV DEVICE DEVNAME PARTNAME UEVENT
   for BLOCK in "$@"; do
@@ -230,7 +224,6 @@ find_block() {
       return 0
     fi
   done
-  # Fallback by parsing sysfs uevents
   for UEVENT in /sys/dev/block/*/uevent; do
     DEVNAME=$(grep_prop DEVNAME $UEVENT)
     PARTNAME=$(grep_prop PARTNAME $UEVENT)
@@ -241,7 +234,6 @@ find_block() {
       fi
     done
   done
-  # Look just in /dev in case we're dealing with MTD/NAND without /dev/block devices/links
   for DEV in "$@"; do
     DEVICE=$(find /dev \( -type b -o -type c -o -type l \) -maxdepth 1 -iname $DEV | head -n 1) 2>/dev/null
     if [ ! -z $DEVICE ]; then
@@ -252,7 +244,6 @@ find_block() {
   return 1
 }
 
-# setup_mntpoint <mountpoint>
 setup_mntpoint() {
   local POINT=$1
   [ -L $POINT ] && mv -f $POINT ${POINT}_link
@@ -262,14 +253,12 @@ setup_mntpoint() {
   fi
 }
 
-# mount_name <partname(s)> <mountpoint> <flag>
 mount_name() {
   local PART=$1
   local POINT=$2
   local FLAG=$3
   setup_mntpoint $POINT
   is_mounted $POINT && return
-  # First try mounting with fstab
   mount $FLAG $POINT 2>/dev/null
   if ! is_mounted $POINT; then
     local BLOCK=$(find_block $PART)
@@ -278,9 +267,7 @@ mount_name() {
   ui_print "- mounting $POINT"
 }
 
-# mount_ro_ensure <partname(s)> <mountpoint>
 mount_ro_ensure() {
-  # We handle ro partitions only in recovery
   $BOOTMODE && return
   local PART=$1
   local POINT=$2
@@ -288,10 +275,7 @@ mount_ro_ensure() {
   is_mounted $POINT || abort "! cannot mount $POINT"
 }
 
-# After calling this method, the following variables will be set:
-# SLOT, SYSTEM_AS_ROOT, LEGACYSAR
 mount_partitions() {
-  # Check A/B slot
   SLOT=$(grep_cmdline androidboot.slot_suffix)
   if [ -z $SLOT ]; then
     SLOT=$(grep_cmdline androidboot.slot)
@@ -300,7 +284,6 @@ mount_partitions() {
   [ "$SLOT" = "normal" ] && unset SLOT
   [ -z $SLOT ] || ui_print "- current boot slot: $SLOT"
 
-  # Mount ro partitions
   if is_mounted /system_root; then
     umount /system 2>/dev/null
     umount /system_root 2>/dev/null
@@ -328,7 +311,6 @@ mount_partitions() {
   if $BOOTMODE; then
     grep ' / ' /proc/mounts | grep -q '/dev/root' && LEGACYSAR=true
   else
-    # Recovery mode, assume devices that don't use dynamic partitions are legacy SAR
     local IS_DYNAMIC=false
     if grep -q 'androidboot.super_partition' /proc/cmdline; then
       IS_DYNAMIC=true
@@ -342,16 +324,12 @@ mount_partitions() {
   fi
 }
 
-# After calling this method, the following variables will be set:
-# ISENCRYPTED, PATCHVBMETAFLAG,
-# KEEPVERITY, KEEPFORCEENCRYPT, RECOVERYMODE, VENDORBOOT
 get_flags() {
   if grep ' /data ' /proc/mounts | grep -q 'dm-'; then
     ISENCRYPTED=true
   elif [ "$(getprop ro.crypto.state)" = "encrypted" ]; then
     ISENCRYPTED=true
   elif [ "$DATA" = "false" ]; then
-    # No data access means unable to decrypt in recovery
     ISENCRYPTED=true
   else
     ISENCRYPTED=false
@@ -363,7 +341,6 @@ get_flags() {
     ui_print "- no vbmeta partition, patch vbmeta in boot image"
   fi
 
-  # Overridable config flags with safe defaults
   getvar KEEPVERITY
   getvar KEEPFORCEENCRYPT
   getvar RECOVERYMODE
@@ -388,13 +365,10 @@ get_flags() {
   [ -z $VENDORBOOT ] && VENDORBOOT=false
 }
 
-# Returns whether the device is GKI 13+
 is_gt_gki_13() {
   [ "$(uname -r | cut -d. -f1)" -ge 5 ] && uname -r | grep -Evq "android12-|^5\.4"
 }
 
-# Require RECOVERYMODE, VENDORBOOT, SLOT to be set.
-# After calling this method, BOOTIMAGE will be set.
 find_boot_image() {
   BOOTIMAGE=
   if $VENDORBOOT; then
@@ -402,21 +376,15 @@ find_boot_image() {
   elif $RECOVERYMODE; then
     BOOTIMAGE=$(find_block "recovery$SLOT" "sos")
   elif [ -e "/dev/block/by-name/init_boot$SLOT" ] && is_gt_gki_13; then
-    # init_boot is only used with GKI 13+. It is possible that some devices with init_boot
-    # partition still uses Android 12 GKI or previous kernels, so we need to explicitly detect that scenario.
     BOOTIMAGE="/dev/block/by-name/init_boot$SLOT"
   elif [ -e "/dev/block/by-name/boot$SLOT" ]; then
-    # Standard location since AOSP Android 10+
     BOOTIMAGE="/dev/block/by-name/boot$SLOT"
   elif [ -n "$SLOT" ]; then
-    # Fallback for A/B devices running < Android 10
     BOOTIMAGE=$(find_block "ramdisk$SLOT" "boot$SLOT")
   else
-    # Fallback for all legacy and non-standard devices
     BOOTIMAGE=$(find_block ramdisk kern-a android_boot kernel bootimg boot lnx boot_a)
   fi
   if [ -z $BOOTIMAGE ]; then
-    # Lets see what fstabs tells me
     BOOTIMAGE=$(grep -v '#' /etc/*fstab* | grep -E '/boot(img)?[^a-zA-Z]' | grep -oE '/dev/[a-zA-Z0-9_./-]*' | head -n 1)
   fi
 }
@@ -445,11 +413,9 @@ flash_image() {
   return 0
 }
 
-# Common installation script for flash_script.sh and addon.d.sh
 install_magisk() {
   cd $MAGISKBIN
 
-  # Source the boot patcher
   SOURCEDMODE=true
   . ./boot_patch.sh "$BOOTIMAGE"
 
@@ -489,7 +455,6 @@ remove_system_su() {
     ui_print "- removing system installed root"
     blockdev --setrw /dev/block/mapper/system$SLOT 2>/dev/null
     mount -o rw,remount $POSTINST/system
-    # SuperSU
     cd bin
     if [ -e .ext/.su ]; then
       mv -f app_process32_original app_process32 2>/dev/null
@@ -501,7 +466,6 @@ remove_system_su() {
         ln -sf app_process32 app_process
       fi
     fi
-    # More SuperSU, SuperUser & ROM su
     cd ..
     rm -rf .pin bin/.ext etc/.installed_su_daemon etc/.has_su_daemon \
     xbin/daemonsu xbin/su xbin/sugote xbin/sugote-mksh xbin/supolicy \
@@ -548,9 +512,7 @@ check_data() {
   DATA=false
   DATA_DE=false
   if grep ' /data ' /proc/mounts | grep -vq 'tmpfs'; then
-    # Test if data is writable
     touch /data/.rw && rm /data/.rw && DATA=true
-    # Test if data is decrypted
     $DATA && [ -d "${SECURE_DIR}" ] && touch "${SECURE_DIR}/.rw" && rm "${SECURE_DIR}/.rw" && DATA_DE=true
     $DATA_DE && { [ -d "${SECURE_DIR}/${DATA_DIR}" ] || mkdir -p "${SECURE_DIR}/${DATA_DIR}"; } || DATA_DE=false
   fi
@@ -562,14 +524,12 @@ check_data() {
 run_migrations() {
   local SHA1
   local TARGET
-  # Legacy app installation
   local BACKUP=$MAGISKBIN/stock_boot*.gz
   if [ -f $BACKUP ]; then
     cp $BACKUP /data
     rm -f $BACKUP
   fi
 
-  # Legacy backup
   for gz in /data/stock_boot*.gz; do
     [ -f $gz ] || break
     SHA1=$(basename $gz | sed -e 's/stock_boot_//' -e 's/.img.gz//')
@@ -578,7 +538,6 @@ run_migrations() {
     mv $gz ${BACKUP_PREFIX}${SHA1}/boot.img.gz
   done
 
-  # Stock backups
   SHA1=
   for name in boot dtb dtbo dtbs; do
     BACKUP=$MAGISKBIN/stock_${name}.img
@@ -604,7 +563,6 @@ copy_preinit_files() {
     return 1
   fi
 
-  # Copy all enabled sepolicy.rule
   for r in ${SECURE_DIR}/modules*/*/sepolicy.rule; do
     [ -f "$r" ] || continue
     local MODDIR=${r%/*}
@@ -617,7 +575,6 @@ copy_preinit_files() {
 }
 
 #################
-# Module Related
 #################
 
 set_perm() {
@@ -645,13 +602,11 @@ mktouch() {
 
 boot_actions() { return; }
 
-# Require ZIPFILE to be set
 is_legacy_script() {
   unzip -l "$ZIPFILE" install.sh | grep -q install.sh
   return $?
 }
 
-# $1 = MODPATH
 set_default_perm() {
   set_perm_recursive $1 0 0 0755 0644
   set_perm_recursive $1/system/bin 0 2000 0755 0755
@@ -660,7 +615,6 @@ set_default_perm() {
   set_perm_recursive $1/system/vendor/bin 0 2000 0755 0755 u:object_r:vendor_file:s0
 }
 
-# Require OUTFD, ZIPFILE to be set
 install_module() {
   rm -rf $TMPDIR
   mkdir -p $TMPDIR
@@ -671,14 +625,12 @@ install_module() {
   mount_partitions
   api_level_arch_detect
 
-  # Setup busybox and binaries
   if $BOOTMODE; then
     boot_actions
   else
     recovery_actions
   fi
 
-  # Extract prop file
   unzip -o "$ZIPFILE" module.prop -d $TMPDIR >&2
   [ ! -f $TMPDIR/module.prop ] && abort "! this zip is not a magisk module!"
 
@@ -690,7 +642,6 @@ install_module() {
   MODAUTH=$(grep_prop author $TMPDIR/module.prop)
   MODPATH=$MODULEROOT/$MODID
 
-  # Create mod paths
   rm -rf $MODPATH
   mkdir -p $MODPATH
   chcon u:object_r:system_file:s0 $MODPATH
@@ -698,10 +649,8 @@ install_module() {
   if is_legacy_script; then
     unzip -oj "$ZIPFILE" module.prop install.sh uninstall.sh 'common/*' -d $TMPDIR >&2
 
-    # Load install script
     . $TMPDIR/install.sh
 
-    # Callbacks
     print_modname
     on_install
 
@@ -726,11 +675,9 @@ install_module() {
       set_default_perm $MODPATH
     fi
 
-    # Load customization script
     [ -f $MODPATH/customize.sh ] && . $MODPATH/customize.sh
   fi
 
-  # Handle replace folders
   for TARGET in $REPLACE; do
     ui_print "- replace target: $TARGET"
     mktouch $MODPATH$TARGET/.replace
@@ -743,20 +690,17 @@ install_module() {
   done
 
   if $BOOTMODE; then
-    # Update info for Magisk app
     mktouch ${SECURE_DIR}/modules/$MODID/update
     rm -rf ${SECURE_DIR}/modules/$MODID/remove 2>/dev/null
     rm -rf ${SECURE_DIR}/modules/$MODID/disable 2>/dev/null
     cp -af $MODPATH/module.prop ${SECURE_DIR}/modules/$MODID/module.prop
   fi
 
-  # Copy over custom sepolicy rules
   if [ -f $MODPATH/sepolicy.rule ]; then
     ui_print "- installing custom sepolicy rules"
     copy_preinit_files
   fi
 
-  # Remove stuff that doesn't belong to modules and clean up any empty directories
   rm -rf \
   $MODPATH/system/placeholder $MODPATH/customize.sh \
   $MODPATH/README.md $MODPATH/.git*
@@ -770,10 +714,8 @@ install_module() {
 }
 
 ##########
-# Presets
 ##########
 
-# Detect whether in boot mode
 [ -z $BOOTMODE ] && ps | grep zygote | grep -qv grep && BOOTMODE=true
 [ -z $BOOTMODE ] && ps -A 2>/dev/null | grep zygote | grep -qv grep && BOOTMODE=true
 [ -z $BOOTMODE ] && BOOTMODE=false

@@ -103,7 +103,7 @@ class SuperuserViewModel(
         loading = false
     }
 
-    // ---
+
 
     fun updatePolicy(item: PolicyRvItem, policy: Int) {
         val items = itemsPolicies.filter { it.item.uid == item.item.uid }

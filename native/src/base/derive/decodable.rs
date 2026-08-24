@@ -8,7 +8,7 @@ pub(crate) fn derive_decodable(input: proc_macro::TokenStream) -> proc_macro::To
 
     let name = input.ident;
 
-    // Add a bound `T: Decodable` to every type parameter T.
+
     let mut generics = input.generics;
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
@@ -24,7 +24,7 @@ pub(crate) fn derive_decodable(input: proc_macro::TokenStream) -> proc_macro::To
     let decode = gen_decode(&input.data);
 
     let expanded = quote! {
-        // The generated impl.
+
         impl #impl_generics crate::socket::Encodable for #name #ty_generics #where_clause {
             fn encode(&self, w: &mut impl std::io::Write) -> std::io::Result<()> {
                 #encode
@@ -41,15 +41,15 @@ pub(crate) fn derive_decodable(input: proc_macro::TokenStream) -> proc_macro::To
     proc_macro::TokenStream::from(expanded)
 }
 
-// Generate an expression to encode each field.
+
 fn gen_encode(data: &Data) -> TokenStream {
     match *data {
         Data::Struct(ref data) => {
             match data.fields {
                 Fields::Named(ref fields) => {
-                    // Expands to an expression like
-                    //
-                    //     self.x.encode(w)?; self.y.encode(w)?; self.z.encode(w)?;
+
+
+
                     let recurse = fields.named.iter().map(|f| {
                         let name = &f.ident;
                         quote_spanned! { f.span() =>
@@ -67,15 +67,15 @@ fn gen_encode(data: &Data) -> TokenStream {
     }
 }
 
-// Generate an expression to decode each field.
+
 fn gen_decode(data: &Data) -> TokenStream {
     match *data {
         Data::Struct(ref data) => {
             match data.fields {
                 Fields::Named(ref fields) => {
-                    // Expands to an expression like
-                    //
-                    //     Self { x: Decodable::decode(r)?, y: Decodable::decode(r)?, }
+
+
+
                     let recurse = fields.named.iter().map(|f| {
                         let name = &f.ident;
                         quote_spanned! { f.span() =>

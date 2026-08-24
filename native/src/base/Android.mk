@@ -1,6 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 
-# Magisk project-wide common code
+
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libbase

@@ -69,7 +69,7 @@ impl MagiskD {
             if (AID_APP_START..=AID_APP_END).contains(&app_id) {
                 let app_no = app_id - AID_APP_START;
                 if !app_list.contains(app_no as usize) {
-                    // The app_id is no longer installed
+
                     rm_uids.push(uid);
                 }
             }
@@ -90,7 +90,7 @@ impl MagiskD {
             Err(_) => return false,
         };
 
-        // Check user root access settings
+
         match cfg.root_access {
             RootAccess::Disabled => return false,
             RootAccess::AppsOnly => {
@@ -106,7 +106,7 @@ impl MagiskD {
             _ => {}
         }
 
-        // Check multiuser settings
+
         match cfg.multiuser_mode {
             MultiuserMode::OwnerOnly => {
                 if to_user_id(uid) != 0 {

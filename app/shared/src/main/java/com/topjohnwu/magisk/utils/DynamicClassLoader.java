@@ -16,27 +16,27 @@ public class DynamicClassLoader extends BaseDexClassLoader {
     }
 
     public DynamicClassLoader(File apk, ClassLoader parent) {
-        // Set optimizedDirectory to null for RootService to bypass DexFile's security checks
+
         super(apk.getPath(), Process.myUid() == 0 ? null : apk.getParentFile(), null, parent);
     }
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        // First check if already loaded
+
         Class<?> cls = findLoadedClass(name);
         if (cls != null)
             return cls;
 
         try {
-            // Then check boot classpath
+
             return getSystemClassLoader().loadClass(name);
         } catch (ClassNotFoundException ignored) {
             try {
-                // Next try current dex
+
                 return findClass(name);
             } catch (ClassNotFoundException fromSuper) {
                 try {
-                    // Finally try parent
+
                     return getParent().loadClass(name);
                 } catch (ClassNotFoundException e) {
                     throw fromSuper;

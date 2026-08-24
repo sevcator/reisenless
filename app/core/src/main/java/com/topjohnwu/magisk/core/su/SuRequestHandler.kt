@@ -25,7 +25,7 @@ class SuRequestHandler(
     lateinit var pkgInfo: PackageInfo
         private set
 
-    // Return true to indicate undetermined policy, require user interaction
+
     suspend fun start(intent: Intent): Boolean {
         if (!init(intent))
             return false
@@ -56,7 +56,7 @@ class SuRequestHandler(
         try {
             pkgInfo = pm.getPackageInfo(uid, pid) ?: PackageInfo().apply {
                 val name = pm.getNameForUid(uid) ?: throw PackageManager.NameNotFoundException()
-                // We only fill in sharedUserId and leave other fields uninitialized
+
                 sharedUserId = name.split(":")[0]
             }
         } catch (e: PackageManager.NameNotFoundException) {

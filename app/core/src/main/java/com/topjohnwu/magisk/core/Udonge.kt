@@ -4,7 +4,7 @@ import android.util.Base64
 import com.topjohnwu.superuser.Shell
 
 object Udonge {
-    /** ROM families covered by Duck Detector's property, package and path catalogs. */
+
     const val DEFAULT_ROM_KEYWORDS =
         "lineage\n" +
         "crdroid\n" +

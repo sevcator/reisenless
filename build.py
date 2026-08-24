@@ -43,11 +43,11 @@ def vprint(str):
         print(str)
 
 
-# OS detection
+
 os_name = platform.system().lower()
 is_windows = False
 if os_name != "linux" and os_name != "darwin":
-    # It's possible we're using MSYS/Cygwin/MinGW, treat them all as Windows
+
     is_windows = True
     os_name = "windows"
 EXE_EXT = ".exe" if is_windows else ""
@@ -59,7 +59,7 @@ if is_windows:
 
         colorama.init()
     except ImportError:
-        # We can't do ANSI color codes in terminal on Windows without colorama
+
         no_color = True
 
 if not sys.version_info >= (3, 8):
@@ -67,7 +67,7 @@ if not sys.version_info >= (3, 8):
 
 cpu_count = multiprocessing.cpu_count()
 
-# Common constants
+
 support_abis = {
     "armeabi-v7a": "thumbv7neon-linux-androideabi",
     "x86": "i686-linux-android",
@@ -85,20 +85,20 @@ default_abis = support_abis.keys() - {"riscv64"}
 support_targets = {"magisk", "minit", "mboot", "mpol"}
 default_targets = support_targets.copy()
 rust_targets = default_targets.copy()
-# Map from binary target names to Rust crate (cargo package) names
+
 rust_crate_map = {"minit": "magiskinit", "mboot": "magiskboot", "mpol": "magiskpolicy"}
 clean_targets = {"native", "cpp", "rust", "app"}
 ondk_version = "r30.1"
 
-# Global vars
+
 config = {}
 args: argparse.Namespace
 build_abis: dict[str, str]
 force_out = False
 
-###################
-# Helper functions
-###################
+
+
+
 
 
 def mv(source: Path, target: Path):
@@ -126,8 +126,8 @@ def rm(file: Path):
 
 
 def rm_on_error(func, path, _):
-    # Removing a read-only file on Windows will get "WindowsError: [Error 5] Access is denied"
-    # Clear the "read-only" bit and retry
+
+
     try:
         os.chmod(path, stat.S_IWRITE)
         os.unlink(path)
@@ -145,7 +145,7 @@ def rm_rf(path: Path):
 
 def execv(cmds: list, env=None):
     out = None if force_out or args.verbose > 0 else subprocess.DEVNULL
-    # Use shell on Windows to support PATHEXT
+
     return subprocess.run(cmds, stdout=out, env=env, shell=is_windows)
 
 
@@ -162,9 +162,9 @@ def cmd_out(cmds: list):
     )
 
 
-###############
-# Build Native
-###############
+
+
+
 
 
 def clean_elf():
@@ -263,9 +263,9 @@ def run_cargo(cmds: list[str]):
     for triple, prefix in clang_prefixes.items():
         key = f"CARGO_TARGET_{triple.upper().replace('-', '_')}_LINKER"
         env[key] = str(tool_bin / f"{prefix}23-clang{driver_ext}")
-    # Cargo calls executables in $RUSTROOT/lib/rustlib/$TRIPLE/bin, we need
-    # to make sure the runtime linker also search $RUSTROOT/lib for libraries.
-    # This is only required on Unix, as Windows search dlls from PATH.
+
+
+
     if os_name == "darwin":
         env["DYLD_FALLBACK_LIBRARY_PATH"] = str(rust_sysroot / "lib")
     elif os_name == "linux":
@@ -284,7 +284,7 @@ def build_rust_src(targets: set[str]):
 
     os.chdir(Path("native", "src"))
 
-    # Start building the build commands
+
     cmds = ["build", "-p", ""]
     if args.release:
         cmds.append("-r")
@@ -364,9 +364,9 @@ def _build_identity() -> dict[str, str]:
             "preloadAck": "/dev/ack", "stageScript": "udonge.sh",
         }
 
-    # A private CI seed can make the generated names non-derivable. Keeping
-    # the seed stable preserves upgrades while all identifiers are still
-    # materialized only as part of the build.
+
+
+
     seed = (
         os.environ.get("REISENLESS_IDENTITY_SEED", "").strip()
         or config.get("identitySeed", "").strip()
@@ -402,14 +402,14 @@ def _build_identity() -> dict[str, str]:
         "policyName": token("policy-binary", 5, 9),
         "bin32Name": token("bin32-databin", 5, 9),
         "busyboxName": token("toolbox-binary", 6, 10),
-        # The ramdisk proxy must resolve to the daemon after /sbin is moved.
+
         "ramdiskName": main_binary,
         "stubName": token("stub-apk", 6, 10) + ".apk",
         "initLdName": token("init-loader", 6, 10),
         "udongeDir": "." + token("udonge-root", 3, 3),
         "udongeArchive": token("udonge-archive", 7, 11) + ".bin",
         "backupConfig": "." + token("backup-config", 6, 10),
-        # Must fit inside the /system/bin/init string patched in-place.
+
         "redirPath": "/data/." + token("init-redirect", 7, 9),
         "procDomain": proc + "_d", "fileType": file_type + "_f",
         "udongeFileType": udonge_type + "_f",
@@ -483,7 +483,7 @@ def dump_flag_header():
     ):
         error(f'Invalid secureDir: "{secure_dir}"')
 
-    # Build spoof values (empty string = disabled)
+
     spoof_fp = config.get("spoofFingerprint", "")
     spoof_mfr = config.get("spoofManufacturer", "")
     spoof_model = config.get("spoofModel", "")
@@ -563,7 +563,7 @@ def dump_flag_header():
 def ensure_toolchain():
     ensure_paths()
 
-    # Verify NDK install
+
     try:
         with open(Path(ndk_path, "ONDK_VERSION"), "r") as ondk_ver:
             assert ondk_ver.read().strip(" \t\r\n") == ondk_version
@@ -590,9 +590,9 @@ def build_native():
 
     header("* Building: " + " ".join(targets))
 
-    # Rebuilding only some binaries with a new random identity leaves the
-    # native output internally inconsistent. Partial builds must reuse the
-    # exact flags of the existing output set; full builds rotate the identity.
+
+
+
     if default_targets.issubset(targets):
         dump_flag_header()
     else:
@@ -607,9 +607,9 @@ def build_native():
     build_cpp_src(targets)
 
 
-############
-# Build App
-############
+
+
+
 
 
 def find_jdk():
@@ -677,10 +677,10 @@ def _patch_tee_dex(data: bytes, udonge_root: str) -> bytes:
         encoded = path.encode()
         if len(encoded) > size:
             error(f"Generated Udonge path is too long for TEE DEX: {path}")
-        # Repeated path separators are equivalent on Android and let the
-        # replacement preserve the DEX string_data layout exactly. For the
-        # library path, pad after the Udonge root so it still sorts before the
-        # state path in the DEX string_ids table.
+
+
+
+
         if pad_after is not None:
             prefix = (pad_after.rstrip("/") + "/").encode()
             if not encoded.startswith(prefix):
@@ -843,7 +843,7 @@ def build_apk(module: str):
     env = find_jdk()
     props = args.config.resolve()
 
-    # Write flags.prop for Gradle (read by Plugin.kt as Config.version, etc.)
+
     gradle_build_dir = Path("app", "build")
     gradle_build_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
     identity = _build_identity()
@@ -891,14 +891,14 @@ def build_app():
 
     build_type = "release" if args.release else "debug"
 
-    # Rename apk-variant.apk to app-variant.apk
+
     source = apk
     target = apk.parent / apk.name.replace("apk-", "app-")
     mv(source, target)
     header(f"Output: {target}")
 
-    # Stub building is directly integrated into the main app
-    # build process. Copy the stub APK into output directory.
+
+
     source = Path("app", "core", "src", build_type, "assets", "stub.apk")
     target = config["outdir"] / f"stub-{build_type}.apk"
     cp(source, target)
@@ -910,9 +910,9 @@ def build_stub():
     header(f"Output: {apk}")
 
 
-################
-# Build General
-################
+
+
+
 
 
 def cleanup():
@@ -955,24 +955,24 @@ def build_all():
     build_app()
 
 
-############
-# Utilities
-############
+
+
+
 
 
 def gen_ide():
     ensure_paths()
     set_build_abis({args.abi})
 
-    # Dump flags for both C++ and Rust code
+
     dump_flag_header()
 
-    # Run build.rs to generate Rust/C++ FFI bindings
+
     os.chdir(Path("native", "src"))
     run_cargo(["check"])
     os.chdir(Path("..", ".."))
 
-    # Generate compilation database
+
     rm_rf(Path("native", "compile_commands.json"))
     run_ndk_build(
         [
@@ -997,7 +997,7 @@ def clippy_cli():
         set_build_abis(default_abis)
 
     if not args.release and not args.debug:
-        # If none is specified, run both
+
         args.release = True
         args.debug = True
 
@@ -1030,8 +1030,8 @@ def setup_ndk():
     header(f"* Downloading and extracting {ndk_archive}")
     try:
         with urllib.request.urlopen(url) as response:
-            # Python 3.14 may need to seek backwards while resolving links in
-            # the archive, which is impossible with tarfile's streaming mode.
+
+
             with tempfile.TemporaryFile() as archive:
                 shutil.copyfileobj(response, archive)
                 archive.seek(0)
@@ -1067,7 +1067,7 @@ def setup_rustup():
         tgt = wrapper_dir / src.name
         tgt.symlink_to(f"rustup{EXE_EXT}")
 
-    # Build rustup-wrapper
+
     wrapper_src = Path("tools", "rustup-wrapper")
     cargo_toml = wrapper_src / "Cargo.toml"
     cmds = ["build", "--release", f"--manifest-path={cargo_toml}"]
@@ -1075,16 +1075,16 @@ def setup_rustup():
         cmds.append("--verbose")
     run_cargo(cmds)
 
-    # Replace rustup with wrapper
+
     wrapper = wrapper_dir / (f"rustup{EXE_EXT}")
     wrapper.unlink(missing_ok=True)
     cp(wrapper_src / "target" / "release" / (f"rustup-wrapper{EXE_EXT}"), wrapper)
     wrapper.chmod(0o755)
 
 
-##################
-# AVD and testing
-##################
+
+
+
 
 
 def push_files(script: Path):
@@ -1103,7 +1103,7 @@ def push_files(script: Path):
             config["outdir"], ("app-release.apk" if args.release else "app-debug.apk")
         )
 
-    # Extract busybox from APK
+
     busybox = Path(config["outdir"], "busybox")
     with ZipFile(apk) as zf:
         with zf.open(f"lib/{abi}/libbusybox.so") as libbb:
@@ -1158,16 +1158,16 @@ def patch_avd_file():
     header(f"Output: {output}")
 
 
-##########################
-# Config, paths, argparse
-##########################
+
+
+
 
 
 def ensure_paths():
     global sdk_path, ndk_root, ndk_path, rust_sysroot
     global ndk_build, gradlew, adb_path
 
-    # Skip if already initialized
+
     if "sdk_path" in globals():
         return
 
@@ -1187,7 +1187,7 @@ def ensure_paths():
     gradlew = Path.cwd() / "app" / "gradlew"
 
 
-# We allow using several functionality with only ADB
+
 def ensure_adb():
     global adb_path
     if "adb_path" not in globals():
@@ -1216,9 +1216,9 @@ def parse_props(file: Path) -> dict[str, str]:
 
 def set_build_abis(abis: set[str]):
     global build_abis
-    # Try to convert several aliases to real ABI
+
     abis = {abi_alias.get(k, k) for k in abis}
-    # Check any unknown ABIs
+
     for k in abis - support_abis.keys():
         error(f"Unknown ABI: {k}")
     build_abis = {k: support_abis[k] for k in support_abis if k in abis}
@@ -1228,12 +1228,12 @@ def load_config():
     commit_hash = cmd_out(["git", "rev-parse", "--short=8", "HEAD"])
     commit_timestamp = cmd_out(["git", "show", "-s", "--format=%ct", "HEAD"])
 
-    # Default values
+
     config["version"] = commit_hash
     config["versionCode"] = 1000000
     config["outdir"] = "out"
 
-    # Load prop files
+
     if args.config.exists():
         config.update(parse_props(args.config))
 
@@ -1243,7 +1243,7 @@ def load_config():
             if key.startswith("magisk."):
                 config[key[7:]] = value
 
-    # Keep app and native metadata deterministic for the exact source commit.
+
     config["version"] = commit_hash
     config["versionCode"] = commit_timestamp
 
@@ -1341,7 +1341,7 @@ def parse_args():
     gen_parser = subparsers.add_parser("gen", help="generate files for IDE")
     gen_parser.add_argument("--abi", default="arm64-v8a", help="target ABI to generate")
 
-    # Set callbacks
+
     all_parser.set_defaults(func=build_all)
     native_parser.set_defaults(func=build_native)
     cargo_parser.set_defaults(func=cargo_cli)

@@ -8,7 +8,7 @@ import android.os.ParcelFileDescriptor
 import java.io.File
 import java.io.FileNotFoundException
 
-/** Exposes the signed full APK only to a package holding a one-time URI grant. */
+
 class MigrationApkProvider : ContentProvider() {
 
     override fun onCreate() = true

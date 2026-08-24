@@ -37,9 +37,9 @@ object AppMigration {
     private const val ALPHA = "abcdefghijklmnopqrstuvwxyz"
     private const val ANDROID_MANIFEST = "AndroidManifest.xml"
     private const val TEST_PKG_NAME = "$APP_PACKAGE_NAME.test"
-    // The bundled stub is generated from Magisk's original manifest and can
-    // still contain the upstream package even though this build uses the
-    // Reisenless application id. Both names must be rewritten during hiding.
+
+
+
     private const val LEGACY_PACKAGE_NAME = "com.topjohnwu.magisk"
     private const val SOURCE_PACKAGE_PLACEHOLDER = "source.reisenless.manager"
     private val MIGRATION_APK_URI = "content://$APP_PACKAGE_NAME.migration/apk".toUri()
@@ -110,7 +110,7 @@ object AppMigration {
             .singleOrNull() == pkg
     }
 
-    /** Give a newly installed migration target root before its first launch. */
+
     private fun authorizeMigrationTarget(uid: Int): Boolean {
         val query = "REPLACE INTO policies " +
             "(uid, policy, until, logging, notification) " +
@@ -124,7 +124,7 @@ object AppMigration {
         ).exec()
     }
 
-    /** Make the full APK available before the hidden stub's first process starts. */
+
     @Suppress("DEPRECATION")
     private fun seedMigrationTarget(context: Context, pkg: String, uid: Int): Boolean {
         val info = try {
@@ -139,18 +139,18 @@ object AppMigration {
         }
         val dynDir = File(dataDir, "dyn")
         val currentApk = File(dynDir, "current.apk")
-        // Let Android derive the package-specific MLS categories instead of
-        // parsing and replaying an `ls -Z` label. The latter is not stable
-        // across toybox output formats and caused the migration to roll back
-        // immediately on devices where the context could not be parsed.
+
+
+
+
         return Shell.cmd(
             "mkdir -p ${dynDir.path} && " +
                 "cp -f $AppApkPath ${currentApk.path} && " +
                 "chown $uid:$uid ${dynDir.path} ${currentApk.path} && " +
                 "chmod 700 ${dynDir.path} && " +
-                // PackageManager parses archive metadata in system_server, so
-                // the APK itself must be world-readable. The containing app
-                // data directory remains private to the hidden package.
+
+
+
                 "chmod 444 ${currentApk.path} && " +
                 "/system/bin/restorecon -RF ${dynDir.path} && " +
                 "test -s ${currentApk.path}",
@@ -194,7 +194,7 @@ object AppMigration {
         )
     }
 
-    /** Randomize the public stub icon while keeping its resource ID resolvable. */
+
     private fun patchHiddenIcon(jar: JarMap, random: SecureRandom): Boolean {
         val entries = jar.entries()
         while (entries.hasMoreElements()) {
@@ -289,9 +289,9 @@ object AppMigration {
         val info = packageInfo.applicationInfo ?: return false
         info.sourceDir = apk.path
         info.publicSourceDir = apk.path
-        // Resolve resource-backed labels as well as literal android:label values.
-        // The previous nonLocalizedLabel lookup returned "null" for the shipped
-        // APK, so the hidden package kept the old visible Reisenless label.
+
+
+
         val origLabel = info.loadLabel(pm).toString()
         try {
             JarMap.open(apk, true).use { jar ->
@@ -355,11 +355,11 @@ object AppMigration {
         }
     }
 
-    /** Install migration APKs from the already-rooted app shell. */
+
     private fun installMigrationApk(apk: File): Boolean {
-        // Copy to a world-readable path before switching to the system UID.
-        // Mark the migration as a device restore: it is an app identity handoff,
-        // not a user-requested installation from an unknown package source.
+
+
+
         val tmp = "/data/local/tmp/reisenless-migration.apk"
         if (!Shell.cmd("cp -f ${apk.absolutePath} $tmp", "chmod 644 $tmp").exec().isSuccess) {
             return false
@@ -475,8 +475,8 @@ object AppMigration {
                 if (!installMigrationApk(repack)) {
                     return@withContext false
                 }
-                // Package verification can report install success slightly
-                // before installd finishes publishing the new data directory.
+
+
                 delay(5_000)
                 installedMainPackage = newPackage
                 val newUid = installedUid(context, newPackage)
@@ -491,9 +491,9 @@ object AppMigration {
                 if (!Shell.cmd("${Const.MAIN_BIN} --sulist add $newPackage").exec().isSuccess) {
                     return@withContext false
                 }
-                // The daemon recognizes the configured manager before applying
-                // Sulist restrictions. Publish the new identity before its first
-                // root request; the target cannot set this itself without root.
+
+
+
                 Config.suManager = newPackage
                 managerChanged = true
                 Shell.cmd("touch $AppApkPath").exec()
@@ -573,7 +573,7 @@ object AppMigration {
                 if (!authorizeMigrationTarget(newUid)) {
                     return@withContext false
                 }
-                // An empty requester selects the signed original package.
+
                 Config.suManager = ""
                 managerChanged = true
                 Shell.cmd("touch $AppApkPath").exec()
@@ -611,9 +611,9 @@ object AppMigration {
                 shellUidIsExclusive(sourceUid, source))
         val sourceTest = "$source.test"
         Shell.cmd("${Const.MAIN_BIN} --sulist rm $source").exec()
-        // App visibility may be filtered by the OS or by Udonge during the
-        // hidden manager's first launch. The source and target are authenticated
-        // migration values, so use the rooted package manager for final cleanup.
+
+
+
         if (shellIsInstalled(sourceTest)) {
             Shell.cmd("pm uninstall $sourceTest").exec()
         }

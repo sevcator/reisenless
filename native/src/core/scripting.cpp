@@ -54,13 +54,13 @@ if (pfs) { \
     if (int pid = xfork()) { \
         if (pid < 0) \
             return; \
-        /* In parent process, simply wait for child to finish */ \
+                                                                 \
         waitpid(pid, nullptr, 0); \
         return; \
     } \
     timer_pid = xfork(); \
     if (timer_pid == 0) { \
-        /* In timer process, count down */ \
+                                           \
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &pfs_timeout, nullptr); \
         exit(0); \
     } \
@@ -68,7 +68,7 @@ if (pfs) { \
 
 #define PFS_WAIT() \
 if (pfs) { \
-    /* If we ran out of time, don't block */ \
+                                             \
     if (timer_pid < 0) \
         continue; \
     if (int pid = waitpid(-1, nullptr, 0); pid == timer_pid) { \
@@ -94,7 +94,7 @@ void exec_common_scripts(Utf8CStr stage) {
     bool pfs = stage == "post-fs-data"sv;
     int timer_pid = -1;
     if (pfs) {
-        // Setup timer
+
         clock_gettime(CLOCK_MONOTONIC, &pfs_timeout);
         pfs_timeout.tv_sec += POST_FS_DATA_SCRIPT_MAX_TIME;
     }
@@ -135,7 +135,7 @@ void exec_module_scripts(Utf8CStr stage, const rust::Vec<ModuleInfo> &module_lis
     if (pfs) {
         timespec now{};
         clock_gettime(CLOCK_MONOTONIC, &now);
-        // If we had already timed out, treat it as service mode
+
         if (now > pfs_timeout)
             pfs = false;
     }

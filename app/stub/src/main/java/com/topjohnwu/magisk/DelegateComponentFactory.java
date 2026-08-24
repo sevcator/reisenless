@@ -68,7 +68,7 @@ public class DelegateComponentFactory extends AppComponentFactory {
     private <T> T create(String name, Class<T> fallback)
             throws IllegalAccessException, InstantiationException {
         try {
-            // noinspection unchecked
+
             return (T) DynLoad.activeClassLoader.loadClass(name).newInstance();
         } catch (ClassNotFoundException e) {
             return fallback.newInstance();

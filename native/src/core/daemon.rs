@@ -36,7 +36,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::nonpoison::Mutex;
 use std::time::{Duration, Instant};
 
-// Global magiskd singleton
+
 pub static MAGISKD: OnceLock<MagiskD> = OnceLock::new();
 
 pub const AID_ROOT: i32 = 0;
@@ -100,15 +100,15 @@ impl MagiskD {
             }
             RequestCode::START_DAEMON => {}
             RequestCode::STOP_DAEMON => {
-                // Unmount all overlays
+
                 denylist_handler(-1);
 
-                // Restore native bridge property
+
                 self.zygisk.lock().restore_prop();
 
                 client.write_pod(&0).log_ok();
 
-                // Terminate the daemon!
+
                 exit(0);
             }
             _ => {}
@@ -176,11 +176,11 @@ impl MagiskD {
 
     fn handle_requests(&'static self, mut client: UnixStream) {
         let Ok(cred) = client.peer_cred() else {
-            // Client died
+
             return;
         };
 
-        // There are no abstractions for SO_PEERSEC yet, call the raw C API.
+
         let mut context = cstr::buf::new::<256>();
         unsafe {
             let mut len: libc::socklen_t = context.capacity().as_();
@@ -200,7 +200,7 @@ impl MagiskD {
         let is_manager = self.is_manager_uid(to_user_id(cred.uid as i32), cred.uid as i32);
 
         if !is_root && !is_zygote && !is_manager && !self.is_client(cred.pid.unwrap_or(-1)) {
-            // Unsupported client state
+
             client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
             return;
         }
@@ -211,13 +211,13 @@ impl MagiskD {
             || code == RequestCode::_SYNC_BARRIER_.repr
             || code == RequestCode::_STAGE_BARRIER_.repr
         {
-            // Unknown request code
+
             return;
         }
 
         let code = RequestCode { repr: code };
 
-        // Permission checks
+
         match code {
             RequestCode::POST_FS_DATA
             | RequestCode::LATE_START
@@ -233,14 +233,14 @@ impl MagiskD {
             }
             RequestCode::REMOVE_MODULES => {
                 if !is_root && !is_shell {
-                    // Only allow root and ADB shell to remove modules
+
                     client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
                     return;
                 }
             }
             RequestCode::ZYGISK => {
                 if !is_zygote {
-                    // Invalid client context
+
                     client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
                     return;
                 }
@@ -284,10 +284,10 @@ fn daemon_entry() {
     set_nice_name(cstr!(DAEMON_PROC_NAME));
     android_logging();
 
-    // Block all signals
+
     SigSet::all().thread_set_mask().log_ok();
 
-    // Swap out the original stdio
+
     if let Ok(null) = cstr!("/dev/null").open(OFlag::O_WRONLY).log() {
         dup2_stdout(null.as_fd()).log_ok();
         dup2_stderr(null.as_fd()).log_ok();
@@ -298,7 +298,7 @@ fn daemon_entry() {
 
     setsid().log_ok();
 
-    // Make sure the current context is magisk
+
     if let Ok(mut current) =
         cstr!("/proc/self/attr/current").open(OFlag::O_WRONLY | OFlag::O_CLOEXEC)
     {
@@ -310,7 +310,7 @@ fn daemon_entry() {
         || get_prop(cstr!("ro.boot.qemu")) == "1"
         || get_prop(cstr!("ro.product.device")).contains("vsoc");
 
-    // Load config status
+
     let magisk_tmp = get_magisk_tmp();
     let mut tmp_path = cstr::buf::new::<64>()
         .join_path(magisk_tmp)
@@ -338,7 +338,7 @@ fn daemon_entry() {
         });
     }
     if sdk_int < 0 {
-        // In case some devices do not store this info in build.prop, fallback to getprop
+
         sdk_int = get_prop(cstr!("ro.build.version.sdk"))
             .parse::<i32>()
             .unwrap_or(-1);
@@ -347,7 +347,7 @@ fn daemon_entry() {
 
     restore_tmpcon().log_ok();
 
-    // Escape from cgroup
+
     let pid = getpid().as_raw();
     switch_cgroup("/acct", pid);
     switch_cgroup("/dev/cg2_bpf", pid);
@@ -356,12 +356,12 @@ fn daemon_entry() {
         switch_cgroup("/dev/memcg/apps", pid);
     }
 
-    // Samsung workaround #7887
+
     if cstr!("/system_ext/app/mediatek-res/mediatek-res.apk").exists() {
         set_prop(cstr!("ro.vendor.mtk_model"), cstr!("0"));
     }
 
-    // Cleanup pre-init mounts
+
     tmp_path.append_path(ROOTMNT);
     if let Ok(mount_list) = tmp_path.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
         BufReader::new(mount_list).for_each_line(|line| {
@@ -373,13 +373,13 @@ fn daemon_entry() {
     }
     tmp_path.truncate(magisk_tmp.len());
 
-    // Remount rootfs as read-only if requested
+
     if std::env::var_os("REMOUNT_ROOT").is_some() {
         cstr!("/").remount_mount_flags(MsFlags::MS_RDONLY).log_ok();
         unsafe { std::env::remove_var("REMOUNT_ROOT") };
     }
 
-    // Remove all pre-init overlay files to free-up memory
+
     tmp_path.append_path(ROOTOVL);
     tmp_path.remove_all().ok();
     tmp_path.truncate(magisk_tmp.len());
@@ -411,7 +411,7 @@ fn daemon_entry() {
     sock_path.follow_link().chmod(0o666).log_ok();
     sock_path.set_secontext(cstr!(MAGISK_FILE_CON)).log_ok();
 
-    // Loop forever to listen for requests
+
     let daemon = MagiskD::get();
     for client in sock.incoming() {
         if let Ok(client) = client.log() {
@@ -460,15 +460,15 @@ pub fn connect_daemon(code: RequestCode, create: bool) -> LoggedResult<UnixStrea
                 return log_err!("Start daemon on magisk tmpfs");
             }
 
-            // Fork a process and run the daemon
+
             if fork_dont_care() == 0 {
                 daemon_entry();
                 exit(0);
             }
 
-            // Daemon startup should be nearly immediate. Bound retries so a
-            // failed startup cannot wake the device ten times per second
-            // forever, and back off while still tolerating slow devices.
+
+
+
             let deadline = Instant::now() + Duration::from_secs(30);
             let mut retry_delay = Duration::from_millis(20);
             loop {

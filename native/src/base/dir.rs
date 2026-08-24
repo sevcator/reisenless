@@ -26,7 +26,7 @@ impl DirEntry<'_> {
     }
 
     pub fn name(&self) -> &Utf8CStr {
-        // SAFETY: Utf8CStr is already validated in Directory::read
+
         unsafe {
             Utf8CStr::from_bytes_unchecked(slice::from_raw_parts(
                 self.d_name.as_ptr().cast(),
@@ -150,7 +150,7 @@ impl Directory {
     }
 }
 
-// Low-level methods, we should track the caller when error occurs, so return OsResult.
+
 impl Directory {
     pub fn open(path: &Utf8CStr) -> OsResult<'_, Directory> {
         let dirp = unsafe { libc::opendir(path.as_ptr()) };
@@ -168,7 +168,7 @@ impl Directory {
                 Ok(None)
             };
         }
-        // Skip non UTF-8 entries, ".", and ".."
+
         unsafe {
             let entry = &*e;
 
@@ -234,7 +234,7 @@ impl Directory {
         }
     }
 
-    // ln -s target self/name
+
     pub fn create_symlink_at<'a>(
         &self,
         name: &'a Utf8CStr,
@@ -252,9 +252,9 @@ impl Directory {
     }
 
     pub fn contains_path(&self, path: &Utf8CStr) -> bool {
-        // WARNING: Using faccessat is incorrect, because the raw linux kernel syscall
-        // does not support the flag AT_SYMLINK_NOFOLLOW until 5.8 with faccessat2.
-        // Use fstatat to check the existence of a file instead.
+
+
+
         nix::sys::stat::fstatat(self, path, AtFlags::AT_SYMLINK_NOFOLLOW).is_ok()
     }
 
@@ -272,8 +272,8 @@ impl Directory {
     }
 }
 
-// High-level helper methods, composed of multiple operations.
-// We should treat these as application logic and log ASAP, so return LoggedResult.
+
+
 impl Directory {
     pub fn post_order_walk<F: FnMut(&DirEntry) -> LoggedResult<WalkResult>>(
         &mut self,
@@ -305,7 +305,7 @@ impl Directory {
     pub fn move_into(&mut self, dir: &Directory) -> LoggedResult<()> {
         while let Some(ref e) = self.read()? {
             if e.is_dir() && dir.contains_path(e.name()) {
-                // Destination folder exists, needs recursive move
+
                 let mut src = e.open_as_dir()?;
                 let dest = dir.open_as_dir_at(e.name())?;
                 src.move_into(&dest)?;

@@ -17,7 +17,7 @@ mod flags;
 mod format;
 mod patch;
 mod payload;
-// Suppress warnings in generated code
+
 #[allow(warnings)]
 mod proto {
     pub mod update_metadata {
@@ -33,13 +33,13 @@ mod sign;
 pub mod ffi {
     enum FileFormat {
         UNKNOWN,
-        /* Boot formats */
+
         CHROMEOS,
         AOSP,
         AOSP_VENDOR,
         DHTB,
         BLOB,
-        /* Compression formats */
+
         GZIP,
         ZOPFLI,
         XZ,
@@ -48,9 +48,9 @@ pub mod ffi {
         LZ4,
         LZ4_LEGACY,
         LZ4_LG,
-        /* Unsupported compression */
+
         LZOP,
-        /* Misc */
+
         MTK,
         DTB,
         ZIMAGE,
@@ -87,7 +87,7 @@ pub mod ffi {
         fn sign_payload_for_cxx(payload: &[u8]) -> Vec<u8>;
     }
 
-    // BootImage FFI
+
     unsafe extern "C++" {
         include!("bootimg.hpp");
         #[cxx_name = "boot_img"]

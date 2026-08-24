@@ -1,37 +1,37 @@
 #!/system/bin/sh
-#######################################################################################
-# Magisk Boot Image Patcher
-#######################################################################################
-#
-# Usage: boot_patch.sh <bootimage>
-#
-# The following environment variables can configure the installation:
-# KEEPVERITY, KEEPFORCEENCRYPT, PATCHVBMETAFLAG, RECOVERYMODE, LEGACYSAR
-#
-# This script should be placed in a directory with the following files:
-#
-# File name          Type      Description
-#
-# boot_patch.sh      script    A script to patch boot image for Magisk.
-#                  (this file) The script will use files in its same
-#                              directory to complete the patching process.
-# util_functions.sh  script    A script which hosts all functions required
-#                              for this script to work properly.
-# magiskinit         binary    The binary to replace /init.
-# magisk             binary    The magisk binary.
-# magiskboot         binary    A tool to manipulate boot images.
-# init-ld            binary    The library that will be LD_PRELOAD of /init
-# stub.apk           binary    The stub Magisk app to embed into ramdisk.
-# chromeos           folder    This folder includes the utility and keys to sign
-#                  (optional)  chromeos boot images. Only used for Pixel C.
-#
-#######################################################################################
 
-############
-# Functions
-############
 
-# Pure bash dirname implementation
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 getdir() {
   case "$1" in
     */*)
@@ -46,30 +46,30 @@ getdir() {
   esac
 }
 
-#################
-# Initialization
-#################
+
+
+
 
 if [ -z $SOURCEDMODE ]; then
-  # Switch to the location of the script file
+
   cd "$(getdir "${BASH_SOURCE:-$0}")"
-  # Load utility functions
+
   . ./util_functions.sh
-  # Check if 64-bit
+
   api_level_arch_detect
 fi
 
 BOOTIMAGE="$1"
 [ -e "$BOOTIMAGE" ] || abort "$BOOTIMAGE does not exist!"
 
-# Dump image for MTD/NAND character device boot partitions
+
 if [ -c "$BOOTIMAGE" ]; then
   nanddump -f boot.img "$BOOTIMAGE"
   BOOTNAND="$BOOTIMAGE"
   BOOTIMAGE=boot.img
 fi
 
-# Flags
+
 [ -z $KEEPVERITY ] && KEEPVERITY=false
 [ -z $KEEPFORCEENCRYPT ] && KEEPFORCEENCRYPT=false
 [ -z $PATCHVBMETAFLAG ] && PATCHVBMETAFLAG=false
@@ -81,9 +81,9 @@ export PATCHVBMETAFLAG
 
 chmod -R 755 .
 
-#########
-# Unpack
-#########
+
+
+
 
 CHROMEOS=false
 VENDORBOOT=false
@@ -106,9 +106,9 @@ case $? in
     ;;
 esac
 
-#################
-# Ramdisk Checks
-#################
+
+
+
 
 unset RAMDISK
 for path in ramdisk.cpio vendor_ramdisk/init_boot.cpio vendor_ramdisk/ramdisk.cpio; do
@@ -124,25 +124,25 @@ if [ -n "$RAMDISK" ]; then
   STATUS=$?
   SKIP_BACKUP=""
 else
-  # No ramdisk found, create one from scratch
+
   RAMDISK=ramdisk.cpio
-  # Could be stock A only legacy SAR, or some Android 13 GKIs
+
   STATUS=0
   SKIP_BACKUP="#"
 fi
 
 case $STATUS in
   0 )
-    # Stock boot
+
     ui_print "- stock boot image detected"
     SHA1=$(./mboot sha1 "$BOOTIMAGE" 2>/dev/null)
     cat $BOOTIMAGE > stock_boot.img
     cp -af $RAMDISK ramdisk.cpio.orig 2>/dev/null
     ;;
   1 )
-    # Magisk patched
+
     ui_print "- reisenless patched boot image detected"
-    # Try our config first, fall back to old .magisk marker
+
     if ./mboot cpio $RAMDISK "exists .backup/$BACKUP_CONFIG" 2>/dev/null; then
       ./mboot cpio $RAMDISK "extract .backup/$BACKUP_CONFIG config.orig" "restore"
     else
@@ -152,32 +152,32 @@ case $STATUS in
     rm -f stock_boot.img
     ;;
   2 )
-    # Unsupported
+
     ui_print "! boot image patched by unsupported programs"
     abort "! please restore back to stock boot image"
     ;;
 esac
 
 if [ -f config.orig ]; then
-  # Read existing configs
+
   chmod 0644 config.orig
   SHA1=$(grep_prop SHA1 config.orig)
   if ! $BOOTMODE; then
-    # Do not inherit config if not in recovery
+
     PREINITDEVICE=$(grep_prop PREINITDEVICE config.orig)
   fi
   rm config.orig
 fi
 
-##################
-# Ramdisk Patches
-##################
+
+
+
 
 ui_print "- patching ramdisk"
 
 $BOOTMODE && [ -z "$PREINITDEVICE" ] && PREINITDEVICE=$(./$MAIN_BIN_NAME --preinit-device)
 
-# Copy to the ramdisk payload name when it differs from the runtime name.
+
 if [ "$MAIN_BIN_NAME" != "$RAMDISK_NAME" ]; then
   cp "$MAIN_BIN_NAME" "$RAMDISK_NAME" || abort "! unable to prepare ramdisk payload"
 fi
@@ -186,7 +186,7 @@ for file in "$RAMDISK_NAME" "$STUB_NAME" "$INIT_LD_NAME" "$UDONGE_ARCHIVE"; do
   [ -f "$file" ] || abort "! missing installer payload: $file"
 done
 
-# Compress to save precious ramdisk space
+
 for file in "$RAMDISK_NAME" "$STUB_NAME" "$INIT_LD_NAME" "$UDONGE_ARCHIVE"; do
   ./mboot compress=xz "$file" "$file.xz" || abort "! unable to compress installer payload: $file"
 done
@@ -217,9 +217,9 @@ fi
 
 rm -f ramdisk.cpio.orig config *.xz "$RAMDISK_NAME"
 
-#################
-# Binary Patches
-#################
+
+
+
 
 for dt in dtb kernel_dtb extra; do
   if [ -f $dt ]; then
@@ -235,48 +235,48 @@ done
 
 if [ -f kernel ]; then
   PATCHEDKERNEL=false
-  # Remove Samsung RKP
+
   ./mboot hexpatch kernel \
   49010054011440B93FA00F71E9000054010840B93FA00F7189000054001840B91FA00F7188010054 \
   A1020054011440B93FA00F7140020054010840B93FA00F71E0010054001840B91FA00F7181010054 \
   && PATCHEDKERNEL=true
 
-  # Remove Samsung defex
-  # Before: [mov w2, #-221]   (-__NR_execve)
-  # After:  [mov w2, #-32768]
+
+
+
   ./mboot hexpatch kernel 821B8012 E2FF8F12 && PATCHEDKERNEL=true
 
-  # Disable Samsung PROCA
-  # proca_config -> proca_magisk
+
+
   ./mboot hexpatch kernel \
   70726F63615F636F6E66696700 \
   70726F63615F6D616769736B00 \
   && PATCHEDKERNEL=true
 
-  # Force kernel to load rootfs for legacy SAR devices
-  # skip_initramfs -> want_initramfs
+
+
   $LEGACYSAR && ./mboot hexpatch kernel \
   736B69705F696E697472616D667300 \
   77616E745F696E697472616D667300 \
   && PATCHEDKERNEL=true
 
-  # If the kernel doesn't need to be patched at all,
-  # keep raw kernel to avoid bootloops on some weird devices
+
+
   $PATCHEDKERNEL || rm -f kernel
 fi
 
-#################
-# Repack & Flash
-#################
+
+
+
 
 ui_print "- repacking boot image"
 ./mboot repack "$BOOTIMAGE" || abort "! unable to repack boot image"
 
-# Sign chromeos boot
+
 $CHROMEOS && sign_chromeos
 
-# Restore the original boot partition path
+
 [ -e "$BOOTNAND" ] && BOOTIMAGE="$BOOTNAND"
 
-# Reset any error code
+
 true

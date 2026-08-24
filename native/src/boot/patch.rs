@@ -1,6 +1,6 @@
 use base::{LoggedResult, MappedFile, MutBytesExt, Utf8CStr};
 
-// SAFETY: assert(buf.len() >= 1) && assert(len <= buf.len())
+
 macro_rules! match_patterns {
     ($buf:ident, $($str:literal), *) => {{
         let mut len = if *$buf.get_unchecked(0) == b',' { 1 } else { 0 };
@@ -38,12 +38,12 @@ fn remove_pattern(buf: &mut [u8], pattern_matcher: unsafe fn(&[u8]) -> Option<us
     let mut write = 0_usize;
     let mut read = 0_usize;
     let mut sz = buf.len();
-    // SAFETY: assert(write <= read) && assert(read <= buf.len())
+
     unsafe {
         while read < buf.len() {
             if let Some(len) = pattern_matcher(buf.get_unchecked(read..)) {
                 let skipped = buf.get_unchecked(read..(read + len));
-                // SAFETY: all matching patterns are ASCII bytes
+
                 let skipped = std::str::from_utf8_unchecked(skipped);
                 eprintln!("Remove pattern [{skipped}]");
                 sz -= len;

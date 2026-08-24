@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
-# On macOS, gsed is required (brew install gnu-sed)
-# Required tools: gh
-# The GitHub cli (gh) has to be properly authenticated
 
-# These variables can be modified as needed
+
+
+
+
 CONFIG=config.prop
 NOTES=notes.md
 
-# These are constants, do not modify
+
 GCONFIG=app/gradle.properties
 BUILDCMD="./build.py -c $CONFIG"
 CWD=$(pwd)
@@ -22,21 +22,21 @@ grep_prop() {
 }
 
 ensure_config() {
-  # Make sure version is not commented out and exists
+
   sed -i "s:^# version=:version=:g" $CONFIG
   if ! grep -qE '^version=' $CONFIG; then
     echo 'version=' >> $CONFIG
   fi
-  # Make sure abiList is not set when building for release
+
   sed -i "s:^abiList=:# abiList=:g" $CONFIG
 }
 
 disable_version_config() {
-  # Comment out version config
+
   sed -i "s:^version=:# version=:g" $CONFIG
 }
 
-# $1 = ver
+
 set_version() {
   local ver=$1
   local code=$(echo - | awk "{ print $ver * 1000 }")
@@ -46,13 +46,13 @@ set_version() {
   sed -i "s:version=.*:version=${ver}:g" $CONFIG
   sed -i "1s:.*:## $(date +'%Y.%-m.%-d') Magisk v$ver:" $NOTES
 
-  # Commit version code changes
+
   git add -u .
   git status
   git commit -m "Release Magisk v$ver" -m "[skip ci]"
 }
 
-# $1 = ver
+
 build() {
   [ -z $1 ] && exit 1
   local ver=$1
@@ -80,10 +80,10 @@ upload() {
   git push origin master
   git push --tags
 
-  # Prepare release notes
+
   tail -n +3 $NOTES > release.md
 
-  # Publish release
+
   local release_apk="Magisk-v${ver}.apk"
   cp $out/app-release.apk $release_apk
   gh release create --verify-tag $tag -p -t "$title" -F release.md $release_apk $out/app-debug.apk $NOTES
@@ -91,7 +91,7 @@ upload() {
   rm -f $release_apk release.md
 }
 
-# Use GNU sed on macOS
+
 if command -v gsed >/dev/null; then
   function sed() { gsed "$@"; }
   export -f sed

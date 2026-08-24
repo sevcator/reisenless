@@ -77,8 +77,8 @@ mod ffi {
     }
 }
 
-// In Rust, we do not want to deal with raw pointers, so we change the
-// signature of all *mut c_void to usize for new_daemon_thread.
+
+
 pub type ThreadEntry = extern "C" fn(usize) -> usize;
 unsafe extern "C" {
     pub fn new_daemon_thread(entry: ThreadEntry, arg: usize);

@@ -22,7 +22,7 @@ import com.topjohnwu.magisk.core.utils.RequestInstall
 
 interface ContentResultCallback: ActivityResultCallback<Uri>, Parcelable {
     fun onActivityLaunch() {}
-    // Make the result type explicitly non-null
+
     override fun onActivityResult(result: Uri)
 }
 
@@ -85,13 +85,13 @@ class ActivityExtension(private val activity: ComponentActivity) {
     fun withPermission(permission: String, callback: (Boolean) -> Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
             permission == WRITE_EXTERNAL_STORAGE) {
-            // We do not need external rw on R+
+
             callback(true)
             return
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU &&
             permission == POST_NOTIFICATIONS) {
-            // All apps have notification permissions before T
+
             callback(true)
             return
         }

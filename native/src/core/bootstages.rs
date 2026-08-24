@@ -47,7 +47,7 @@ impl MagiskD {
             .append_path(APP_PACKAGE_NAME)
             .append_path("install");
 
-        // Alternative binaries paths
+
         let alt_bin_dirs = &[
             cstr!("/cache/data_adb/magisk"),
             cstr!("/data/magisk"),
@@ -62,7 +62,7 @@ impl MagiskD {
         }
         cstr!("/cache/data_adb").remove_all().ok();
 
-        // Directories in /data/adb
+
         cstr!(SECURE_DIR).follow_link().chmod(0o700).log_ok();
         cstr!(DATABIN).mkdir(0o755).log_ok();
         cstr!(MODULEROOT).mkdir(0o755).log_ok();
@@ -85,7 +85,7 @@ impl MagiskD {
         busybox.copy_to(tmp_bb).ok();
         tmp_bb.follow_link().chmod(0o755).log_ok();
 
-        // Install busybox applets
+
         Command::new(&tmp_bb)
             .arg0("busybox")
             .arg("--install")
@@ -96,7 +96,7 @@ impl MagiskD {
             .status()
             .log_ok();
 
-        // 32-bit binary and policy tool are not in ramdisk; copy from DATABIN to tmpfs.
+
         let bin32 = cstr!(concatcp!(DATABIN, "/", BIN32_DATABIN_NAME));
         if bin32.exists() {
             let tmp = buf.append_path(get_magisk_tmp()).append_path(MAIN_BIN_NAME_32);
@@ -119,7 +119,7 @@ impl MagiskD {
 
         self.preserve_stub_apk();
 
-        // Check secure dir
+
         let secure_dir = cstr!(SECURE_DIR);
         if !secure_dir.exists() {
             if self.sdk_int < 24 {
@@ -137,7 +137,7 @@ impl MagiskD {
             return true;
         }
 
-        // Check safe mode
+
         let boot_cnt = self.get_db_setting(DbEntryKey::BootloopCount);
         self.set_db_setting(DbEntryKey::BootloopCount, boot_cnt + 1)
             .log()
@@ -149,7 +149,7 @@ impl MagiskD {
 
         if safe_mode {
             info!("* Safe mode triggered");
-            // Disable all modules and zygisk so next boot will be clean
+
             disable_modules();
             self.set_db_setting(DbEntryKey::ZygiskConfig, 0).log_ok();
             return true;
@@ -186,10 +186,10 @@ impl MagiskD {
 
         info!("** boot-complete triggered");
 
-        // Reset the bootloop counter once we have boot-complete
+
         self.set_db_setting(DbEntryKey::BootloopCount, 0).log_ok();
 
-        // At this point it's safe to create the folder
+
         let secure_dir = cstr!(SECURE_DIR);
         if !secure_dir.exists() {
             secure_dir.mkdir(0o700).log_ok();
@@ -203,7 +203,7 @@ impl MagiskD {
     }
 
     pub fn boot_stage_handler(&self, client: UnixStream, code: RequestCode) {
-        // Make sure boot stage execution is always serialized
+
         let mut state = self.boot_stage_lock.lock();
 
         match code {
@@ -251,14 +251,14 @@ fn check_data() -> bool {
         let crypto = get_prop(cstr!("ro.crypto.state"));
         return if !crypto.is_empty() {
             if crypto != "encrypted" {
-                // Unencrypted, we can directly access data
+
                 true
             } else {
-                // Encrypted, check whether vold is started
+
                 !get_prop(cstr!("init.svc.vold")).is_empty()
             }
         } else {
-            // ro.crypto.state is not set, assume it's unencrypted
+
             true
         };
     }

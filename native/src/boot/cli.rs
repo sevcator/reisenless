@@ -292,11 +292,11 @@ fn verify_cmd(image: &Utf8CStr, cert: Option<&Utf8CStr>) -> bool {
     let image = BootImage::new(image);
     match cert {
         None => {
-            // Boot image parsing already checks if the image is signed
+
             image.is_signed()
         }
         Some(_) => {
-            // Provide a custom certificate and re-verify
+
             image.verify(cert).is_ok()
         }
     }
@@ -319,7 +319,7 @@ fn sign_cmd(
     let current = fd.stream_position()?;
     let eof = fd.seek(SeekFrom::End(0))?;
     if eof > current {
-        // Zero out rest of the file
+
         fd.seek(SeekFrom::Start(current))?;
         fd.write_zeros((eof - current) as usize)?;
     }
@@ -338,7 +338,7 @@ fn boot_main(cmds: CmdArgs) -> LoggedResult<i32> {
     }
 
     let cli = if cmds[1].starts_with("compress=") {
-        // Skip the main parser, directly parse the subcommand
+
         Compress::from_args(&cmds[..2], &cmds[2..]).map(|compress| Cli {
             action: Action::Compress(compress),
         })

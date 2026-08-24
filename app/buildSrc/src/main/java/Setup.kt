@@ -133,8 +133,8 @@ fun Project.setupCoreLib() {
                             if (abi in toolAbiList) {
                                 include("mboot", "minit", "mpol", "magisk", "libinit-ld.so")
                             } else {
-                                // Secondary ABI only needs the core used for
-                                // 32-bit app specialization on a 64-bit phone.
+
+
                                 include("magisk")
                             }
                             rename { if (it.endsWith(".so")) it else "lib$it.so" }
@@ -296,7 +296,7 @@ fun Project.setupAppCommon() {
                 this.transformationRequest = transformationRequest
                 this.signingConfig = signingConfig
                 this.outFolder.set(layout.buildDirectory.dir("outputs/apk/${variant.name}"))
-                // Always add a transformation to set comments on the APK
+
                 this.transformations.add {
                     it.eocdComment = ("version=${Config.version}\n" +
                             "versionCode=${Config.versionCode}\n" +

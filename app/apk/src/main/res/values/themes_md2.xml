@@ -2,21 +2,21 @@
 <resources>
     <style name="SplashTheme" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="postSplashScreenTheme">@style/ThemeFoundationMD2</item>
     </style>
 
     <style name="ThemeFoundationMD2" parent="Foundation.Default">
-        <item name="colorPrimary">#4EAFF5</item>
-        <item name="colorPrimaryVariant">#804EAFF5</item>
-        <item name="colorSecondary">#3E78AF</item>
-        <item name="colorSecondaryVariant">#803E78AF</item>
+        <item name="colorPrimary">#C95BC8</item>
+        <item name="colorPrimaryVariant">#80C95BC8</item>
+        <item name="colorSecondary">#C95BC8</item>
+        <item name="colorSecondaryVariant">#80C95BC8</item>
         <item name="colorSurface">#F9F9F9</item>
         <item name="colorSurfaceVariant">#EEEEEE</item>
         <item name="colorSurfaceSurfaceVariant">?colorSurface</item>
         <item name="colorOnPrimary">#101010</item>
         <item name="colorOnPrimaryVariant">#D9222222</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
+        <item name="colorOnSecondary">#101010</item>
         <item name="colorOnBackground">?colorOnSurface</item>
         <item name="colorError">#CC0047</item>
         <item name="colorOnError">#F9F9F9</item>
@@ -26,93 +26,77 @@
         <item name="colorDisabledVariant">#66808080</item>
     </style>
 
-    <style name="ThemeOverlay.Magisk.Primary.Blue" parent="">
-        <item name="colorPrimary">#4EAFF5</item>
-        <item name="colorPrimaryVariant">#804EAFF5</item>
+    <style name="ThemeOverlay.Reisenless.Accent.Pink" parent="">
+        <item name="colorPrimary">#C95BC8</item>
+        <item name="colorPrimaryVariant">#80C95BC8</item>
+        <item name="colorSecondary">#C95BC8</item>
+        <item name="colorSecondaryVariant">#80C95BC8</item>
         <item name="colorOnPrimary">#101010</item>
         <item name="colorOnPrimaryVariant">#D9222222</item>
+        <item name="colorOnSecondary">#101010</item>
     </style>
-    <style name="ThemeOverlay.Magisk.Primary.Green" parent="">
-        <item name="colorPrimary">#68A17F</item>
-        <item name="colorPrimaryVariant">#8068A17F</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Primary.Amber" parent="">
-        <item name="colorPrimary">#F2B90D</item>
-        <item name="colorPrimaryVariant">#80F2B90D</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Primary.Red" parent="">
-        <item name="colorPrimary">#DB7366</item>
-        <item name="colorPrimaryVariant">#80DB7366</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Primary.Pink" parent="">
-        <item name="colorPrimary">#F4A6C1</item>
-        <item name="colorPrimaryVariant">#80F4A6C1</item>
-        <item name="colorOnPrimary">#101010</item>
-        <item name="colorOnPrimaryVariant">#D9222222</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Primary.Purple" parent="">
+    <style name="ThemeOverlay.Reisenless.Accent.Purple" parent="">
         <item name="colorPrimary">#7E57C2</item>
         <item name="colorPrimaryVariant">#807E57C2</item>
+        <item name="colorSecondary">#7E57C2</item>
+        <item name="colorSecondaryVariant">#807E57C2</item>
         <item name="colorOnPrimary">#F9F9F9</item>
         <item name="colorOnPrimaryVariant">#D9E6E6E6</item>
+        <item name="colorOnSecondary">#F9F9F9</item>
     </style>
-    <style name="ThemeOverlay.Magisk.Primary.Teal" parent="">
-        <item name="colorPrimary">#009688</item>
-        <item name="colorPrimaryVariant">#80009688</item>
+    <style name="ThemeOverlay.Reisenless.Accent.Blue" parent="">
+        <item name="colorPrimary">#4EAFF5</item>
+        <item name="colorPrimaryVariant">#804EAFF5</item>
+        <item name="colorSecondary">#4EAFF5</item>
+        <item name="colorSecondaryVariant">#804EAFF5</item>
         <item name="colorOnPrimary">#101010</item>
         <item name="colorOnPrimaryVariant">#D9222222</item>
+        <item name="colorOnSecondary">#101010</item>
     </style>
-    <style name="ThemeOverlay.Magisk.Primary.Gray" parent="">
+    <style name="ThemeOverlay.Reisenless.Accent.Green" parent="">
+        <item name="colorPrimary">#68A17F</item>
+        <item name="colorPrimaryVariant">#8068A17F</item>
+        <item name="colorSecondary">#68A17F</item>
+        <item name="colorSecondaryVariant">#8068A17F</item>
+        <item name="colorOnPrimary">#101010</item>
+        <item name="colorOnPrimaryVariant">#D9222222</item>
+        <item name="colorOnSecondary">#101010</item>
+    </style>
+    <style name="ThemeOverlay.Reisenless.Accent.Amber" parent="">
+        <item name="colorPrimary">#F2B90D</item>
+        <item name="colorPrimaryVariant">#80F2B90D</item>
+        <item name="colorSecondary">#F2B90D</item>
+        <item name="colorSecondaryVariant">#80F2B90D</item>
+        <item name="colorOnPrimary">#101010</item>
+        <item name="colorOnPrimaryVariant">#D9222222</item>
+        <item name="colorOnSecondary">#101010</item>
+    </style>
+    <style name="ThemeOverlay.Reisenless.Accent.Red" parent="">
+        <item name="colorPrimary">#DB7366</item>
+        <item name="colorPrimaryVariant">#80DB7366</item>
+        <item name="colorSecondary">#DB7366</item>
+        <item name="colorSecondaryVariant">#80DB7366</item>
+        <item name="colorOnPrimary">#101010</item>
+        <item name="colorOnPrimaryVariant">#D9222222</item>
+        <item name="colorOnSecondary">#101010</item>
+    </style>
+    <style name="ThemeOverlay.Reisenless.Accent.Teal" parent="">
+        <item name="colorPrimary">#009688</item>
+        <item name="colorPrimaryVariant">#80009688</item>
+        <item name="colorSecondary">#009688</item>
+        <item name="colorSecondaryVariant">#80009688</item>
+        <item name="colorOnPrimary">#101010</item>
+        <item name="colorOnPrimaryVariant">#D9222222</item>
+        <item name="colorOnSecondary">#101010</item>
+    </style>
+    <style name="ThemeOverlay.Reisenless.Accent.Gray" parent="">
         <item name="colorPrimary">#607D8B</item>
         <item name="colorPrimaryVariant">#80607D8B</item>
+        <item name="colorSecondary">#607D8B</item>
+        <item name="colorSecondaryVariant">#80607D8B</item>
         <item name="colorOnPrimary">#F9F9F9</item>
         <item name="colorOnPrimaryVariant">#D9E6E6E6</item>
+        <item name="colorOnSecondary">#F9F9F9</item>
     </style>
 
-    <style name="ThemeOverlay.Magisk.Secondary.Blue" parent="">
-        <item name="colorSecondary">#3E78AF</item>
-        <item name="colorSecondaryVariant">#803E78AF</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Secondary.Green" parent="">
-        <item name="colorSecondary">#2F6D43</item>
-        <item name="colorSecondaryVariant">#802F6D43</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Secondary.Amber" parent="">
-        <item name="colorSecondary">#B29667</item>
-        <item name="colorSecondaryVariant">#80B29667</item>
-        <item name="colorOnSecondary">#101010</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Secondary.Red" parent="">
-        <item name="colorSecondary">#B65247</item>
-        <item name="colorSecondaryVariant">#80B65247</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Secondary.Pink" parent="">
-        <item name="colorSecondary">#D97A9C</item>
-        <item name="colorSecondaryVariant">#80D97A9C</item>
-        <item name="colorOnSecondary">#101010</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Secondary.Purple" parent="">
-        <item name="colorSecondary">#5E35B1</item>
-        <item name="colorSecondaryVariant">#805E35B1</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Secondary.Teal" parent="">
-        <item name="colorSecondary">#00796B</item>
-        <item name="colorSecondaryVariant">#8000796B</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
-    </style>
-    <style name="ThemeOverlay.Magisk.Secondary.Gray" parent="">
-        <item name="colorSecondary">#455A64</item>
-        <item name="colorSecondaryVariant">#80455A64</item>
-        <item name="colorOnSecondary">#F9F9F9</item>
-    </style>
 </resources>

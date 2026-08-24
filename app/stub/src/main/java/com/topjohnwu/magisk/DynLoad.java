@@ -43,11 +43,11 @@ public class DynLoad {
     }
 
     private static PackageInfo parseArchive(PackageManager pm, File apk, int flags) {
-        // A freshly installed stub can start before installd has finished
-        // publishing its data-directory labels to system_server. Retry the
-        // archive parse instead of permanently discarding a valid full APK.
+
+
+
         for (int attempt = 0; attempt < 20; ++attempt) {
-            // noinspection WrongConstant
+
             var info = pm.getPackageArchiveInfo(apk.getPath(), flags);
             if (info != null) return info;
             SystemClock.sleep(100);
@@ -62,7 +62,7 @@ public class DynLoad {
             Method m = ContextWrapper.class.getDeclaredMethod("attachBaseContext", Context.class);
             m.setAccessible(true);
             m.invoke(o, context);
-        } catch (Exception ignored) { /* Impossible */ }
+        } catch (Exception ignored) {                  }
     }
 
     private static InputStream openManagerApk(Context context)
@@ -77,17 +77,17 @@ public class DynLoad {
         return new FileInputStream(info.sourceDir);
     }
 
-    // Dynamically load APK from internal, external storage, or previous app
+
     static DynamicClassLoader loadApk(Context context) {
         File apk = StubApk.current(context);
         File update = StubApk.update(context);
 
         if (update.exists()) {
-            // Rename from update
+
             update.renameTo(apk);
         }
 
-        // Copy from external for easier development
+
         if (BuildConfig.DEBUG) {
             try {
                 File external = new File(context.getExternalFilesDir(null), "magisk.apk");
@@ -107,7 +107,7 @@ public class DynLoad {
                     }
                 }
             } catch (SecurityException e) {
-                // Do not crash in root service
+
             }
         }
 
@@ -116,7 +116,7 @@ public class DynLoad {
             return new DynamicClassLoader(apk);
         }
 
-        // If no APK is loaded, attempt to copy from previous app
+
         if (!context.getPackageName().equals(APPLICATION_ID)) {
             try {
                 apk.delete();
@@ -139,13 +139,13 @@ public class DynLoad {
         return null;
     }
 
-    // Dynamically load APK and initialize the application
+
     static void loadAndInitializeApp(Application context) {
-        // On API >= 29, AppComponentFactory will replace the ClassLoader for us
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
             replaceClassLoader(context);
 
-        // noinspection InlinedApi
+
         int flags = PackageManager.GET_ACTIVITIES | PackageManager.GET_SERVICES
                 | PackageManager.GET_PROVIDERS | PackageManager.GET_RECEIVERS
                 | PackageManager.MATCH_DIRECT_BOOT_AWARE | PackageManager.MATCH_DISABLED_COMPONENTS
@@ -154,10 +154,10 @@ public class DynLoad {
 
         final PackageInfo stubInfo;
         try {
-            // noinspection WrongConstant
+
             stubInfo = pm.getPackageInfo(context.getPackageName(), flags);
         } catch (PackageManager.NameNotFoundException e) {
-            // Impossible
+
             throw new RuntimeException(e);
         }
 
@@ -170,18 +170,18 @@ public class DynLoad {
 
             var data = createApkData();
             var map = data.getClassToComponent();
-            // Create the inverse mapping (class to component name)
+
             for (var e : mapping.entrySet()) {
                 map.put(e.getValue(), e.getKey());
             }
 
             var appInfo = apkInfo.applicationInfo;
-            // Create the receiver Application with proper constructor
+
             var app = cl.loadClass(appInfo.className)
                     .getConstructor(Object.class)
                     .newInstance(data.getObject());
 
-            // Create the receiver component factory
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && componentFactory != null) {
                 var delegate = (DelegateComponentFactory) componentFactory;
                 if (appInfo.appComponentFactory == null) {
@@ -194,19 +194,19 @@ public class DynLoad {
 
             activeClassLoader = new MappingClassLoader(cl, mapping);
 
-            // Call Application.attachBaseContext
+
             attachContext(app, context);
         } catch (Exception e) {
             apk.delete();
         } else {
-            // Dynamic loading failed, use normal stub classloader
+
             activeClassLoader = new StubClassLoader(stubInfo);
         }
     }
 
-    // Replace LoadedApk mClassLoader
+
     private static void replaceClassLoader(Context context) {
-        // Get ContextImpl
+
         while (context instanceof ContextWrapper) {
             context = ((ContextWrapper) context).getBaseContext();
         }
@@ -232,10 +232,10 @@ public class DynLoad {
                 for (ActivityInfo target : dest) {
                     if (source.exported == target.exported &&
                             hasEmptyTaskAffinity(source) == hasEmptyTaskAffinity(target)) {
-                        // Main is the only exported activity, the SU request is
-                        // the only one with an empty task affinity, and WebUI is
-                        // the remaining activity. This stays stable when the
-                        // stub component order is randomized at build time.
+
+
+
+
                         match = target;
                         break;
                     }

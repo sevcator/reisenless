@@ -76,9 +76,9 @@ object AppContext : ContextWrapper(null),
 
     private fun preparePackagedSu(base: Context): String? = runCatching {
         val appInfo = base.applicationInfo
-        // Android supplies the exact ABI extraction directory here. Some ROMs
-        // allow executing its libraries but intentionally deny metadata probes.
-        // Trust the platform path instead of checking File.isFile first.
+
+
+
         (base.classLoader as? BaseDexClassLoader)?.findLibrary("magisk")
             ?: File(appInfo.nativeLibraryDir, "libmagisk.so").absolutePath
     }.getOrNull()
@@ -105,9 +105,9 @@ object AppContext : ContextWrapper(null),
         }
         resources.patch()
 
-        // Randomized app domains cannot execute the mounted client directly on
-        // Android 15. Use the APK client for the hidden stub, and give its
-        // child shell an explicit path to the live randomized core binaries.
+
+
+
         val (suCmd, needsArgvShim) = if (isRunningAsStub) {
             preparePackagedSu(base) to true
         } else run {
@@ -135,7 +135,7 @@ object AppContext : ContextWrapper(null),
             .setTimeout(20)
         if (suCmd != null) {
             if (needsArgvShim) {
-                // Native multicall dispatch uses argv[0] to select the su applet.
+
                 shellBuilder.setCommands(
                     "/system/bin/sh",
                     "-c",
@@ -154,7 +154,7 @@ object AppContext : ContextWrapper(null),
             RootUtils.Connection
         )
         if (SDK_INT >= 34 && isRunningAsStub) {
-            // Send over the locale config manually
+
             val lm = getSystemService(LocaleManager::class.java)
             lm.overrideLocaleConfig = LocaleSetting.localeConfig
         }

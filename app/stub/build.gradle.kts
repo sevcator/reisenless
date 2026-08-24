@@ -18,9 +18,9 @@ android {
     val canaryUrl = base + "canary-${Config.versionCode}/"
 
     defaultConfig {
-        // Keep this identical to the full app. The hide flow rewrites the
-        // manifest package, while the compiled constant is used to copy the
-        // full APK from the original installation on first launch.
+
+
+
         applicationId = "io.sevcator.reisenless"
         versionCode = 1
         versionName = "1.0"

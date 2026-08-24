@@ -49,12 +49,12 @@ class RootUtils(stub: Any?) : RootService() {
             if (proc != null)
                 return proc
 
-            // Stop find when root process
+
             if (Os.stat("/proc/$pid").st_uid == 0) {
                 return null
             }
 
-            // Find PPID
+
             File("/proc/$pid/status").useLines {
                 val line = it.find { l -> l.startsWith("PPid:") } ?: return null
                 pid = line.substring(5).trim().toInt()
@@ -106,7 +106,7 @@ class RootUtils(stub: Any?) : RootService() {
         override fun tryAcquireShared(acquires: Int) = if (state == 0) 1 else -1
 
         override fun tryReleaseShared(releases: Int): Boolean {
-            // Decrement count; signal when transition to zero
+
             while (true) {
                 val c = state
                 if (c == 0)
@@ -151,7 +151,7 @@ class RootUtils(stub: Any?) : RootService() {
             return try {
                 block()
             } catch (e: Throwable) {
-                // The process died unexpectedly
+
                 default
             }
         }

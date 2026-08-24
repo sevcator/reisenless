@@ -28,7 +28,7 @@ public class StubApk {
         if (dynDir == null) {
             final String dataDir;
             if (SDK_INT >= Build.VERSION_CODES.N) {
-                // Use device protected path to allow directBootAware
+
                 dataDir = info.deviceProtectedDataDir;
             } else {
                 dataDir = info.dataDir;
@@ -93,7 +93,7 @@ public class StubApk {
     }
 
     public static class Data {
-        // Indices of the object array
+
         private static final int STUB_VERSION = 0;
         private static final int CLASS_COMPONENT_MAP = 1;
         private static final int ROOT_SERVICE = 2;
@@ -108,7 +108,7 @@ public class StubApk {
         public int getVersion() { return (int) arr[STUB_VERSION]; }
         public void setVersion(int version) { arr[STUB_VERSION] = version; }
         public Map<String, String> getClassToComponent() {
-            // noinspection unchecked
+
             return (Map<String, String>) arr[CLASS_COMPONENT_MAP];
         }
         public void setClassToComponent(Map<String, String> map) {

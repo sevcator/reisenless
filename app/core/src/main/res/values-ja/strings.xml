@@ -1,6 +1,6 @@
 <resources>
 
-    <!--Sections-->
+
     <string name="modules">モジュール</string>
     <string name="superuser">スーパーユーザー</string>
     <string name="settings">設定</string>
@@ -9,7 +9,7 @@
     <string name="section_theme">テーマ</string>
     <string name="sulist">sulist</string>
 
-    <!--Home-->
+
     <string name="no_connection">インターネット接続なし</string>
     <string name="app_changelog">アプリの更新履歴</string>
     <string name="loading">読み込み中…</string>
@@ -29,7 +29,7 @@
     <string name="uninstall_magisk_title">reisenless のアンインストール</string>
     <string name="uninstall_magisk_msg">すべてのモジュールが無効化/削除されます。\nアンインストール後は root が削除され､ストレージが暗号化されていない場合は暗号化される場合があります。</string>
 
-    <!--Install-->
+
     <string name="keep_force_encryption">暗号化を維持する</string>
     <string name="keep_dm_verity">avb 2.0/dm-verity を維持する</string>
     <string name="recovery_mode">リカバリーモード</string>
@@ -47,7 +47,7 @@
     <string name="reboot_delay_toast">5秒後に再起動します…</string>
     <string name="flash_screen_title">インストール</string>
 
-    <!--Superuser-->
+
     <string name="su_request_title">スーパーユーザー権限の要求</string>
     <string name="touch_filtered_warning">他のアプリがスーパーユーザー権限の要求ダイアログを隠しているため、reisenless はあなたの応答を確認できません。</string>
     <string name="deny">拒否</string>
@@ -75,19 +75,19 @@
     <string name="superuser_toggle_revoke">取り消し</string>
     <string name="superuser_policy_none">スーパーユーザー権限の許可を求めたアプリはまだありません</string>
 
-    <!--Logs-->
+
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">ターゲット uid: %1$d</string>
 
-    <!--SafetyNet-->
 
-    <!--MagiskHide-->
+
+
     <string name="show_system_app">システムアプリを表示</string>
     <string name="show_os_app">os アプリを表示</string>
     <string name="hide_filter_hint">名前で絞り込み</string>
     <string name="hide_search">検索</string>
 
-    <!--Module-->
+
     <string name="no_info_provided">(情報なし)</string>
     <string name="reboot_userspace">ソフトリブート</string>
     <string name="reboot_recovery">recovery へ再起動</string>
@@ -103,7 +103,7 @@
     <string name="zygisk_module_unloaded">互換性がないため zygisk モジュールは読み込まれませんでした</string>
     <string name="module_empty">モジュールをインストールしていません</string>
 
-    <!--Settings-->
+
     <string name="settings_hide_app_title">reisenless アプリを隠す</string>
     <string name="settings_hide_app_summary">ランダムなパッケージ id と任意のアプリ名のプロキシアプリをインストールします</string>
     <string name="settings_restore_app_title">reisenless アプリを復元する</string>
@@ -157,13 +157,13 @@
     <string name="requester_summary">root セッションはリクエスト者の名前空間を継承します</string>
     <string name="isolate_summary">root セッション毎に分離された名前空間を使用します</string>
 
-    <!--Notifications-->
+
     <string name="progress_channel">進捗通知</string>
     <string name="updated_channel">更新完了</string>
     <string name="download_complete">ダウンロード完了</string>
     <string name="download_file_error">ダウンロード中にエラーが発生しました</string>
 
-    <!--Toasts, Dialogs-->
+
     <string name="yes">対応</string>
     <string name="no">非対応</string>
     <string name="repo_install_title">%1$s %2$s(%3$d) をインストール</string>
@@ -212,8 +212,7 @@
     <string name="settings_theme_mode">テーマ</string>
     <string name="theme_light">ライト</string>
     <string name="theme_dark">ダーク</string>
-    <string name="settings_accent_primary">アクセントカラー</string>
-    <string name="settings_accent_secondary">アクセントカラー 2</string>
+    <string name="settings_accent_color">アクセントカラー</string>
     <string name="color_preview">カラープレビュー</string>
     <string name="color_white">白</string>
     <string name="color_blue">青</string>
@@ -258,33 +257,6 @@
     <string name="webui_webview_required">Android System WebView が必要です</string>
     <string name="webui_webview_required_summary">このデバイスには使用可能な Android WebView プロバイダーがありません。Android System WebView をインストールまたは有効にして、もう一度お試しください。</string>
     <string name="webui_install_webview">WebView をインストール</string>
-    <string name="repository_searcher">リポジトリ検索</string>
-    <string name="repository_searcher_queue_count">リポジトリ検索（%1$d）</string>
-    <string name="repository_searcher_summary">オンラインモジュールリポジトリとオンライン検索ボタンを設定します</string>
-    <string name="repository_add_to_queue">キューに追加</string>
-    <string name="repository_remove_from_queue">キューから削除</string>
-    <string name="repository_queue_downloading">ダウンロード中 %1$d/%2$d: %3$s</string>
-    <string name="repository_queue_installing">インストール中 %1$d/%2$d: %3$s</string>
-    <string name="repository_queue_progress_elapsed">%1$s · %2$d秒</string>
-    <string name="repository_queue_progress_detail">%1$s\n%2$s · %3$d秒</string>
-    <string name="repository_queue_downloaded">%1$d 個のモジュールをダウンロードしました</string>
-    <string name="repository_queue_installed">%1$d 個のモジュールをインストールしました。再起動して有効化してください</string>
-    <string name="repository_queue_failed">%1$s で失敗しました</string>
-    <string name="repository_queue_failed_reason">%1$s で失敗しました: %2$s</string>
-    <string name="repository_links_title">モジュールリポジトリのリンク</string>
-    <string name="repository_links_hint">1 行につき 1 つの MMRL リポジトリ URL</string>
-    <string name="repository_search_hint">オンラインモジュールを検索</string>
-    <string name="repository_load_failed">設定されたリポジトリを読み込めませんでした</string>
-    <string name="repository_no_results">一致するオンラインモジュールはありません</string>
-    <string name="repository_mmrl_url_hint">MMRL リポジトリ URL</string>
-    <string name="repository_mmrl_url_invalid">HTTPS の MMRL リポジトリまたは modules.json URL を入力してください</string>
-    <string name="repository_add_trusted">信頼済みリポジトリを追加</string>
-    <string name="repository_add">追加</string>
-    <string name="repository_web">ウェブ</string>
-    <string name="repository_trusted">信頼済み MMRL リポジトリ</string>
-    <string name="repository_configured">設定済みリポジトリ</string>
-    <string name="repository_none_configured">リポジトリが設定されていません</string>
-    <string name="repository_module_count">%1$d モジュール</string>
     <string name="module_search_installed">インストール済みモジュールを検索</string>
 
 </resources>

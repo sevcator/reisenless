@@ -72,11 +72,6 @@ import com.topjohnwu.magisk.core.R as CoreR
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
-    var showRepositorySettings by rememberSaveable { mutableStateOf(false) }
-    if (showRepositorySettings) {
-        RepositorySettingsScreen(onBack = { showRepositorySettings = false })
-        return
-    }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
         topBar = {
@@ -95,10 +90,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 .padding(horizontal = 12.dp)
                 .padding(bottom = 88.dp)
         ) {
-            CustomizationSection(
-                viewModel,
-                onOpenRepositorySettings = { showRepositorySettings = true },
-            )
+            CustomizationSection(viewModel)
             Spacer(Modifier.height(12.dp))
             AppSettingsSection()
             if (Info.env.isActive) {
@@ -115,19 +107,17 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     }
 }
 
-// --- Customization ---
+
 
 @Composable
 private fun CustomizationSection(
     viewModel: SettingsViewModel,
-    onOpenRepositorySettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val loadingDialog = rememberLoadingDialog()
     val isHidden = context.packageName != BuildConfig.APP_PACKAGE_NAME
     var showRestoreDialog by rememberSaveable { mutableStateOf(false) }
-    var repositoryEnabled by remember { mutableStateOf(Config.repositorySearcherEnabled) }
 
     if (showRestoreDialog) {
         RestoreAppDialog(
@@ -183,25 +173,14 @@ private fun CustomizationSection(
             }
         )
 
-        var primaryAccent by remember { mutableIntStateOf(Config.accentPrimary) }
+        var accentColor by remember { mutableIntStateOf(Config.accentColor) }
         RgbColorSetting(
-            title = stringResource(CoreR.string.settings_accent_primary),
-            color = primaryAccent,
+            title = stringResource(CoreR.string.settings_accent_color),
+            color = accentColor,
             onColorChange = { color ->
-                primaryAccent = color
-                Config.accentPrimary = color
-                ThemeState.primaryAccent = color
-            },
-        )
-
-        var secondaryAccent by remember { mutableIntStateOf(Config.accentSecondary) }
-        RgbColorSetting(
-            title = stringResource(CoreR.string.settings_accent_secondary),
-            color = secondaryAccent,
-            onColorChange = { color ->
-                secondaryAccent = color
-                Config.accentSecondary = color
-                ThemeState.secondaryAccent = color
+                accentColor = color
+                Config.accentColor = color
+                ThemeState.accentColor = color
             },
         )
 
@@ -224,16 +203,6 @@ private fun CustomizationSection(
             }
         )
 
-        SettingsSwitchAction(
-            title = stringResource(CoreR.string.repository_searcher),
-            summary = stringResource(CoreR.string.repository_searcher_summary),
-            checked = repositoryEnabled,
-            onClick = onOpenRepositorySettings,
-            onCheckedChange = { enabled ->
-                repositoryEnabled = enabled
-                Config.repositorySearcherEnabled = enabled
-            },
-        )
         if (isHidden) {
             SettingsArrow(
                 title = stringResource(CoreR.string.settings_restore_app_title),
@@ -316,7 +285,7 @@ private fun RgbColorSetting(title: String, color: Int, onColorChange: (Int) -> U
     )
 }
 
-// --- App Settings ---
+
 
 @Composable
 private fun AppSettingsSection() {
@@ -439,12 +408,12 @@ private fun BackgroundUpdateTarget(
     }
 }
 
-// --- Magisk ---
+
 
 @Composable
 private fun MagiskSection(viewModel: SettingsViewModel) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        // Systemless Hosts
+
         SettingsArrow(
             title = stringResource(CoreR.string.settings_hosts_title),
             summary = stringResource(CoreR.string.settings_hosts_summary),
@@ -452,7 +421,7 @@ private fun MagiskSection(viewModel: SettingsViewModel) {
         )
 
         if (Const.Version.atLeast_24_0()) {
-            // Zygisk
+
             var zygisk by remember { mutableStateOf(Config.zygisk) }
             SettingsSwitch(
                 title = stringResource(CoreR.string.zygisk),
@@ -660,13 +629,13 @@ private fun UdongeSection() {
     }
 }
 
-// --- Helpers ---
+
 
 private fun syncRomKeywordsHideApps(keywords: String) {
     HideAppsRootClient.syncRomKeywordsHideApps(keywords)
 }
 
-// --- Dialogs ---
+
 
 @Composable
 private fun HideAppDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {

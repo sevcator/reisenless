@@ -12,7 +12,7 @@ static std::string trim(const std::string &s) {
     return s.substr(a, b - a + 1);
 }
 
-// Read a whole file into a string. Returns "" on failure.
+
 std::string read_file(const std::string &path) {
     FILE *f = fopen(path.c_str(), "re");
     if (!f) return "";
@@ -24,7 +24,7 @@ std::string read_file(const std::string &path) {
     return out;
 }
 
-// Iterate lines, skipping blanks and '#' comments; call fn(trimmed_line).
+
 template <class F>
 static void for_each_line(const std::string &text, F fn) {
     size_t i = 0;
@@ -58,7 +58,7 @@ Config parse_config(const std::string &targets_text, const std::string &props_te
         if (!k.empty()) cfg.props[k] = v;
     });
 
-    // pif.conf: Build field name = value (FINGERPRINT, MODEL, SECURITY_PATCH, ...)
+
     for_each_line(pif_text, [&](const std::string &line) {
         size_t eq = line.find('=');
         if (eq == std::string::npos) return;
@@ -67,7 +67,7 @@ Config parse_config(const std::string &targets_text, const std::string &props_te
         if (!k.empty()) cfg.gms_build[k] = v;
     });
 
-    // rom_keywords.conf: one keyword per line, min 3 chars to avoid false positives
+
     for_each_line(rom_keywords_text, [&](const std::string &line) {
         if (line.size() >= 3) cfg.rom_keywords.push_back(line);
     });
@@ -75,4 +75,4 @@ Config parse_config(const std::string &targets_text, const std::string &props_te
     return cfg;
 }
 
-} // namespace cloak
+}

@@ -214,21 +214,21 @@ impl Signer {
     }
 }
 
-/*
- * BootSignature ::= SEQUENCE {
- *     formatVersion ::= INTEGER,
- *     certificate ::= Certificate,
- *     algorithmIdentifier ::= SEQUENCE {
- *         algorithm OBJECT IDENTIFIER,
- *         parameters ANY DEFINED BY algorithm OPTIONAL
- *     },
- *     authenticatedAttributes ::= SEQUENCE {
- *         target CHARACTER STRING,
- *         length INTEGER
- *     },
- *     signature ::= OCTET STRING
- * }
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #[derive(Sequence)]
 struct AuthenticatedAttributes {
@@ -271,7 +271,7 @@ impl BootImage {
             return log_err!();
         }
 
-        // Don't use BootSignature::from_der because tail might have trailing zeros
+
         let mut reader = SliceReader::new(tail)?;
         let mut sig = BootSignature::decode(&mut reader).silent()?;
         if let Some(s) = cert {
@@ -319,11 +319,11 @@ pub fn sign_boot_image(
         None => Bytes::Slice(VERITY_PK8),
     };
 
-    // Parse cert and private key
+
     let cert = Certificate::from_pem(cert)?;
     let mut signer = Signer::from_private_key(key.as_ref())?;
 
-    // Sign image
+
     let attr = AuthenticatedAttributes {
         target: PrintableString::new(name.as_bytes())?,
         length: payload.len() as u64,
@@ -332,7 +332,7 @@ pub fn sign_boot_image(
     signer.update(attr.to_der()?.as_slice());
     let sig = signer.sign()?;
 
-    // Create BootSignature DER
+
     let alg_id = cert.signature_algorithm().clone();
     let sig = BootSignature {
         format_version: 1,

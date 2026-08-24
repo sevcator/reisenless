@@ -1,13 +1,13 @@
 #!/sbin/sh
-# ADDOND_VERSION=2
-#SECURE_DIR_STUB
-#BUILD_IDENTITY_STUB
-########################################################
-#
-# Magisk Survival Script for ROMs with addon.d support
-# by topjohnwu and osm0sis
-#
-########################################################
+
+
+
+
+
+
+
+
+
 
 trampoline() {
   mount /data 2>/dev/null
@@ -20,10 +20,10 @@ trampoline() {
     $BOOTMODE || ps -A 2>/dev/null | grep zygote | grep -v grep >/dev/null && BOOTMODE=true
 
     if ! $BOOTMODE; then
-      # update-binary|updater <RECOVERY_API_VERSION> <OUTFD> <ZIPFILE>
+
       OUTFD=$(ps | grep -v 'grep' | grep -oE 'update(.*) 3 [0-9]+' | cut -d" " -f3)
       [ -z $OUTFD ] && OUTFD=$(ps -Af | grep -v 'grep' | grep -oE 'update(.*) 3 [0-9]+' | cut -d" " -f3)
-      # update_engine_sideload --payload=file://<ZIPFILE> --offset=<OFFSET> --headers=<HEADERS> --status_fd=<OUTFD>
+
       [ -z $OUTFD ] && OUTFD=$(ps | grep -v 'grep' | grep -oE 'status_fd=[0-9]+' | cut -d= -f2)
       [ -z $OUTFD ] && OUTFD=$(ps -Af | grep -v 'grep' | grep -oE 'status_fd=[0-9]+' | cut -d= -f2)
     fi
@@ -44,7 +44,7 @@ trampoline() {
   exit 1
 }
 
-# Always use the script in /data
+
 MAGISKBIN=${SECURE_DIR}/${DATA_DIR}
 [ "$0" = $MAGISKBIN/addon.d.sh ] || trampoline "$@"
 
@@ -61,11 +61,11 @@ else
 fi
 
 initialize() {
-  # Load utility functions
+
   . $MAGISKBIN/util_functions.sh
 
   if $BOOTMODE; then
-    # Override ui_print when booted
+
     ui_print() { echo "$1"; }
   fi
   OUTFD=
@@ -74,17 +74,17 @@ initialize() {
 
 main() {
   if ! $backuptool_ab; then
-    # Restore PREINITDEVICE from previous A-only partition
+
     if [ -f config.orig ]; then
       PREINITDEVICE=$(grep_prop PREINITDEVICE config.orig)
       rm config.orig
     fi
 
-    # Wait for post addon.d-v1 processes to finish
+
     sleep 5
   fi
 
-  # Ensure we aren't in /tmp/addon.d anymore (since it's been deleted by addon.d)
+
   mkdir -p $TMPDIR
   cd $TMPDIR
 
@@ -100,7 +100,7 @@ main() {
   get_flags
 
   if $backuptool_ab; then
-    # Swap the slot for addon.d-v2
+
     if [ ! -z $SLOT ]; then
       case $SLOT in
         _a) SLOT=_b;;
@@ -119,7 +119,7 @@ main() {
   remove_system_su
   install_magisk
 
-  # Cleanups
+
   cd /
   $BOOTMODE || recovery_cleanup
   rm -rf $TMPDIR
@@ -130,16 +130,16 @@ main() {
 
 case "$1" in
   backup)
-    # Stub
+
   ;;
   restore)
-    # Stub
+
   ;;
   pre-backup)
-    # Back up PREINITDEVICE from existing partition before OTA on A-only devices
+
     if ! $backuptool_ab; then
       initialize
-      # Suppress ui_print for this stage
+
       ui_print() { return; }
       get_flags
       find_boot_image
@@ -150,10 +150,10 @@ case "$1" in
     fi
   ;;
   post-backup)
-    # Stub
+
   ;;
   pre-restore)
-    # Stub
+
   ;;
   post-restore)
     initialize
@@ -162,7 +162,7 @@ case "$1" in
       $BOOTMODE && su=su
       exec $su -c "sh $0 addond-v2"
     else
-      # Run in background, hack for addon.d-v1
+
       (main) &
     fi
   ;;

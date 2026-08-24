@@ -48,7 +48,7 @@ class Payload(private val channel: DataSourceChannel) {
 
     @Throws(IOException::class)
     private fun readPayloadHeader(): DeltaArchiveManifest {
-        // Read magic
+
         val magicBuffer = ByteBuffer.allocate(4)
         channel.read(magicBuffer)
         magicBuffer.flip()
@@ -57,7 +57,7 @@ class Payload(private val channel: DataSourceChannel) {
             throw IOException("Invalid payload: invalid magic")
         }
 
-        // Read version
+
         val versionBuffer = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN)
         channel.read(versionBuffer)
         versionBuffer.flip()
@@ -66,7 +66,7 @@ class Payload(private val channel: DataSourceChannel) {
             throw IOException("Invalid payload: unsupported version: $version")
         }
 
-        // Read manifest length
+
         val manifestLenBuffer = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN)
         channel.read(manifestLenBuffer)
         manifestLenBuffer.flip()
@@ -75,7 +75,7 @@ class Payload(private val channel: DataSourceChannel) {
             throw IOException("Invalid payload: manifest length is zero")
         }
 
-        // Read manifest signature length
+
         val manifestSigLenBuffer = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
         channel.read(manifestSigLenBuffer)
         manifestSigLenBuffer.flip()
@@ -84,13 +84,13 @@ class Payload(private val channel: DataSourceChannel) {
             throw IOException("Invalid payload: manifest signature length is zero")
         }
 
-        // Read manifest
+
         val manifestBuffer = ByteBuffer.allocate(manifestLen)
         channel.read(manifestBuffer)
         manifestBuffer.flip()
         val manifest = DeltaArchiveManifest.ADAPTER.decode(manifestBuffer.array())
 
-        // Skip manifest signature
+
         channel.position(channel.position() + manifestSigLen)
 
         dataBase = channel.position()

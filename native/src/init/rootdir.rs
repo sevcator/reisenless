@@ -73,7 +73,7 @@ impl MagiskInit {
                     let dest = cstr::buf::dynamic(256).join_path(dest_dir).join_path(name);
                     if dest.exists() {
                         if e.is_dir() {
-                            // Recursive
+
                             self.mount_impl(&src, &dest, mount_list)?;
                         } else {
                             debug!("Mount [{}] -> [{}]", src, dest);

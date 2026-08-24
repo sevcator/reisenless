@@ -127,7 +127,7 @@ class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenH
             true
         }
         binding.mainNavigation.setOnItemReselectedListener {
-            // https://issuetracker.google.com/issues/124538620
+
         }
         binding.mainNavigation.menu.apply {
             findItem(R.id.superuserFragment)?.isEnabled = Info.showSuperUser
@@ -174,7 +174,7 @@ class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenH
     }
 
     fun invalidateToolbar() {
-        //binding.mainToolbar.startAnimations()
+
         binding.mainToolbar.invalidate()
     }
 

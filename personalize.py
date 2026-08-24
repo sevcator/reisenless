@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""
-personalize.py — generate a unique Magisk Alpha build per user.
-
-Usage:
-  python personalize.py                     # fully random identity
-  python personalize.py --preset            # pick from a realistic preset list
-  python personalize.py --package com.example.app --name "My App"
-  python personalize.py --reset             # restore original package/name
-
-The script patches:
-  - applicationId in app/buildSrc/src/main/java/Setup.kt
-  - App label string in app/apk/src/main/res/values/strings.xml (if present)
-  - Generates a signing keystore and writes signing config to local.properties
-"""
-
 import os
 import re
 import sys
@@ -24,7 +9,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
+
 ROOT = Path(__file__).parent.resolve()
 SETUP_KT      = ROOT / "app/buildSrc/src/main/java/Setup.kt"
 APK_STRINGS   = ROOT / "app/apk/src/main/res/values/strings.xml"
@@ -35,9 +20,9 @@ CONSTS_RS     = ROOT / "native/src/include/consts.rs"
 
 ORIGINAL_PKG  = "com.topjohnwu.magisk"
 ORIGINAL_NAME = "Magisk"
-DEFAULT_PREFIX = "ms"  # current default after rename
+DEFAULT_PREFIX = "ms"
 
-# ── Realistic disguise presets ─────────────────────────────────────────────────
+
 PRESETS = [
     ("com.android.systemui.manager",    "System UI Manager"),
     ("com.android.phone.updater",       "Phone Updater"),
@@ -51,7 +36,7 @@ PRESETS = [
     ("com.android.overlay.service",     "Overlay Service"),
 ]
 
-# ── Random identity generator ──────────────────────────────────────────────────
+
 _NAMESPACES = ["android", "google", "system", "device", "phone", "kernel", "media"]
 _NOUNS      = ["manager", "helper", "service", "updater", "patcher", "monitor", "daemon"]
 
@@ -63,17 +48,16 @@ def _rand_pkg() -> tuple[str, str]:
     name = f"{ns.title()} {noun.title()}"
     return pkg, name
 
-# ── File patchers ──────────────────────────────────────────────────────────────
+
 def _patch_native_prefix(prefix: str) -> None:
-    """Patch native constants: replace DEFAULT_PREFIX with a custom prefix in consts.hpp and consts.rs."""
     old = DEFAULT_PREFIX
 
-    # consts.hpp — C++ macros
+
     if CONSTS_HPP.exists():
         text = CONSTS_HPP.read_text("utf-8")
         text = text.replace(f'SECURE_DIR "/{old}"',    f'SECURE_DIR "/{prefix}"')
         text = text.replace(f'SECURE_DIR "/{old}.db"', f'SECURE_DIR "/{prefix}.db"')
-        # INTLROOT ".ms" -> ".{prefix}"
+
         text = re.sub(
             r'(#define\s+INTLROOT\s+")' + re.escape(f'.{old}') + r'"',
             r'\g<1>.' + prefix + '"',
@@ -92,7 +76,7 @@ def _patch_native_prefix(prefix: str) -> None:
         CONSTS_HPP.write_text(text, "utf-8")
         print(f"[+] consts.hpp     prefix '{old}' ->'{prefix}'")
 
-    # consts.rs — Rust constants
+
     if CONSTS_RS.exists():
         text = CONSTS_RS.read_text("utf-8")
         text = text.replace(f'SECURE_DIR, "/{old}")',    f'SECURE_DIR, "/{prefix}")')
@@ -123,7 +107,7 @@ def _patch_native_prefix(prefix: str) -> None:
 
 def _patch_setup_kt(pkg: str) -> None:
     text = SETUP_KT.read_text("utf-8")
-    # Replace applicationId only (not namespace — namespace drives R-class package paths)
+
     patched, n = re.subn(
         r'(applicationId\s*=\s*)"[^"]*"',
         f'\\1"{pkg}"',
@@ -140,7 +124,7 @@ def _patch_apk_strings(name: str) -> None:
     if not APK_STRINGS.exists():
         return
     text = APK_STRINGS.read_text("utf-8")
-    # Only patch the top-level app label ("magisk" key)
+
     patched, n = re.subn(
         r'(<string name="magisk">)[^<]*(</string>)',
         f'\\g<1>{name}\\2',
@@ -160,7 +144,7 @@ def _load_state() -> dict:
         return json.loads(STATE_FILE.read_text("utf-8"))
     return {}
 
-# ── Keystore ───────────────────────────────────────────────────────────────────
+
 def _keytool_available() -> bool:
     try:
         subprocess.run(["keytool", "-version"], capture_output=True, check=True)
@@ -192,7 +176,7 @@ def _gen_keystore(path: Path, alias: str, pw: str) -> bool:
 
 def _write_signing_props(path: Path, alias: str, pw: str) -> None:
     existing = LOCAL_PROPS.read_text("utf-8") if LOCAL_PROPS.exists() else ""
-    # Strip any previously written block
+
     existing = re.sub(
         r"\n?# --- personalize signing ---.*?# --- end personalize signing ---\n?",
         "",
@@ -210,13 +194,13 @@ def _write_signing_props(path: Path, alias: str, pw: str) -> None:
     LOCAL_PROPS.write_text(existing + block, "utf-8")
     print("[+] Signing config ->local.properties")
 
-# ── Reset ──────────────────────────────────────────────────────────────────────
+
 def do_reset() -> None:
     state = _load_state()
     _patch_setup_kt(ORIGINAL_PKG)
     if "name" in state:
         _patch_apk_strings(ORIGINAL_NAME)
-    # Strip signing block from local.properties
+
     if LOCAL_PROPS.exists():
         text = LOCAL_PROPS.read_text("utf-8")
         text = re.sub(
@@ -230,7 +214,7 @@ def do_reset() -> None:
         STATE_FILE.unlink()
     print("[OK] Reset to original Magisk identity")
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Personalize Magisk Alpha: unique package name + signing key per user"
@@ -249,7 +233,7 @@ def main() -> None:
         do_reset()
         return
 
-    # Resolve identity
+
     if args.preset:
         pkg, name = random.choice(PRESETS)
     elif args.package or args.name:
@@ -258,7 +242,7 @@ def main() -> None:
     else:
         pkg, name = _rand_pkg()
 
-    # Resolve native prefix
+
     if args.native_prefix:
         prefix = args.native_prefix
     else:
@@ -283,7 +267,7 @@ def main() -> None:
     _patch_native_prefix(prefix)
     _save_state(pkg, name, prefix)
 
-    # Signing key
+
     ks_path = Path(args.keystore).resolve()
     alias   = "app"
     pw      = "".join(random.choices(string.ascii_letters + string.digits, k=20))
@@ -292,7 +276,7 @@ def main() -> None:
         ok = _gen_keystore(ks_path, alias, pw)
     else:
         print(f"[~] Reusing keystore: {ks_path}")
-        # Read existing password from local.properties if available
+
         if LOCAL_PROPS.exists():
             for line in LOCAL_PROPS.read_text("utf-8").splitlines():
                 if line.startswith("SIGNING_STORE_PASSWORD="):

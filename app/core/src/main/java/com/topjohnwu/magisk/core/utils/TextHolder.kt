@@ -7,7 +7,7 @@ abstract class TextHolder {
     open val isEmpty: Boolean get() = false
     abstract fun getText(resources: Resources): String
 
-    // ---
+
 
     class Str(private val value: String) : TextHolder() {
         override val isEmpty get() = value.isEmpty()
@@ -24,13 +24,13 @@ abstract class TextHolder {
         private vararg val params: Any
     ) : Resource(value) {
         override fun getText(resources: Resources): String {
-            // Replace TextHolder with strings
+
             val args = params.map { if (it is TextHolder) it.getText(resources) else it }
             return resources.getString(value, *args.toTypedArray())
         }
     }
 
-    // ---
+
 
     companion object {
         val EMPTY = Str("")

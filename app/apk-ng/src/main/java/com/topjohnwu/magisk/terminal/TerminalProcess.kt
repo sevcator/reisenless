@@ -24,12 +24,12 @@ fun TerminalEmulator.appendLineOnMain(line: String) {
     appendOnMain(bytes, bytes.size)
 }
 
-/**
- * Run a command as root inside a PTY (via busybox script).
- * Reads raw bytes from the process and feeds them to the terminal emulator.
- * Must be called from a background thread.
- * Returns true if the process exits with code 0.
- */
+
+
+
+
+
+
 fun runSuCommand(emulator: TerminalEmulator, command: String): Boolean {
     return try {
         val cols = emulator.mColumns

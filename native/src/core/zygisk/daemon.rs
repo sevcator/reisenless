@@ -64,12 +64,12 @@ pub fn zygisk_should_load_module(flags: u32) -> bool {
 
 #[allow(unused_variables)]
 fn exec_zygiskd(is_64_bit: bool, remote: UnixStream) {
-    // This fd has to survive exec
+
     unsafe {
         libc::fcntl(remote.as_raw_fd(), libc::F_SETFD, 0);
     }
 
-    // Start building the exec arguments
+
 
     #[cfg(target_pointer_width = "64")]
     let magisk = if is_64_bit {
@@ -117,14 +117,14 @@ impl ZygiskState {
         };
 
         if let Some(fd) = socket {
-            // Make sure the socket is still valid
+
             let mut pfd = libc::pollfd {
                 fd: fd.as_raw_fd(),
                 events: 0,
                 revents: 0,
             };
             if unsafe { libc::poll(&mut pfd, 1, 0) } != 0 || pfd.revents != 0 {
-                // Any revent means error
+
                 *socket = None;
             }
         }
@@ -132,7 +132,7 @@ impl ZygiskState {
         if let Some(fd) = socket {
             fd.send_fds(&[client.as_raw_fd()])?;
         } else {
-            // Create a new socket pair and fork zygiskd process
+
             let (mut local, remote) = UnixStream::pair()?;
             if fork_dont_care() == 0 {
                 exec_zygiskd(is_64_bit, remote);
@@ -179,9 +179,9 @@ impl ZygiskState {
             ZYGISKLDR.to_string() + &orig
         };
         set_prop(NBPROP, Utf8CStr::from_string(&mut self.lib_name));
-        // Whether Huawei's Maple compiler is enabled.
-        // If so, system server will be created by a special Zygote which ignores the native bridge
-        // and make system server out of our control. Avoid it by disabling.
+
+
+
         if get_prop(cstr!("ro.maple.enable")) == "1" {
             set_prop(cstr!("ro.maple.enable"), cstr!("0"));
         }
@@ -312,10 +312,10 @@ impl MagiskD {
             flags |= ZygiskStateFlags::ProcessGrantedRoot.repr
         }
 
-        // First send flags
+
         client.write_pod(&flags)?;
 
-        // Next send modules
+
         if zygisk_should_load_module(flags)
             && let Some((module_fds, _opened)) = self.get_module_fds(
                 is_64_bit,
@@ -326,12 +326,12 @@ impl MagiskD {
             client.send_fds(&module_fds)?;
         }
 
-        // If we're not in system_server, we are done
+
         if uid != 1000 || process != "system_server" {
             return Ok(());
         }
 
-        // Read all failed modules
+
         let failed_ids: Vec<i32> = client.read_decodable()?;
         if let Some(module_list) = self.module_list.get() {
             for id in failed_ids {
@@ -346,7 +346,7 @@ impl MagiskD {
                         .join_path(&module.name)
                         .join_path("zygisk")
                 };
-                // Create the unloaded marker file
+
                 if let Ok(dir) = Directory::open(&path) {
                     dir.open_as_file_at(cstr!("unloaded"), OFlag::O_CREAT | OFlag::O_RDONLY, 0o644)
                         .log()
@@ -380,7 +380,7 @@ impl MagiskD {
     }
 }
 
-// FFI to C++
+
 impl MagiskD {
     pub fn zygisk_enabled(&self) -> bool {
         self.zygisk_enabled.load(Ordering::Acquire)

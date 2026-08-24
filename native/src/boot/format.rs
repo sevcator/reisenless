@@ -89,7 +89,7 @@ impl FileFormat {
     }
 }
 
-// C++ FFI
+
 
 pub fn fmt2name(fmt: FileFormat) -> *const libc::c_char {
     fmt.as_cstr().as_ptr()

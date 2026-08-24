@@ -1,8 +1,8 @@
 LOCAL_PATH := $(call my-dir)
 
-########################
-# Binaries
-########################
+
+
+
 
 ifdef B_MAGISK
 
@@ -110,9 +110,9 @@ include $(BUILD_EXECUTABLE)
 
 endif
 
-########################
-# Libraries
-########################
+
+
+
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libpolicy

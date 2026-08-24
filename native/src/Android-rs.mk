@@ -1,8 +1,8 @@
 LOCAL_PATH := $(call my-dir)
 
-###########################
-# Rust compilation outputs
-###########################
+
+
+
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := magisk-rs

@@ -7,11 +7,11 @@
         android:name="com.android.launcher.permission.INSTALL_SHORTCUT"
         android:maxSdkVersion="25" />
 
-    <!--
-        Android 11+ hides unrelated installed packages from PackageManager.
-        The hide repacker replaces this valid placeholder with the signed
-        manager package while rewriting the rest of the manifest identity.
-    -->
+
+
+
+
+
     <queries>
         <package android:name="source.reisenless.manager" />
     </queries>

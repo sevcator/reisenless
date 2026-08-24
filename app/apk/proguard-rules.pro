@@ -1,4 +1,4 @@
-# Excessive obfuscation
+
 -flattenpackagehierarchy
 -allowaccessmodification
 -repackageclasses

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Static strings -->
+
     <string name="magisk" translatable="false">reisenless</string>
     <string name="zygisk" translatable="false">zygisk</string>
     <string name="empty" translatable="false"/>

@@ -39,7 +39,7 @@ navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref =
 navigationevent-compose = { module = "androidx.navigationevent:navigationevent-compose", version.ref = "navigationevent" }
 accompanist-drawablepainter = { module = "com.google.accompanist:accompanist-drawablepainter", version = "0.37.3" }
 
-# AndroidX
+
 activity = { module = "androidx.activity:activity", version = "1.12.4" }
 appcompat = { module = "androidx.appcompat:appcompat", version = "1.7.1" }
 core-ktx = { module = "androidx.core:core-ktx", version = "1.17.0" }
@@ -56,18 +56,18 @@ transition = { module = "androidx.transition:transition", version = "1.7.0" }
 collection-ktx = { module = "androidx.collection:collection-ktx", version = "1.5.0" }
 material = { module = "com.google.android.material:material", version = "1.13.0" }
 jdk-libs = { module = "com.android.tools:desugar_jdk_libs_nio", version = "2.1.5" }
-# topjohnwu
+
 indeterminate-checkbox = { module = "com.github.topjohnwu:indeterminate-checkbox", version = "1.0.7" }
 libsu-core = { module = "com.github.topjohnwu.libsu:core", version.ref = "libsu" }
 libsu-service = { module = "com.github.topjohnwu.libsu:service", version.ref = "libsu" }
 libsu-nio = { module = "com.github.topjohnwu.libsu:nio", version.ref = "libsu" }
 
-# Rikka
+
 rikka-recyclerview = { module = "dev.rikka.rikkax.recyclerview:recyclerview-ktx", version = "1.3.2" }
 rikka-layoutinflater = { module = "dev.rikka.rikkax.layoutinflater:layoutinflater", version.ref = "rikka" }
 rikka-insets = { module = "dev.rikka.rikkax.insets:insets", version.ref = "rikka" }
 
-# Build plugins
+
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "android" }
 android-build-sdk-common = { module = "com.android.tools:sdk-common", version.ref = "android-tools" }
 android-kapt-plugin = { module = "com.android.legacy-kapt:com.android.legacy-kapt.gradle.plugin", version.ref = "android" }

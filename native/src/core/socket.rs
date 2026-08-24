@@ -52,7 +52,7 @@ impl Decodable for bool {
     }
 }
 
-// impl<E: Encodable, T: AsRef<E>> Encodable for T
+
 macro_rules! impl_encodable_as_ref {
     ($( ($t:ty, $e:ty, $($g:tt)*) )*) => ($(
         impl<$($g)*> Encodable for $t {
@@ -136,7 +136,7 @@ impl UnixSocketExt for UnixStream {
         match fds.len() {
             0 => self.write_pod(&0)?,
             len => {
-                // 4k buffer is reasonable enough
+
                 let mut buf = [0u8; 4096];
                 let mut ancillary = SocketAncillary::new(&mut buf);
                 if !ancillary.add_fds(fds) {
@@ -154,7 +154,7 @@ impl UnixSocketExt for UnixStream {
         let mut fd_count = 0;
         self.peek(bytes_of_mut(&mut fd_count))?;
         if fd_count < 1 {
-            // Actually consume the data
+
             self.read_pod(&mut fd_count)?;
             return Ok(None);
         }
@@ -165,20 +165,20 @@ impl UnixSocketExt for UnixStream {
             );
         }
 
-        // 4k buffer is reasonable enough
+
         let mut buf = [0u8; 4096];
         let mut ancillary = SocketAncillary::new(&mut buf);
         let iov = IoSliceMut::new(bytes_of_mut(&mut fd_count));
         self.recv_vectored_with_ancillary(&mut [iov], &mut ancillary)?;
         for msg in ancillary.messages().flatten() {
             if let AncillaryData::ScmRights(mut scm_rights) = msg {
-                // We only want the first one
+
                 let fd = if let Some(fd) = scm_rights.next() {
                     unsafe { OwnedFd::from_raw_fd(fd) }
                 } else {
                     return Ok(None);
                 };
-                // Close all others
+
                 for fd in scm_rights {
                     unsafe { libc::close(fd) };
                 }
@@ -190,7 +190,7 @@ impl UnixSocketExt for UnixStream {
 
     fn recv_fds(&mut self) -> io::Result<Vec<OwnedFd>> {
         let mut fd_count = 0;
-        // 4k buffer is reasonable enough
+
         let mut buf = [0u8; 4096];
         let mut ancillary = SocketAncillary::new(&mut buf);
         let iov = IoSliceMut::new(bytes_of_mut(&mut fd_count));
@@ -235,6 +235,6 @@ pub fn recv_fd(socket: RawFd) -> RawFd {
 pub fn recv_fds(socket: RawFd) -> Vec<RawFd> {
     let mut socket = ManuallyDrop::new(unsafe { UnixStream::from_raw_fd(socket) });
     let fds = socket.recv_fds().log().unwrap_or(Vec::new());
-    // SAFETY: OwnedFd and RawFd has the same layout
+
     unsafe { std::mem::transmute(fds) }
 }

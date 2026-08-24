@@ -1,6 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 
-# libxz.a
+
 include $(CLEAR_VARS)
 LOCAL_MODULE:= libxz
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/xz-embedded
@@ -11,7 +11,7 @@ LOCAL_SRC_FILES := \
     xz-embedded/xz_dec_stream.c
 include $(BUILD_STATIC_LIBRARY)
 
-# liblz4.a
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := liblz4
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/lz4/lib
@@ -25,7 +25,7 @@ include $(BUILD_STATIC_LIBRARY)
 
 SE_PATH := $(LOCAL_PATH)/selinux
 
-# libsepol.a
+
 include $(CLEAR_VARS)
 LIBSEPOL := $(SE_PATH)/libsepol/include $(SE_PATH)/libsepol/cil/include
 LOCAL_MODULE := libsepol
@@ -106,7 +106,7 @@ LOCAL_CFLAGS += -DHAVE_REALLOCARRAY
 endif
 include $(BUILD_STATIC_LIBRARY)
 
-# liblsplt.a
+
 include $(CLEAR_VARS)
 LOCAL_MODULE:= liblsplt
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/lsplt/lsplt/src/main/jni/include

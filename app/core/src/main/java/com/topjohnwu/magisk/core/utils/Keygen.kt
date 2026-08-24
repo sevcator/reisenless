@@ -52,11 +52,11 @@ class Keygen : CertKeyProvider {
             }
         }
 
-        // Keys already exist
+
         if (ks.containsAlias(ALIAS))
             return ks
 
-        // Generate new private key and certificate
+
         val kp = KeyPairGenerator.getInstance("RSA").apply { initialize(4096) }.genKeyPair()
         val dname = X500Name(DNAME)
         val builder = X509v3CertificateBuilder(
@@ -67,7 +67,7 @@ class Keygen : CertKeyProvider {
         val signer = JcaContentSignerBuilder("SHA1WithRSA").build(kp.private)
         val cert = JcaX509CertificateConverter().getCertificate(builder.build(signer))
 
-        // Store them into keystore
+
         ks.setKeyEntry(ALIAS, kp.private, PASSWORD, arrayOf(cert))
         val bytes = ByteArrayOutputStream()
         GZIPOutputStream(Base64OutputStream(bytes, BASE64_FLAG)).use {

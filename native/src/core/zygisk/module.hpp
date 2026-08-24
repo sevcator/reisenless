@@ -121,7 +121,7 @@ struct module_abi_v1 {
     void (*postServerSpecialize)(void *, const void *);
 };
 
-// Assert the flag values to be the same as the public API
+
 static_assert(+ZygiskStateFlags::ProcessGrantedRoot == zygisk::StateFlag::PROCESS_GRANTED_ROOT);
 static_assert(+ZygiskStateFlags::ProcessOnDenyList == zygisk::StateFlag::PROCESS_ON_DENYLIST);
 
@@ -136,28 +136,28 @@ struct api_abi_base {
 };
 
 struct api_abi_v1 : public api_abi_base {
-    /* 0 */ void (*hookJniNativeMethods)(JNIEnv *, const char *, JNINativeMethod *, int);
-    /* 1 */ void (*pltHookRegister)(const char *, const char *, void *, void **);
-    /* 2 */ void (*pltHookExclude)(const char *, const char *);
-    /* 3 */ bool (*pltHookCommit)();
-    /* 4 */ int (*connectCompanion)(ZygiskModule *);
-    /* 5 */ void (*setOption)(ZygiskModule *, zygisk::Option);
+            void (*hookJniNativeMethods)(JNIEnv *, const char *, JNINativeMethod *, int);
+            void (*pltHookRegister)(const char *, const char *, void *, void **);
+            void (*pltHookExclude)(const char *, const char *);
+            bool (*pltHookCommit)();
+            int (*connectCompanion)(ZygiskModule *);
+            void (*setOption)(ZygiskModule *, zygisk::Option);
 };
 
 struct api_abi_v2 : public api_abi_v1 {
-    /* 6 */ int (*getModuleDir)(ZygiskModule *);
-    /* 7 */ uint32_t (*getFlags)(ZygiskModule *);
+            int (*getModuleDir)(ZygiskModule *);
+            uint32_t (*getFlags)(ZygiskModule *);
 };
 
 struct api_abi_v4 : public api_abi_base {
-    /* 0 */ void (*hookJniNativeMethods)(JNIEnv *, const char *, JNINativeMethod *, int);
-    /* 1 */ void (*pltHookRegister)(dev_t, ino_t, const char *, void *, void **);
-    /* 2 */ bool (*exemptFd)(int);
-    /* 3 */ bool (*pltHookCommit)();
-    /* 4 */ int (*connectCompanion)(ZygiskModule *);
-    /* 5 */ void (*setOption)(ZygiskModule *, zygisk::Option);
-    /* 6 */ int (*getModuleDir)(ZygiskModule *);
-    /* 7 */ uint32_t (*getFlags)(ZygiskModule *);
+            void (*hookJniNativeMethods)(JNIEnv *, const char *, JNINativeMethod *, int);
+            void (*pltHookRegister)(dev_t, ino_t, const char *, void *, void **);
+            bool (*exemptFd)(int);
+            bool (*pltHookCommit)();
+            int (*connectCompanion)(ZygiskModule *);
+            void (*setOption)(ZygiskModule *, zygisk::Option);
+            int (*getModuleDir)(ZygiskModule *);
+            uint32_t (*getFlags)(ZygiskModule *);
 };
 
 union ApiTable {
@@ -274,7 +274,7 @@ struct ZygiskContext {
     bool can_exempt_fd() const;
     bool is_child() const { return pid <= 0; }
 
-    // Compatibility shim
+
     void plt_hook_register(const char *regex, const char *symbol, void *fn, void **backup);
     void plt_hook_exclude(const char *regex, const char *symbol);
     void plt_hook_process_regex();

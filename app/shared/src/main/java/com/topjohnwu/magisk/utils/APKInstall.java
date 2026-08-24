@@ -39,7 +39,7 @@ public final class APKInstall {
     public static void registerReceiver(
             Context context, BroadcastReceiver receiver, IntentFilter filter) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // noinspection InlinedApi
+
             context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             context.registerReceiver(receiver, filter);
@@ -55,7 +55,7 @@ public final class APKInstall {
         var receiver = new InstallReceiver(pkg, onSuccess, onFailure);
         context = context.getApplicationContext();
         if (pkg != null) {
-            // If pkg is not null, look for package added event
+
             var filter = new IntentFilter(Intent.ACTION_PACKAGE_ADDED);
             filter.addDataScheme("package");
             registerReceiver(context, receiver, filter);
@@ -65,9 +65,9 @@ public final class APKInstall {
     }
 
     public interface Session {
-        // @WorkerThread
+
         OutputStream openStream(Context context) throws IOException;
-        // @WorkerThread @Nullable
+
         Intent waitIntent();
     }
 
@@ -138,7 +138,7 @@ public final class APKInstall {
         @Override
         public Intent waitIntent() {
             try {
-                // noinspection ResultOfMethodCallIgnored
+
                 latch.await(5, TimeUnit.SECONDS);
             } catch (Exception ignored) {}
             return userAction;
@@ -146,7 +146,7 @@ public final class APKInstall {
 
         @Override
         public OutputStream openStream(Context context) throws IOException {
-            // noinspection InlinedApi
+
             var flag = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE;
             var intent = new Intent(sessionId).setPackage(context.getPackageName());
             var pending = PendingIntent.getBroadcast(context, 0, intent, flag);

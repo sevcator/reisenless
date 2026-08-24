@@ -1,0 +1,27 @@
+Reisenless includes code derived from the Android Open Source Project and the
+Gradle wrapper, licensed under the Apache License 2.0:
+https://www.apache.org/licenses/LICENSE-2.0
+
+The embedded argh argument parser is Copyright 2020 Google LLC and is used
+under the BSD 3-Clause License. Redistribution and use in source and binary
+forms, with or without modification, are permitted provided that the copyright
+notice, conditions, and disclaimer are retained. The software is provided
+without warranty, and its authors are not liable for damages arising from use.
+
+The Zygisk API headers are Copyright 2022-2023 John Wu. Permission to use,
+copy, modify, and distribute them for any purpose with or without fee is
+granted. They are provided as-is without warranty, and the author is not liable
+for damages arising from their use.
+
+The LZ4 WebAssembly shim is adapted from zstd-rs and is Copyright 2016
+Alexandre Bury. It is licensed under the MIT License. Permission is granted to
+use, copy, modify, merge, publish, distribute, sublicense, and sell copies,
+provided that the copyright and permission notice are retained. The software is
+provided as-is without warranty, and the authors are not liable for damages.
+
+The embedded XZ decoder files by Lasse Collin have been placed in the public
+domain.
+
+The superuser implementation retains attribution to John Wu, Pierre-Hugues
+Husson, Adam Shanks, and Zinx Verituse. The Reisenless project as a whole is
+distributed under the GNU General Public License version 3 in LICENSE.

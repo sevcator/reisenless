@@ -8,11 +8,11 @@ import com.topjohnwu.magisk.terminal.TerminalEmulator
 import com.topjohnwu.magisk.terminal.TextStyle
 import com.topjohnwu.magisk.terminal.WcWidth
 
-/**
- * Renderer of a [TerminalEmulator] into a [Canvas].
- *
- * Saves font metrics, so needs to be recreated each time the typeface or font size changes.
- */
+
+
+
+
+
 class TerminalRenderer(
     textSize: Int,
     typeface: Typeface,
@@ -21,16 +21,16 @@ class TerminalRenderer(
     val typeface: Typeface = typeface
     private val textPaint = Paint()
 
-    /** The width of a single mono spaced character obtained by [Paint.measureText] on a single 'X'. */
+
     val fontWidth: Float
 
-    /** The [Paint.getFontSpacing]. See http://www.fampennings.nl/maarten/android/08numgrid/font.png */
+
     val fontLineSpacing: Int
 
-    /** The [Paint.ascent]. See http://www.fampennings.nl/maarten/android/08numgrid/font.png */
+
     private val fontAscent: Int
 
-    /** The [fontLineSpacing] + [fontAscent]. */
+
     val fontLineSpacingAndAscent: Int
 
     private val asciiMeasures = FloatArray(127)
@@ -52,9 +52,9 @@ class TerminalRenderer(
         }
     }
 
-    /**
-     * Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection.
-     */
+
+
+
     fun render(
         mEmulator: TerminalEmulator,
         canvas: Canvas,
@@ -118,10 +118,10 @@ class TerminalRenderer(
                 val insideSelection = column >= selx1 && column <= selx2
                 val style = lineObject.getStyle(column)
 
-                // Check if the measured text width for this code point is not the same as that expected by wcwidth().
-                // This could happen for some fonts which are not truly monospace, or for more exotic characters such as
-                // smileys which android font renders as wide.
-                // If this is detected, we draw this code point scaled to match what wcwidth() expects.
+
+
+
+
                 val measuredCodePointWidth = if (codePoint < asciiMeasures.size) {
                     asciiMeasures[codePoint]
                 } else {
@@ -159,8 +159,8 @@ class TerminalRenderer(
                 column += codePointWcWidth
                 currentCharIndex += charsForCodePoint
                 while (currentCharIndex < charsUsedInLine && WcWidth.width(line, currentCharIndex) <= 0) {
-                    // Eat combining chars so that they are treated as part of the last non-combining code point,
-                    // instead of e.g. being considered inside the cursor in the next run.
+
+
                     currentCharIndex += if (Character.isHighSurrogate(line[currentCharIndex])) 2 else 1
                 }
             }
@@ -206,7 +206,7 @@ class TerminalRenderer(
         val dim = (effect and TextStyle.CHARACTER_ATTRIBUTE_DIM) != 0
 
         if ((foreColor and 0xff000000.toInt()) != 0xff000000.toInt()) {
-            // Let bold have bright colors if applicable (one of the first 8):
+
             if (bold && foreColor in 0..7) foreColor += 8
             foreColor = palette[foreColor]
         }
@@ -215,7 +215,7 @@ class TerminalRenderer(
             backColor = palette[backColor]
         }
 
-        // Reverse video here if _one and only one_ of the reverse flags are set:
+
         val reverseVideoHere = reverseVideo xor ((effect and TextStyle.CHARACTER_ATTRIBUTE_INVERSE) != 0)
         if (reverseVideoHere) {
             val tmp = foreColor
@@ -237,7 +237,7 @@ class TerminalRenderer(
         }
 
         if (backColor != palette[TextStyle.COLOR_INDEX_BACKGROUND]) {
-            // Only draw non-default background.
+
             textPaint.color = backColor
             canvas.drawRect(left, y - fontLineSpacingAndAscent + fontAscent, right, y, textPaint)
         }
@@ -255,8 +255,8 @@ class TerminalRenderer(
                 var red = 0xFF and (foreColor shr 16)
                 var green = 0xFF and (foreColor shr 8)
                 var blue = 0xFF and foreColor
-                // Dim color handling used by libvte which in turn took it from xterm
-                // (https://bug735245.bugzilla-attachments.gnome.org/attachment.cgi?id=284267):
+
+
                 red = red * 2 / 3
                 green = green * 2 / 3
                 blue = blue * 2 / 3
@@ -269,7 +269,7 @@ class TerminalRenderer(
             textPaint.isStrikeThruText = strikeThrough
             textPaint.color = foreColor
 
-            // The text alignment is the default Paint.Align.LEFT.
+
             canvas.drawTextRun(
                 text, startCharIndex, runWidthChars, startCharIndex, runWidthChars,
                 left, y - fontLineSpacingAndAscent, false, textPaint,

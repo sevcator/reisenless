@@ -74,8 +74,8 @@ impl PropReader<'_> {
 }
 
 unsafe extern "C" {
-    // SAFETY: the improper_ctypes warning is about PropReader. We only pass PropReader
-    // to C functions as raw pointers, and all actual usage happens on the Rust side.
+
+
     #[allow(improper_ctypes)]
     fn get_sys_prop() -> SysProp;
 
@@ -103,7 +103,7 @@ struct SysProp {
     wait: unsafe extern "C" fn(Option<&PropInfo>, u32, &mut u32, *const timespec) -> i32,
 }
 
-// Safe abstractions over raw C APIs
+
 
 impl PropInfo {
     fn read(&self, reader: &mut PropReader) {

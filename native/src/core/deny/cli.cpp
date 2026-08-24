@@ -55,7 +55,7 @@ void denylist_handler(int client) {
         res = denylist_enforced ? DenyResponse::ENFORCED : DenyResponse::NOT_ENFORCED;
         break;
     default:
-        // Unknown request code
+
         break;
     }
     write_int(client, res);
@@ -66,11 +66,11 @@ int denylist_cli(rust::Vec<rust::String> &args) {
     if (args.empty())
         usage();
 
-    // Convert rust strings into c strings
+
     size_t argc = args.size();
     std::vector<const char *> argv;
     ranges::transform(args, std::back_inserter(argv), [](rust::String &arg) { return arg.c_str(); });
-    // End with nullptr
+
     argv.push_back(nullptr);
 
     int req;
@@ -96,7 +96,7 @@ int denylist_cli(rust::Vec<rust::String> &args) {
         usage();
     }
 
-    // Send request
+
     int fd = connect_daemon(RequestCode::DENYLIST);
     write_int(fd, req);
     if (req == DenyRequest::ADD || req == DenyRequest::REMOVE) {
@@ -104,7 +104,7 @@ int denylist_cli(rust::Vec<rust::String> &args) {
         write_string(fd, argv[2] ? argv[2] : "");
     }
 
-    // Get response
+
     int res = read_int(fd);
     if (res < 0 || res >= DenyResponse::END)
         res = DenyResponse::ERROR;

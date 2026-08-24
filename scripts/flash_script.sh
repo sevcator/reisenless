@@ -1,13 +1,13 @@
-#MAGISK
-############################################
-# Magisk Flash Script (updater-script)
-############################################
 
-##############
-# Preparation
-##############
 
-# Default permissions
+
+
+
+
+
+
+
+
 umask 022
 
 OUTFD=$2
@@ -19,14 +19,14 @@ if [ ! -f $COMMONDIR/util_functions.sh ]; then
   exit 1
 fi
 
-# Load utility functions
+
 . $COMMONDIR/util_functions.sh
 
 setup_flashable
 
-############
-# Detection
-############
+
+
+
 
 if echo $MAGISK_VER | grep -q '\.'; then
   PRETTY_VER=$MAGISK_VER
@@ -44,7 +44,7 @@ find_boot_image
 [ -z $BOOTIMAGE ] && abort "! unable to detect target image"
 ui_print "- target image: $BOOTIMAGE"
 
-# Detect version and architecture
+
 api_level_arch_detect
 
 [ $API -lt 23 ] && abort "! magisk only support android 6.0 and above"
@@ -61,27 +61,27 @@ cp -af $INSTALLER/lib/$ABI32/libmagisk.so $BINDIR/$BIN32_NAME 2>/dev/null
 [ -f "$BINDIR/mpol" ] && mv "$BINDIR/mpol" "$BINDIR/$POLICY_NAME"
 [ -f "$BINDIR/init-ld" ] && mv "$BINDIR/init-ld" "$BINDIR/$INIT_LD_NAME"
 
-# Check if system root is installed and remove
+
 $BOOTMODE || remove_system_su
 
-##############
-# Environment
-##############
+
+
+
 
 ui_print "- constructing environment"
 
-# Copy required files
+
 rm -rf $MAGISKBIN 2>/dev/null
 mkdir -p $MAGISKBIN 2>/dev/null
 cp -af $BINDIR/. $COMMONDIR/. $BBBIN $MAGISKBIN
 
-# Remove files only used by the Magisk app
+
 rm -f $MAGISKBIN/bootctl $MAGISKBIN/main.jar \
   $MAGISKBIN/module_installer.sh $MAGISKBIN/uninstaller.sh
 
 chmod -R 755 $MAGISKBIN
 
-# addon.d
+
 if [ -d /system/addon.d ]; then
   ui_print "- adding addon.d survival script"
   blockdev --setrw /dev/block/mapper/system$SLOT 2>/dev/null
@@ -91,13 +91,13 @@ if [ -d /system/addon.d ]; then
   chmod 755 $ADDOND
 fi
 
-##################
-# Image Patching
-##################
+
+
+
 
 install_magisk
 
-# Cleanups
+
 $BOOTMODE || recovery_cleanup
 rm -rf $TMPDIR
 

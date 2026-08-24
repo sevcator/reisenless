@@ -40,7 +40,7 @@ impl MagiskInit {
             self.restore_ramdisk_init();
         } else {
             self.restore_ramdisk_init();
-            // Fallback to hexpatch if /sdcard exists
+
             hexpatch_init_for_second_stage(true);
         }
     }
@@ -49,17 +49,17 @@ impl MagiskInit {
         info!("Second Stage Init");
 
         cstr!("/init").unmount().ok();
-        cstr!("/system/bin/init").unmount().ok(); // just in case
+        cstr!("/system/bin/init").unmount().ok();
         cstr!("/data/init").remove().ok();
 
         unsafe {
-            // Make sure init dmesg logs won't get messed up
+
             *self.argv = raw_cstr!("/system/bin/init") as *mut _;
         }
 
-        // Some weird devices like meizu, uses 2SI but still have legacy rootfs
+
         if is_rootfs() {
-            // We are still on rootfs, so make sure we will execute the init of the 2nd stage
+
             let init_path = cstr!("/init");
             init_path.remove().ok();
             init_path
@@ -103,9 +103,9 @@ impl MagiskInit {
         if orig_init.exists() {
             orig_init.rename_to(cstr!("/init")).log_ok();
         } else {
-            // If the backup init is missing, this means that the boot ramdisk
-            // was created from scratch, and the real init is in a separate CPIO,
-            // which is guaranteed to be placed at /system/bin/init.
+
+
+
             cstr!("/init")
                 .create_symlink_to(cstr!("/system/bin/init"))
                 .log_ok();
@@ -164,7 +164,7 @@ impl MagiskInit {
             self.rootfs();
         }
 
-        // Finally execute the original init
+
         self.exec_init();
 
         Ok(())

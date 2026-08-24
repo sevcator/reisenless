@@ -14,10 +14,10 @@ extern "C" fn exec_companion_entry(client: RawFd, companion_handler: extern "C" 
 
         companion_handler(client);
 
-        // Only close client if it is the same file so we don't
-        // accidentally close a re-used file descriptor.
-        // This check is required because the module companion
-        // handler could've closed the file descriptor already.
+
+
+
+
         if let Ok(s2) = fd_get_attr(client)
             && s1.st.st_dev == s2.st.st_dev
             && s1.st.st_ino == s2.st.st_ino

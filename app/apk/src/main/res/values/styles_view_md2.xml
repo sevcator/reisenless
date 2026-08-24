@@ -3,7 +3,7 @@
 
     <style name="W" parent="android:Widget" />
 
-    <!--region Home-->
+
 
     <style name="W.Home" />
 
@@ -36,6 +36,6 @@
         <item name="android:textAppearance">@style/AppearanceFoundation.Caption</item>
     </style>
 
-    <!--endregion-->
+
 
 </resources>

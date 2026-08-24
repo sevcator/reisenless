@@ -17,7 +17,7 @@ void LOGE(const char *fmt, ...) __printflike(1, 2);
 
 extern "C" {
 
-// xwraps
+
 
 FILE *xfopen(const char *pathname, const char *mode);
 FILE *xfdopen(int fd, const char *mode);
@@ -49,7 +49,7 @@ pid_t xfork();
 ssize_t xrealpath(const char * __restrict__ path, char * __restrict__ buf, size_t bufsiz);
 int xmknod(const char * pathname, mode_t mode, dev_t dev);
 
-// Utils
+
 
 int mkdirs(const char *path, mode_t mode);
 ssize_t canonical_path(const char * __restrict__ path, char * __restrict__ buf, size_t bufsiz);
@@ -60,7 +60,7 @@ bool link_path(const char *src, const char *dest);
 bool clone_attr(const char *src, const char *dest);
 bool fclone_attr(int src, int dest);
 
-} // extern "C"
+}
 
 #define DISALLOW_COPY_AND_MOVE(clazz) \
 clazz(const clazz&) = delete;        \
@@ -114,19 +114,19 @@ struct StringCmp {
 using ByteSlice = rust::Slice<const uint8_t>;
 using MutByteSlice = rust::Slice<uint8_t>;
 
-// Interchangeable as `&[u8]` in Rust
+
 struct byte_view {
     byte_view() : ptr(nullptr), sz(0) {}
     byte_view(const void *buf, size_t sz) : ptr((uint8_t *) buf), sz(sz) {}
 
-    // byte_view, or any of its subclasses, can be copied as byte_view
+
     byte_view(const byte_view &o) : ptr(o.ptr), sz(o.sz) {}
 
-    // Transparent conversion to Rust slice
+
     byte_view(const ByteSlice o) : byte_view(o.data(), o.size()) {}
     operator ByteSlice() const { return {ptr, sz}; }
 
-    // String as bytes, including null terminator
+
     byte_view(const char *s) : byte_view(s, strlen(s) + 1) {}
 
     const uint8_t *data() const { return ptr; }
@@ -137,15 +137,15 @@ protected:
     size_t sz;
 };
 
-// Interchangeable as `&mut [u8]` in Rust
+
 struct byte_data : public byte_view {
     byte_data() = default;
     byte_data(void *buf, size_t sz) : byte_view(buf, sz) {}
 
-    // byte_data, or any of its subclasses, can be copied as byte_data
+
     byte_data(const byte_data &o) : byte_data(o.ptr, o.sz) {}
 
-    // Transparent conversion to Rust slice
+
     byte_data(const MutByteSlice o) : byte_data(o.data(), o.size()) {}
     operator MutByteSlice() const { return {ptr, sz}; }
 
@@ -206,15 +206,15 @@ int switch_mnt_ns(int pid);
 std::string &replace_all(std::string &str, std::string_view from, std::string_view to);
 std::vector<std::string> split(std::string_view s, std::string_view delims);
 
-// Similar to vsnprintf, but the return value is the written number of bytes
+
 __printflike(3, 0) int vssprintf(char *dest, size_t size, const char *fmt, va_list ap);
-// Similar to snprintf, but the return value is the written number of bytes
+
 __printflike(3, 4) int ssprintf(char *dest, size_t size, const char *fmt, ...);
-// This is not actually the strscpy from the Linux kernel.
-// Silently truncates, and returns the number of bytes written.
+
+
 extern "C" size_t strscpy(char *dest, const char *src, size_t size);
 
-// Ban usage of unsafe cstring functions
+
 #define vsnprintf  __use_vssprintf_instead__
 #define snprintf   __use_ssprintf_instead__
 #define strlcpy    __use_strscpy_instead__
@@ -297,7 +297,7 @@ static inline sFILE xopen_file(int fd, const char *mode) {
     return make_file(xfdopen(fd, mode));
 }
 
-// Bindings to &Utf8CStr in Rust
+
 struct Utf8CStr {
     const char *data() const;
     size_t length() const;
@@ -321,7 +321,7 @@ private:
 #pragma clang diagnostic pop
 };
 
-// Bindings for std::function to be callable from Rust
+
 using CxxFnBoolStrStr = std::function<bool(rust::Str, rust::Str)>;
 struct FnBoolStrStr : public CxxFnBoolStrStr {
     using CxxFnBoolStrStr::function;
@@ -339,15 +339,15 @@ struct FnBoolStr : public CxxFnBoolStr {
 
 #include "../base-rs.hpp"
 
-// Functor = function<bool(Utf8CStr, Utf8CStr)>
+
 template <typename Functor>
 void parse_prop_file(const char *file, Functor &&fn) {
     parse_prop_file_rs(file, [&](rust::Str key, rust::Str val) -> bool {
-        // We perform the null termination here in C++ because it's very difficult to do it
-        // right in Rust due to pointer provenance. Trying to dereference a pointer without
-        // the correct provenance in Rust, even in unsafe code, is undefined behavior.
-        // However on the C++ side, there are fewer restrictions on pointers, so the const_cast here
-        // will not trigger UB in the compiler.
+
+
+
+
+
         *(const_cast<char *>(key.data()) + key.size()) = '\0';
         *(const_cast<char *>(val.data()) + val.size()) = '\0';
         return fn(Utf8CStr(key.data(), key.size() + 1), Utf8CStr(val.data(), val.size() + 1));

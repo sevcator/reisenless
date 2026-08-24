@@ -16,7 +16,7 @@ static SHOULD_USE_SPLICE: AtomicBool = AtomicBool::new(true);
 const TIOCGPTN: u32 = 0x80045430;
 
 unsafe extern "C" {
-    // Don't use the declaration from the libc crate as request should be u32 not i32
+
     fn ioctl(fd: c_int, request: u32, ...) -> i32;
 }
 
@@ -53,9 +53,9 @@ fn pump_via_splice(fd_in: &File, fd_out: &File, pipe: &(File, File)) -> LoggedRe
         return pump_via_copy(fd_in, fd_out);
     }
 
-    // The pipe capacity is by default 16 pages, let's just use 65536
+
     let Ok(len) = splice(fd_in, &pipe.1, 65536) else {
-        // If splice failed, stop using splice and fallback to userspace copy
+
         SHOULD_USE_SPLICE.store(false, Ordering::Relaxed);
         return pump_via_copy(fd_in, fd_out);
     };
@@ -63,7 +63,7 @@ fn pump_via_splice(fd_in: &File, fd_out: &File, pipe: &(File, File)) -> LoggedRe
         return Ok(());
     }
     if splice(&pipe.0, fd_out, len).is_err() {
-        // If splice failed, stop using splice and fallback to userspace copy
+
         SHOULD_USE_SPLICE.store(false, Ordering::Relaxed);
         return pump_via_copy(&pipe.0, fd_out);
     }
@@ -77,7 +77,7 @@ fn set_stdin_raw() -> LoggedResult<Termios> {
     let old_output_flags = old_term.output_flags;
     cfmakeraw(&mut term);
 
-    // Preserve output_flags, since we are not setting stdout raw
+
     term.output_flags = old_output_flags;
 
     tcsetattr(FileOrStd::StdIn.as_file(), SetArg::TCSAFLUSH, &term)
@@ -103,7 +103,7 @@ fn pump_tty_impl(ptmx: File, pump_stdin: bool) -> LoggedResult<()> {
     let mut poll_fds = Vec::with_capacity(3);
     poll_fds.push(PollFd::new(ptmx.as_fd(), PollFlags::POLLIN));
     if pump_stdin {
-        // If stdin is tty, we need to monitor SIGWINCH
+
         let mut set = SigSet::empty();
         set.add(Signal::SIGWINCH);
         set.thread_block()
@@ -112,29 +112,29 @@ fn pump_tty_impl(ptmx: File, pump_stdin: bool) -> LoggedResult<()> {
             .into_os_result("signalfd", None, None)?;
         signal_fd = Some(sig);
         unsafe {
-            // SAFETY: signal_fd is always Some
+
             poll_fds.push(PollFd::new(
                 signal_fd.as_ref().unwrap_unchecked().as_fd(),
                 PollFlags::POLLIN,
             ));
         }
 
-        // We also need to pump stdin to ptmx
+
         poll_fds.push(PollFd::new(
             FileOrStd::StdIn.as_file().as_fd(),
             PollFlags::POLLIN,
         ));
     }
 
-    // Any flag in this list indicates stop polling
+
     let stop_flags = PollFlags::POLLERR | PollFlags::POLLHUP | PollFlags::POLLNVAL;
 
-    // Open a pipe to bypass userspace copy with splice
+
     let pipe_fd = pipe2(OFlag::O_CLOEXEC).into_os_result("pipe2", None, None)?;
     let pipe_fd = (File::from(pipe_fd.0), File::from(pipe_fd.1));
 
     'poll: loop {
-        // Wait for event
+
         poll(&mut poll_fds, PollTimeout::NONE).check_os_err("poll", None, None)?;
         for pfd in &poll_fds {
             if pfd.all().unwrap_or(false) {
@@ -154,7 +154,7 @@ fn pump_tty_impl(ptmx: File, pump_stdin: bool) -> LoggedResult<()> {
                 .unwrap_or(PollFlags::POLLHUP)
                 .intersects(stop_flags)
             {
-                // If revents is None or contains any err_flags, stop polling
+
                 break 'poll;
             }
         }

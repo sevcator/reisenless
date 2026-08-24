@@ -80,7 +80,7 @@ fn proto_read_props() -> LoggedResult<PersistentProperties> {
     let m = m.as_ref();
     let mut r = BytesReader::from_bytes(m);
     let mut props = PersistentProperties::from_reader(&mut r, m)?;
-    // Keep the list sorted for binary search
+
     props
         .properties
         .sort_unstable_by(|a, b| a.name.cmp(&b.name));
@@ -142,7 +142,7 @@ pub(super) fn persist_get_all_props(reader: &mut PropReader) -> LoggedResult<()>
             {
                 reader.put_str(e.name().to_string(), value, 0);
             }
-            // Do not traverse recursively
+
             Ok(WalkResult::Skip)
         })?;
     }

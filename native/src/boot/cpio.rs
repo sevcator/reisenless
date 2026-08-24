@@ -340,7 +340,7 @@ impl Cpio {
 
         let mut buf = cstr::buf::default();
 
-        // Make sure its parent directories exist
+
         if let Some(dir) = out.parent_dir() {
             buf.push_str(dir);
             buf.mkdirs(0o755)?;
@@ -403,7 +403,7 @@ impl Cpio {
         let rdevmajor: dev_t;
         let rdevminor: dev_t;
 
-        // Treat symlinks as regular files as symlinks are created by the 'ln TARGET ENTRY' command
+
         let mode = if attr.is_file() || attr.is_symlink() {
             rdevmajor = 0;
             rdevminor = 0;
@@ -630,7 +630,7 @@ impl Cpio {
                 Noop,
             }
 
-            // Move the iterator forward if needed
+
             if lhs.is_none() {
                 lhs = left_iter.next();
             }
@@ -641,12 +641,12 @@ impl Cpio {
             let action = match (lhs.take(), rhs.take()) {
                 (Some((ln, le)), Some((rn, re))) => match ln.as_str().cmp(rn.as_str()) {
                     Ordering::Less => {
-                        // Put rhs back
+
                         rhs = Some((rn, re));
                         Action::Backup(ln, le)
                     }
                     Ordering::Greater => {
-                        // Put lhs back
+
                         lhs = Some((ln, le));
                         Action::Record(rn)
                     }
@@ -828,7 +828,7 @@ pub(crate) fn cpio_commands(file: &Utf8CStr, cmds: &Vec<String>) -> LoggedResult
 }
 
 fn x8u(x: &[u8; 8]) -> LoggedResult<u32> {
-    // parse hex
+
     let mut ret = 0u32;
     let s = str::from_utf8(x).log_with_msg(|w| w.write_str("bad cpio header"))?;
     for c in s.chars() {

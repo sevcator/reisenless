@@ -38,19 +38,18 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         val context = AppContext
         val hidden = context.packageName != BuildConfig.APP_PACKAGE_NAME
 
-        // App
+
         val list = mutableListOf(
             Customization,
             Theme, Language, DoHToggle
         )
         if (isRunningAsStub && ShortcutManagerCompat.isRequestPinShortcutSupported(context))
             list.add(AddShortcut)
-        list.add(RepositorySearcher)
         if (Const.USER_ID == 0 && hidden) {
             list.add(Restore)
         }
 
-        // Reisenless
+
         list.add(ReisenlessSettings)
         if (Const.USER_ID == 0 && !hidden) {
             list.add(Hide)
@@ -65,7 +64,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             list.add(SuList)
             list.add(HideApps)
 
-            // Udonge contains only integrity, keyboxes, and ROM hiding.
+
             list.addAll(
                 listOf(
                     UdongeSettings,

@@ -1,7 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 use logging::setup_klog;
-// Has to be pub so all symbols in that crate is included
+
 pub use magiskpolicy;
 use mount::{is_device_mounted, switch_root};
 use rootdir::{OverlayAttr, inject_magisk_rc};
@@ -55,7 +55,7 @@ pub mod ffi {
         unsafe fn magisk_proxy_main(argc: i32, argv: *mut *mut c_char) -> i32;
         fn backup_init() -> Utf8CStrRef<'static>;
 
-        // Constants
+
         fn split_plat_cil() -> Utf8CStrRef<'static>;
         fn preload_lib() -> Utf8CStrRef<'static>;
         fn preload_policy() -> Utf8CStrRef<'static>;
@@ -70,7 +70,7 @@ pub mod ffi {
         fn is_device_mounted(dev: u64, target: Pin<&mut CxxString>) -> bool;
     }
 
-    // BootConfig
+
     extern "Rust" {
         fn print(self: &BootConfig);
     }
@@ -80,7 +80,7 @@ pub mod ffi {
         fn set(self: &mut BootConfig, config: &kv_pairs);
     }
 
-    // MagiskInit
+
     extern "Rust" {
         type OverlayAttr;
         fn parse_config_file(self: &mut MagiskInit);
@@ -89,12 +89,12 @@ pub mod ffi {
         fn restore_overlay_contexts(self: &MagiskInit);
     }
     unsafe extern "C++" {
-        // Used in Rust
+
         fn mount_system_root(self: &mut MagiskInit) -> bool;
         fn patch_rw_root(self: &mut MagiskInit);
         fn patch_ro_root(self: &mut MagiskInit);
 
-        // Used in C++
+
         unsafe fn setup_tmp(self: &mut MagiskInit, path: *const c_char);
         fn collect_devices(self: &MagiskInit);
         fn mount_preinit_dir(self: &mut MagiskInit);

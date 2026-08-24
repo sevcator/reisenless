@@ -58,7 +58,7 @@ class SuRequestViewModel(
 
     @SuppressLint("ClickableViewAccessibility")
     val grantTouchListener = View.OnTouchListener { _: View, event: MotionEvent ->
-        // Filter obscured touches by consuming them.
+
         if (event.flags and MotionEvent.FLAG_WINDOW_IS_OBSCURED != 0
             || event.flags and MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED != 0) {
             if (event.action == MotionEvent.ACTION_UP) {
@@ -107,8 +107,8 @@ class SuRequestViewModel(
         val app = info.applicationInfo
 
         if (app == null) {
-            // The request is not coming from an app process, and the UID is a
-            // shared UID. We have no way to know where this request comes from.
+
+
             icon = pm.defaultActivityIcon
             title = "[SharedUID] ${info.sharedUserId}"
             packageName = info.sharedUserId.toString()
@@ -121,17 +121,17 @@ class SuRequestViewModel(
 
         selectedItemPosition = timeoutPrefs.getInt(packageName, 0)
 
-        // Set timer
+
         timer.start()
 
-        // Actually show the UI
+
         ShowUIEvent(if (Config.suTapjack) EmptyAccessibilityDelegate else null).publish()
         initialized = true
     }
 
     private fun respond(action: Int) {
         if (!initialized) {
-            // ignore the response until showDialog done
+
             return
         }
 
@@ -142,7 +142,7 @@ class SuRequestViewModel(
 
         viewModelScope.launch {
             handler.respond(action, Config.Value.TIMEOUT_LIST[pos])
-            // Kill activity after response
+
             DieEvent().publish()
         }
     }
@@ -183,7 +183,7 @@ class SuRequestViewModel(
         }
     }
 
-    // Invisible for accessibility services
+
     object EmptyAccessibilityDelegate : View.AccessibilityDelegate() {
         override fun sendAccessibilityEvent(host: View, eventType: Int) {}
         override fun performAccessibilityAction(host: View, action: Int, args: Bundle?) = true

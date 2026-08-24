@@ -101,7 +101,7 @@ class AppProcessInfo(
         val packageInfo = try {
             pm.getPackageInfo(info.packageName, flag)
         } catch (e: Exception) {
-            // Exceed binder data transfer limit, parse the package locally
+
             pm.getPackageArchiveInfo(info.sourceDir, flag) ?: return emptyList()
         }
 

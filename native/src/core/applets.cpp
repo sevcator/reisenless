@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     umask(0);
 
     if (argv[0][0] == '\0') {
-        // When argv[0] is an empty string, we're calling private applets
+
         if (argc < 2)
             return 1;
         --argc;
@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     if (argv0 == MAIN_BIN_NAME || argv0 == MAIN_BIN_NAME "32" || argv0 == MAIN_BIN_NAME "64" ||
         argv0 == RAMDISK_BIN_NAME) {
         if (argc > 1 && argv[1][0] != '-') {
-            // Calling applet with "magisk [applet] args..."
+
             --argc;
             ++argv;
             argv0 = argv[0];

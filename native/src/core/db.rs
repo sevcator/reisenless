@@ -17,7 +17,7 @@ use std::ptr::NonNull;
 use thiserror::Error;
 
 fn sqlite_err_str(code: i32) -> &'static Utf8CStr {
-    // SAFETY: sqlite3 always returns UTF-8 strings
+
     unsafe { Utf8CStr::from_ptr_unchecked(sqlite3_errstr(code)) }
 }
 
@@ -258,7 +258,7 @@ impl MagiskD {
     }
 
     pub fn get_db_setting(&self, key: DbEntryKey) -> i32 {
-        // Get default values
+
         let mut val = match key {
             DbEntryKey::RootAccess => RootAccess::default() as i32,
             DbEntryKey::SuMultiuserMode => MultiuserMode::default() as i32,

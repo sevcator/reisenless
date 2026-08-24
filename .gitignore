@@ -1,16 +1,16 @@
-# ── Build outputs ──────────────────────────────────────────────────────────────
+
 out/
 native/out/
 native/libs/
 native/obj/
 
-# Gradle build cache and outputs
+
 app/build/
 app/**/build/
 .gradle/
 *.class
 
-# ── APK / zip / signing ────────────────────────────────────────────────────────
+
 *.apk
 *.zip
 *.aab
@@ -18,7 +18,7 @@ app/**/build/
 *.keystore
 *.p12
 
-# ── Config and secrets ─────────────────────────────────────────────────────────
+
 /config.prop
 *.local.properties
 local.properties
@@ -26,7 +26,7 @@ signing.properties
 keystore.properties
 /.private/
 
-# ── Rust / Cargo ───────────────────────────────────────────────────────────────
+
 target/
 tools/elf-cleaner/target/
 tools/rustup-wrapper/target/
@@ -35,23 +35,23 @@ native/src/boot/proto/update_metadata.rs
 native/**/*-rs.cpp
 native/**/*-rs.hpp
 
-# ── Logs ───────────────────────────────────────────────────────────────────────
+
 *.log
 logs/
 
-# Python and local personalization state
+
 __pycache__/
 *.py[cod]
 /.personalize.json
 
-# ── Android Studio / IntelliJ / Cursor ────────────────────────────────────────
+
 .idea/
 *.iml
 .cursor/
 *.ipr
 *.iws
 
-# ── OS junk ────────────────────────────────────────────────────────────────────
+
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -61,15 +61,15 @@ ehthumbs.db
 *~
 .vscode/
 
-# ── Temporary / test images ────────────────────────────────────────────────────
+
 ramdisk.img
 *.img
 /notes.md
 
-# ── NDK toolchain (downloaded by: python build.py ndk) ────────────────────────
+
 tools/ndk/
 
-# ── Local analysis folders ────────────────────────────────────────────────────
+
 unpacked/
 Magiskless/
 

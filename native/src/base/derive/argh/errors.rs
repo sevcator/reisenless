@@ -1,18 +1,18 @@
-// Copyright (c) 2020 Google LLC All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+
+
+
 
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use std::cell::RefCell;
 
-/// A type for collecting procedural macro errors.
+
 #[derive(Default)]
 pub struct Errors {
     errors: RefCell<Vec<syn::Error>>,
 }
 
-/// Produce functions to expect particular literals in `syn::Expr`
+
 macro_rules! expect_lit_fn {
     ($(($fn_name:ident, $syn_type:ident, $variant:ident, $lit_name:literal),)*) => {
         $(
@@ -28,7 +28,7 @@ macro_rules! expect_lit_fn {
     }
 }
 
-/// Produce functions to expect particular variants of `syn::Meta`
+
 macro_rules! expect_meta_fn {
     ($(($fn_name:ident, $syn_type:ident, $variant:ident, $meta_name:literal),)*) => {
         $(
@@ -45,10 +45,10 @@ macro_rules! expect_meta_fn {
 }
 
 impl Errors {
-    /// Issue an error like:
-    ///
-    /// Duplicate foo attribute
-    /// First foo attribute here
+
+
+
+
     pub fn duplicate_attrs(
         &self,
         attr_kind: &str,
@@ -144,27 +144,27 @@ impl Errors {
         )
     }
 
-    /// Issue an error relating to a particular `Spanned` structure.
+
     pub fn err(&self, spanned: &impl syn::spanned::Spanned, msg: &str) {
         self.err_span(spanned.span(), msg);
     }
 
-    /// Issue an error relating to a particular `Span`.
+
     pub fn err_span(&self, span: Span, msg: &str) {
         self.push(syn::Error::new(span, msg));
     }
 
-    /// Issue an error spanning over the given syntax tree node.
+
     pub fn err_span_tokens<T: ToTokens>(&self, tokens: T, msg: &str) {
         self.push(syn::Error::new_spanned(tokens, msg));
     }
 
-    /// Push a `syn::Error` onto the list of errors to issue.
+
     pub fn push(&self, err: syn::Error) {
         self.errors.borrow_mut().push(err);
     }
 
-    /// Convert a `syn::Result` to an `Option`, logging the error if present.
+
     pub fn ok<T>(&self, r: syn::Result<T>) -> Option<T> {
         match r {
             Ok(v) => Some(v),
@@ -177,8 +177,8 @@ impl Errors {
 }
 
 impl ToTokens for Errors {
-    /// Convert the errors into tokens that, when emit, will cause
-    /// the user of the macro to receive compiler errors.
+
+
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(self.errors.borrow().iter().map(|e| e.to_compile_error()));
     }

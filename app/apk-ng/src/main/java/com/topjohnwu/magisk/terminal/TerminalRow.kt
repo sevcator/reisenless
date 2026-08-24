@@ -2,62 +2,62 @@ package com.topjohnwu.magisk.terminal
 
 import java.util.Arrays
 
-/**
- * A row in a terminal, composed of a fixed number of cells.
- *
- * The text in the row is stored in a char[] array, [text], for quick access during rendering.
- */
+
+
+
+
+
 class TerminalRow(private val columns: Int, style: Long) {
 
-    /**
-     * Max combining characters that can exist in a column, that are separate from the base character
-     * itself. Any additional combining characters will be ignored and not added to the column.
-     *
-     * There does not seem to be limit in unicode standard for max number of combination characters
-     * that can be combined but such characters are primarily under 10.
-     *
-     * "Section 3.6 Combination" of unicode standard contains combining characters info.
-     * - https://www.unicode.org/versions/Unicode15.0.0/ch03.pdf
-     * - https://en.wikipedia.org/wiki/Combining_character#Unicode_ranges
-     * - https://stackoverflow.com/questions/71237212/what-is-the-maximum-number-of-unicode-combined-characters-that-may-be-needed-to
-     *
-     * UAX15-D3 Stream-Safe Text Format limits to max 30 combining characters.
-     * > The value of 30 is chosen to be significantly beyond what is required for any linguistic or technical usage.
-     * > While it would have been feasible to chose a smaller number, this value provides a very wide margin,
-     * > yet is well within the buffer size limits of practical implementations.
-     * - https://unicode.org/reports/tr15/#Stream_Safe_Text_Format
-     * - https://stackoverflow.com/a/11983435/14686958
-     *
-     * We choose the value 15 because it should be enough for terminal based applications and keep
-     * the memory usage low for a terminal row, won't affect performance or cause terminal to
-     * lag or hang, and will keep malicious applications from causing harm. The value can be
-     * increased if ever needed for legitimate applications.
-     */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     companion object {
         private const val SPARE_CAPACITY_FACTOR = 1.5f
         private const val MAX_COMBINING_CHARACTERS_PER_COLUMN = 15
     }
 
-    /** The text filling this terminal row. */
+
     var text: CharArray = CharArray((SPARE_CAPACITY_FACTOR * columns).toInt())
 
-    /** The number of java chars used in [text]. */
+
     private var _spaceUsed: Short = 0
 
-    /** If this row has been line wrapped due to text output at the end of line. */
+
     var lineWrap: Boolean = false
 
-    /** The style bits of each cell in the row. See [TextStyle]. */
+
     val styles: LongArray = LongArray(columns)
 
-    /** If this row might contain chars with width != 1, used for deactivating fast path */
+
     var hasNonOneWidthOrSurrogateChars: Boolean = false
 
     init {
         clear(style)
     }
 
-    /** NOTE: The sourceX2 is exclusive. */
+
     fun copyInterval(line: TerminalRow, sourceX1: Int, sourceX2: Int, destinationX: Int) {
         hasNonOneWidthOrSurrogateChars = hasNonOneWidthOrSurrogateChars or line.hasNonOneWidthOrSurrogateChars
         val x1 = line.findStartOfColumn(sourceX1)
@@ -94,7 +94,7 @@ class TerminalRow(private val columns: Int, style: Long) {
 
     val spaceUsed: Int get() = _spaceUsed.toInt()
 
-    /** Note that the column may end of second half of wide character. */
+
     fun findStartOfColumn(column: Int): Int {
         if (column == columns) return spaceUsed
 
@@ -154,7 +154,7 @@ class TerminalRow(private val columns: Int, style: Long) {
         hasNonOneWidthOrSurrogateChars = false
     }
 
-    // https://github.com/steven676/Android-Terminal-Emulator/commit/9a47042620bec87617f0b4f5d50568535668fe26
+
     fun setChar(columnToSet: Int, codePoint: Int, style: Long) {
         if (columnToSet < 0 || columnToSet >= styles.size)
             throw IllegalArgumentException("TerminalRow.setChar(): columnToSet=$columnToSet, codePoint=$codePoint, style=$style")
@@ -163,7 +163,7 @@ class TerminalRow(private val columns: Int, style: Long) {
 
         val newCodePointDisplayWidth = WcWidth.width(codePoint)
 
-        // Fast path when we don't have any chars with width != 1
+
         if (!hasNonOneWidthOrSurrogateChars) {
             if (codePoint >= Character.MIN_SUPPLEMENTARY_CODE_POINT || newCodePointDisplayWidth != 1) {
                 hasNonOneWidthOrSurrogateChars = true

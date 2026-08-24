@@ -2,9 +2,9 @@ use object::build::elf::{Builder, Dynamic, SectionData};
 use object::elf;
 use std::{env, fs};
 
-// Implementation adapted from https://github.com/termux/termux-elf-cleaner
 
-// Missing ELF constants
+
+
 const DT_AARCH64_BTI_PLT: u32 = elf::DT_LOPROC + 1;
 const DT_AARCH64_PAC_PLT: u32 = elf::DT_LOPROC + 3;
 const DT_AARCH64_VARIANT_PCS: u32 = elf::DT_LOPROC + 5;
@@ -22,7 +22,7 @@ fn process_elf(path: &str) -> anyhow::Result<()> {
 
     elf.sections.iter_mut().for_each(|section| {
         if let SectionData::Dynamic(entries) = &mut section.data {
-            // Remove unsupported entries
+
             entries.retain(|e| {
                 let tag = e.tag();
                 match tag {
@@ -55,7 +55,7 @@ fn process_elf(path: &str) -> anyhow::Result<()> {
                 }
                 true
             });
-            // Remove unsupported flags
+
             for entry in entries.iter_mut() {
                 if let Dynamic::Integer { tag, val } = entry {
                     if *tag == elf::DT_FLAGS_1 {

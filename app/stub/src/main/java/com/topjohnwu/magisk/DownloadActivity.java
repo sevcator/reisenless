@@ -54,10 +54,10 @@ public class DownloadActivity extends Activity {
         super.onCreate(savedInstanceState);
         themed = new ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault);
 
-        // Only download and dynamic load full APK if hidden
+
         dynLoad = !getPackageName().equals(BuildConfig.APPLICATION_ID);
 
-        // Inject resources
+
         try {
             loadResources();
         } catch (Exception e) {
@@ -104,7 +104,7 @@ public class DownloadActivity extends Activity {
 
     private void dlAPK() {
         ProgressDialog.show(themed, getString(dling), getString(dling) + " " + APP_NAME, true);
-        // Download and upgrade the app
+
         var request = request(BuildConfig.APK_URL).setExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         if (dynLoad) {
             request.getAsFile(StubApk.current(this), file -> StubApk.restartProcess(this));
@@ -153,7 +153,7 @@ public class DownloadActivity extends Activity {
         } else {
             File res = new File(getCodeCacheDir(), "res.apk");
             try (var out = new ZipOutputStream(new FileOutputStream(res))) {
-                // AndroidManifest.xml is required on Android 6-, and directory support is broken on Android 9-10
+
                 out.putNextEntry(new ZipEntry("AndroidManifest.xml"));
                 try (var stubApk = new ZipFile(getPackageCodePath())) {
                     APKInstall.transfer(stubApk.getInputStream(stubApk.getEntry("AndroidManifest.xml")), out);

@@ -59,9 +59,9 @@ data class HideAppsConfig(
             append(HideAppsConstants.RUNTIME_VERSION)
             append('\n')
             if (enabled) {
-                // The installed manager package is generated when the app is
-                // hidden. Always include that live package, including for
-                // configs migrated from the original application ID.
+
+
+
                 val hidden = (hiddenPackages.asSequence() + sequenceOf(safeManager))
                     .filter(::isPackageName)
                     .distinct()
@@ -92,7 +92,7 @@ data class HideAppsConfig(
                         .filterNot(NEVER_HIDE::contains)
                         .sorted()
                         .forEach { caller ->
-                            // Compatibility marker for an older running core.
+
                             append("R\t")
                             append(caller)
                             append("\tG\n")
@@ -191,7 +191,7 @@ data class HideAppsConfig(
                 )
             }
 
-            // Migrate the old caller-first blacklist model to the global UI.
+
             val hidden = rules.values.asSequence()
                 .filterNot(HideAppsRule::useWhitelist)
                 .flatMap { it.packages.asSequence() }

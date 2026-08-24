@@ -23,13 +23,13 @@ inline int connect_daemon(RequestCode req) {
     return connect_daemon(req, false);
 }
 
-// Multi-call entrypoints
+
 int su_client_main(int argc, char *argv[]);
 int zygisk_main(int argc, char *argv[]);
 
 struct ModuleInfo;
 
-// Utils
+
 const char *get_magisk_tmp();
 void unlock_blocks();
 bool check_key_combo();
@@ -62,14 +62,14 @@ bool read_vector(int fd, std::vector<T> &vec) {
     return xread(fd, vec.data(), size * sizeof(T)) == size * sizeof(T);
 }
 
-// Scripting
+
 void exec_common_scripts(Utf8CStr stage);
 void exec_module_scripts(Utf8CStr stage, const rust::Vec<ModuleInfo> &module_list);
 void exec_script(Utf8CStr script);
 void exec_script_async(Utf8CStr script);
 void clear_pkg(const char *pkg, int user_id);
 
-// Denylist
+
 extern std::atomic<bool> denylist_enforced;
 int denylist_cli(rust::Vec<rust::String> &args);
 void denylist_handler(int client);
@@ -80,10 +80,10 @@ bool is_uid_on_sulist(int uid);
 void revert_unmount(int pid = -1) noexcept;
 void update_deny_flags(int uid, rust::Str process, uint32_t &flags);
 
-// MagiskSU
+
 void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode);
 
-// Rust bindings
+
 inline Utf8CStr get_magisk_tmp_rs() { return get_magisk_tmp(); }
 inline rust::String resolve_preinit_dir_rs(Utf8CStr base_dir) {
     return resolve_preinit_dir(base_dir.c_str());

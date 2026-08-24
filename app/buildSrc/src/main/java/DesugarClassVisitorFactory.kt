@@ -31,7 +31,7 @@ abstract class DesugarClassVisitorFactory : AsmClassVisitorFactory<Instrumentati
 
     override fun isInstrumentable(classData: ClassData) = classData.className != DESUGAR_CLASS_NAME
 
-    // Patch ALL references to ZipEntry#getXXXTime
+
     class ZipEntryPatcher(
         private val classContext: ClassContext,
         cv: ClassVisitor
@@ -80,7 +80,7 @@ abstract class DesugarClassVisitorFactory : AsmClassVisitorFactory<Instrumentati
         }
     }
 
-    // Patch ZipArchiveOutputStream#copyFromZipInputStream
+
     class ZipOutputStreamPatcher(cv: ClassVisitor) : ClassVisitor(ASM9, cv) {
         override fun visitMethod(
             access: Int,
@@ -105,7 +105,7 @@ abstract class DesugarClassVisitorFactory : AsmClassVisitorFactory<Instrumentati
                 isInterface: Boolean
             ) {
                 if (owner == ZIP_UTIL_CLASS_NAME && name == "checkRequestedFeatures") {
-                    // Redirect
+
                     mv.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         DESUGAR_CLASS_NAME.replace('.', '/'),

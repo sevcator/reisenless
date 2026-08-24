@@ -4,10 +4,10 @@
 
 using namespace std;
 
-// Invert is adding rules for auditdeny; in other cases, invert is removing rules
+
 #define strip_av(effect, invert) ((effect == AVTAB_AUDITDENY) == !invert)
 
-// libsepol internal APIs
+
 __BEGIN_DECLS
 int policydb_index_decls(sepol_handle_t * handle, policydb_t * p);
 int avtab_hash(struct avtab_key *keyp, uint32_t mask);
@@ -126,14 +126,14 @@ static int avtab_remove_node(avtab_t *h, avtab_ptr_t node) {
     if (cur == nullptr)
         return SEPOL_ENOENT;
 
-    // Detach from link list
+
     if (prev)
         prev->next = node->next;
     else
         h->htable[hvalue] = node->next;
     h->nel--;
 
-    // Free memory
+
     free(node->datum.xperms);
     free(node);
     return 0;
@@ -153,7 +153,7 @@ static bool is_redundant(avtab_ptr_t node) {
 avtab_ptr_t sepol_impl::find_avtab_node(avtab_key_t *key, avtab_extended_perms_t *xperms) {
     avtab_ptr_t node;
 
-    // AVTAB_XPERMS entries are not necessarily unique
+
     if (key->specified & AVTAB_XPERMS) {
         if (xperms == nullptr)
             return nullptr;
@@ -175,8 +175,8 @@ avtab_ptr_t sepol_impl::find_avtab_node(avtab_key_t *key, avtab_extended_perms_t
 
 avtab_ptr_t sepol_impl::insert_avtab_node(avtab_key_t *key) {
     avtab_datum_t avdatum{};
-    // AUDITDENY, aka DONTAUDIT, are &= assigned, versus |= for others.
-    // Initialize the data accordingly.
+
+
     avdatum.data = key->specified == AVTAB_AUDITDENY ? ~0U : 0U;
     return avtab_insert_nonunique(&db->te_avtab, key, &avdatum);
 }
@@ -192,12 +192,12 @@ avtab_ptr_t sepol_impl::get_avtab_node(avtab_key_t *key, avtab_extended_perms_t 
 void sepol_impl::add_rule(type_datum_t *src, type_datum_t *tgt, class_datum_t *cls, perm_datum_t *perm, int effect, bool invert) {
     if (src == nullptr) {
         if (strip_av(effect, invert)) {
-            // Stripping av, have to go through all types for correct results
+
             hashtab_for_each(db->p_types.table, [&](hashtab_ptr_t node) {
                 add_rule(auto_cast(node->datum), tgt, cls, perm, effect, invert);
             });
         } else {
-            // If we are not stripping av, go through all attributes instead of types for optimization
+
             for_each_attr(db->p_types.table, [&](type_datum_t *type) {
                 add_rule(type, tgt, cls, perm, effect, invert);
             });
@@ -317,11 +317,11 @@ void sepol_impl::add_xperm_rule(type_datum_t *src, type_datum_t *tgt, class_datu
         key.target_class = cls->s.value;
         key.specified = effect;
 
-        // Each key may contain 1 driver node and 256 function nodes
+
         avtab_ptr_t node_list[257] = { nullptr };
 #define driver_node (node_list[256])
 
-        // Find all rules with key
+
         for (avtab_ptr_t node = avtab_search_node(&db->te_avtab, &key); node;) {
             if (node->datum.xperms->specified == AVTAB_XPERMS_IOCTLDRIVER) {
                 driver_node = node;
@@ -382,7 +382,7 @@ void sepol_impl::add_xperm_rule(type_datum_t *src, type_datum_t *tgt, class_datu
             if (driver_node == nullptr) {
                 driver_node = new_driver_node();
             }
-            // Fill the driver perms
+
             memset(driver_node->datum.xperms->perms, ~0, sizeof(avtab_extended_perms_t::perms));
 
             if (ioctl_driver(p.low) != ioctl_driver(p.high)) {
@@ -394,7 +394,7 @@ void sepol_impl::add_xperm_rule(type_datum_t *src, type_datum_t *tgt, class_datu
                 auto node = node_list[driver];
                 if (node == nullptr) {
                     node = new_func_node(driver);
-                    // Fill the func perms
+
                     memset(node->datum.xperms->perms, ~0, sizeof(avtab_extended_perms_t::perms));
                     node_list[driver] = node;
                 }
@@ -512,7 +512,7 @@ bool sepol_impl::add_filename_trans(Str s, Str t, Str c, Str d, Str o) {
     filename_trans_datum_t *last = nullptr;
     while (trans) {
         if (ebitmap_get_bit(&trans->stypes, src->s.value - 1)) {
-            // Duplicate, overwrite existing data and return
+
             trans->otype = def->s.value;
             return true;
         }
@@ -540,14 +540,14 @@ bool sepol_impl::add_filename_trans(Str s, Str t, Str c, Str d, Str o) {
 }
 
 bool sepol_impl::add_genfscon(Str fs_name, Str path, Str context) {
-    // First try to create context
+
     context_struct_t *ctx;
     if (context_from_string(nullptr, db, &ctx, context.data(), context.size())) {
         LOGW("Failed to create context from string [%.*s]\n", (int) context.size(), context.data());
         return false;
     }
 
-    // Find genfs node
+
     genfs_t *fs = list_find(db->genfs, [&](genfs_t *n) {
         return str_eq(n->fstype, fs_name);
     });
@@ -558,7 +558,7 @@ bool sepol_impl::add_genfscon(Str fs_name, Str path, Str context) {
         db->genfs = fs;
     }
 
-    // Find context node
+
     ocontext_t *o_ctx = list_find(fs->head, [&](ocontext_t *n) {
         return str_eq(n->u.name, path);
     });
@@ -603,14 +603,14 @@ bool sepol_impl::add_type(Str type_name, uint32_t flavor) {
     ebitmap_init(&db->attr_type_map[value - 1]);
     ebitmap_set_bit(&db->type_attr_map[value - 1], value - 1, 1);
 
-    // Re-index stuffs
+
     if (policydb_index_decls(nullptr, db) ||
         policydb_index_classes(db) || policydb_index_others(nullptr, db, 0))
         return false;
 
-    // Add the type to all roles
+
     for (int i = 0; i < db->p_roles.nprim; ++i) {
-        // Not sure all those three calls are needed
+
         ebitmap_set_bit(&db->role_val_to_struct[i]->types.negset, value - 1, 0);
         ebitmap_set_bit(&db->role_val_to_struct[i]->types.types, value - 1, 1);
         type_set_expand(&db->role_val_to_struct[i]->types, &db->role_val_to_struct[i]->cache, db, 0);
@@ -770,7 +770,7 @@ void sepol_impl::print_avtab(FILE *fp, avtab_ptr_t node) {
                 break;
             case AVTAB_AUDITDENY:
                 name = "dontaudit";
-                // Invert the rules for dontaudit
+
                 data = ~data;
                 break;
             default:
@@ -784,7 +784,7 @@ void sepol_impl::print_avtab(FILE *fp, avtab_ptr_t node) {
         auto it = class_perm_names.find(cls);
         if (it == class_perm_names.end()) {
             it = class_perm_names.try_emplace(cls).first;
-            // Find all permission names and cache the value
+
             hashtab_for_each(clz->permissions.table, [&](hashtab_ptr_t node) {
                 perm_datum_t *perm = auto_cast(node->datum);
                 it->second[perm->s.value - 1] = node->key;

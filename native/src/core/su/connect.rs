@@ -98,7 +98,7 @@ impl SuAppContext<'_> {
                 && !output.stderr.contains(b"Error")
                 && !output.stdout.contains(b"Error")
             {
-                // The provider call succeed
+
                 return;
             }
         }
@@ -115,8 +115,8 @@ impl SuAppContext<'_> {
             "-a",
             "android.intent.action.VIEW",
             "-f",
-            // FLAG_ACTIVITY_NEW_TASK|FLAG_ACTIVITY_MULTIPLE_TASK|
-            // FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS|FLAG_INCLUDE_STOPPED_PACKAGES
+
+
             "0x18800020",
             "--es",
             "action",
@@ -164,11 +164,11 @@ impl SuAppContext<'_> {
             ];
             self.exec_cmd("request", &extras, false);
 
-            // Open with O_RDWR to prevent FIFO open block
+
             let fd = fifo.open(OFlag::O_RDWR | OFlag::O_CLOEXEC)?;
             let mut pfd = [PollFd::new(fd.as_fd(), PollFlags::POLLIN)];
 
-            // Wait for data input for at most 70 seconds
+
             nix::poll::poll(
                 &mut pfd,
                 PollTimeout::try_from(70 * 1000).unwrap_or(PollTimeout::NONE),
@@ -211,7 +211,7 @@ impl SuAppContext<'_> {
     }
 
     pub(super) fn connect_app(&mut self) {
-        // If policy is undetermined, show dialog for user consent
+
         if self.settings.policy == SuPolicy::Query {
             self.app_request();
         }

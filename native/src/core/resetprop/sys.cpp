@@ -8,7 +8,7 @@
 
 using namespace std;
 
-// This has to keep in sync with SysProp in mod.rs
+
 struct SysProp {
     int (*set)(const char*, const char*);
     const prop_info *(*find)(const char*);
@@ -24,7 +24,7 @@ extern "C" bool prop_info_is_long(const prop_info &info) {
 extern "C" SysProp get_sys_prop() {
     SysProp prop{};
 #ifdef APPLET_STUB_MAIN
-    // Use internal implementation
+
     prop.set = __system_property_set;
     prop.find = __system_property_find;
     prop.read_callback = __system_property_read_callback;
@@ -32,7 +32,7 @@ extern "C" SysProp get_sys_prop() {
     prop.wait = __system_property_wait;
 #else
 #define DLOAD(name) (*(void **) &prop.name = dlsym(RTLD_DEFAULT, "__system_property_" #name))
-    // Dynamic load platform implementation
+
     DLOAD(set);
     DLOAD(find);
     DLOAD(read_callback);
@@ -40,11 +40,11 @@ extern "C" SysProp get_sys_prop() {
     DLOAD(wait);
 #undef DLOAD
     if (prop.wait == nullptr) {
-        // This platform API only exist on API 26+
+
         prop.wait = __system_property_wait;
     }
     if (prop.read_callback == nullptr) {
-        // This platform API only exist on API 26+
+
         prop.read_callback = __system_property_read_callback;
     }
 #endif

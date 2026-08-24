@@ -12,8 +12,8 @@ using namespace std;
 
 template<char... cs> using chars = integer_sequence<char, cs...>;
 
-// If quoted, parsing ends when we find char in [breaks]
-// If not quoted, parsing ends when we find char in [breaks] + [escapes]
+
+
 template<char... escapes, char... breaks>
 static string extract_quoted_str_until(chars<escapes...>, chars<breaks...>,
         string_view str, size_t &pos, bool &quoted) {
@@ -37,8 +37,8 @@ static string extract_quoted_str_until(chars<escapes...>, chars<breaks...>,
     }
 }
 
-// Parse string into key value pairs.
-// The string format: [delim][key][padding][eq][padding][value][delim]
+
+
 template<char delim, char eq, char... padding>
 static kv_pairs parse_impl(chars<padding...>, string_view str) {
     kv_pairs kv;
@@ -96,7 +96,7 @@ static bool check_key_combo() {
 
     run_finally fin([&] { for_each(events.begin(), events.end(), close); });
 
-    // Return true if volume up key is held for more than 3 seconds
+
     int count = 0;
     for (int i = 0; i < 500; ++i) {
         for (const int &fd : events) {
@@ -111,7 +111,7 @@ static bool check_key_combo() {
             LOGD("KEY_VOLUMEUP detected: disable system-as-root\n");
             return true;
         }
-        // Check every 10ms
+
         usleep(10000);
     }
     return false;
@@ -120,7 +120,7 @@ static bool check_key_combo() {
 void BootConfig::set(const kv_pairs &kv) noexcept {
     for (const auto &[key, value] : kv) {
         if (key == "androidboot.slot_suffix") {
-            // Many Amlogic devices are A-only but have slot_suffix...
+
             if (value == "normal") {
                 LOGW("Skip invalid androidboot.slot_suffix=[normal]\n");
                 continue;
@@ -148,10 +148,10 @@ void BootConfig::set(const kv_pairs &kv) noexcept {
         } else if (key == "qemu") {
             emulator = true;
         } else if (key == "androidboot.partition_map") {
-            // androidboot.partition_map allows mapping a partition name to a raw block device.
-            // For example, "androidboot.partition_map=vdb,metadata;vdc,userdata" maps
-            // "vdb" to "metadata", and "vdc" to "userdata".
-            // https://android.googlesource.com/platform/system/core/+/refs/heads/android13-release/init/devices.cpp#191
+
+
+
+
             for (const auto &[k, v]: parse_partition_map(value)) {
                 partition_map.emplace_back(k, v);
             }
@@ -173,7 +173,7 @@ void BootConfig::init() noexcept {
     set(parse_cmdline(full_read("/proc/cmdline")));
     set(parse_bootconfig(full_read("/proc/bootconfig")));
 
-    // Read recovery mode from backup config (our fork uses .cfg, legacy uses .magisk)
+
     auto read_recovery = [&](auto key, auto value) -> bool {
         if (key == "RECOVERYMODE" && value == "true") {
             skip_initramfs = emulator || !check_key_combo();

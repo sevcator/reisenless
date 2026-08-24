@@ -21,15 +21,15 @@
 #define ZLOGW(...) LOGW(BUILD_ID "32: " __VA_ARGS__)
 #endif
 
-// Extreme verbose logging
-// #define ZLOGV(...) ZLOGD(__VA_ARGS__)
+
+
 #define ZLOGV(...) (void*)0
 
 void hook_entry();
 void hookJniNativeMethods(JNIEnv *env, const char *clz, JNINativeMethod *methods, int numMethods);
 
-// The reference of the following structs
-// https://cs.android.com/android/platform/superproject/main/+/main:art/libnativebridge/include/nativebridge/native_bridge.h
+
+
 
 struct NativeBridgeRuntimeCallbacks {
     const char* (*getMethodShorty)(JNIEnv* env, jmethodID mid);

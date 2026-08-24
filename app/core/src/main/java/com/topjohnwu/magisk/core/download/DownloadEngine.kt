@@ -33,23 +33,23 @@ import kotlinx.coroutines.launch
 import okhttp3.ResponseBody
 import java.io.InputStream
 
-/**
- * This class drives the execution of file downloads and notification management.
- *
- * Each download engine instance has to be paired with a "session" that is managed by the operating
- * system. A session is an Android component that allows executing long lasting operations and
- * have its state tied to a notification to show progress.
- *
- * A session can only have one single notification representing its state, and the operating system
- * also uses the notification to manage the lifecycle of a session. One goal of this class is
- * to support concurrent download tasks using only one single session, so internally it manages
- * all active tasks and notifications and properly re-assign notifications to be attached to
- * the session to make sure all download operations can be completed without the operating system
- * killing the session.
- *
- * For API 23 - 33, we use a foreground service as a session.
- * For API 34 and higher, we use user-initiated job services as a session.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class DownloadEngine(session: DownloadSession) : DownloadSession by session, DownloadNotifier {
 
     companion object {
@@ -87,10 +87,10 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
                 PendingIntent.FLAG_UPDATE_CURRENT or
                 PendingIntent.FLAG_ONE_SHOT
             return if (Build.VERSION.SDK_INT >= 34) {
-                // On API 34+, download tasks are handled with a user-initiated job.
-                // However, there is no way to schedule a new job directly with a pending intent.
-                // As a workaround, we send the subject to a broadcast receiver and have it
-                // schedule the job for us.
+
+
+
+
                 val intent = createBroadcastIntent(context, subject)
                 PendingIntent.getBroadcast(context, REQUEST_CODE, intent, flag)
             } else {
@@ -109,7 +109,7 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
             subject: Subject
         ) where T : ComponentActivity, T : IActivityExtension {
             activity.withPermission(Manifest.permission.POST_NOTIFICATIONS) {
-                // Always download regardless of notification permission status
+
                 start(activity.applicationContext, subject)
             }
         }
@@ -220,15 +220,15 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
             n = notifications.valueAt(idx)
             notifications.removeAt(idx)
 
-            // The cancelled notification is the one attached to the session, need special handling
+
             if (attachedId == id) {
                 if (notifications.isNotEmpty()) {
-                    // There are still remaining notifications, pick one and attach to the session
+
                     val anotherId = notifications.keyAt(0)
                     val notification = notifications.valueAt(0)
                     attach(anotherId, notification)
                 } else {
-                    // No more notifications left, terminate the session
+
                     attachedId = -1
                     onDownloadComplete()
                 }

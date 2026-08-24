@@ -6,13 +6,13 @@ use std::fmt::Display;
 use std::panic::Location;
 use std::ptr::NonNull;
 
-// Error handling throughout the Rust codebase in Magisk:
-//
-// All errors should be logged and consumed as soon as possible and converted into LoggedError.
-// For `Result` with errors that implement the `Display` trait, use the `?` operator to
-// log and convert to LoggedResult.
-//
-// To log an error with more information, use `ResultExt::log_with_msg()`.
+
+
+
+
+
+
+
 
 #[derive(Default)]
 pub struct LoggedError {}
@@ -29,7 +29,7 @@ macro_rules! log_err {
     }};
 }
 
-// Any result or option can be silenced
+
 pub trait SilentLogExt<T> {
     fn silent(self) -> LoggedResult<T>;
 }
@@ -46,14 +46,14 @@ impl<T> SilentLogExt<T> for Option<T> {
     }
 }
 
-// Public API for logging results
+
 pub trait ResultExt<T> {
     fn log(self) -> LoggedResult<T>;
     fn log_with_msg<F: FnOnce(Formatter) -> fmt::Result>(self, f: F) -> LoggedResult<T>;
     fn log_ok(self);
 }
 
-// Public API for converting Option to LoggedResult
+
 pub trait OptionExt<T> {
     fn ok_or_log(self) -> LoggedResult<T>;
     fn ok_or_log_msg<F: FnOnce(Formatter) -> fmt::Result>(self, f: F) -> LoggedResult<T>;
@@ -152,7 +152,7 @@ impl<T> ResultExt<T> for LoggedResult<T> {
     fn log_ok(self) {}
 }
 
-// Allow converting Loggable errors to LoggedError to support `?` operator
+
 impl<T: Loggable> From<T> for LoggedError {
     #[cfg(not(debug_assertions))]
     fn from(e: T) -> Self {
@@ -167,9 +167,9 @@ impl<T: Loggable> From<T> for LoggedError {
     }
 }
 
-// Actual logging implementation
 
-// Make all printable objects Loggable
+
+
 impl<T: Display> Loggable for T {
     fn do_log(self, level: LogLevel, caller: Option<&'static Location>) -> LoggedError {
         if let Some(caller) = caller {
@@ -211,7 +211,7 @@ fn do_log_msg<F: FnOnce(Formatter) -> fmt::Result>(
     });
 }
 
-// Check libc return value and map to Result
+
 pub trait LibcReturn
 where
     Self: Sized,

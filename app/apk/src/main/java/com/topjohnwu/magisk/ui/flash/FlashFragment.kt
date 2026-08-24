@@ -102,26 +102,26 @@ class FlashFragment : BaseFragment<FragmentFlashMd2Binding>() {
         private fun flashType(isSecondSlot: Boolean) =
             if (isSecondSlot) Const.Value.FLASH_INACTIVE_SLOT else Const.Value.FLASH_MAGISK
 
-        /* Flashing is understood as installing / flashing magisk itself */
+
 
         fun flash(isSecondSlot: Boolean) = MainDirections.actionFlashFragment(
             action = flashType(isSecondSlot)
         )
 
-        /* Patching is understood as injecting img files with magisk */
+
 
         fun patch(uri: Uri) = MainDirections.actionFlashFragment(
             action = Const.Value.PATCH_FILE,
             additionalData = uri
         )
 
-        /* Uninstalling is understood as removing magisk entirely */
+
 
         fun uninstall() = MainDirections.actionFlashFragment(
             action = Const.Value.UNINSTALL
         )
 
-        /* Installing is understood as flashing modules / zips */
+
 
         fun installIntent(context: Context, file: Uri) = FlashFragmentArgs(
             action = Const.Value.FLASH_ZIP,

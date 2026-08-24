@@ -63,10 +63,10 @@ object TextStyle {
     }
 }
 
-/**
- * Color scheme for a terminal with default colors, which may be overridden (and then reset) from the shell using
- * Operating System Control (OSC) sequences.
- */
+
+
+
+
 class TerminalColorScheme {
 
     val defaultColors: IntArray = IntArray(TextStyle.NUM_INDEXED_COLORS)
@@ -129,26 +129,26 @@ class TerminalColorScheme {
 
     companion object {
         private val DEFAULT_COLORSCHEME = longArrayOf(
-            // 16 original colors. First 8 are dim.
-            0xff000000, // black
-            0xffcd0000, // dim red
-            0xff00cd00, // dim green
-            0xffcdcd00, // dim yellow
-            0xff6495ed, // dim blue
-            0xffcd00cd, // dim magenta
-            0xff00cdcd, // dim cyan
-            0xffe5e5e5, // dim white
-            // Second 8 are bright:
-            0xff7f7f7f, // medium grey
-            0xffff0000, // bright red
-            0xff00ff00, // bright green
-            0xffffff00, // bright yellow
-            0xff5c5cff, // light blue
-            0xffff00ff, // bright magenta
-            0xff00ffff, // bright cyan
-            0xffffffffL, // bright white
 
-            // 216 color cube, six shades of each color:
+            0xff000000,
+            0xffcd0000,
+            0xff00cd00,
+            0xffcdcd00,
+            0xff6495ed,
+            0xffcd00cd,
+            0xff00cdcd,
+            0xffe5e5e5,
+
+            0xff7f7f7f,
+            0xffff0000,
+            0xff00ff00,
+            0xffffff00,
+            0xff5c5cff,
+            0xffff00ff,
+            0xff00ffff,
+            0xffffffffL,
+
+
             0xff000000, 0xff00005f, 0xff000087, 0xff0000af, 0xff0000d7, 0xff0000ff, 0xff005f00, 0xff005f5f, 0xff005f87, 0xff005faf, 0xff005fd7, 0xff005fff,
             0xff008700, 0xff00875f, 0xff008787, 0xff0087af, 0xff0087d7, 0xff0087ff, 0xff00af00, 0xff00af5f, 0xff00af87, 0xff00afaf, 0xff00afd7, 0xff00afff,
             0xff00d700, 0xff00d75f, 0xff00d787, 0xff00d7af, 0xff00d7d7, 0xff00d7ff, 0xff00ff00, 0xff00ff5f, 0xff00ff87, 0xff00ffaf, 0xff00ffd7, 0xff00ffff,
@@ -168,17 +168,17 @@ class TerminalColorScheme {
             0xffff8700, 0xffff875f, 0xffff8787, 0xffff87af, 0xffff87d7, 0xffff87ff, 0xffffaf00, 0xffffaf5f, 0xffffaf87, 0xffffafaf, 0xffffafd7, 0xffffafff,
             0xffffd700, 0xffffd75f, 0xffffd787, 0xffffd7af, 0xffffd7d7, 0xffffd7ff, 0xffffff00, 0xffffff5f, 0xffffff87, 0xffffffaf, 0xffffffd7, 0xffffffffL,
 
-            // 24 grey scale ramp:
+
             0xff080808, 0xff121212, 0xff1c1c1c, 0xff262626, 0xff303030, 0xff3a3a3a, 0xff444444, 0xff4e4e4e, 0xff585858, 0xff626262, 0xff6c6c6c, 0xff767676,
             0xff808080, 0xff8a8a8a, 0xff949494, 0xff9e9e9e, 0xffa8a8a8, 0xffb2b2b2, 0xffbcbcbc, 0xffc6c6c6, 0xffd0d0d0, 0xffdadada, 0xffe4e4e4, 0xffeeeeee,
 
-            // COLOR_INDEX_DEFAULT_FOREGROUND, COLOR_INDEX_DEFAULT_BACKGROUND and COLOR_INDEX_DEFAULT_CURSOR:
+
             0xffffffffL, 0xff000000L, 0xffffffffL
         ).map { it.toInt() }.toIntArray()
     }
 }
 
-/** Current terminal colors (if different from default). */
+
 class TerminalColors {
 
     val currentColors: IntArray = IntArray(TextStyle.NUM_INDEXED_COLORS)

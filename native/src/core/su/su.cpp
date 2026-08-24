@@ -1,9 +1,9 @@
-/*
- * Copyright 2017 - 2025, John Wu (@topjohnwu)
- * Copyright 2015, Pierre-Hugues Husson <phh@phh.me>
- * Copyright 2010, Adam Shanks (@ChainsDD)
- * Copyright 2008, Zinx Verituse (@zinxv)
- */
+
+
+
+
+
+
 
 #include <unistd.h>
 #include <getopt.h>
@@ -29,7 +29,7 @@ using namespace std;
 
 #define DEFAULT_SHELL "/system/bin/sh"
 
-// Constants for atty
+
 #define ATTY_IN    (1 << 0)
 #define ATTY_OUT   (1 << 1)
 #define ATTY_ERR   (1 << 2)
@@ -65,13 +65,13 @@ int quit_signals[] = { SIGALRM, SIGABRT, SIGHUP, SIGPIPE, SIGQUIT, SIGTERM, SIGI
 }
 
 static void sighandler(int sig) {
-    // Close all standard I/O to cause the pumps to exit
-    // so we can continue and retrieve the exit code.
+
+
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
 
-    // Put back all the default handlers
+
     struct sigaction act{};
     act.sa_handler = SIG_DFL;
     for (int i = 0; quit_signals[i]; ++i) {
@@ -108,10 +108,10 @@ int su_client_main(int argc, char *argv[]) {
     auto req = SuRequest::New();
 
     for (int i = 0; i < argc; i++) {
-        // Replace -cn and -z with -Z for backwards compatibility
+
         if (strcmp(argv[i], "-cn") == 0 || strcmp(argv[i], "-z") == 0)
             strcpy(argv[i], "-Z");
-        // Replace -mm with -M for supporting getopt_long
+
         else if (strcmp(argv[i], "-mm") == 0)
             strcpy(argv[i], "-M");
     }
@@ -188,7 +188,7 @@ int su_client_main(int argc, char *argv[]) {
                 break;
             }
             default:
-                /* Bionic getopt_long doesn't terminate its error output by newline */
+
                 fprintf(stderr, "\n");
                 usage(2);
         }
@@ -198,7 +198,7 @@ int su_client_main(int argc, char *argv[]) {
         req.login = true;
         optind++;
     }
-    /* username or uid */
+
     if (optind < argc) {
         if (const passwd *pw = getpwnam(argv[optind]))
             req.target_uid = pw->pw_uid;
@@ -207,43 +207,43 @@ int su_client_main(int argc, char *argv[]) {
         optind++;
     }
 
-    // Connect to client
+
     owned_fd fd = connect_daemon(RequestCode::SUPERUSER);
 
-    // Send request
+
     req.write_to_fd(fd);
 
-    // Wait for ack from daemon
+
     if (read_int(fd)) {
-        // Fast fail
+
         fprintf(stderr, "%s\n", strerror(EACCES));
         return EACCES;
     }
 
-    // Determine which one of our streams are attached to a TTY
+
     interactive |= req.command.empty();
     int atty = 0;
     if (isatty(STDIN_FILENO) && interactive)  atty |= ATTY_IN;
     if (isatty(STDOUT_FILENO) && interactive) atty |= ATTY_OUT;
     if (isatty(STDERR_FILENO) && interactive) atty |= ATTY_ERR;
 
-    // Send stdin
+
     send_fd(fd, (atty & ATTY_IN) ? -1 : STDIN_FILENO);
-    // Send stdout
+
     send_fd(fd, (atty & ATTY_OUT) ? -1 : STDOUT_FILENO);
-    // Send stderr
+
     send_fd(fd, (atty & ATTY_ERR) ? -1 : STDERR_FILENO);
 
     if (atty) {
-        // We need a PTY. Get one.
+
         int ptmx = recv_fd(fd);
         setup_sighandlers(sighandler);
-        // If stdin is not a tty, and if we pump to ptmx, our process may intercept the input to ptmx and
-        // output to stdout, which cause the target process lost input.
+
+
         pump_tty(ptmx, atty & ATTY_IN);
     }
 
-    // Get the exit code
+
     return read_int(fd);
 }
 
@@ -255,13 +255,13 @@ static void drop_caps() {
         }
         return cap - 1;
     }();
-    // Drop bounding set
+
     for (uint32_t cap = 0; cap <= last_valid_cap; cap++) {
         if (cap != CAP_SETUID) {
             prctl(PR_CAPBSET_DROP, cap);
         }
     }
-    // Clean inheritable set
+
     __user_cap_header_struct header = {.version = _LINUX_CAPABILITY_VERSION_3};
     __user_cap_data_struct data[_LINUX_CAPABILITY_U32S_3] = {};
     if (capget(&header, &data[0]) == 0) {
@@ -270,9 +270,9 @@ static void drop_caps() {
         }
         capset(&header, &data[0]);
     }
-    // All capabilities will be lost after exec
+
     prctl(PR_SET_SECUREBITS, SECBIT_NOROOT);
-    // Except CAP_SETUID in bounding set, it is a marker for restricted process
+
 }
 
 static bool proc_is_restricted(pid_t pid) {
@@ -327,16 +327,16 @@ static void set_identity(int uid, const rust::Vec<gid_t> &groups) {
 }
 
 void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
-    // Become session leader
+
     xsetsid();
 
-    // The FDs for each of the streams
+
     int infd = recv_fd(client);
     int outfd = recv_fd(client);
     int errfd = recv_fd(client);
     int ptsfd = -1;
 
-    // App need a PTY
+
     if (infd < 0 || outfd < 0 || errfd < 0) {
         string pts;
         string ptmx;
@@ -353,7 +353,7 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
         unlockpt(ptmx_fd);
         int pty_num = get_pty_num(ptmx_fd);
         if (pty_num < 0) {
-            // Kernel issue? Fallback to /dev/pts
+
             close(ptmx_fd);
             pts = "/dev/pts";
             ptmx_fd = xopen("/dev/ptmx", O_RDWR);
@@ -367,13 +367,13 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
         string pts_slave = pts + "/" + to_string(pty_num);
         LOGD("su: pts_slave=[%s]\n", pts_slave.data());
 
-        // Opening the TTY has to occur after the
-        // fork() and setsid() so that it becomes
-        // our controlling TTY and not the daemon's
+
+
+
         ptsfd = xopen(pts_slave.data(), O_RDWR);
     }
 
-    // Swap out stdin, stdout, stderr
+
     xdup2(infd < 0 ? ptsfd : infd, STDIN_FILENO);
     xdup2(outfd < 0 ? ptsfd : outfd, STDOUT_FILENO);
     xdup2(errfd < 0 ? ptsfd : errfd, STDERR_FILENO);
@@ -384,7 +384,7 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
     close(ptsfd);
     close(client);
 
-    // Handle namespaces
+
     if (req.target_pid == -1)
         req.target_pid = pid;
     else if (req.target_pid == 0)
@@ -417,7 +417,7 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
         argv[2] = req.command.c_str();
     }
 
-    // Setup environment
+
     umask(022);
     char path[32];
     ssprintf(path, sizeof(path), "/proc/%d/cwd", pid);
@@ -444,7 +444,7 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
         }
     }
 
-    // Config privileges
+
     if (!req.context.empty()) {
         auto f = xopen_file("/proc/self/attr/exec", "we");
         if (f) fprintf(f.get(), "%s", req.context.c_str());
@@ -454,11 +454,11 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
     if (req.target_uid != AID_ROOT || req.gids.size() > 0)
         set_identity(req.target_uid, req.gids);
 
-    // Remove seccomp filter so root sessions are not auditable via BPF
-    // SECCOMP_MODE_DISABLED = 0 (avoids <linux/seccomp.h> inclusion)
+
+
     prctl(PR_SET_SECCOMP, 0);
 
-    // Unblock all signals
+
     sigset_t block_set;
     sigemptyset(&block_set);
     sigprocmask(SIG_SETMASK, &block_set, nullptr);

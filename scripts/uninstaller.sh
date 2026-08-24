@@ -1,13 +1,13 @@
-#MAGISK
-############################################
-# Magisk Uninstaller (updater-script)
-############################################
 
-##############
-# Preparation
-##############
 
-# Default permissions
+
+
+
+
+
+
+
+
 umask 022
 
 OUTFD=$2
@@ -19,14 +19,14 @@ if [ ! -f $COMMONDIR/util_functions.sh ]; then
   exit 1
 fi
 
-# Load utility functions
+
 . $COMMONDIR/util_functions.sh
 
 setup_flashable
 
-############
-# Detection
-############
+
+
+
 
 if echo $MAGISK_VER | grep -q '\.'; then
   PRETTY_VER=$MAGISK_VER
@@ -45,7 +45,7 @@ find_boot_image
 [ -z $BOOTIMAGE ] && abort "! unable to detect target image"
 ui_print "- target image: $BOOTIMAGE"
 
-# Detect version and architecture
+
 api_level_arch_detect
 
 ui_print "- device platform: $ABI"
@@ -58,16 +58,16 @@ cd /
 cp -af $CHROMEDIR/. $BINDIR/chromeos
 chmod -R 755 $BINDIR
 
-############
-# Uninstall
-############
+
+
+
 
 cd $BINDIR
 
 CHROMEOS=false
 
 ui_print "- unpacking boot image"
-# Dump image for MTD/NAND character device boot partitions
+
 if [ -c $BOOTIMAGE ]; then
   nanddump -f boot.img $BOOTIMAGE
   BOOTNAND=$BOOTIMAGE
@@ -85,25 +85,25 @@ case $? in
     ;;
 esac
 
-# Restore the original boot partition path
+
 [ "$BOOTNAND" ] && BOOTIMAGE=$BOOTNAND
 
-# Detect boot image state
+
 ui_print "- checking ramdisk status"
 if [ -e ramdisk.cpio ]; then
   ./mboot cpio ramdisk.cpio test
   STATUS=$?
 else
-  # Stock A only system-as-root
+
   STATUS=0
 fi
 case $((STATUS & 3)) in
-  0 )  # Stock boot
+  0 )
     ui_print "- stock boot image detected"
     ;;
-  1 )  # Magisk patched
+  1 )
     ui_print "- reisenless patched image detected"
-    # Find SHA1 of stock boot image (try our config first, fall back to old .magisk)
+
       ./mboot cpio ramdisk.cpio "extract .backup/$BACKUP_CONFIG config.orig" 2>/dev/null || \
       ./mboot cpio ramdisk.cpio "extract .backup/.magisk config.orig" 2>/dev/null
     if [ -f config.orig ]; then
@@ -127,17 +127,17 @@ case $((STATUS & 3)) in
       ui_print "- restoring ramdisk with internal backup"
       ./mboot cpio ramdisk.cpio restore
       if ! ./mboot cpio ramdisk.cpio "exists init"; then
-        # A only system-as-root
+
         rm -f ramdisk.cpio
       fi
       ./mboot repack $BOOTIMAGE
-      # Sign chromeos boot
+
       $CHROMEOS && sign_chromeos
       ui_print "- flashing restored boot image"
       flash_image new-boot.img $BOOTIMAGE || abort "! insufficient partition size"
     fi
     ;;
-  2 )  # Unsupported
+  2 )
     ui_print "! boot image patched by unsupported programs"
     abort "! cannot uninstall"
     ;;

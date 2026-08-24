@@ -50,7 +50,7 @@ pub trait ReadSeekExt {
 impl<T: Read + Seek> ReadSeekExt for T {
     fn skip(&mut self, len: usize) -> io::Result<()> {
         if self.seek(SeekFrom::Current(len as i64)).is_err() {
-            // If the file is not actually seekable, fallback to read
+
             ReadExt::skip(self, len)?;
         }
         Ok(())
@@ -84,8 +84,8 @@ impl<T: BufRead> BufReadExt for T {
 
     fn for_each_prop<F: FnMut(&str, &str) -> bool>(&mut self, mut f: F) {
         self.for_each_line(|line| {
-            // Reserve an additional byte, because this string will be manually
-            // null terminated on the C++ side, and it may need more space.
+
+
             line.reserve(1);
             let line = line.trim();
             if line.starts_with('#') {
@@ -135,7 +135,7 @@ impl FileOrStd {
             FileOrStd::StdErr => &2,
             FileOrStd::File(file) => return file,
         };
-        // SAFETY: File is guaranteed to have the same ABI as RawFd
+
         unsafe { mem::transmute(raw_fd_ref) }
     }
 }
@@ -217,7 +217,7 @@ impl FileAttr {
 
 const XATTR_NAME_SELINUX: &CStr = c"security.selinux";
 
-// Low-level methods, we should track the caller when error occurs, so return OsResult.
+
 impl Utf8CStr {
     pub fn follow_link(&self) -> &FsPathFollow {
         unsafe { mem::transmute(self) }
@@ -266,7 +266,7 @@ impl Utf8CStr {
         }
     }
 
-    // Inspired by https://android.googlesource.com/platform/bionic/+/master/libc/bionic/realpath.cpp
+
     pub fn realpath(&self, buf: &mut dyn Utf8CStrBuf) -> OsResult<'_, ()> {
         let fd = self.open(OFlag::O_PATH | OFlag::O_CLOEXEC)?;
         let mut skip_check = false;
@@ -274,7 +274,7 @@ impl Utf8CStr {
         let st1 = match nix::sys::stat::fstat(&fd) {
             Ok(st) => st,
             Err(_) => {
-                // This will only fail on Linux < 3.6
+
                 skip_check = true;
                 unsafe { mem::zeroed() }
             }
@@ -305,7 +305,7 @@ impl Utf8CStr {
         if !attr.is_symlink()
             && let Err(e) = self.follow_link().chmod((attr.st.st_mode & 0o777).as_())
         {
-            // Double check if self is symlink before reporting error
+
             let self_attr = self.get_attr()?;
             if !self_attr.is_symlink() {
                 return Err(e);
@@ -366,18 +366,18 @@ impl Utf8CStr {
         Path::new(self.as_str())
             .parent()
             .map(Path::as_os_str)
-            // SAFETY: all substring of self is valid UTF-8
+
             .map(|s| unsafe { std::str::from_utf8_unchecked(s.as_bytes()) })
     }
 
     pub fn file_name(&self) -> Option<&str> {
         Path::new(self.as_str())
             .file_name()
-            // SAFETY: all substring of self is valid UTF-8
+
             .map(|s| unsafe { std::str::from_utf8_unchecked(s.as_bytes()) })
     }
 
-    // ln -s target self
+
     pub fn create_symlink_to<'a>(&'a self, target: &'a Utf8CStr) -> OsResult<'a, ()> {
         nix::unistd::symlinkat(target, AT_FDCWD, self).check_os_err(
             "symlink",
@@ -395,15 +395,15 @@ impl Utf8CStr {
     }
 }
 
-// High-level helper methods, composed of multiple operations.
-// We should treat these as application logic and log ASAP, so return LoggedResult.
+
+
 impl Utf8CStr {
     pub fn remove_all(&self) -> LoggedResult<()> {
         let attr = match self.get_attr() {
             Ok(attr) => attr,
             Err(e) => {
                 return match e.errno {
-                    // Allow calling remove_all on non-existence file
+
                     Errno::ENOENT => Ok(()),
                     _ => Err(e)?,
                 };
@@ -448,7 +448,7 @@ impl Utf8CStr {
             let dest = Directory::open(path)?;
             src.copy_into(&dest)?;
         } else {
-            // It's OK if remove failed
+
             path.remove().ok();
             if attr.is_file() {
                 let mut src = self.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC)?;
@@ -488,7 +488,7 @@ impl Utf8CStr {
         Ok(())
     }
 
-    // ln self path
+
     pub fn link_to(&self, path: &Utf8CStr) -> LoggedResult<()> {
         let attr = self.get_attr()?;
         if attr.is_dir() {
@@ -761,11 +761,11 @@ impl Drop for MappedFile {
 }
 
 unsafe extern "C" {
-    // Don't use the declaration from the libc crate as request should be u32 not i32
+
     fn ioctl(fd: RawFd, request: u32, ...) -> i32;
 }
 
-// We mark the returned slice static because it is valid until explicitly unmapped
+
 pub(crate) fn map_file(path: &Utf8CStr, rw: bool) -> OsResult<'_, &'static mut [u8]> {
     map_file_at(AT_FDCWD, path, rw)
 }

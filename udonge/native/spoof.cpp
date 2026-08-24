@@ -29,10 +29,10 @@ void spoof_build(JNIEnv *env, const Config &cfg) {
             set_str(env, ver, k.c_str(), v);
         } else if (k == "DEVICE_INITIAL_SDK_INT" || k == "SDK_INT" ||
                    k == "RELEASE") {
-            // Build.VERSION must describe the framework that is actually
-            // running. Pretending this framework is a future Android
-            // release makes Cronet select unavailable Java APIs and aborts
-            // com.google.android.gms.unstable, taking app networking with it.
+
+
+
+
             continue;
         } else {
             set_str(env, build, k.c_str(), v);
@@ -74,4 +74,4 @@ void spoof_rom_framework(JNIEnv *env, const Config &cfg) {
     env->DeleteLocalRef(assets);
 }
 
-} // namespace cloak
+}

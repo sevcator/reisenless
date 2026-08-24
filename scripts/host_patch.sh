@@ -1,28 +1,28 @@
-#####################################################################
-#   AVD MagiskInit Setup
-#####################################################################
-#
-# Support API level: 23 - 36
-#
-# With an emulator booted and accessible via ADB, usage:
-# ./build.py avd_patch path/to/booted/avd-image/ramdisk.img
-#
-# The purpose of this script is to patch AVD ramdisk.img and do a
-# full integration test of magiskinit under several circumstances.
-# After patching ramdisk.img, close the emulator, then select
-# "Cold Boot Now" in AVD Manager to force a full reboot.
-#
-#####################################################################
-# AVD Init Configurations:
-#
-# rootfs w/o early mount: API 23 - 25
-# rootfs with early mount: API 26 - 27
-# Legacy system-as-root: API 28
-# 2 stage init: API 29 - 35
-#####################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 if [ ! -f /system/build.prop ]; then
-  # Running on PC
+
   echo 'please run `./build.py avd_patch` instead of directly executing the script!'
   exit 1
 fi
@@ -33,7 +33,7 @@ chmod 755 busybox
 if [ -z "$FIRST_STAGE" ]; then
   export FIRST_STAGE=1
   export ASH_STANDALONE=1
-  # Re-exec script with busybox
+
   exec ./busybox sh $0 "$@"
 fi
 
@@ -46,7 +46,7 @@ else
   IS_RAMDISK=false
 fi
 
-# Extract files from APK
+
 unzip -oj magisk.apk 'assets/util_functions.sh'
 . ./util_functions.sh
 unzip -oj magisk.apk "assets/$STUB_NAME" "assets/$UDONGE_ARCHIVE"
@@ -74,8 +74,8 @@ export KEEPFORCEENCRYPT=true
 echo "KEEPVERITY=$KEEPVERITY" > config
 echo "KEEPFORCEENCRYPT=$KEEPFORCEENCRYPT" >> config
 echo "PREINITDEVICE=$(./$MAIN_BIN_NAME --preinit-device)" >> config
-# For API 28, we also manually disable SystemAsRoot
-# Explicitly override skip_initramfs by setting RECOVERYMODE=true
+
+
 [ $API = "28" ] && echo 'RECOVERYMODE=true' >> config
 cat config
 

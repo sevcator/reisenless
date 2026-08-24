@@ -65,7 +65,7 @@ wait_emu() {
   timeout $boot_timeout bash -c wait_for_boot &
   local wait_pid=$!
 
-  # Handle the case when emulator dies earlier than timeout
+
   wait -p which_pid -n $emu_pid $wait_pid
   [ $which_pid -eq $wait_pid ]
 }
@@ -84,7 +84,6 @@ resolve_vars() {
   local ver=$2
   local type=$3
 
-  # Determine API level
   local api
   case $ver in
     +([0-9\.])) api=$ver ;;
@@ -100,20 +99,16 @@ resolve_vars() {
       ;;
   esac
 
-  # Determine default image type
   if [ -z $type ]; then
     if [ $(bc <<< "$api >= $atd_min_api && $api <= $atd_max_api") = 1 ]; then
-      # Use the lightweight ATD images if possible
       type='aosp_atd'
     elif [ $(bc <<< "$api > $atd_max_api") = 1 ]; then
-      # Preview/beta release, no AOSP version available
       type='google_apis'
     else
       type='default'
     fi
   fi
 
-  # Old Linux kernels will not boot with memory larger than 3GB
   local memory
   if [ $(bc <<< "$api < $huge_ram_min_api") = 1 ]; then
     memory=3072
@@ -123,12 +118,10 @@ resolve_vars() {
 
   emu_args="$emu_args_base -memory $memory"
 
-  # System image variable and paths
   local avd_pkg="system-images;android-$ver;$type;$arch"
   local sys_img_dir="$ANDROID_HOME/system-images/android-$ver/$type/$arch"
   local ramdisk="$sys_img_dir/ramdisk.img"
 
-  # Dump variables to output
   dump_vars $arg_list
 }
 
@@ -144,7 +137,6 @@ setup_emu() {
   dl_emu $avd_pkg
   echo no | "$avd" create avd -f -n test -k $avd_pkg
 
-  # avdmanager is outdated, it might not set the proper target
   local ini=$ANDROID_AVD_HOME/test.ini
   sed "s:^target\s*=.*:target=android-$ver:g" $ini > $ini.new
   mv $ini.new $ini
@@ -180,24 +172,20 @@ test_main() {
   local ver avd_pkg ramdisk
   eval $(resolve_vars "ver avd_pkg ramdisk" $1 $2)
 
-  # Specify an explicit port so that tests can run with other emulators running at the same time
   local emu_port=5682
   emu_args="$emu_args -port $emu_port"
   export ANDROID_SERIAL="emulator-$emu_port"
 
   setup_emu "$avd_pkg" $ver
 
-  # Restart ADB daemon just in case
   adb kill-server
   adb start-server
 
-  # Launch stock emulator
   print_title "* Launching $avd_pkg"
   "$emu" @test $emu_args >/dev/null 2>&1 &
   emu_pid=$!
   wait_emu
 
-  # Patch images
   if [ -z "$AVD_TEST_SKIP_DEBUG" ]; then
     ./build.py -v avd_patch "$ramdisk" magisk_debug.img
   fi
@@ -260,5 +248,4 @@ case "$1" in
     ;;
 esac
 
-# Exit normally, don't run through cleanup again
 trap - EXIT

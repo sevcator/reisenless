@@ -45,7 +45,7 @@ open class Receiver : BaseReceiver() {
                     }
             }
             Intent.ACTION_PACKAGE_REPLACED -> {
-                // This will only work pre-O
+
                 if (Config.suReAuth)
                     getUid(intent)?.let { rmPolicy(it) }
             }

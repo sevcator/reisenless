@@ -29,7 +29,7 @@ class DownloadProcessor(notifier: DownloadNotifier) : DownloadNotifier by notifi
     suspend fun handleModule(src: InputStream, destination: OutputStream) {
         val tmp = context.cachedFile("module.zip")
         try {
-            // First download the entire zip into cache so we can process it
+
             src.writeTo(tmp)
 
             val input = ZipFile.Builder().setFile(tmp).get()
@@ -52,7 +52,7 @@ class DownloadProcessor(notifier: DownloadNotifier) : DownloadNotifier by notifi
                 zout.write("#MAGISK\n".toByteArray())
                 zout.closeArchiveEntry()
 
-                // Then simply copy all entries to output
+
                 zin.copyRawEntries(zout) { entry -> !entry.name.startsWith("META-INF") }
             }
         } finally {

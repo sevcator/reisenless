@@ -3,12 +3,12 @@
 
     <style name="Foundation" parent="Theme.Foundation.Light" />
 
-    <!--region Do not remove-->
+
     <style name="Empty" />
 
     <style name="WidgetFoundation" parent="android:Widget" />
 
-    <!--endregion-->
+
 
     <style name="Foundation.PopupMenu" parent="Widget.MaterialComponents.PopupMenu">
         <item name="android:itemTextAppearance">@style/AppearanceFoundation.Caption</item>

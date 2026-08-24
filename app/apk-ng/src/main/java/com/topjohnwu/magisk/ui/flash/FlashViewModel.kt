@@ -46,7 +46,7 @@ class FlashViewModel : BaseViewModel() {
     var flashAction: String = ""
     var flashUri: Uri? = null
 
-    // --- TerminalScreen mode (FLASH_ZIP) ---
+
 
     private val emulatorReady = CompletableDeferred<TerminalEmulator>()
 
@@ -54,7 +54,7 @@ class FlashViewModel : BaseViewModel() {
         emulatorReady.complete(emu)
     }
 
-    // --- LazyColumn mode (MagiskInstaller) ---
+
 
     val consoleItems = mutableStateListOf<String>()
     private val logItems = mutableListOf<String>().synchronized()
@@ -66,7 +66,7 @@ class FlashViewModel : BaseViewModel() {
         }
     }
 
-    // --- Shared ---
+
 
     fun startFlashing() {
         val action = flashAction

@@ -66,18 +66,18 @@ sanitize_rom_traces() {
     command -v resetprop >/dev/null 2>&1 || return 1
 
     while IFS= read -r keyword; do
-        # Minimum 3 chars to avoid accidental matches
+
         [ "${#keyword}" -ge 3 ] || continue
 
-        # Delete system props whose NAME contains the keyword so getprop
-        # (a separate process unaffected by PLT hooks) also sees nothing.
+
+
         getprop | sed -n "s/^\\[\\([^]]*${keyword}[^]]*\\)\\]:.*/\\1/p" | \
         while IFS= read -r pname; do
             resetprop --delete "$pname" 2>/dev/null || true
         done
 
-        # Sanitize flavor props: strip keyword prefix, keep only the suffix
-        # after the last '-'. "lineage_enchilada-user" → "user".
+
+
         for fname in ro.build.flavor ro.product.build.flavor; do
             val="$(resetprop "$fname" 2>/dev/null)"
             case "$val" in

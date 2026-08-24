@@ -157,12 +157,12 @@ pub mod ffi {
         fn switch_mnt_ns(pid: i32) -> i32;
         fn exec_root_shell(client: i32, pid: i32, req: &mut SuRequest, mode: MntNsMode);
 
-        // Scripting
+
         fn exec_script(script: Utf8CStrRef);
         fn exec_script_async(script: Utf8CStrRef);
         fn exec_common_scripts(stage: Utf8CStrRef);
         fn exec_module_scripts(state: Utf8CStrRef, modules: &Vec<ModuleInfo>);
-        // Denylist
+
         fn denylist_cli(args: &mut Vec<String>) -> i32;
         fn denylist_handler(client: i32);
         fn scan_deny_apps();
@@ -204,14 +204,14 @@ pub mod ffi {
         unsafe fn magisk_main(argc: i32, argv: *mut *mut c_char) -> i32;
     }
 
-    // Default constructors
+
     extern "Rust" {
         #[Self = SuRequest]
         #[cxx_name = "New"]
         fn default() -> SuRequest;
     }
 
-    // FFI for MagiskD
+
     extern "Rust" {
         type MagiskD;
         fn sdk_int(&self) -> i32;

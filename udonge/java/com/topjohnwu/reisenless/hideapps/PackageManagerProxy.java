@@ -18,11 +18,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Process-local IPackageManager wrapper installed by Reisenless' built-in
- * Zygisk runtime. This class deliberately uses framework-only APIs so the DEX
- * can be loaded directly into an app process without an Android dependency.
- */
+
+
+
+
+
 public final class PackageManagerProxy implements InvocationHandler {
     private static final Set<String> NEVER_HIDE = new HashSet<>();
 
@@ -177,7 +177,7 @@ public final class PackageManagerProxy implements InvocationHandler {
                         && shouldHide(String.valueOf(entry.getKey())))
                         || shouldHide(packageNameOf(entry.getValue(), false)));
             } catch (UnsupportedOperationException ignored) {
-                // Framework returned an immutable map.
+
             }
             return value;
         }
@@ -193,8 +193,8 @@ public final class PackageManagerProxy implements InvocationHandler {
             return array;
         }
 
-        // Android package queries commonly return ParceledListSlice. Hidden API
-        // exemptions are installed natively before this handler is created.
+
+
         if (value.getClass().getName().endsWith("ParceledListSlice")) {
             try {
                 Method getList = value.getClass().getMethod("getList");
@@ -208,12 +208,12 @@ public final class PackageManagerProxy implements InvocationHandler {
                             ((List<?>) list).removeIf(
                                     item -> shouldHide(packageNameOf(item, stringsArePackages)));
                         } catch (UnsupportedOperationException ignoredAgain) {
-                            // Unknown immutable framework implementation.
+
                         }
                     }
                 }
             } catch (ReflectiveOperationException ignored) {
-                // Unknown framework revision: leave the original result intact.
+
             }
         }
         return value;

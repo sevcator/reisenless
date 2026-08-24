@@ -21,9 +21,9 @@ import org.xmlpull.v1.XmlPullParser
 import java.util.Locale
 
 interface LocaleSetting {
-    // The locale that is manually overridden, null if system default
+
     val appLocale: Locale?
-    // The current active locale used in the application
+
     val currentLocale: Locale
 
     fun setLocale(tag: String)
@@ -104,7 +104,7 @@ interface LocaleSetting {
         override val currentLocale: Locale
             get() = appLocale ?: lm.systemLocales[0]
 
-        // These following methods should not be used
+
         override fun setLocale(tag: String) {}
         override fun updateResource(res: Resources) {}
     }
@@ -127,7 +127,7 @@ interface LocaleSetting {
             tags.add("")
 
             if (Build.VERSION.SDK_INT >= 34) {
-                // Use platform LocaleConfig parser
+
                 val config = localeConfig
                 val list = config.supportedLocales ?: LocaleList.getEmptyLocaleList()
                 names.ensureCapacity(list.size() + 1)
@@ -139,7 +139,7 @@ interface LocaleSetting {
                     tags.add(tag)
                 }
             } else {
-                // Manually parse locale_config.xml
+
                 val parser = AppContext.resources.getXml(R.xml.locale_config)
                 while (true) {
                     when (parser.next()) {
@@ -185,7 +185,7 @@ interface LocaleSetting {
         )
 
         val instance: LocaleSetting by lazy {
-            // Initialize available locale list
+
             available
             if (useLocaleManager) {
                 Api33Impl()

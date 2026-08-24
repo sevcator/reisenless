@@ -25,7 +25,7 @@ pub(crate) fn hexpatch_init_for_second_stage(writable: bool) {
     }
 
     if !writable {
-        // If we cannot directly modify /init, we need to bind mount a replacement on top of it
+
         let src = cstr!("/init");
         let dest = cstr!("/data/init");
         let _ = || -> LoggedResult<()> {
@@ -43,29 +43,29 @@ pub(crate) fn hexpatch_init_for_second_stage(writable: bool) {
 
 impl MagiskInit {
     pub(crate) fn hijack_init_with_switch_root(&self) {
-        // We make use of original init's `SwitchRoot` to help us bind mount
-        // magiskinit to /system/bin/init to hijack second stage init.
-        //
-        // Two important assumption about 2SI:
-        // - The second stage init is always /system/bin/init
-        // - After `SwitchRoot`, /sdcard is always a symlink to `/storage/self/primary`.
-        //
-        // `SwitchRoot` will perform the following:
-        // - Recursive move all mounts under `/` to `/system`
-        // - chroot to `/system`
-        //
-        // The trick here is that in Magisk's first stage init, we can mount magiskinit to /sdcard,
-        // and create a symlink at /storage/self/primary pointing to /system/system/bin/init.
-        //
-        // During init's `SwitchRoot`, it will mount move /sdcard (which is magiskinit)
-        // to /system/sdcard, which is a symlink to /storage/self/primary, which is a
-        // symlink to /system/system/bin/init, which will eventually become /system/bin/init after
-        // chroot to /system. The effective result is that we coerce the original init into bind
-        // mounting magiskinit to /system/bin/init, successfully hijacking the second stage init.
-        //
-        // An edge case is that some devices (like meizu) use 2SI but does not switch root.
-        // In that case, they must already have a /sdcard in ramfs, thus we can check if
-        // /sdcard exists and fallback to using hexpatch.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         if self.config.force_normal_boot {
             cstr!("/first_stage_ramdisk/storage/self")
@@ -87,14 +87,14 @@ impl MagiskInit {
         }
         cstr!("/init").rename_to(cstr!("/sdcard")).log_ok();
 
-        // First try to mount magiskinit from rootfs to workaround Samsung RKP
+
         if cstr!("/sdcard")
             .bind_mount_to(cstr!("/sdcard"), false)
             .is_ok()
         {
             debug!("Bind mount /sdcard -> /sdcard");
         } else {
-            // Binding mounting from rootfs is not supported before Linux 3.12
+
             cstr!(REDIR_PATH)
                 .bind_mount_to(cstr!("/sdcard"), false)
                 .log_ok();

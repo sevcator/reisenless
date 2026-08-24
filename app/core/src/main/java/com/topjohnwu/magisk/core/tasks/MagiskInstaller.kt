@@ -111,7 +111,7 @@ abstract class MagiskInstallImpl protected constructor(
         installDir.mkdirs()
 
         try {
-            // Extract binaries
+
             if (isRunningAsStub) {
                 ZipFile.builder().setFile(StubApk.current(context)).get().use { zf ->
                     zf.entries.asSequence().filter {
@@ -141,9 +141,9 @@ abstract class MagiskInstallImpl protected constructor(
                 }
             } else {
                 val info = context.applicationInfo
-                // Android 15 can deny both directory enumeration and metadata
-                // checks for extracted native libraries. Read payloads directly
-                // from the APK so the installer always receives regular files.
+
+
+
                 ZipFile.builder().setFile(File(info.sourceDir)).get().use { zf ->
                     zf.entries.asSequence().filter {
                         !it.isDirectory && it.name.startsWith("lib/${Const.CPU_ABI}/")
@@ -171,8 +171,8 @@ abstract class MagiskInstallImpl protected constructor(
                 }
             }
 
-            // Native dispatch recognizes the generated runtime name, not the
-            // fixed APK packaging name (libmagisk.so -> magisk).
+
+
             val packagedMain = File(installDir, "magisk")
             val runtimeMain = File(installDir, BuildConfig.MAIN_BIN_NAME)
             if (packagedMain != runtimeMain && packagedMain.exists()) {
@@ -194,7 +194,7 @@ abstract class MagiskInstallImpl protected constructor(
                 packagedInitLd.renameTo(runtimeInitLd)
             }
 
-            // Extract scripts
+
             for (script in listOf(
                 "util_functions.sh", "boot_patch.sh", "addon.d.sh",
                 BuildConfig.STUB_NAME, BuildConfig.UDONGE_ARCHIVE
@@ -202,7 +202,7 @@ abstract class MagiskInstallImpl protected constructor(
                 val dest = File(installDir, script)
                 context.assets.open(script).writeTo(dest)
             }
-            // Extract chromeos tools
+
             File(installDir, "chromeos").mkdir()
             for (file in listOf("futility", "kernel_data_key.vbprivk", "kernel.keyblock")) {
                 val name = "chromeos/$file"
@@ -215,7 +215,7 @@ abstract class MagiskInstallImpl protected constructor(
         }
 
         if (useRootDir) {
-            // Move everything to tmpfs to workaround Samsung bullshit
+
             rootFS.getFile(Const.TMPDIR).also {
                 arrayOf(
                     "rm -rf $it",
@@ -234,8 +234,8 @@ abstract class MagiskInstallImpl protected constructor(
         out.use { copyAll(it, 1024 * 1024) }
 
     private class NoAvailableStream(s: InputStream) : FilterInputStream(s) {
-        // Make sure available is never called on the actual stream and always return 0
-        // to reduce max buffer size and avoid OOM
+
+
         override fun available() = 0
     }
 
@@ -295,29 +295,29 @@ abstract class MagiskInstallImpl protected constructor(
                 decompressedStream().copyAndCloseOut(bootItem.file.newOutputStream())
             } else if (entry.name.contains("vbmeta.img")) {
                 val rawData = decompressedStream().readBytes()
-                // Valid vbmeta.img should be at least 256 bytes
+
                 if (rawData.size < 256)
                     continue
 
-                // vbmeta partition exist, disable boot vbmeta patch
+
                 Info.patchBootVbmeta = false
 
                 val name = entry.name.replace(".lz4", "")
                 console.add("-- patching  : $name")
 
-                // Patch flags to AVB_VBMETA_IMAGE_FLAGS_HASHTREE_DISABLED |
-                // AVB_VBMETA_IMAGE_FLAGS_VERIFICATION_DISABLED
+
+
                 ByteBuffer.wrap(rawData).putInt(120, 3)
 
-                // Fetch the next entry first before modifying current entry
+
                 val vbmeta = entry
                 entry = tarIn.nextEntry
 
-                // Update entry with new information
+
                 vbmeta.name = name
                 vbmeta.size = rawData.size.toLong()
 
-                // Write output
+
                 tarOut.putArchiveEntry(vbmeta)
                 tarOut.write(rawData)
                 tarOut.closeArchiveEntry()
@@ -333,11 +333,11 @@ abstract class MagiskInstallImpl protected constructor(
             entry = tarIn.nextEntry ?: break
         }
 
-        // Patch priority: recovery > init_boot > boot
+
         return when {
             recovery != null -> {
                 if (boot != null) {
-                    // Repack boot image to prevent auto restore
+
                     arrayOf(
                         "cd $installDir",
                         "chmod -R 755 .",
@@ -374,7 +374,7 @@ abstract class MagiskInstallImpl protected constructor(
                     try {
                         return processPayload(zipIn)
                     } catch (e: IOException) {
-                        // No boot image in payload.bin, continue to find boot images
+
                     }
                 }
                 "init_boot.img" -> {
@@ -385,7 +385,7 @@ abstract class MagiskInstallImpl protected constructor(
                 "boot.img" -> {
                     console.add("- extracting boot.img")
                     zipIn.copyAndCloseOut(boot.newOutputStream())
-                    // Don't return here since there might be an init_boot.img
+
                 }
             }
         }
@@ -403,9 +403,9 @@ abstract class MagiskInstallImpl protected constructor(
             console.add("- processing payload.bin")
             fifo = File.createTempFile("payload-fifo-", null, installDir)
             fifo.delete()
-            Os.mkfifo(fifo.path, 420 /* 0644 */)
+            Os.mkfifo(fifo.path, 420           )
 
-            // Enqueue the shell command first, or the subsequent FIFO open will block
+
             val future = arrayOf(
                 "cd $installDir",
                 "./mboot extract $fifo",
@@ -423,7 +423,7 @@ abstract class MagiskInstallImpl protected constructor(
                     } catch (e: ErrnoException) {
                         if (e.errno != OsConstants.EPIPE)
                             throw e
-                        // If SIGPIPE, then the other side is closed, we're done
+
                         break
                     }
                     if (!buf.hasRemaining()) {
@@ -467,7 +467,7 @@ abstract class MagiskInstallImpl protected constructor(
         val outFile: MediaStoreUtils.UriFile
         var bootItem: BootItem? = null
 
-        // Process input file
+
         try {
             PushbackInputStream(uri.inputStream().buffered(1024 * 1024), 512).use { src ->
                 val head = ByteArray(512)
@@ -481,7 +481,7 @@ abstract class MagiskInstallImpl protected constructor(
                 val tarMagic = head.copyOfRange(257, 262)
 
                 srcBoot = if (tarMagic.contentEquals("ustar".toByteArray())) {
-                    // tar file
+
                     outFile = MediaStoreUtils.getFileAtStorageRoot(
                         "$destName.$destExt",
                         destFolder,
@@ -501,7 +501,7 @@ abstract class MagiskInstallImpl protected constructor(
                         throw e
                     }
                 } else {
-                    // raw image
+
                     outFile = MediaStoreUtils.getFileAtStorageRoot(
                         "$destName.$destExt",
                         destFolder,
@@ -533,13 +533,13 @@ abstract class MagiskInstallImpl protected constructor(
             return false
         }
 
-        // Patch file
+
         if (!patchBoot()) {
             outFile.delete()
             return false
         }
 
-        // Output file
+
         try {
             val newBoot = installDir.getChildFile("new-boot.img")
             if (bootItem != null) {
@@ -563,7 +563,7 @@ abstract class MagiskInstallImpl protected constructor(
             outStream.close()
         }
 
-        // Fix up binaries
+
         srcBoot.delete()
         "cp_readlink $installDir".sh()
 
@@ -573,7 +573,7 @@ abstract class MagiskInstallImpl protected constructor(
     private fun patchBoot(): Boolean {
         val newBoot = installDir.getChildFile("new-boot.img")
         if (!useRootDir) {
-            // Create output files before hand
+
             newBoot.createNewFile()
             File(installDir, "stock_boot.img").createNewFile()
         }
@@ -647,7 +647,7 @@ abstract class MagiskInstallImpl protected constructor(
         if (result)
             return true
 
-        // Not every operation initializes installDir
+
         if (::installDir.isInitialized)
             Shell.cmd("rm -rf $installDir").submit()
         return false

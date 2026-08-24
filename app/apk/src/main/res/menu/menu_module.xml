@@ -9,12 +9,4 @@
         android:title="@string/module_search_installed"
         app:actionViewClass="androidx.appcompat.widget.SearchView"
         app:showAsAction="ifRoom|collapseActionView" />
-
-    <item
-        android:id="@+id/action_repository_search"
-        android:icon="@drawable/ic_web"
-        android:orderInCategory="2"
-        android:title="@string/repository_searcher"
-        app:showAsAction="always" />
-
 </menu>

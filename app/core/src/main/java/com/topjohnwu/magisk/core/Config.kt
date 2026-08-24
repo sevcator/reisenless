@@ -14,26 +14,13 @@ object Config : PreferenceConfig, DBConfig {
         "https://raw.githubusercontent.com/sevcator/Reisenless/master/udonge/payload/defaults/keybox.xml\n" +
         "https://gist.githubusercontent.com/GreyElaina/2401596f3b8a01f8602768ad5221e2fd/raw/kb_b.xml"
 
-    const val DEFAULT_MODULE_REPOSITORIES =
-        "https://gr.dergoogler.com/gmr/\n" +
-        "https://magisk-modules-alt-repo.github.io/json-v2/\n" +
-        "https://apt.izzysoft.de/magisk/\n" +
-        "https://rikj000.github.io/Magisk-Modules-Rikj000-Repo/\n" +
-        "https://natsumerinchan.github.io/celica-magisk-modules-repo/\n" +
-        "https://codeberg.org/fruitsnack/magisk-font-repo/raw/branch/main/\n" +
-        "https://leloubil.github.io/magisk-repo/\n" +
-        "https://zguation-projects.github.io/ZG-R/\n" +
-        "https://mrepo.rem01gaming.dev/\n" +
-        "https://ssmg4.github.io/SSR/\n" +
-        "https://juliazero.github.io/mrbj/"
-
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB
     override val context get() = ServiceLocator.deContext
     override val coroutineScope get() = GlobalScope
 
     object Key {
-        // db configs
+
         const val ROOT_ACCESS = "root_access"
         const val SU_MULTIUSER_MODE = "multiuser_mode"
         const val SU_MNT_NS = "mnt_ns"
@@ -46,7 +33,7 @@ object Config : PreferenceConfig, DBConfig {
         const val MIGRATION_SOURCE = "migration_source"
         const val MIGRATION_TARGET = "migration_target"
 
-        // prefs
+
         const val SU_REQUEST_TIMEOUT = "su_request_timeout"
         const val SU_AUTO_RESPONSE = "su_auto_response"
         const val SU_NOTIFICATION = "su_notification"
@@ -54,8 +41,7 @@ object Config : PreferenceConfig, DBConfig {
         const val SU_TAPJACK = "su_tapjack"
         const val LOCALE = "locale"
         const val DARK_THEME = "dark_theme_extended"
-        const val ACCENT_PRIMARY = "accent_primary"
-        const val ACCENT_SECONDARY = "accent_secondary"
+        const val ACCENT_COLOR = "accent_color"
         const val SAFETY = "safety_notice"
         const val ASKED_HOME = "asked_home"
         const val DOH = "doh"
@@ -66,9 +52,6 @@ object Config : PreferenceConfig, DBConfig {
         const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls"
         const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
         const val UDONGE_ROM_HIDING = "udonge_rom_hiding"
-        const val REPOSITORY_SEARCHER_ENABLED = "repository_searcher_enabled"
-        const val MODULE_REPOSITORY_URLS = "module_repository_urls"
-        const val MODULE_REPOSITORY_DEFAULTS_VERSION = "module_repository_defaults_version"
 
         val NO_MIGRATION = setOf(
             ASKED_HOME, SU_REQUEST_TIMEOUT, SU_AUTO_RESPONSE, SU_REAUTH, SU_TAPJACK,
@@ -76,27 +59,27 @@ object Config : PreferenceConfig, DBConfig {
     }
 
     object Value {
-        // root access mode
+
         const val ROOT_ACCESS_DISABLED = 0
         const val ROOT_ACCESS_APPS_ONLY = 1
         const val ROOT_ACCESS_ADB_ONLY = 2
         const val ROOT_ACCESS_APPS_AND_ADB = 3
 
-        // su multiuser
+
         const val MULTIUSER_MODE_OWNER_ONLY = 0
         const val MULTIUSER_MODE_OWNER_MANAGED = 1
         const val MULTIUSER_MODE_USER = 2
 
-        // su mnt ns
+
         const val NAMESPACE_MODE_GLOBAL = 0
         const val NAMESPACE_MODE_REQUESTER = 1
         const val NAMESPACE_MODE_ISOLATE = 2
 
-        // su notification
+
         const val NO_NOTIFICATION = 0
         const val NOTIFICATION_TOAST = 1
 
-        // su auto response
+
         const val SU_PROMPT = 0
         const val SU_AUTO_DENY = 1
         const val SU_AUTO_ALLOW = 2
@@ -104,7 +87,7 @@ object Config : PreferenceConfig, DBConfig {
         const val THEME_LIGHT = 1
         const val THEME_DARK = 2
 
-        // su timeout
+
         val TIMEOUT_LIST = longArrayOf(0, -1, 10, 20, 30, 60)
     }
 
@@ -131,14 +114,7 @@ object Config : PreferenceConfig, DBConfig {
                 Value.THEME_LIGHT
             }
         }
-    private var storedAccentPrimary by preference(Key.ACCENT_PRIMARY, 0xFFF4A6C1.toInt())
-    private var storedAccentSecondary by preference(Key.ACCENT_SECONDARY, 0xFFF4A6C1.toInt())
-    var accentPrimary
-        get() = migrateAccent(storedAccentPrimary, true)
-        set(value) { storedAccentPrimary = value }
-    var accentSecondary
-        get() = migrateAccent(storedAccentSecondary, false)
-        set(value) { storedAccentSecondary = value }
+    var accentColor by preference(Key.ACCENT_COLOR, 0xFFC95BC8.toInt())
     var udongeEnabled by preference(Key.UDONGE_ENABLED, true)
     var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
     var udongeBackgroundModules by preference(Key.UDONGE_BACKGROUND_MODULES, true)
@@ -152,30 +128,6 @@ object Config : PreferenceConfig, DBConfig {
         set(value) { storedUdongeKeyboxUrls = value }
     var udongeRomKeywords by preference(Key.UDONGE_ROM_KEYWORDS, "")
     var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, true)
-    var repositorySearcherEnabled by preference(Key.REPOSITORY_SEARCHER_ENABLED, true)
-    private var storedModuleRepositoryUrls by preference(
-        Key.MODULE_REPOSITORY_URLS,
-        DEFAULT_MODULE_REPOSITORIES,
-    )
-    private var moduleRepositoryDefaultsVersion by preference(
-        Key.MODULE_REPOSITORY_DEFAULTS_VERSION,
-        0,
-    )
-    var moduleRepositoryUrls: String
-        get() {
-            if (moduleRepositoryDefaultsVersion < 1) {
-                storedModuleRepositoryUrls =
-                    (storedModuleRepositoryUrls.lineSequence() +
-                        DEFAULT_MODULE_REPOSITORIES.lineSequence())
-                        .map(String::trim)
-                        .filter(String::isNotBlank)
-                        .distinctBy { it.lowercase() }
-                        .joinToString("\n")
-                moduleRepositoryDefaultsVersion = 1
-            }
-            return storedModuleRepositoryUrls.ifBlank { DEFAULT_MODULE_REPOSITORIES }
-        }
-        set(value) { storedModuleRepositoryUrls = value }
     private var localePrefs by preference(Key.LOCALE, "")
     var doh by preference(Key.DOH, false)
     var locale
@@ -208,24 +160,6 @@ object Config : PreferenceConfig, DBConfig {
     var suTapjack by preference(Key.SU_TAPJACK, true)
 
     private const val SU_FINGERPRINT = "su_fingerprint"
-
-    private fun migrateAccent(value: Int, primary: Boolean): Int {
-        if (value !in 0..7) return value
-        val colors = if (primary) {
-            intArrayOf(
-                0xFFF4A6C1.toInt(), 0xFF7E57C2.toInt(), 0xFF4EAFF5.toInt(),
-                0xFF68A17F.toInt(), 0xFFF2B90D.toInt(), 0xFFDB7366.toInt(),
-                0xFF009688.toInt(), 0xFF607D8B.toInt(),
-            )
-        } else {
-            intArrayOf(
-                0xFFD97A9C.toInt(), 0xFF5E35B1.toInt(), 0xFF3E78AF.toInt(),
-                0xFF2F6D43.toInt(), 0xFFB29667.toInt(), 0xFFB65247.toInt(),
-                0xFF00796B.toInt(), 0xFF455A64.toInt(),
-            )
-        }
-        return colors[value]
-    }
 
     fun toBundle(): Bundle {
         val map = prefs.all - Key.NO_MIGRATION

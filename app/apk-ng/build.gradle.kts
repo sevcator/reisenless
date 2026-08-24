@@ -38,7 +38,7 @@ dependencies {
     implementation(project(":hideapps"))
     coreLibraryDesugaring(libs.jdk.libs)
 
-    // Compose
+
     implementation(libs.compose.ui)
     implementation(libs.accompanist.drawablepainter)
     implementation(libs.compose.ui.tooling.preview)
@@ -50,7 +50,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.webkit)
 
-    // Navigation3
+
     implementation(libs.navigation3.runtime)
     implementation(libs.navigationevent.compose)
     implementation(libs.lifecycle.viewmodel.navigation3)

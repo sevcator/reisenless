@@ -9,13 +9,13 @@ public class ProviderInstaller {
 
     public static void install(Context context) {
         try {
-            // Check if gms is a system app
+
             ApplicationInfo appInfo = context.getPackageManager().getApplicationInfo(GMS_PACKAGE_NAME, 0);
             if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
                 return;
             }
 
-            // Try installing new SSL provider from Google Play Service
+
             Context gms = context.createPackageContext(GMS_PACKAGE_NAME,
                     Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY);
             gms.getClassLoader()

@@ -4,20 +4,20 @@
 
 #include <rust/cxx.h>
 
-#define SQLITE_OPEN_READWRITE        0x00000002  /* Ok for sqlite3_open_v2() */
-#define SQLITE_OPEN_CREATE           0x00000004  /* Ok for sqlite3_open_v2() */
-#define SQLITE_OPEN_NOMUTEX          0x00008000  /* Ok for sqlite3_open_v2() */
+#define SQLITE_OPEN_READWRITE        0x00000002
+#define SQLITE_OPEN_CREATE           0x00000004
+#define SQLITE_OPEN_NOMUTEX          0x00008000
 
-#define SQLITE_OK           0   /* Successful result */
-#define SQLITE_ROW         100  /* sqlite3_step() has another row ready */
-#define SQLITE_DONE        101  /* sqlite3_step() has finished executing */
+#define SQLITE_OK           0
+#define SQLITE_ROW         100
+#define SQLITE_DONE        101
 
 struct sqlite3;
 struct sqlite3_stmt;
 
 extern const char *(*sqlite3_errstr)(int);
 
-// Transparent wrappers of sqlite3_stmt
+
 struct DbValues {
     const char *get_text(int index) const;
     rust::Str get_str(int index) const { return get_text(index); }
@@ -36,9 +36,9 @@ using sql_exec_callback = void(*)(void*, StringSlice, const DbValues&);
 
 sqlite3 *open_and_init_db();
 
-/************
- * C++ APIs *
- ************/
+
+
+
 
 using db_exec_callback = std::function<void(StringSlice, const DbValues&)>;
 

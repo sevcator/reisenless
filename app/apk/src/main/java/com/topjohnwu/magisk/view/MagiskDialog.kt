@@ -222,7 +222,7 @@ class MagiskDialog(
         }
     }
 
-    // Prevent calling setContentView
+
 
     @Deprecated("Please use setView(view)", level = DeprecationLevel.ERROR)
     override fun setContentView(layoutResID: Int) {}

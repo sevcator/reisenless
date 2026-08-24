@@ -28,7 +28,7 @@ pub trait WriteFinish<W: Write>: Write {
     fn finish(self: Box<Self>) -> std::io::Result<W>;
 }
 
-// Boilerplate for existing types
+
 
 macro_rules! finish_impl {
     ($($t:ty),*) => {$(
@@ -57,12 +57,12 @@ impl<W: Write> WriteFinish<W> for LZ4FrameEncoder<W> {
     }
 }
 
-// LZ4BlockArchive format
-//
-// len:  |   4   |          4            |           n           | ... |           4             |
-// data: | magic | compressed block size | compressed block data | ... | total uncompressed size |
 
-// LZ4BlockEncoder
+
+
+
+
+
 
 const LZ4_BLOCK_SIZE: usize = 0x800000;
 const LZ4HC_CLEVEL_MAX: i32 = 12;
@@ -82,7 +82,7 @@ impl<W: Write> LZ4BlockEncoder<W> {
         LZ4BlockEncoder {
             write,
             chunker: Chunker::new(LZ4_BLOCK_SIZE),
-            // SAFETY: all bytes will be initialized before it is used
+
             out_buf: unsafe { Box::new_uninit_slice(out_sz).assume_init() },
             total: 0,
             is_lg,
@@ -114,7 +114,7 @@ impl<W: Write> Write for LZ4BlockEncoder<W> {
 
     fn write_all(&mut self, mut buf: &[u8]) -> std::io::Result<()> {
         if self.total == 0 {
-            // Write header
+
             self.write.write_pod(&LZ4_MAGIC)?;
         }
 
@@ -143,7 +143,7 @@ impl<W: Write> WriteFinish<W> for LZ4BlockEncoder<W> {
     }
 }
 
-// LZ4BlockDecoder
+
 
 struct LZ4BlockDecoder<R: Read> {
     read: R,
@@ -184,15 +184,15 @@ impl<R: Read> Read for LZ4BlockDecoder<R> {
             let block_size = block_size as usize;
 
             if block_size > self.in_buf.len() {
-                // This may be the LG format trailer, EOF
+
                 return Ok(0);
             }
 
-            // Read the entire compressed block
+
             let compressed_block = &mut self.in_buf[..block_size];
             if let Ok(len) = self.read.read(compressed_block) {
                 if len == 0 {
-                    // We hit EOF, that's fine
+
                     return Ok(0);
                 } else if len != block_size {
                     let remain = &mut compressed_block[len..];
@@ -214,7 +214,7 @@ impl<R: Read> Read for LZ4BlockDecoder<R> {
     }
 }
 
-// Top-level APIs
+
 
 pub fn get_encoder<'a, W: Write + 'a>(
     format: FileFormat,
@@ -246,7 +246,7 @@ pub fn get_encoder<'a, W: Write + 'a>(
         FileFormat::LZ4_LEGACY => Box::new(LZ4BlockEncoder::new(w, false)),
         FileFormat::LZ4_LG => Box::new(LZ4BlockEncoder::new(w, true)),
         FileFormat::ZOPFLI => {
-            // These options are already better than gzip -9
+
             let opt = ZopfliOptions {
                 iteration_count: unsafe { NonZeroU64::new_unchecked(1) },
                 maximum_block_splits: 1,
@@ -274,7 +274,7 @@ pub fn get_decoder<'a, R: Read + 'a>(
     })
 }
 
-// C++ FFI
+
 
 pub fn compress_bytes(format: FileFormat, in_bytes: &[u8], out_fd: RawFd) {
     let mut out_file = unsafe { ManuallyDrop::new(File::from_raw_fd(out_fd)) };
@@ -297,7 +297,7 @@ pub fn decompress_bytes(format: FileFormat, in_bytes: &[u8], out_fd: RawFd) {
     }();
 }
 
-// Command-line entry points
+
 
 pub(crate) fn decompress_cmd(infile: &Utf8CStr, outfile: Option<&Utf8CStr>) -> LoggedResult<()> {
     let in_std = infile == "-";
@@ -311,7 +311,7 @@ pub(crate) fn decompress_cmd(infile: &Utf8CStr, outfile: Option<&Utf8CStr>) -> L
         FileOrStd::File(infile.open(OFlag::O_RDONLY)?)
     };
 
-    // First read some bytes for format detection
+
     let len = input.as_file().read(&mut buf)?;
     let buf = &buf[..len];
 
@@ -323,9 +323,9 @@ pub(crate) fn decompress_cmd(infile: &Utf8CStr, outfile: Option<&Utf8CStr>) -> L
         return log_err!("Input file is not a supported type!");
     }
 
-    // If user did not provide outfile, infile has to be either
-    // <path>.[ext], or "-". Outfile will be either <path> or "-".
-    // If the input does not have proper format, abort.
+
+
+
 
     let output = if let Some(outfile) = outfile {
         if outfile == "-" {
@@ -336,7 +336,7 @@ pub(crate) fn decompress_cmd(infile: &Utf8CStr, outfile: Option<&Utf8CStr>) -> L
     } else if in_std {
         FileOrStd::StdOut
     } else {
-        // Strip out extension and remove input
+
         let outfile = if let Some((outfile, ext)) = infile.rsplit_once('.')
             && ext == format.ext()
         {

@@ -34,14 +34,14 @@ public class Desugar {
         }
     }
 
-    /**
-     * Within {@link ZipArchiveOutputStream#copyFromZipInputStream}, we redirect the method call
-     * {@link ZipUtil#checkRequestedFeatures} to this method. This is safe because the only usage
-     * of copyFromZipInputStream is in {@link ZipArchiveOutputStream#addRawArchiveEntry},
-     * which does not need to actually understand the content of the zip entry. By removing
-     * this feature check, we can modify zip files using unsupported compression methods.
-     */
+
+
+
+
+
+
+
     public static void checkRequestedFeatures(final ZipArchiveEntry ze) {
-        // No-op
+
     }
 }

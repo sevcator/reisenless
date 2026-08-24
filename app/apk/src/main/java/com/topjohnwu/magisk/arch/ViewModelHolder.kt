@@ -20,9 +20,9 @@ interface ViewModelHolder : LifecycleOwner, ViewModelStoreOwner {
         Info.isConnected.observe(this, viewModel::onNetworkChanged)
     }
 
-    /**
-     * Called for all [ViewEvent]s published by associated viewModel.
-     */
+
+
+
     fun onEventDispatched(event: ViewEvent) {}
 }
 

@@ -152,10 +152,10 @@ private abstract class ManifestUpdater: DefaultTask() {
             |</activity>""".ind(2)
         )
 
-        // The hidden stub must publish every activity that the dynamically
-        // loaded manager can launch explicitly. WebUI used to be absent here,
-        // so the package manager rejected its intent before DynLoad could map
-        // the randomized component back to the real activity class.
+
+
+
+
         cmpList.add("""
             |<activity
             |    android:name="x.COMPONENT_PLACEHOLDER_6"
@@ -177,7 +177,7 @@ private abstract class ManifestUpdater: DefaultTask() {
             |    android:permission="android.permission.BIND_JOB_SERVICE" />""".ind(2)
         )
 
-        // Shuffle the order of the components
+
         cmpList.shuffle(RANDOM)
         val components = cmpList.joinToString("\n\n")
             .replace("\${applicationId}", applicationId.get())
@@ -201,7 +201,6 @@ private fun genStubClasses(outDir: File): Pair<String, String> {
 
         fun List<String>.process() = asSequence()
             .filter(::notJavaKeyword)
-            // Distinct by lower case to support case insensitive file systems
             .distinctBy { it.lowercase() }
 
         val names = mutableListOf<String>()
@@ -215,8 +214,6 @@ private fun genStubClasses(outDir: File): Pair<String, String> {
             cls.append(names.random(kRANDOM))
             cls.append('.')
             cls.append(names.random(kRANDOM))
-            // Old Android does not support capitalized package names
-            // Check Android 7.0.0 PackageParser#buildClassName
             yield(cls.toString().replaceFirstChar { it.lowercase() })
         }
     }.distinct().iterator()
@@ -242,7 +239,6 @@ private fun genEncryptedResources(res: ByteArray, outDir: File) {
     val mainPkgDir = File(outDir, "com/topjohnwu/magisk")
     mainPkgDir.mkdirs()
 
-    // Generate iv and key
     val iv = ByteArray(16)
     val key = ByteArray(32)
     RANDOM.nextBytes(iv)

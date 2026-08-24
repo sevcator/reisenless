@@ -15,18 +15,18 @@
 
 using namespace std;
 
-// For the following data structures:
-// If package name == ISOLATED_MAGIC, or app ID == -1, it means isolated service
 
-// Package name -> list of process names
+
+
+
 static unique_ptr<map<string, set<string, StringCmp>, StringCmp>> pkg_to_procs_;
 #define pkg_to_procs (*pkg_to_procs_)
 
-// app ID -> list of pkg names (string_view points to a pkg_to_procs key)
+
 static unique_ptr<map<int, set<string_view>>> app_id_to_pkgs_;
 #define app_id_to_pkgs (*app_id_to_pkgs_)
 
-// Locks the data structures above
+
 static pthread_mutex_t data_lock = PTHREAD_MUTEX_INITIALIZER;
 
 atomic<bool> denylist_enforced = false;
@@ -76,7 +76,7 @@ static void update_app_id(int app_id, const string &pkg, bool remove) {
     }
 }
 
-// Leave /proc fd opened as we're going to read from it repeatedly
+
 static DIR *procfp;
 
 template<class F>
@@ -260,7 +260,7 @@ static int add_list(const char *pkg, const char *proc) {
         update_app_id(app_id, it->first, false);
     }
 
-    // Add to database
+
     char sql[4096];
     ssprintf(sql, sizeof(sql),
             "INSERT INTO sulist (package_name, process) VALUES('%s', '%s')", pkg, proc);
@@ -383,7 +383,7 @@ int enable_deny() {
             }
         }
 
-        // On Android Q+, also kill blastula pool and all app zygotes
+
         if (SDK_INT >= 29) {
             kill_process("usap32", true);
             kill_process("usap64", true);

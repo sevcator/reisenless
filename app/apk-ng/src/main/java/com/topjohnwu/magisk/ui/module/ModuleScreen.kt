@@ -1,7 +1,6 @@
 package com.topjohnwu.magisk.ui.module
 
 import android.provider.OpenableColumns
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -26,17 +25,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SystemUpdateAlt
-import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -75,12 +70,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.topjohnwu.magisk.core.Info
-import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.di.ServiceLocator
 import com.topjohnwu.magisk.core.download.DownloadEngine
 import com.topjohnwu.magisk.core.model.module.OnlineModule
-import com.topjohnwu.magisk.core.repository.RepositoryModule
-import com.topjohnwu.magisk.core.repository.RepositoryQueueProcessor
 import com.topjohnwu.magisk.ui.MainActivity
 import com.topjohnwu.magisk.ui.component.ConfirmResult
 import com.topjohnwu.magisk.ui.component.MarkdownTextAsync
@@ -106,19 +98,8 @@ fun ModuleScreen(viewModel: ModuleViewModel) {
 
     var pendingOnlineModule by remember { mutableStateOf<OnlineModule?>(null) }
     val showOnlineDialog = rememberSaveable { mutableStateOf(false) }
-    var showRepository by rememberSaveable { mutableStateOf(false) }
     var localSearchVisible by rememberSaveable { mutableStateOf(false) }
     var localQuery by rememberSaveable { mutableStateOf("") }
-
-    if (showRepository) {
-        BackHandler { showRepository = false }
-        androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.loadRepository() }
-        RepositoryScreen(
-            viewModel = viewModel,
-            onBack = { showRepository = false },
-        )
-        return
-    }
 
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -182,15 +163,6 @@ fun ModuleScreen(viewModel: ModuleViewModel) {
                             Icon(
                                 imageVector = if (localSearchVisible) Icons.Default.Close else Icons.Default.Search,
                                 contentDescription = stringResource(CoreR.string.module_search_installed),
-                                tint = colorScheme.primary,
-                            )
-                        }
-                    }
-                    if (Config.repositorySearcherEnabled) {
-                        IconButton(onClick = { showRepository = true }) {
-                            Icon(
-                                imageVector = Icons.Default.TravelExplore,
-                                contentDescription = stringResource(CoreR.string.repository_searcher),
                                 tint = colorScheme.primary,
                             )
                         }
@@ -288,295 +260,6 @@ fun ModuleScreen(viewModel: ModuleViewModel) {
         }
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun RepositoryScreen(
-    viewModel: ModuleViewModel,
-    onBack: () -> Unit,
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-    val resources = LocalResources.current
-    val scope = rememberCoroutineScope()
-    val processor = remember { RepositoryQueueProcessor(ServiceLocator.networkService) }
-    var query by rememberSaveable { mutableStateOf(uiState.repositoryQuery) }
-    var queued by remember { mutableStateOf<Map<String, RepositoryModule>>(emptyMap()) }
-    var processing by remember { mutableStateOf(false) }
-    var installing by remember { mutableStateOf(false) }
-    var operationStatus by remember { mutableStateOf("") }
-
-    BackHandler(enabled = processing) { }
-
-    fun updateQueue(module: RepositoryModule) {
-        queued = LinkedHashMap(queued).apply {
-            val key = repositoryQueueKey(module)
-            if (remove(key) == null) put(key, module)
-        }
-    }
-
-    fun processQueue(install: Boolean) {
-        if (processing || queued.isEmpty()) return
-        val snapshot = queued.values.toList()
-        scope.launch {
-            processing = true
-            installing = install
-            val result = processor.process(snapshot, install) { current ->
-                val base = resources.getString(
-                    if (current.installing) CoreR.string.repository_queue_installing
-                    else CoreR.string.repository_queue_downloading,
-                    current.position,
-                    current.total,
-                    current.module.name,
-                )
-                operationStatus = when {
-                    current.detail.isNotBlank() -> resources.getString(
-                        CoreR.string.repository_queue_progress_detail,
-                        base,
-                        current.detail.take(160),
-                        current.elapsedSeconds,
-                    )
-                    current.elapsedSeconds > 0 -> resources.getString(
-                        CoreR.string.repository_queue_progress_elapsed,
-                        base,
-                        current.elapsedSeconds,
-                    )
-                    else -> base
-                }
-            }
-            queued = LinkedHashMap(queued).apply {
-                snapshot.take(result.completed).forEach { remove(repositoryQueueKey(it)) }
-            }
-            operationStatus = if (result.successful) {
-                resources.getString(
-                    if (install) CoreR.string.repository_queue_installed
-                    else CoreR.string.repository_queue_downloaded,
-                    result.completed,
-                )
-            } else {
-                if (result.failureDetail.isBlank()) {
-                    resources.getString(
-                        CoreR.string.repository_queue_failed,
-                        result.failedModule?.name.orEmpty(),
-                    )
-                } else {
-                    resources.getString(
-                        CoreR.string.repository_queue_failed_reason,
-                        result.failedModule?.name.orEmpty(),
-                        result.failureDetail.take(160),
-                    )
-                }
-            }
-            if (install && result.completed > 0) viewModel.startLoading()
-            processing = false
-            installing = false
-        }
-    }
-
-    androidx.compose.runtime.LaunchedEffect(query) {
-        kotlinx.coroutines.delay(300)
-        viewModel.searchRepository(query)
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(enabled = !processing, onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(android.R.string.cancel),
-                        )
-                    }
-                },
-                title = {
-                    Text(
-                        if (queued.isEmpty()) stringResource(CoreR.string.repository_searcher)
-                        else stringResource(CoreR.string.repository_searcher_queue_count, queued.size)
-                    )
-                },
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    enabled = queued.isNotEmpty() && !processing,
-                    onClick = { processQueue(false) },
-                ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null)
-                    Spacer(Modifier.size(4.dp))
-                    Text(stringResource(CoreR.string.download))
-                }
-                TextButton(
-                    enabled = queued.isNotEmpty() && !processing,
-                    onClick = { processQueue(true) },
-                ) {
-                    Icon(Icons.Default.SystemUpdateAlt, contentDescription = null)
-                    Spacer(Modifier.size(4.dp))
-                    Text(stringResource(CoreR.string.install))
-                }
-                Spacer(Modifier.weight(1f))
-                TextButton(enabled = !processing, onClick = onBack) {
-                    Icon(Icons.Default.Close, contentDescription = null)
-                    Spacer(Modifier.size(4.dp))
-                    Text(stringResource(android.R.string.cancel))
-                }
-            }
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 12.dp),
-        ) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                enabled = !processing,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                trailingIcon = {
-                    if (query.isNotEmpty()) {
-                        IconButton(enabled = !processing, onClick = { query = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = null)
-                        }
-                    }
-                },
-                placeholder = { Text(stringResource(CoreR.string.repository_search_hint)) },
-            )
-
-            if (operationStatus.isNotBlank()) {
-                Text(
-                    text = operationStatus,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-
-            when {
-                processing && installing -> Spacer(Modifier.weight(1f))
-
-                uiState.repositoryLoading -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
-
-                uiState.repositoryFailed -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(CoreR.string.repository_load_failed),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                uiState.repositoryModules.isEmpty() -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(CoreR.string.repository_no_results),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                else -> LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .nestedScroll(scrollBehavior.nestedScrollConnection),
-                    contentPadding = PaddingValues(bottom = 96.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(uiState.repositoryModules, key = { "${it.id}:${it.zipUrl}" }) { module ->
-                        RepositoryModuleCard(
-                            module = module,
-                            queued = repositoryQueueKey(module) in queued,
-                            enabled = !processing,
-                            onToggleQueue = { updateQueue(module) },
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RepositoryModuleCard(
-    module: RepositoryModule,
-    queued: Boolean,
-    enabled: Boolean,
-    onToggleQueue: () -> Unit,
-) {
-    val colors = MaterialTheme.colorScheme
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(module.name, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = stringResource(
-                    CoreR.string.module_version_author,
-                    module.version,
-                    module.author.ifBlank { module.id },
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.onSurfaceVariant,
-            )
-            if (module.description.isNotBlank()) {
-                Text(
-                    module.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onSurfaceVariant,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            ) {
-                TextButton(enabled = enabled, onClick = onToggleQueue) {
-                    Icon(
-                        if (queued) Icons.AutoMirrored.Filled.Undo else Icons.Default.Add,
-                        contentDescription = null,
-                    )
-                    Spacer(Modifier.size(6.dp))
-                    Text(
-                        stringResource(
-                            if (queued) CoreR.string.repository_remove_from_queue
-                            else CoreR.string.repository_add_to_queue
-                        )
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun repositoryQueueKey(module: RepositoryModule) =
-    module.id.lowercase()
 
 @Composable
 private fun ModuleCard(

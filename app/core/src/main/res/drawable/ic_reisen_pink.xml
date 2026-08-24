@@ -2,4 +2,4 @@
 <bitmap xmlns:android="http://schemas.android.com/apk/res/android"
     android:gravity="fill"
     android:src="@drawable/reisen"
-    android:tint="#FFF4A6C1" />
+    android:tint="#FFC95BC8" />

@@ -7,7 +7,7 @@ import java.io.File
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
-/** Serves only one module's webroot through the root-backed filesystem. */
+
 internal class RootFsPathHandler(
     webRoot: File,
 ) : WebViewAssetLoader.PathHandler {

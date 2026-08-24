@@ -27,34 +27,34 @@ macro_rules! bad_apk {
     };
 }
 
-/*
- * A v2/v3 signed APK has the format as following
- *
- * +---------------+
- * | zip content   |
- * +---------------+
- * | signing block |
- * +---------------+
- * | central dir   |
- * +---------------+
- * | EOCD          |
- * +---------------+
- *
- * Scan from end of file to find EOCD, and figure our way back to the
- * offset of the signing block. Next, directly extract the certificate
- * from the v2 signature block.
- *
- * All structures above are mostly just for documentation purpose.
- *
- * This method extracts the first certificate of the first signer
- * within the APK v2 signature block.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 fn read_certificate(apk: &mut File, version: i32) -> Vec<u8> {
     let res = || -> io::Result<Vec<u8>> {
         let mut u32_val = 0u32;
         let mut u64_val = 0u64;
 
-        // Find EOCD
+
         for i in 0u16.. {
             let mut comment_sz = 0u16;
             apk.seek(SeekFrom::End(-(size_of_val(&comment_sz) as i64) - i as i64))?;
@@ -73,13 +73,13 @@ fn read_certificate(apk: &mut File, version: i32) -> Vec<u8> {
             }
         }
 
-        // We are now at EOCD + sizeof(magic)
-        // Seek and read central_dir_off to find the start of the central directory
+
+
         let mut central_dir_off = 0u32;
         apk.seek(SeekFrom::Current(12))?;
         apk.read_pod(&mut central_dir_off)?;
 
-        // Code for parse APK comment to get version code
+
         if version >= 0 {
             let mut comment_sz = 0u16;
             apk.read_pod(&mut comment_sz)?;
@@ -100,9 +100,9 @@ fn read_certificate(apk: &mut File, version: i32) -> Vec<u8> {
             }
         }
 
-        // Next, find the start of the APK signing block
+
         apk.seek(SeekFrom::Start((central_dir_off - 24) as u64))?;
-        apk.read_pod(&mut u64_val)?; // u64_value = block_sz_
+        apk.read_pod(&mut u64_val)?;
         let mut magic = [0u8; 16];
         apk.read_exact(&mut magic)?;
         if magic != APK_SIGNING_BLOCK_MAGIC {
@@ -117,9 +117,9 @@ fn read_certificate(apk: &mut File, version: i32) -> Vec<u8> {
             Err(bad_apk!("invalid signing block size"))?;
         }
 
-        // Finally, we are now at the beginning of the id-value pair sequence
+
         loop {
-            apk.read_pod(&mut u64_val)?; // id-value pair length
+            apk.read_pod(&mut u64_val)?;
             if u64_val == signing_blk_sz {
                 Err(bad_apk!("cannot find certificate"))?;
             }
@@ -127,20 +127,20 @@ fn read_certificate(apk: &mut File, version: i32) -> Vec<u8> {
             let mut id = 0u32;
             apk.read_pod(&mut id)?;
             if id == SIGNATURE_SCHEME_V2_MAGIC {
-                // Skip [signer sequence length] + [1st signer length] + [signed data length]
+
                 apk.seek(SeekFrom::Current((size_of_val(&u32_val) * 3) as i64))?;
 
-                apk.read_pod(&mut u32_val)?; // digest sequence length
-                apk.seek(SeekFrom::Current(u32_val as i64))?; // skip all digests
+                apk.read_pod(&mut u32_val)?;
+                apk.seek(SeekFrom::Current(u32_val as i64))?;
 
-                apk.seek(SeekFrom::Current(size_of_val(&u32_val) as i64))?; // cert sequence length
-                apk.read_pod(&mut u32_val)?; // 1st cert length
+                apk.seek(SeekFrom::Current(size_of_val(&u32_val) as i64))?;
+                apk.read_pod(&mut u32_val)?;
 
                 let mut cert = vec![0; u32_val as usize];
                 apk.read_exact(cert.as_mut())?;
                 break Ok(cert);
             } else {
-                // Skip this id-value pair
+
                 apk.seek(SeekFrom::Current(
                     u64_val as i64 - (size_of_val(&id) as i64),
                 ))?;
@@ -180,11 +180,11 @@ fn find_apk_path(pkg: &str) -> LoggedResult<Utf8CString> {
     Ok(buf.to_owned())
 }
 
-// Persistent root-only cache for the manager APK path.
+
 const APK_CACHE_FILE: &str = concatcp!(SECURE_DIR, "/", BUILD_SU_CACHE);
 
 fn find_orig_apk_path() -> LoggedResult<Utf8CString> {
-    // Fast path: read cached path from previous successful scan
+
     if let Ok(cached) = std::fs::read_to_string(APK_CACHE_FILE) {
         let cached = cached.trim();
         if !cached.is_empty() && std::path::Path::new(cached).exists() {
@@ -192,15 +192,15 @@ fn find_orig_apk_path() -> LoggedResult<Utf8CString> {
             apk.push_str(cached);
             return Ok(apk.to_owned());
         }
-        // Cached path is stale (APK reinstalled to a new path); remove and re-scan
+
         let _ = std::fs::remove_file(APK_CACHE_FILE);
     }
 
-    // Slow path: walk /data/app/ looking for the package directory.
-    // On a device with many apps this can take 30–60 s on encrypted storage.
+
+
     let apk = find_apk_path(APP_PACKAGE_NAME)?;
     if !apk.is_empty() {
-        // Persist the result so subsequent daemon starts are instant
+
         let _ = std::fs::write(APK_CACHE_FILE, apk.to_string().as_bytes());
     }
     Ok(apk)
@@ -370,7 +370,7 @@ impl ManagerInfo {
     fn get_manager(&mut self, daemon: &MagiskD, user: i32) -> (i32, &str) {
         let db_pkg = daemon.get_db_string(DbEntryKey::SuManager);
 
-        // If database changed, always re-check files
+
         if db_pkg != self.repackaged_pkg {
             self.tracked_files.remove(&user);
         }
@@ -378,18 +378,18 @@ impl ManagerInfo {
         if let Some(file) = self.tracked_files.get(&user)
             && file.is_same()
         {
-            // no APK
+
             if &file.path == PACKAGES_XML {
                 return (-1, "");
             }
-            // dyn APK is still the same
+
             if file.path.starts_with(daemon.app_data_dir().as_str()) {
                 return (
                     user * AID_USER_OFFSET + self.repackaged_app_id,
                     &self.repackaged_pkg,
                 );
             }
-            // stub APK is still the same
+
             if !self.repackaged_pkg.is_empty() {
                 return if matches!(
                     self.check_dyn(daemon, user, self.repackaged_pkg.clone().as_str()),
@@ -403,7 +403,7 @@ impl ManagerInfo {
                     (-1, "")
                 };
             }
-            // orig APK is still the same
+
             let uid = daemon.get_package_uid(user, APP_PACKAGE_NAME);
             return if uid < 0 {
                 (-1, "")
@@ -449,7 +449,7 @@ impl ManagerInfo {
             Status::NotInstalled => {}
         }
 
-        // If we cannot find any manager, track packages.xml for new package installs
+
         self.tracked_files
             .insert(user, TrackedFile::new(PACKAGES_XML.into()));
 
@@ -477,7 +477,7 @@ impl MagiskD {
 
         if let Ok(mut fd) = apk.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
             info.trusted_cert = read_certificate(&mut fd, MAGISK_VER_CODE);
-            // Seek the fd back to start
+
             fd.seek(SeekFrom::Start(0)).log_ok();
             info.stub_apk_fd = Some(fd);
         }
@@ -511,13 +511,13 @@ impl MagiskD {
         let _ = info.get_manager(self, 0);
     }
 
-    // app_id = app_no + AID_APP_START
-    // app_no range: [0, 9999]
+
+
     pub fn get_app_no_list(&self) -> BitSet {
         let mut list = BitSet::new();
         let _ = || -> LoggedResult<()> {
             let mut app_data_dir = Directory::open(self.app_data_dir())?;
-            // For each user
+
             loop {
                 let entry = match app_data_dir.read()? {
                     None => break,
@@ -527,7 +527,7 @@ impl MagiskD {
                     Err(_) => continue,
                     Ok(dir) => dir,
                 };
-                // For each package
+
                 loop {
                     match user_dir.read()? {
                         None => break,

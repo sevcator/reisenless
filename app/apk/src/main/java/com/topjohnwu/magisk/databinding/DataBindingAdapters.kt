@@ -137,7 +137,7 @@ fun TextInputLayout.setErrorString(error: String) {
     this.error = newError
 }
 
-// md2
+
 
 @BindingAdapter(
     "android:layout_marginLeft",

@@ -21,7 +21,7 @@ using kv_pairs = std::vector<std::pair<std::string, std::string>>;
 int magisk_proxy_main(int, char *argv[]);
 Utf8CStr backup_init();
 
-// Expose some constants to Rust
+
 
 static inline Utf8CStr split_plat_cil() {
     return SPLIT_PLAT_CIL;

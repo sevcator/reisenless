@@ -20,12 +20,12 @@ class AXML(b: ByteArray) {
         private val UTF_16LE = Charset.forName("UTF-16LE")
     }
 
-    /** Patch the typed value of every binary XML attribute with [name]. */
+
     fun patchIntAttribute(name: String, value: Int): Boolean {
         return patchIntAttributes(name) { value }
     }
 
-    /** Patch matching attributes in document order with independently generated values. */
+
     fun patchIntAttributes(name: String, valueAt: (Int) -> Int): Boolean {
         val buffer = ByteBuffer.wrap(bytes).order(LITTLE_ENDIAN)
         val strings = readStrings(buffer) ?: return false
@@ -118,19 +118,19 @@ class AXML(b: ByteArray) {
         return (((first and 0x7fff) shl 16) or second) to 4
     }
 
-    /**
-     * String pool header:
-     * 0:  0x1C0001
-     * 1:  chunk size
-     * 2:  number of strings
-     * 3:  number of styles (assert as 0)
-     * 4:  flags
-     * 5:  offset to string data
-     * 6:  offset to style data (assert as 0)
-     *
-     * Followed by an array of uint32_t with size = number of strings
-     * Each entry points to an offset into the string data
-     */
+
+
+
+
+
+
+
+
+
+
+
+
+
     fun patchStrings(mapFn: (String) -> String): Boolean {
         val buffer = ByteBuffer.wrap(bytes).order(LITTLE_ENDIAN)
 
@@ -148,7 +148,7 @@ class AXML(b: ByteArray) {
         if (start < 0)
             return false
 
-        // Read header
+
         val size = buffer.getInt(start + 4)
         val count = buffer.getInt(start + 8)
         val styleCount = buffer.getInt(start + 12)
@@ -158,7 +158,7 @@ class AXML(b: ByteArray) {
         val utf8 = flags and UTF8_FLAG != 0
 
         val strList = ArrayList<String>(count)
-        // Collect all strings in the pool
+
         for (i in 0 until count) {
             val indexOff = start + STRING_INDICES_OFF + i * 4
             if (indexOff + 4 > bytes.size) return false
@@ -171,11 +171,11 @@ class AXML(b: ByteArray) {
             strArr[i] = mapFn(strArr[i])
         }
 
-        // Write everything before string data, will patch values later
+
         val baos = RawByteStream()
         baos.write(bytes, 0, dataOff)
 
-        // Write string data
+
         val offList = IntArray(count)
         for (i in 0 until count) {
             offList[i] = baos.size() - dataOff
@@ -189,7 +189,7 @@ class AXML(b: ByteArray) {
                 baos.write(str.length.toUtf16LengthBytes())
                 baos.write(str.toByteArray(UTF_16LE))
             }
-            // Null terminate
+
             baos.write(0)
             baos.write(0)
         }
@@ -198,16 +198,16 @@ class AXML(b: ByteArray) {
         val sizeDiff = baos.size() - start - size
         val newBuffer = ByteBuffer.wrap(baos.buffer).order(LITTLE_ENDIAN)
 
-        // Patch XML size
+
         newBuffer.putInt(CHUNK_SIZE_OFF, buffer.getInt(CHUNK_SIZE_OFF) + sizeDiff)
-        // Patch string pool size
+
         newBuffer.putInt(start + CHUNK_SIZE_OFF, size + sizeDiff)
-        // Patch index table
+
         newBuffer.position(start + STRING_INDICES_OFF)
         val newIntBuf = newBuffer.asIntBuffer()
         offList.forEach { newIntBuf.put(it) }
 
-        // Write the rest of the chunks
+
         val nextOff = start + size
         baos.write(bytes, nextOff, bytes.size - nextOff)
 

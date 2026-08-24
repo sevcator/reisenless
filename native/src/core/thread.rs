@@ -29,7 +29,7 @@ impl ThreadPool {
         let mask = SigSet::all();
 
         loop {
-            // Always restore the sigmask to block all signals
+
             mask.thread_set_mask().log_ok();
 
             let task: Option<Box<dyn FnOnce() + Send>>;
@@ -38,12 +38,12 @@ impl ThreadPool {
                 info.idle_threads += 1;
                 if info.task.is_none() {
                     if is_core_pool {
-                        // Core pool never closes, wait forever.
+
                         self.task_is_some.wait(&mut info);
                     } else {
                         let dur = Duration::from_secs(THREAD_IDLE_MAX_SEC);
                         if self.task_is_some.wait_timeout(&mut info, dur).timed_out() {
-                            // Terminate thread after timeout
+
                             info.idle_threads -= 1;
                             info.total_threads -= 1;
                             return;
@@ -58,7 +58,7 @@ impl ThreadPool {
                 task();
             }
             if getpid() == gettid() {
-                // This meant the current thread forked and became the main thread, exit
+
                 std::process::exit(0);
             }
         }
@@ -73,7 +73,7 @@ impl ThreadPool {
 
         let mut info = self.info.lock();
         while info.task.is_some() {
-            // Wait until task is none
+
             self.task_is_none.wait(&mut info);
         }
         info.task = Some(Box::new(f));

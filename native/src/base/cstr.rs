@@ -14,29 +14,29 @@ use thiserror::Error;
 
 use crate::slice_from_ptr_mut;
 
-// Utf8CStr types are UTF-8 validated and null terminated strings.
-//
-// Several Utf8CStr types:
-//
-// Utf8CStr: can only exist as reference, similar to &str
-// Utf8CString: dynamically sized buffer allocated on the heap, similar to String
-// Utf8CStrBufRef: reference to a fixed sized buffer
-// Utf8CStrBufArr<N>: fixed sized buffer allocated on the stack
-//
-// For easier usage, please use the helper functions in cstr::buf.
-//
-// In most cases, these are the types being used
-//
-// &Utf8CStr: whenever a printable null terminated string is needed
-// &mut dyn Utf8CStrBuf: whenever we need a buffer that needs to support appending
-//                       strings to the end, and has to be null terminated
-// &mut dyn Utf8CStrBuf: whenever we need a pre-allocated buffer that is large enough to fit
-//                       in the result, and has to be null terminated
-//
-// All types dereferences to &Utf8CStr.
-// Utf8CString, Utf8CStrBufRef, and Utf8CStrBufArr<N> implements Utf8CStrBuf.
 
-// Public helper functions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 pub mod buf {
     use super::{Utf8CStrBufArr, Utf8CStrBufRef, Utf8CString};
@@ -67,22 +67,22 @@ pub mod buf {
     }
 }
 
-// Trait definitions
+
 
 pub trait Utf8CStrBuf: Display + Write + AsRef<Utf8CStr> + Deref<Target = Utf8CStr> {
-    // The length of the string without the terminating null character.
-    // assert_true(len <= capacity - 1)
+
+
     fn len(&self) -> usize;
     fn push_str(&mut self, s: &str) -> usize;
-    // The capacity of the internal buffer. The maximum string length this buffer can contain
-    // is capacity - 1, because the last byte is reserved for the terminating null character.
+
+
     fn capacity(&self) -> usize;
     fn clear(&mut self);
     fn as_mut_ptr(&mut self) -> *mut c_char;
     fn truncate(&mut self, new_len: usize);
-    // Rebuild the Utf8CStr based on the contents of the internal buffer. Required after any
-    // unsafe modifications directly though the pointer obtained from self.as_mut_ptr().
-    // If an error is returned, the internal buffer will be reset, resulting in an empty string.
+
+
+
     fn rebuild(&mut self) -> Result<(), StrErr>;
 
     #[inline(always)]
@@ -98,8 +98,8 @@ pub trait StringExt {
 impl StringExt for String {
     fn nul_terminate(&mut self) -> &mut [u8] {
         self.reserve(1);
-        // SAFETY: the string is reserved to have enough capacity to fit in the null byte
-        // SAFETY: the null byte is explicitly added outside the string's length
+
+
         unsafe {
             let buf = slice::from_raw_parts_mut(self.as_mut_ptr(), self.len() + 1);
             *buf.get_unchecked_mut(self.len()) = b'\0';
@@ -112,8 +112,8 @@ impl StringExt for PathBuf {
     #[allow(mutable_transmutes)]
     fn nul_terminate(&mut self) -> &mut [u8] {
         self.reserve(1);
-        // SAFETY: the PathBuf is reserved to have enough capacity to fit in the null byte
-        // SAFETY: the null byte is explicitly added outside the PathBuf's length
+
+
         unsafe {
             let bytes: &mut [u8] = mem::transmute(self.as_mut_os_str().as_bytes());
             let buf = slice::from_raw_parts_mut(bytes.as_mut_ptr(), bytes.len() + 1);
@@ -147,7 +147,7 @@ impl Utf8CString {
 impl AsRef<Utf8CStr> for Utf8CString {
     #[inline(always)]
     fn as_ref(&self) -> &Utf8CStr {
-        // SAFETY: the internal string is always null terminated
+
         unsafe { mem::transmute(slice::from_raw_parts(self.0.as_ptr(), self.0.len() + 1)) }
     }
 }
@@ -183,21 +183,21 @@ impl Utf8CStrBuf for Utf8CString {
     }
 
     fn rebuild(&mut self) -> Result<(), StrErr> {
-        // Temporarily move the internal String out
+
         let mut tmp = String::new();
         mem::swap(&mut tmp, &mut self.0);
         let (ptr, _, capacity) = tmp.into_raw_parts();
 
         unsafe {
-            // Validate the entire buffer, including the unused part
+
             let bytes = slice::from_raw_parts(ptr, capacity);
             match Utf8CStr::from_bytes_until_nul(bytes) {
                 Ok(s) => {
-                    // Move the String with the new length back
+
                     self.0 = String::from_raw_parts(ptr, s.len(), capacity);
                 }
                 Err(e) => {
-                    // Move the String with 0 length back
+
                     self.0 = String::from_raw_parts(ptr, 0, capacity);
                     self.0.nul_terminate();
                     return Err(e);
@@ -239,7 +239,7 @@ impl Borrow<Utf8CStr> for Utf8CString {
     }
 }
 
-// UTF-8 validated + null terminated reference to buffer
+
 pub struct Utf8CStrBufRef<'a> {
     used: usize,
     buf: &'a mut [u8],
@@ -258,7 +258,7 @@ impl<'a> From<&'a mut [u8]> for Utf8CStrBufRef<'a> {
     }
 }
 
-// UTF-8 validated + null terminated buffer on the stack
+
 pub struct Utf8CStrBufArr<const N: usize> {
     used: usize,
     buf: [u8; N],
@@ -291,13 +291,13 @@ pub enum StrErr {
     NullPointerError,
 }
 
-// UTF-8 validated + null terminated string slice
+
 #[repr(transparent)]
 pub struct Utf8CStr([u8]);
 
 impl Utf8CStr {
     pub fn from_cstr(cstr: &CStr) -> Result<&Utf8CStr, StrErr> {
-        // Validate the buffer during construction
+
         str::from_utf8(cstr.to_bytes())?;
         Ok(unsafe { Self::from_bytes_unchecked(cstr.to_bytes_with_nul()) })
     }
@@ -312,7 +312,7 @@ impl Utf8CStr {
 
     pub fn from_string(s: &mut String) -> &Utf8CStr {
         let buf = s.nul_terminate();
-        // SAFETY: the null byte is explicitly added to the buffer
+
         unsafe { mem::transmute(buf) }
     }
 
@@ -354,7 +354,7 @@ impl Utf8CStr {
 
     #[inline(always)]
     pub fn as_cstr(&self) -> &CStr {
-        // SAFETY: Already validated as null terminated during construction
+
         unsafe { CStr::from_bytes_with_nul_unchecked(&self.0) }
     }
 
@@ -365,8 +365,8 @@ impl Utf8CStr {
 
     #[inline(always)]
     pub fn as_str(&self) -> &str {
-        // SAFETY: Already UTF-8 validated during construction
-        // SAFETY: The length of the slice is at least 1 due to null termination check
+
+
         unsafe { str::from_utf8_unchecked(self.0.get_unchecked(..self.0.len() - 1)) }
     }
 }
@@ -416,7 +416,7 @@ impl NixPath for Utf8CStr {
     }
 }
 
-// Notice that we only implement ExternType on Utf8CStr *reference*
+
 unsafe impl ExternType for &Utf8CStr {
     type Id = type_id!("Utf8CStr");
     type Kind = cxx::kind::Trivial;
@@ -428,11 +428,11 @@ macro_rules! const_assert_eq {
     };
 }
 
-// Assert ABI layout
+
 const_assert_eq!(size_of::<&Utf8CStr>(), size_of::<[usize; 2]>());
 const_assert_eq!(align_of::<&Utf8CStr>(), align_of::<[usize; 2]>());
 
-// File system path extensions types
+
 
 #[repr(transparent)]
 pub struct FsPathFollow(Utf8CStr);
@@ -444,7 +444,7 @@ impl AsRef<Utf8CStr> for FsPathFollow {
     }
 }
 
-// impl<T: AsRef<Utf8CStr>> Deref<Target = Utf8CStr> for T { ... }
+
 macro_rules! impl_cstr_deref {
     ($( ($t:ty, $($g:tt)*) )*) => {$(
         impl<$($g)*> Deref for $t {
@@ -465,7 +465,7 @@ impl_cstr_deref!(
     (FsPathFollow,)
 );
 
-// impl<T: Deref<Target = Utf8CStr>> BoilerPlate for T { ... }
+
 macro_rules! impl_cstr_misc {
     ($( ($t:ty, $($g:tt)*) )*) => {$(
         impl<$($g)*> AsRef<str> for $t {
@@ -558,7 +558,7 @@ impl_cstr_misc!(
 
 fn copy_cstr_truncate(dest: &mut [u8], src: &[u8]) -> usize {
     if dest.len() <= 1 {
-        // Truncate
+
         return 0;
     }
     let len = min(src.len(), dest.len() - 1);
@@ -569,15 +569,15 @@ fn copy_cstr_truncate(dest: &mut [u8], src: &[u8]) -> usize {
     len
 }
 
-// impl<T> AsRef<Utf8CStr> for T { ... }
-// impl<T> Utf8CStrBuf for T { ... }
+
+
 macro_rules! impl_cstr_buf {
     ($( ($t:ty, $($g:tt)*) )*) => {$(
         impl<$($g)*> AsRef<Utf8CStr> for $t {
             #[inline(always)]
             fn as_ref(&self) -> &Utf8CStr {
-                // SAFETY: the internal buffer is always UTF-8 checked
-                // SAFETY: self.used is guaranteed to always <= SIZE - 1
+
+
                 unsafe { Utf8CStr::from_bytes_unchecked(self.buf.get_unchecked(..(self.used + 1))) }
             }
         }
@@ -588,7 +588,7 @@ macro_rules! impl_cstr_buf {
             }
             #[inline(always)]
             fn push_str(&mut self, s: &str) -> usize {
-                // SAFETY: self.used is guaranteed to always <= SIZE - 1
+
                 let dest = unsafe { self.buf.get_unchecked_mut(self.used..) };
                 let len = copy_cstr_truncate(dest, s.as_bytes());
                 self.used += len;
@@ -615,7 +615,7 @@ macro_rules! impl_cstr_buf {
                 self.used = new_len;
             }
             fn rebuild(&mut self) -> Result<(), StrErr> {
-                // Validate the entire buffer, including the unused part
+
                 match Utf8CStr::from_bytes_until_nul(&self.buf) {
                     Ok(s) => self.used = s.len(),
                     Err(e) => {
@@ -635,7 +635,7 @@ impl_cstr_buf!(
     (Utf8CStrBufArr<N>, const N: usize)
 );
 
-// impl<T: Utf8CStrBuf> Write for T { ... }
+
 macro_rules! impl_cstr_buf_write {
     ($( ($t:ty, $($g:tt)*) )*) => {$(
         impl<$($g)*> Write for $t {

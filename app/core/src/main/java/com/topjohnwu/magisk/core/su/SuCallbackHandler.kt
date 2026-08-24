@@ -23,7 +23,7 @@ object SuCallbackHandler {
         }
     }
 
-    // https://android.googlesource.com/platform/frameworks/base/+/547bf5487d52b93c9fe183aa6d56459c170b17a4
+
     private fun Bundle.getIntComp(key: String, defaultValue: Int): Int {
         val value = get(key) ?: return defaultValue
         return when (value) {

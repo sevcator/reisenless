@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-// memfd_create syscall numbers
+
 #ifndef __NR_memfd_create
 # if defined(__aarch64__)
 #   define __NR_memfd_create 279
@@ -60,34 +60,34 @@ static bool contains_ci(const char *text, const std::string &needle) {
     return text && contains_ci(text, strlen(text), needle.data(), needle.size());
 }
 
-// ---- path blocklist ----
+
 static const char *const kBlockedSubstr[] = {
-    // Magisk / Zygisk core
-    // NOTE: "zygisk" intentionally omitted — the linker reads /proc/self/maps to
-    // locate libzygisk.so for self-cleanup (dlclose), and filtering that line out
-    // causes Zygisk's destructor to access freed memory → SIGSEGV at 0x569a8.
-    // "/data/adb" below also hides the boot-owned Udonge runtime.
+
+
+
+
+
     "magisk", "lsposed", "lspd", "riru", "shamiko",
     "/data/adb", "supersu", "/su/", "busybox",
     "/system/bin/su", "/system/xbin/su", "/sbin/su",
     "/product/bin/su", "/vendor/bin/su", "/odm/bin/su",
     "/debug_ramdisk",
-    // KernelSU, APatch
+
     "kernelsu", "KernelSU",
     "apatch",   "APatch",
-    // Root kernel device nodes
+
     "/dev/ksud",
     "/dev/apatch",
 };
 
-// Extra patterns only applied to /proc/*/mounts and mountinfo.
-// More aggressive — "worker" and "mirror" are Magisk-internal but too generic
-// to block in the global file-access hooks.
+
+
+
 static const char *const kMountsExtra[] = {
-    "debug_ramdisk",  // Magisk's debug ramfs mount point
-    "worker",         // Magisk overlay worker bind mounts
-    "mirror",         // Magisk mirror bind mounts
-    ".core",          // /sbin/.core or similar Magisk paths
+    "debug_ramdisk",
+    "worker",
+    "mirror",
+    ".core",
     "/adb/modules/",
 };
 
@@ -98,15 +98,15 @@ static bool basename_is_su(const char *path) {
            strcmp(b, "magiskpolicy") == 0 || strcmp(b, "resetprop") == 0;
 }
 
-// Return true if the path contains any user-configured ROM keyword.
-// Called from is_blocked(), which is already guarded by a !path check.
+
+
 static bool is_rom_path(const char *path) {
     if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
     for (const auto &kw : g_cfg->rom_keywords)
         if (contains_ci(path, kw)) return true;
 
-    // Duck Detector's ROM framework/recovery catalog also contains neutral
-    // path names that cannot be matched by a ROM keyword.
+
+
     static const char *const exact_paths[] = {
         "/system/addon.d",
         "/system/framework/org.lineageos.platform-res.apk",
@@ -157,7 +157,7 @@ static bool is_blocked(const char *path) {
     return is_rom_path(path);
 }
 
-// ---- originals ----
+
 static int     (*o_faccessat)(int, const char *, int, int);
 static int     (*o_access)(const char *, int);
 static int     (*o_stat)(const char *, struct stat *);
@@ -187,10 +187,10 @@ static void refresh_late_library_hooks() {
 }
 
 static void *h_dlopen(const char *filename, int flags) {
-    // Calling the public dlopen from this wrapper changes the linker caller to
-    // our trampoline. Android then chooses the wrong linker namespace and may
-    // reject vendor EGL/HAL dependencies. Forward the real call-site address
-    // to the linker's exported entry point so namespace selection is unchanged.
+
+
+
+
     const void *caller = __builtin_return_address(0);
     void *handle = o_loader_dlopen
         ? o_loader_dlopen(filename, flags, caller)
@@ -227,7 +227,7 @@ void hook_native_load(zygisk::Api *api, JNIEnv *env) {
         reinterpret_cast<decltype(o_runtime_native_load)>(method.fnPtr);
 }
 
-// ---- file-existence hiding ----
+
 static int h_faccessat(int d, const char *p, int m, int f) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     return o_faccessat(d, p, m, f);
@@ -249,7 +249,7 @@ static int h_fstatat(int d, const char *p, struct stat *s, int f) {
     return o_fstatat(d, p, s, f);
 }
 
-// ---- /proc self-file filtering helpers ----
+
 
 static bool is_self_proc_file(const char *path, const char *name) {
     if (!path || !name) return false;
@@ -296,7 +296,7 @@ static std::vector<char> read_all_fd(int fd) {
     return data;
 }
 
-// Remove lines that reference blocked root paths (maps, mounts, etc.)
+
 static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
                                               bool extra_mounts_check) {
     std::vector<char> out;
@@ -313,7 +313,7 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
             for (const char *s : kMountsExtra)
                 if (memmem(p, len, s, strlen(s))) { keep = false; break; }
         }
-        // Also filter lines containing ROM keywords (e.g. lineage framework files in maps)
+
         if (keep && g_cfg) {
             for (const auto &kw : g_cfg->rom_keywords) {
                 if (contains_ci(p, len, kw.data(), kw.size())) { keep = false; break; }
@@ -325,7 +325,7 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
     return out;
 }
 
-// Zero out TracerPid in /proc/self/status to hide debugger/tracer
+
 static std::vector<char> filter_status(const std::vector<char> &raw) {
     std::vector<char> out;
     out.reserve(raw.size());
@@ -347,8 +347,8 @@ static std::vector<char> filter_status(const std::vector<char> &raw) {
 
 enum ProcFilter { kFilterMaps, kFilterStatus, kFilterMounts };
 
-// Create a memory-backed seekable fd containing `content`.
-// Prefers memfd_create (API 23+); falls back to a pipe.
+
+
 static int make_anon_fd(const std::vector<char> &content) {
 #ifdef __NR_memfd_create
     int fd = (int)syscall(__NR_memfd_create, "pf", (unsigned)MFD_CLOEXEC);
@@ -392,7 +392,7 @@ static int open_filtered_proc(const char *path, ProcFilter filter) {
     switch (filter) {
         case kFilterStatus: filtered = filter_status(raw); break;
         case kFilterMounts: filtered = filter_blocked_lines(raw, true);  break;
-        default:            filtered = filter_blocked_lines(raw, false); break; // kFilterMaps
+        default:            filtered = filter_blocked_lines(raw, false); break;
     }
 
     int anon = make_anon_fd(filtered);
@@ -432,7 +432,7 @@ static int filter_rom_symbol_fd(int real_fd) {
     return real_fd;
 }
 
-// ---- open / openat hooks ----
+
 static int h_open(const char *p, int fl, ...) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     int mode = 0;
@@ -464,8 +464,8 @@ static int h_openat(int d, const char *p, int fl, ...) {
     return o_openat(d, p, fl, mode);
 }
 
-// ---- readlink hooks — also filter symlink targets ----
-// Catches /proc/self/fd/N → /data/adb/magisk/... symlinks
+
+
 static ssize_t h_readlink(const char *p, char *b, size_t n) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     ssize_t ret = o_readlink(p, b, n);
@@ -493,7 +493,7 @@ static ssize_t h_readlinkat(int d, const char *p, char *b, size_t n) {
     return ret;
 }
 
-// ---- directory listing hiding ----
+
 static struct dirent *h_readdir(DIR *dir) {
     struct dirent *entry;
     while ((entry = o_readdir(dir)) != nullptr) {
@@ -504,21 +504,21 @@ static struct dirent *h_readdir(DIR *dir) {
     return entry;
 }
 
-// ---- getenv hook — hide LD_PRELOAD / LD_LIBRARY_PATH injections ----
-// Some apps call getenv("LD_PRELOAD") to detect injected libraries.
-// We return nullptr for loader env vars and filter results containing root paths.
+
+
+
 static char *h_getenv(const char *name) {
     if (!name) return o_getenv(name);
-    // Block LD_PRELOAD so apps can't detect our injected library.
-    // LD_LIBRARY_PATH is NOT blocked — apps legitimately read it for native lib loading.
+
+
     if (strcmp(name, "LD_PRELOAD") == 0) return nullptr;
     char *val = o_getenv(name);
     if (val && is_blocked(val)) return nullptr;
     return val;
 }
 
-// Duck Detector checks one Lineage-added private stagefright symbol. Keep the
-// filter exact so ordinary native symbol resolution is untouched.
+
+
 static void *h_dlsym(void *handle, const char *symbol) {
     if (g_cfg && !g_cfg->rom_keywords.empty() && symbol &&
         strcmp(symbol, "_ZN7android15ANetworkSession10threadLoopEv") == 0) {
@@ -527,7 +527,7 @@ static void *h_dlsym(void *handle, const char *symbol) {
     return o_dlsym(handle, symbol);
 }
 
-// ---- hardcoded boot-state props ----
+
 static const struct { const char *name; const char *value; } kBootProps[] = {
     {"ro.boot.verifiedbootstate",      "green"},
     {"ro.boot.flash.locked",           "1"},
@@ -558,11 +558,11 @@ static const struct { const char *name; const char *value; } kBootProps[] = {
     {"ro.vendor.warranty_bit",         "0"},
     {"ro.boot.realmebootstate",        "green"},
     {"ro.boot.realme.lockstate",       "1"},
-    // persist.sys.usb.config intentionally NOT hooked here:
-    // Duck Detector cross-checks this prop via getprop (separate process) AND
-    // native libc — a PLT hook only intercepts Java reflection, causing a
-    // 3-source divergence that triggers WARNING. Let all sources return "adb".
-    // Hide USB debugging state (single-source checks only — no divergence risk)
+
+
+
+
+
     {"init.svc.adbd",                  "stopped"},
     {"sys.usb.state",                  "mtp"},
     {"sys.usb.controller",             "none"},
@@ -582,28 +582,28 @@ static const struct { const char *name; const char *spoof; } kRecoveryProps[] = 
     {"vendor.boot.mode",     "unknown"},
 };
 
-// Props that should appear absent (return empty string / not found)
-// These props are suspicious when present on a "clean" device
+
+
 static const char *const kDeletedProps[] = {
     "ro.boot.verifiedbooterror",
     "ro.boot.verifyerrorpart",
 };
 
 static const char *const kRomDeletedProps[] = {
-    // LineageOS-specific props that reveal ROM identity
+
     "ro.lineage.build.version", "ro.lineage.build.date", "ro.lineage.build.date.utc",
     "ro.lineage.releasetype",   "ro.lineage.device",     "ro.lineage.version",
     "ro.lineageos.version",     "ro.cm.version",          "ro.cm.build.date.utc",
     "ro.modversion",            "ro.lineage.gapps_version",
 };
 
-// Return the pif.conf "ID" value for props that should show the device build ID
-// (e.g. ro.build.display.id — native callers bypass our JNI Build.DISPLAY spoof).
+
+
 static const char *find_display_override(const char *name) {
     if (!g_cfg) return nullptr;
     if (strcmp(name, "ro.build.display.id") != 0) return nullptr;
     static thread_local char s_disp_buf[96];
-    // Prefer DISPLAY key; fall back to ID (same value on stock Pixel user builds)
+
     static const char *const kDispKeys[] = {"DISPLAY", "ID"};
     for (const char *key : kDispKeys) {
         auto it = g_cfg->gms_build.find(key);
@@ -623,8 +623,8 @@ static bool str_ends_with(const char *s, const char *suffix) {
 static const char *find_boot_prop(const char *name) {
     for (const auto &bp : kBootProps)
         if (strcmp(name, bp.name) == 0) return bp.value;
-    // Suffix-based spoofing (KOWX712 approach): spoof all *.api_level props
-    // with DEVICE_INITIAL_SDK_INT so DuckDetector/root checks see consistent values.
+
+
     if (str_ends_with(name, "api_level") && g_cfg) {
         auto it = g_cfg->gms_build.find("DEVICE_INITIAL_SDK_INT");
         if (it != g_cfg->gms_build.end() && !it->second.empty()) {
@@ -645,8 +645,8 @@ static bool is_debug_replace_prop(const char *name) {
         if (strcmp(name, p) == 0) return true;
     return false;
 }
-// Props whose VALUE is checked against ROM keywords and suppressed if it matches.
-// Used for props that carry the ROM name in their value rather than their key.
+
+
 static const char *const kRomValueCheckProps[] = {
     "ro.build.flavor",
     "ro.build.display.id",
@@ -658,13 +658,13 @@ static bool is_deleted_prop(const char *name) {
     if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
     for (const char *p : kRomDeletedProps)
         if (strcmp(name, p) == 0) return true;
-    // Dynamic: any prop whose NAME contains a ROM keyword is suppressed
+
     for (const auto &kw : g_cfg->rom_keywords)
         if (contains_ci(name, kw)) return true;
     return false;
 }
 
-// Returns true if value contains a user-configured ROM keyword.
+
 static bool value_has_rom_keyword(const char *value) {
     if (!value || !g_cfg) return false;
     for (const auto &kw : g_cfg->rom_keywords)
@@ -687,13 +687,13 @@ static bool is_rom_value_check_prop(const char *name) {
     return false;
 }
 
-// ---- property hooks (classic API) ----
+
 static int h_prop_get(const char *name, char *value) {
     if (name) {
-        // Suppress "deleted" suspicious props
+
         if (is_deleted_prop(name)) { value[0] = '\0'; return 0; }
 
-        // Spoof display ID from pif.conf before any other check
+
         const char *dp = find_display_override(name);
         if (dp) {
             size_t n = strlen(dp);
@@ -722,8 +722,8 @@ static int h_prop_get(const char *name, char *value) {
             }
             return len;
         }
-        // Suppress props whose value exposes a ROM keyword (e.g. ro.build.flavor
-        // = "lineage_enchilada-user" after userdebug replacement).
+
+
         if (is_rom_value_check_prop(name)) {
             int len = o_prop_get(name, value);
             if (len > 0 && value_has_rom_keyword(value)) {
@@ -749,7 +749,7 @@ static int h_prop_get(const char *name, char *value) {
     return o_prop_get(name, value);
 }
 
-// ---- property hooks (modern callback API) ----
+
 struct CbCtx {
     void (*user_cb)(void *, const char *, const char *, uint32_t);
     void *user_cookie;
@@ -796,7 +796,7 @@ static void h_prop_read_cb(const void *pi,
     o_prop_read_cb(pi, cb_trampoline, &ctx);
 }
 
-// ---- hook table ----
+
 struct HookSpec { const char *sym; void *hook; void **orig; };
 
 static const HookSpec kHooks[] = {
@@ -827,16 +827,16 @@ static const HookSpec kPropsHooks[] = {
 void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
     static std::mutex hook_mutex;
     std::lock_guard<std::mutex> lock(hook_mutex);
-    // Copy into static storage: survives DLCLOSE_MODULE_LIBRARY which may
-    // destroy the caller's Config before the library is actually unmapped.
+
+
     static Config s_cfg;
     s_cfg = *cfg;
     g_cfg = &s_cfg;
     g_api = api;
     g_props_only = props_only;
 
-    // These linker exports accept the original call-site explicitly. Resolve
-    // them before registering dlopen hooks; see h_dlopen above.
+
+
     if (!o_loader_dlopen) {
         o_loader_dlopen = reinterpret_cast<decltype(o_loader_dlopen)>(
             dlsym(RTLD_DEFAULT, "__loader_dlopen"));
@@ -854,9 +854,9 @@ void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
     FILE *maps = fopen("/proc/self/maps", "re");
     if (!maps) return;
 
-    // APK-embedded native libraries share the base APK's device/inode. Track
-    // each executable ELF mapping base as well, otherwise an earlier APK/Dex
-    // mapping makes a library loaded later look "already hooked".
+
+
+
     static std::set<std::tuple<dev_t, ino_t, unsigned long>> seen;
     char line[512];
     while (fgets(line, sizeof line, maps)) {
@@ -871,9 +871,9 @@ void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
         char *p = path;
         while (*p == ' ') ++p;
         if (*p != '/') continue;
-        // Never patch libzygisk.so: Zygisk dlcloses itself after specializeApp,
-        // its destructor calls __system_property_get through the patched PLT, and
-        // our hook then accesses the already-freed UdongeModule's g_cfg → SIGSEGV.
+
+
+
         if (strstr(p, "libzygisk")) continue;
         dev_t dev = makedev(major, minor);
         const unsigned long image_base = start - off;
@@ -885,4 +885,4 @@ void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
     api->pltHookCommit();
 }
 
-} // namespace cloak
+}

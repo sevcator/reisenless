@@ -125,7 +125,7 @@ std::string find_hide_rule(const std::string &config, const std::string &package
     return "R\t" + package + "\tB\t0\t" + manager + "\t" + hidden + "\t";
 }
 
-} // namespace
+}
 
 class UdongeModule : public zygisk::ModuleBase {
 public:
@@ -142,10 +142,10 @@ public:
         hide_rule_.clear();
         hide_dex_.clear();
 
-        // Child zygotes (notably WebView's sandbox zygote) must stay pristine.
-        // Installing process-local Java hooks here prevents the child zygote
-        // from publishing its command socket, so every WebView network process
-        // fails to start with ECONNREFUSED.
+
+
+
+
         if (args->is_child_zygote && *args->is_child_zygote) return;
 
         std::string package_name = jstr(args->nice_name);
@@ -158,7 +158,7 @@ public:
         hide_apps_ = !hide_rule_.empty() && !hide_dex_.empty();
 
         if (is_gms_unstable_) return;
-        // Cloak/stealth candidacy comes from the live targets configuration.
+
         if (cfg_.shouldStealth(package)) {
             api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
             return;
@@ -183,8 +183,8 @@ public:
         if (cloak_) {
             cloak::install_hooks(api_, &cfg_);
             cloak::spoof_display(env_, cfg_);
-            // Patch Build.TYPE and Build.TAGS static constants so Java-level
-            // cross-checks (Build.TYPE vs fingerprint tail) see clean values.
+
+
             cloak::spoof_build_type(env_);
             cloak::spoof_rom_framework(env_, cfg_);
         }

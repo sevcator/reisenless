@@ -34,7 +34,7 @@
                 android:id="@+id/home_magisk_icon"
                 style="@style/WidgetFoundation.Icon.Primary"
                 android:padding="@dimen/l_25"
-                app:tint="@null"
+                app:tint="?colorPrimary"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:srcCompat="@drawable/reisen" />

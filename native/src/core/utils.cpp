@@ -70,7 +70,7 @@ bool check_key_combo() {
     vector<owned_fd> events;
     constexpr char name[] = "/dev/.ev";
 
-    // First collect candidate events that accepts volume down
+
     for (int minor = 64; minor < 96; ++minor) {
         if (xmknod(name, S_IFCHR | 0444, makedev(13, minor)))
             continue;
@@ -88,7 +88,7 @@ bool check_key_combo() {
     if (events.empty())
         return false;
 
-    // Check if volume down key is held continuously for more than 3 seconds
+
     for (int i = 0; i < 300; ++i) {
         bool pressed = false;
         for (int fd : events) {
@@ -101,7 +101,7 @@ bool check_key_combo() {
         }
         if (!pressed)
             return false;
-        // Check every 10ms
+
         usleep(10000);
     }
     LOGD("KEY_VOLUMEDOWN detected: enter safe mode\n");

@@ -35,7 +35,7 @@ private class DnsResolver(client: OkHttpClient) : Dns {
                 InetAddress.getByName("2606:4700:4700::0064"),
                 InetAddress.getByName("2606:4700:4700::6400")
             ))
-            .resolvePrivateAddresses(true)  /* To make PublicSuffixDatabase never used */
+            .resolvePrivateAddresses(true)
             .build()
     }
 

@@ -279,7 +279,7 @@ pub fn magisk_main(argc: i32, argv: *mut *mut c_char) -> i32 {
         exit(1);
     }
     let mut cmds = CmdArgs::new(argc, argv.cast()).0;
-    // We need to manually inject "--" so that all actions can be treated as subcommands
+
     cmds.insert(1, "--");
     let cli = Cli::from_args(&cmds[..1], &cmds[1..]).on_early_exit(print_usage);
     cli.action.exec().unwrap_or(1)

@@ -24,7 +24,7 @@ import com.topjohnwu.superuser.Shell
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.topjohnwu.magisk.core.R as CoreR
 
-// --- App
+
 
 object Customization : BaseSettingsItem.Section() {
     override val title = CoreR.string.settings_customization.asText()
@@ -59,7 +59,7 @@ object Theme : BaseSettingsItem.Blank() {
     override val title = CoreR.string.section_theme.asText()
 }
 
-// --- App
+
 
 object Hide : BaseSettingsItem.Blank() {
     override val title = CoreR.string.settings_hide_app_title.asText()
@@ -122,24 +122,12 @@ object DoHToggle : BaseSettingsItem.Toggle() {
     override var value by Config::doh
 }
 
-object RepositorySearcher : BaseSettingsItem.SplitToggle() {
-    override val title = CoreR.string.repository_searcher.asText()
-    override val description = CoreR.string.repository_searcher_summary.asText()
-    override var value by Config::repositorySearcherEnabled
-
-    override fun onPressed(view: View, handler: Handler) {
-        handler.onItemPressed(view, this) {
-            RepositorySettingsDialog(view).show()
-        }
-    }
-}
-
 object SystemlessHosts : BaseSettingsItem.Blank() {
     override val title = CoreR.string.settings_hosts_title.asText()
     override val description = CoreR.string.settings_hosts_summary.asText()
 }
 
-// --- Magisk
+
 
 object Zygisk : BaseSettingsItem.Toggle() {
     override val title = CoreR.string.zygisk.asText()

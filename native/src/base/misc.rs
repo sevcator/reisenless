@@ -13,7 +13,7 @@ pub fn errno() -> &'static mut i32 {
     unsafe { &mut *libc::__errno() }
 }
 
-// When len is 0, don't care whether buf is null or not
+
 #[inline]
 pub unsafe fn slice_from_ptr<'a, T>(buf: *const T, len: usize) -> &'a [T] {
     unsafe {
@@ -25,7 +25,7 @@ pub unsafe fn slice_from_ptr<'a, T>(buf: *const T, len: usize) -> &'a [T] {
     }
 }
 
-// When len is 0, don't care whether buf is null or not
+
 #[inline]
 pub unsafe fn slice_from_ptr_mut<'a, T>(buf: *mut T, len: usize) -> &'a mut [T] {
     unsafe {
@@ -166,14 +166,14 @@ impl<T> AtomicArc<T> {
 
     pub fn load(&self) -> Arc<T> {
         let raw = self.ptr.load(Ordering::Acquire);
-        // SAFETY: the raw pointer is always created from Arc::into_raw
+
         let arc = ManuallyDrop::new(unsafe { Arc::from_raw(raw) });
         ManuallyDrop::into_inner(arc.clone())
     }
 
     fn swap_ptr(&self, raw: *const T) -> Arc<T> {
         let prev = self.ptr.swap(raw as *mut _, Ordering::AcqRel);
-        // SAFETY: the raw pointer is always created from Arc::into_raw
+
         unsafe { Arc::from_raw(prev) }
     }
 
@@ -183,14 +183,14 @@ impl<T> AtomicArc<T> {
     }
 
     pub fn store(&self, arc: Arc<T>) {
-        // Drop the previous value
+
         let _ = self.swap(arc);
     }
 }
 
 impl<T> Drop for AtomicArc<T> {
     fn drop(&mut self) {
-        // Drop the internal value
+
         let _ = self.swap_ptr(std::ptr::null());
     }
 }
@@ -210,7 +210,7 @@ pub struct Chunker {
 impl Chunker {
     pub fn new(chunk_size: usize) -> Self {
         Chunker {
-            // SAFETY: all bytes will be initialized before it is used, tracked by self.pos
+
             chunk: unsafe { Box::new_uninit_slice(chunk_size).assume_init() },
             chunk_size,
             pos: 0,
@@ -225,26 +225,26 @@ impl Chunker {
         }
     }
 
-    // Returns (remaining buf, Option<Chunk>)
+
     pub fn add_data<'a, 'b: 'a>(&'a mut self, mut buf: &'b [u8]) -> (&'b [u8], Option<&'a [u8]>) {
         let mut chunk = None;
         if self.pos > 0 {
-            // Try to fill the chunk
+
             let len = std::cmp::min(self.chunk_size - self.pos, buf.len());
             self.chunk[self.pos..self.pos + len].copy_from_slice(&buf[..len]);
             self.pos += len;
-            // If the chunk is filled, consume it
+
             if self.pos == self.chunk_size {
                 chunk = Some(&self.chunk[..self.chunk_size]);
                 self.pos = 0;
             }
             buf = &buf[len..];
         } else if buf.len() >= self.chunk_size {
-            // Directly consume a chunk from buf
+
             chunk = Some(&buf[..self.chunk_size]);
             buf = &buf[self.chunk_size..];
         } else {
-            // Copy buf into chunk
+
             self.chunk[self.pos..self.pos + buf.len()].copy_from_slice(buf);
             self.pos += buf.len();
             return (&[], None);
@@ -265,7 +265,7 @@ impl CmdArgs {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn new(argc: i32, argv: *const *const c_char) -> CmdArgs {
         CmdArgs(
-            // SAFETY: libc guarantees argc and argv are properly setup and are static
+
             unsafe { slice::from_raw_parts(argv, argc as usize) }
                 .iter()
                 .map(|s| unsafe { Utf8CStr::from_ptr(*s) })
@@ -284,7 +284,7 @@ impl CmdArgs {
     }
 
     pub fn cstr_iter(&self) -> impl Iterator<Item = &'static Utf8CStr> {
-        // SAFETY: libc guarantees null terminated strings
+
         self.0
             .iter()
             .map(|s| unsafe { Utf8CStr::from_raw_parts(s.as_ptr().cast(), s.len() + 1) })

@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
 
-/** Small compatibility bridge for the KernelSU/Magisk WebUI API. */
+
 internal class WebViewInterface(
     private val context: Context,
     private val webView: WebView,
@@ -97,9 +97,9 @@ internal class WebViewInterface(
     }
 
     private fun runCommand(command: String, timeoutSeconds: Int? = 5): CommandResult {
-        // A broken module command must not leave the WebUI promise pending forever.
-        // Keep long-running streams on the spawn path, while ordinary exec calls
-        // get a bounded lifetime like the standalone KernelSU WebUI bridge.
+
+
+
         val commandLine = timeoutSeconds?.let { "timeout $it sh -c ${shellQuote(command)}" } ?: command
         val result = Shell.cmd(commandLine).exec()
         return CommandResult(
