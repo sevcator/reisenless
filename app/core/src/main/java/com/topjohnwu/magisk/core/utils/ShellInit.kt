@@ -160,11 +160,16 @@ class ShellInit : Shell.Initializer() {
         val installedPackages = runCatching {
             context.packageManager.getInstalledPackages(0)
                 .asSequence()
-                .joinToString("\n") { it.packageName }
-                .lowercase()
-        }.getOrDefault("")
+                .map { it.packageName.lowercase() }
+                .toList()
+        }.getOrDefault(emptyList())
         identityKeywords.forEach { (signal, keywords) ->
-            if (installedPackages.contains(signal)) detected.addAll(keywords)
+            // A single app can be shared across unrelated ROMs (for example,
+            // Lineage ships Calyx's contacts-backup app). Require multiple ROM
+            // components before treating package names as an OS identity.
+            if (installedPackages.count { it.contains(signal) } >= 2) {
+                detected.addAll(keywords)
+            }
         }
         if (detected.isEmpty()) return
         val existing = Config.udongeRomKeywords
