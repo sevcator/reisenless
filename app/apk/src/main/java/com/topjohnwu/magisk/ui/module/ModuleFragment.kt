@@ -280,6 +280,7 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
                 search.isEnabled = true
                 processing = false
                 processingJob = null
+                if (install && result.completed > 0) viewModel.startLoading()
                 updateDialogState()
             }
         }

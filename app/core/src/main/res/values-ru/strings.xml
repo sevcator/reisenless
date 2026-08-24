@@ -288,7 +288,7 @@
     <string name="repository_queue_downloading">скачивание %1$d/%2$d: %3$s</string>
     <string name="repository_queue_installing">установка %1$d/%2$d: %3$s</string>
     <string name="repository_queue_downloaded">скачано модулей: %1$d</string>
-    <string name="repository_queue_installed">установлено модулей: %1$d</string>
+    <string name="repository_queue_installed">установлено модулей: %1$d; перезагрузите устройство для активации</string>
     <string name="repository_queue_failed">ошибка на модуле %1$s</string>
     <string name="repository_web">сайт</string>
     <string name="repository_trusted">доверенный MMRL-репозиторий</string>

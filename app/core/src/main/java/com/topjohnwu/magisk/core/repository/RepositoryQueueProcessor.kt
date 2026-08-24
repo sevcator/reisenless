@@ -2,13 +2,16 @@ package com.topjohnwu.magisk.core.repository
 
 import androidx.core.net.toUri
 import com.topjohnwu.magisk.core.AppContext
+import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.download.DownloadNotifier
 import com.topjohnwu.magisk.core.download.DownloadProcessor
 import com.topjohnwu.magisk.core.tasks.FlashZip
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils
+import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.apache.commons.compress.archivers.zip.ZipFile
 import java.io.File
 
 data class RepositoryQueueProgress(
@@ -85,10 +88,37 @@ class RepositoryQueueProcessor(
                     downloadProcessor.handleModule(body.byteStream(), destination)
                 }
             }
-            FlashZip(archive.toUri(), mutableListOf(), mutableListOf()).exec()
+            val moduleId = readModuleId(archive) ?: return false
+            if (!FlashZip(archive.toUri(), mutableListOf(), mutableListOf()).exec()) {
+                return false
+            }
+            verifyInstalled(moduleId)
         } finally {
             archive.delete()
             if (queueDir.list().isNullOrEmpty()) queueDir.delete()
         }
+    }
+
+    private fun readModuleId(archive: File): String? = runCatching {
+        ZipFile.Builder().setFile(archive).get().use { zip ->
+            val prop = zip.getEntry("module.prop") ?: return null
+            zip.getInputStream(prop).bufferedReader().useLines { lines ->
+                lines.map(String::trim)
+                    .firstOrNull { it.startsWith("id=") }
+                    ?.substringAfter('=')
+                    ?.trim()
+                    ?.takeIf(MODULE_ID::matches)
+            }
+        }
+    }.getOrNull()
+
+    private fun verifyInstalled(moduleId: String): Boolean {
+        val active = "${Const.MODULE_PATH}/$moduleId/module.prop"
+        val pending = "${Const.SECURE_DIR}/modules_update/$moduleId/module.prop"
+        return Shell.cmd("[ -f '$active' ] || [ -f '$pending' ]").exec().isSuccess
+    }
+
+    private companion object {
+        val MODULE_ID = Regex("[A-Za-z][A-Za-z0-9._-]{0,63}")
     }
 }

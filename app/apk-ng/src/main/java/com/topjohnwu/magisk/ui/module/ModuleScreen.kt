@@ -297,11 +297,11 @@ private fun RepositoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val processor = remember { RepositoryQueueProcessor(ServiceLocator.networkService) }
     var query by rememberSaveable { mutableStateOf(uiState.repositoryQuery) }
-    var queued by remember { mutableStateOf(linkedMapOf<String, RepositoryModule>()) }
+    var queued by remember { mutableStateOf<Map<String, RepositoryModule>>(emptyMap()) }
     var processing by remember { mutableStateOf(false) }
     var operationStatus by remember { mutableStateOf("") }
 
@@ -319,7 +319,7 @@ private fun RepositoryScreen(
             processing = true
             val result = processor.process(snapshot, install) { current ->
                 operationStatus = current.module.name.let { name ->
-                    context.getString(
+                    resources.getString(
                         if (current.installing) CoreR.string.repository_queue_installing
                         else CoreR.string.repository_queue_downloading,
                         current.position,
@@ -332,17 +332,18 @@ private fun RepositoryScreen(
                 snapshot.take(result.completed).forEach { remove(repositoryQueueKey(it)) }
             }
             operationStatus = if (result.successful) {
-                context.getString(
+                resources.getString(
                     if (install) CoreR.string.repository_queue_installed
                     else CoreR.string.repository_queue_downloaded,
                     result.completed,
                 )
             } else {
-                context.getString(
+                resources.getString(
                     CoreR.string.repository_queue_failed,
                     result.failedModule?.name.orEmpty(),
                 )
             }
+            if (install && result.completed > 0) viewModel.startLoading()
             processing = false
         }
     }

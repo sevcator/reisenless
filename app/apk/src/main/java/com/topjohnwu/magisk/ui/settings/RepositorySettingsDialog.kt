@@ -1,5 +1,6 @@
 package com.topjohnwu.magisk.ui.settings
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -114,6 +115,7 @@ internal class RepositorySettingsDialog(private val anchor: View) {
         }
     }
 
+    @SuppressLint("UnsafeImplicitIntentLaunch")
     private fun repositoryCard(
         name: String,
         url: String,
