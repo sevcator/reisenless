@@ -176,6 +176,7 @@ static void   *(*o_dlopen)(const char *, int);
 static void   *(*o_android_dlopen_ext)(const char *, int, const void *);
 static void   *(*o_loader_dlopen)(const char *, int, const void *);
 static void   *(*o_loader_android_dlopen_ext)(const char *, int, const void *, const void *);
+static jstring (*o_runtime_native_load)(JNIEnv *, jclass, jstring, jobject, jclass);
 
 static void refresh_late_library_hooks() {
     static thread_local bool refreshing = false;
@@ -205,6 +206,25 @@ static void *h_android_dlopen_ext(const char *filename, int flags, const void *i
         : o_android_dlopen_ext(filename, flags, info);
     if (handle) refresh_late_library_hooks();
     return handle;
+}
+
+static jstring h_runtime_native_load(JNIEnv *env, jclass type, jstring filename,
+                                     jobject loader, jclass caller) {
+    jstring error = o_runtime_native_load(env, type, filename, loader, caller);
+    refresh_late_library_hooks();
+    return error;
+}
+
+void hook_native_load(zygisk::Api *api, JNIEnv *env) {
+    JNINativeMethod method{
+        const_cast<char *>("nativeLoad"),
+        const_cast<char *>(
+            "(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/lang/Class;)Ljava/lang/String;"),
+        reinterpret_cast<void *>(h_runtime_native_load),
+    };
+    api->hookJniNativeMethods(env, "java/lang/Runtime", &method, 1);
+    o_runtime_native_load =
+        reinterpret_cast<decltype(o_runtime_native_load)>(method.fnPtr);
 }
 
 // ---- file-existence hiding ----

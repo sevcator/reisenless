@@ -166,6 +166,7 @@ public:
         if (cfg_.shouldCloak(package)) {
             cloak_ = true;
             keep_loaded_ = true;
+            cloak::hook_native_load(api_, env_);
             api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
         }
     }

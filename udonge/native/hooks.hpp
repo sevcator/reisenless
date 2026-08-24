@@ -5,6 +5,10 @@
 
 namespace cloak {
 
+// Hook Runtime.nativeLoad before specialization so every app JNI library gets
+// its PLT hooks immediately after loading and before Java can call into it.
+void hook_native_load(zygisk::Api *api, JNIEnv *env);
+
 // Install libc PLT hooks for the current process using the Zygisk API.
 // `cfg` must outlive the process (store it statically).
 // If `props_only` is true, only property hooks are installed (safe for early-
