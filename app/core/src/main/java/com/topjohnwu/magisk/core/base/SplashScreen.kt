@@ -121,9 +121,7 @@ class SplashController<T>(private val activity: T)
 
         Config.init(if (authenticatedConfig) prevConfig else null)
 
-        if (packageName == APP_PACKAGE_NAME) {
-            Config.suManager = ""
-        } else {
+        if (packageName != APP_PACKAGE_NAME) {
             Config.suManager = packageName
         }
 
