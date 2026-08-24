@@ -93,6 +93,7 @@ jobs:
           udonge_archive="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["udongeArchive"])' "$identity")"
           stub_name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["stubName"])' "$identity")"
           secure_dir="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["secureDir"])' "$identity")"
+          main_bin="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["mainBinName"])' "$identity")"
           test -s "$apk"
           unzip -tq "$apk"
           unzip -l "$apk" | grep -Fq 'lib/arm64-v8a/libmagisk.so'
@@ -105,6 +106,12 @@ jobs:
           unzip -p "$apk" "assets/$stub_name" > "$RUNNER_TEMP/stub.apk"
           test -s "$RUNNER_TEMP/udonge.bin"
           test -s "$RUNNER_TEMP/stub.apk"
+          for script in util_functions.sh addon.d.sh app_functions.sh module_installer.sh; do
+            unzip -p "$apk" "assets/$script" > "$RUNNER_TEMP/$script"
+            grep -Fq "SECURE_DIR='$secure_dir'" "$RUNNER_TEMP/$script"
+            ! grep -Fq '_STUB' "$RUNNER_TEMP/$script"
+          done
+          grep -Fq "MAIN_BIN_NAME='$main_bin'" "$RUNNER_TEMP/util_functions.sh"
           ! unzip -l "$RUNNER_TEMP/udonge.bin" | grep -Eiq 'anonymous|device_db'
           ! grep -R -Eiq 'anonymous(_mode|Enabled|\.sh|_clear_data)|setAnonymous|device_db' app udonge
           unzip -p "$RUNNER_TEMP/udonge.bin" tee/classes.dex > "$RUNNER_TEMP/udonge-tee.dex"

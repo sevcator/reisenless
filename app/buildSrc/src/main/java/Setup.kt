@@ -219,11 +219,11 @@ fun Project.setupCoreLib() {
                 filesMatching("**/*.sh") {
                     filter {
                         it.replace(
-                            "#MAGISK_VERSION_STUB",
+                            ": MAGISK_VERSION_STUB",
                             "MAGISK_VER='${Config.version}'\nMAGISK_VER_CODE=${Config.versionCode}"
-                        ).replace("#SECURE_DIR_STUB", secureDirLine)
-                            .replace("#MAIN_BIN_NAME_STUB", mainBinNameLine)
-                            .replace("#BUILD_IDENTITY_STUB", identityLines)
+                        ).replace(": SECURE_DIR_STUB", secureDirLine)
+                            .replace(": MAIN_BIN_NAME_STUB", mainBinNameLine)
+                            .replace(": BUILD_IDENTITY_STUB", identityLines)
                     }
                     filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
                 }

@@ -1,5 +1,8 @@
 #!/sbin/sh
 
+: SECURE_DIR_STUB
+: BUILD_IDENTITY_STUB
+
 
 
 
