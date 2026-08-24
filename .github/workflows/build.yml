@@ -93,7 +93,7 @@ jobs:
           udonge_archive="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["udongeArchive"])' "$identity")"
           stub_name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["stubName"])' "$identity")"
           secure_dir="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["secureDir"])' "$identity")"
-          main_bin="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["mainBinName"])' "$identity")"
+          main_bin="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["buildId"])' "$identity")"
           test -s "$apk"
           unzip -tq "$apk"
           unzip -l "$apk" | grep -Fq 'lib/arm64-v8a/libmagisk.so'
