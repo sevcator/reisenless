@@ -139,6 +139,15 @@ static bool is_rom_policy_source(const char *path) {
     return false;
 }
 
+static bool is_rom_symbol_source(const char *path) {
+    if (!path || !g_cfg || g_cfg->rom_keywords.empty()) return false;
+    static const char suffix[] = "/libstagefright.so";
+    const size_t path_len = strlen(path);
+    const size_t suffix_len = sizeof(suffix) - 1;
+    return path_len >= suffix_len &&
+           strcmp(path + path_len - suffix_len, suffix) == 0;
+}
+
 static bool is_blocked(const char *path) {
     if (!path) return false;
     for (const char *s : kBlockedSubstr)
@@ -371,6 +380,25 @@ static int filter_rom_policy_fd(int real_fd) {
     return real_fd;
 }
 
+static int filter_rom_symbol_fd(int real_fd) {
+    if (real_fd < 0) return real_fd;
+    auto filtered = read_all_fd(real_fd);
+    static const char symbol[] = "_ZN7android15ANetworkSession10threadLoopEv";
+    const size_t symbol_len = sizeof(symbol) - 1;
+    for (size_t offset = 0; offset + symbol_len <= filtered.size(); ++offset) {
+        if (memcmp(filtered.data() + offset, symbol, symbol_len) == 0) {
+            filtered[offset] = '!';
+        }
+    }
+    int anon = make_anon_fd(filtered);
+    if (anon >= 0) {
+        ::close(real_fd);
+        return anon;
+    }
+    lseek(real_fd, 0, SEEK_SET);
+    return real_fd;
+}
+
 // ---- open / openat hooks ----
 static int h_open(const char *p, int fl, ...) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
@@ -381,6 +409,8 @@ static int h_open(const char *p, int fl, ...) {
         if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
         if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
         if (is_rom_policy_source(p))         return filter_rom_policy_fd(
+            o_open(p, O_RDONLY | O_CLOEXEC));
+        if (is_rom_symbol_source(p))         return filter_rom_symbol_fd(
             o_open(p, O_RDONLY | O_CLOEXEC));
     }
     return o_open(p, fl, mode);
@@ -394,6 +424,8 @@ static int h_openat(int d, const char *p, int fl, ...) {
         if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
         if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
         if (is_rom_policy_source(p))         return filter_rom_policy_fd(
+            o_openat(d, p, O_RDONLY | O_CLOEXEC));
+        if (is_rom_symbol_source(p))         return filter_rom_symbol_fd(
             o_openat(d, p, O_RDONLY | O_CLOEXEC));
     }
     return o_openat(d, p, fl, mode);
