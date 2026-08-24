@@ -372,7 +372,16 @@ object AppMigration {
         }
     }
 
-    private suspend fun launchApp(context: Context, pkg: String): Boolean {
+    private suspend fun selectManager(pkg: String): Boolean {
+        repeat(3) {
+            Config.suManager = pkg
+            if (Config.stringDB.fetch(Config.Key.SU_MANAGER) == pkg) return true
+            delay(250)
+        }
+        return false
+    }
+
+    private suspend fun launchApp(context: Context, pkg: String, manager: String): Boolean {
         if (!isValidPackageName(pkg) || pkg == context.packageName) return false
         val intent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return false
         try {
@@ -391,6 +400,11 @@ object AppMigration {
         val options = ActivityOptions.makeBasic()
         if (Build.VERSION.SDK_INT >= 34) {
             options.setShareIdentityEnabled(true)
+        }
+        if (!selectManager(manager)) {
+            Config.migrationSource = ""
+            Config.migrationTarget = ""
+            return false
         }
         val launched = withContext(Dispatchers.Main.immediate) {
             try {
@@ -491,13 +505,9 @@ object AppMigration {
                 if (!Shell.cmd("${Const.MAIN_BIN} --sulist add $newPackage").exec().isSuccess) {
                     return@withContext false
                 }
-
-
-
-                Config.suManager = newPackage
                 managerChanged = true
                 Shell.cmd("touch $AppApkPath").exec()
-                if (!launchApp(context, newPackage)) return@withContext false
+                if (!launchApp(context, newPackage, newPackage)) return@withContext false
                 committed = true
                 return@withContext true
             } finally {
@@ -573,11 +583,9 @@ object AppMigration {
                 if (!authorizeMigrationTarget(newUid)) {
                     return@withContext false
                 }
-
-                Config.suManager = ""
                 managerChanged = true
                 Shell.cmd("touch $AppApkPath").exec()
-                if (launchApp(context, APP_PACKAGE_NAME)) {
+                if (launchApp(context, APP_PACKAGE_NAME, "")) {
                     committed = true
                     return@withContext true
                 }
