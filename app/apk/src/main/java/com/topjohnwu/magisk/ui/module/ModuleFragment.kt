@@ -260,7 +260,10 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
             if (processing || queued.isEmpty()) return
             val snapshot = queued.values.toList()
             processing = true
-            if (install) binding.moduleList.visibility = View.INVISIBLE
+            if (install) {
+                binding.moduleList.visibility = View.INVISIBLE
+                list.visibility = View.INVISIBLE
+            }
             updateDialogState()
             processingJob = viewLifecycleOwner.lifecycleScope.launch {
                 setSearchEnabled(false)
@@ -324,7 +327,10 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
             }
             processingJob?.invokeOnCompletion {
                 host.runOnUiThread {
-                    runCatching { binding.moduleList.visibility = View.VISIBLE }
+                    runCatching {
+                        binding.moduleList.visibility = View.VISIBLE
+                        list.visibility = View.VISIBLE
+                    }
                 }
             }
         }
@@ -370,6 +376,7 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
             searchJob?.cancel()
             processingJob?.cancel()
             binding.moduleList.visibility = View.VISIBLE
+            list.visibility = View.VISIBLE
         }
         dialog.show()
     }

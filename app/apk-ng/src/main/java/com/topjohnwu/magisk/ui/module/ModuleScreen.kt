@@ -303,6 +303,7 @@ private fun RepositoryScreen(
     var query by rememberSaveable { mutableStateOf(uiState.repositoryQuery) }
     var queued by remember { mutableStateOf<Map<String, RepositoryModule>>(emptyMap()) }
     var processing by remember { mutableStateOf(false) }
+    var installing by remember { mutableStateOf(false) }
     var operationStatus by remember { mutableStateOf("") }
 
     BackHandler(enabled = processing) { }
@@ -319,6 +320,7 @@ private fun RepositoryScreen(
         val snapshot = queued.values.toList()
         scope.launch {
             processing = true
+            installing = install
             val result = processor.process(snapshot, install) { current ->
                 val base = resources.getString(
                     if (current.installing) CoreR.string.repository_queue_installing
@@ -367,6 +369,7 @@ private fun RepositoryScreen(
             }
             if (install && result.completed > 0) viewModel.startLoading()
             processing = false
+            installing = false
         }
     }
 
@@ -468,6 +471,8 @@ private fun RepositoryScreen(
             }
 
             when {
+                processing && installing -> Spacer(Modifier.weight(1f))
+
                 uiState.repositoryLoading -> Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
