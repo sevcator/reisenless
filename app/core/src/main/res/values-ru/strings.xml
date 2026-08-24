@@ -272,6 +272,7 @@
     <string name="webui_webview_required_summary">На устройстве нет рабочего поставщика Android WebView. Установите или включите Android System WebView и повторите попытку.</string>
     <string name="webui_install_webview">установить WebView</string>
     <string name="repository_searcher">поиск по репозиториям</string>
+    <string name="repository_searcher_queue_count">поиск по репозиториям (%1$d)</string>
     <string name="repository_searcher_summary">настройка онлайн-репозиториев модулей и кнопки онлайн-поиска</string>
     <string name="repository_links_title">ссылки на репозитории модулей</string>
     <string name="repository_links_hint">по одной ссылке на MMRL-репозиторий на строку</string>
@@ -282,6 +283,13 @@
     <string name="repository_mmrl_url_invalid">введите HTTPS-ссылку на MMRL-репозиторий или modules.json</string>
     <string name="repository_add_trusted">добавить доверенные репозитории</string>
     <string name="repository_add">добавить</string>
+    <string name="repository_add_to_queue">добавить в очередь</string>
+    <string name="repository_remove_from_queue">убрать из очереди</string>
+    <string name="repository_queue_downloading">скачивание %1$d/%2$d: %3$s</string>
+    <string name="repository_queue_installing">установка %1$d/%2$d: %3$s</string>
+    <string name="repository_queue_downloaded">скачано модулей: %1$d</string>
+    <string name="repository_queue_installed">установлено модулей: %1$d</string>
+    <string name="repository_queue_failed">ошибка на модуле %1$s</string>
     <string name="repository_web">сайт</string>
     <string name="repository_trusted">доверенный MMRL-репозиторий</string>
     <string name="repository_configured">настроенные репозитории</string>

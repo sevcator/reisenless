@@ -139,6 +139,7 @@
     <string name="color_gray">gray</string>
     <string name="settings_hide_app_title">hide reisenless</string>
     <string name="repository_searcher">repository searcher</string>
+    <string name="repository_searcher_queue_count">repository searcher (%1$d)</string>
     <string name="repository_searcher_summary">configure online module repositories and show the online search button</string>
     <string name="repository_links_title">Module repository links</string>
     <string name="repository_links_hint">One MMRL repository URL per line</string>
@@ -149,6 +150,13 @@
     <string name="repository_mmrl_url_invalid">Enter an HTTPS MMRL repository or modules.json URL</string>
     <string name="repository_add_trusted">add trusted repositories</string>
     <string name="repository_add">add</string>
+    <string name="repository_add_to_queue">add to queue</string>
+    <string name="repository_remove_from_queue">remove from queue</string>
+    <string name="repository_queue_downloading">downloading %1$d/%2$d: %3$s</string>
+    <string name="repository_queue_installing">installing %1$d/%2$d: %3$s</string>
+    <string name="repository_queue_downloaded">downloaded %1$d modules</string>
+    <string name="repository_queue_installed">installed %1$d modules</string>
+    <string name="repository_queue_failed">failed at %1$s</string>
     <string name="repository_web">web</string>
     <string name="repository_trusted">trusted MMRL repository</string>
     <string name="repository_configured">configured repositories</string>

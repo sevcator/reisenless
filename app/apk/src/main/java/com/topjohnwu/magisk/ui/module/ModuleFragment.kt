@@ -1,8 +1,9 @@
 package com.topjohnwu.magisk.ui.module
 
-import android.os.Bundle
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Bundle
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuInflater
@@ -28,13 +29,12 @@ import com.topjohnwu.magisk.arch.BaseFragment
 import com.topjohnwu.magisk.arch.viewModel
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.di.ServiceLocator
-import com.topjohnwu.magisk.core.download.DownloadEngine
 import com.topjohnwu.magisk.core.repository.ModuleRepository
 import com.topjohnwu.magisk.core.repository.RepositoryCandidate
 import com.topjohnwu.magisk.core.repository.RepositoryModule
+import com.topjohnwu.magisk.core.repository.RepositoryQueueProcessor
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils.displayName
 import com.topjohnwu.magisk.databinding.FragmentModuleMd2Binding
-import com.topjohnwu.magisk.dialog.OnlineModuleInstallDialog
 import com.topjohnwu.magisk.view.MagiskDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -132,18 +132,32 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
         val host = activity ?: return
         val context = requireContext()
         val repository = ModuleRepository(ServiceLocator.networkService)
-        val adapter = RepositoryAdapter(
-            onDownload = { module ->
-                DownloadEngine.startWithActivity(
-                    host,
-                    OnlineModuleInstallDialog.Module(module.asOnlineModule(), false),
-                )
-            },
-            onInstall = { module ->
-                DownloadEngine.startWithActivity(
-                    host,
-                    OnlineModuleInstallDialog.Module(module.asOnlineModule(), true),
-                )
+        val processor = RepositoryQueueProcessor(ServiceLocator.networkService)
+        val queued = linkedMapOf<String, RepositoryModule>()
+        lateinit var dialog: MagiskDialog
+        lateinit var downloadButton: MagiskDialog.Button
+        lateinit var installButton: MagiskDialog.Button
+        var processingJob: Job? = null
+        var processing = false
+        fun updateDialogState() {
+            dialog.setTitle(
+                if (queued.isEmpty()) {
+                    getString(CoreR.string.repository_searcher)
+                } else {
+                    getString(CoreR.string.repository_searcher_queue_count, queued.size)
+                }
+            )
+            downloadButton.isEnabled = queued.isNotEmpty() && !processing
+            installButton.isEnabled = queued.isNotEmpty() && !processing
+        }
+        lateinit var adapter: RepositoryAdapter
+        adapter = RepositoryAdapter(
+            isQueued = { repositoryQueueKey(it) in queued },
+            onToggle = { module ->
+                val key = repositoryQueueKey(module)
+                if (queued.remove(key) == null) queued[key] = module
+                adapter.notifyQueueChanged()
+                updateDialogState()
             },
         )
         val container = LinearLayout(context).apply {
@@ -229,11 +243,69 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
             }
         })
 
-        val dialog = MagiskDialog(host).apply {
+        fun processQueue(install: Boolean) {
+            if (processing || queued.isEmpty()) return
+            val snapshot = queued.values.toList()
+            processing = true
+            updateDialogState()
+            processingJob = viewLifecycleOwner.lifecycleScope.launch {
+                search.isEnabled = false
+                progress.visibility = View.VISIBLE
+                status.visibility = View.VISIBLE
+                val result = processor.process(snapshot, install) { current ->
+                    status.text = getString(
+                        if (current.installing) {
+                            CoreR.string.repository_queue_installing
+                        } else {
+                            CoreR.string.repository_queue_downloading
+                        },
+                        current.position,
+                        current.total,
+                        current.module.name,
+                    )
+                }
+                snapshot.take(result.completed).forEach { queued.remove(repositoryQueueKey(it)) }
+                adapter.notifyQueueChanged()
+                progress.visibility = View.GONE
+                status.visibility = View.VISIBLE
+                status.text = if (result.successful) {
+                    getString(
+                        if (install) CoreR.string.repository_queue_installed
+                        else CoreR.string.repository_queue_downloaded,
+                        result.completed,
+                    )
+                } else {
+                    getString(CoreR.string.repository_queue_failed, result.failedModule?.name.orEmpty())
+                }
+                search.isEnabled = true
+                processing = false
+                processingJob = null
+                updateDialogState()
+            }
+        }
+
+        dialog = MagiskDialog(host).apply {
             setTitle(CoreR.string.repository_searcher)
             setView(container)
+            setButton(MagiskDialog.ButtonType.NEUTRAL) {
+                downloadButton = this
+                text = CoreR.string.download
+                icon = R.drawable.ic_download_md2
+                isEnabled = false
+                doNotDismiss = true
+                onClick { processQueue(false) }
+            }
             setButton(MagiskDialog.ButtonType.NEGATIVE) {
+                installButton = this
+                text = CoreR.string.install
+                icon = R.drawable.ic_install
+                isEnabled = false
+                doNotDismiss = true
+                onClick { processQueue(true) }
+            }
+            setButton(MagiskDialog.ButtonType.POSITIVE) {
                 text = android.R.string.cancel
+                icon = R.drawable.ic_close_md2
             }
         }
         val loadJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -253,6 +325,7 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
         dialog.setOnDismissListener {
             loadJob.cancel()
             searchJob?.cancel()
+            processingJob?.cancel()
         }
         dialog.show()
     }
@@ -262,8 +335,8 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
 }
 
 private class RepositoryAdapter(
-    private val onDownload: (RepositoryModule) -> Unit,
-    private val onInstall: (RepositoryModule) -> Unit,
+    private val isQueued: (RepositoryModule) -> Boolean,
+    private val onToggle: (RepositoryModule) -> Unit,
 ) : RecyclerView.Adapter<RepositoryAdapter.Holder>() {
 
     private var modules = emptyList<RepositoryModule>()
@@ -272,6 +345,8 @@ private class RepositoryAdapter(
         modules = value
         notifyDataSetChanged()
     }
+
+    fun notifyQueueChanged() = notifyDataSetChanged()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
         val context = parent.context
@@ -308,22 +383,24 @@ private class RepositoryAdapter(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
         }
-        val download = MaterialButton(context).apply {
-            setText(CoreR.string.download)
+        val queue = MaterialButton(context).apply {
             isAllCaps = false
+            val accent = MaterialColors.getColor(
+                this,
+                AppCompatR.attr.colorPrimary,
+                Color.MAGENTA,
+            )
+            backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            setTextColor(accent)
+            iconTint = ColorStateList.valueOf(accent)
         }
-        val install = MaterialButton(context).apply {
-            setText(CoreR.string.install)
-            isAllCaps = false
-        }
-        buttons.addView(download)
-        buttons.addView(install)
+        buttons.addView(queue)
         content.addView(title)
         content.addView(metadata)
         content.addView(description)
         content.addView(buttons)
         card.addView(content)
-        return Holder(card, title, metadata, description, download, install)
+        return Holder(card, title, metadata, description, queue)
     }
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
@@ -338,8 +415,15 @@ private class RepositoryAdapter(
             text = module.description
             visibility = if (module.description.isBlank()) View.GONE else View.VISIBLE
         }
-        holder.download.setOnClickListener { onDownload(module) }
-        holder.install.setOnClickListener { onInstall(module) }
+        val queued = isQueued(module)
+        holder.queue.setText(
+            if (queued) CoreR.string.repository_remove_from_queue
+            else CoreR.string.repository_add_to_queue
+        )
+        holder.queue.setIconResource(
+            if (queued) R.drawable.ic_close_md2 else R.drawable.ic_download_md2
+        )
+        holder.queue.setOnClickListener { onToggle(module) }
     }
 
     override fun getItemCount() = modules.size
@@ -349,7 +433,9 @@ private class RepositoryAdapter(
         val title: TextView,
         val metadata: TextView,
         val description: TextView,
-        val download: MaterialButton,
-        val install: MaterialButton,
+        val queue: MaterialButton,
     ) : RecyclerView.ViewHolder(view)
 }
+
+private fun repositoryQueueKey(module: RepositoryModule) =
+    "${module.id.lowercase()}|${module.zipUrl}"

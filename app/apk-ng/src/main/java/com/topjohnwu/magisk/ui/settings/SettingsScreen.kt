@@ -12,12 +12,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -90,9 +95,12 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 .padding(horizontal = 12.dp)
                 .padding(bottom = 88.dp)
         ) {
-            CustomizationSection(viewModel)
+            CustomizationSection(
+                viewModel,
+                onOpenRepositorySettings = { showRepositorySettings = true },
+            )
             Spacer(Modifier.height(12.dp))
-            AppSettingsSection(onOpenRepositorySettings = { showRepositorySettings = true })
+            AppSettingsSection()
             if (Info.env.isActive) {
                 Spacer(Modifier.height(12.dp))
                 MagiskSection(viewModel)
@@ -110,8 +118,31 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 // --- Customization ---
 
 @Composable
-private fun CustomizationSection(viewModel: SettingsViewModel) {
+private fun CustomizationSection(
+    viewModel: SettingsViewModel,
+    onOpenRepositorySettings: () -> Unit,
+) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val loadingDialog = rememberLoadingDialog()
+    val isHidden = context.packageName != BuildConfig.APP_PACKAGE_NAME
+    var showRestoreDialog by rememberSaveable { mutableStateOf(false) }
+    var repositoryEnabled by remember { mutableStateOf(Config.repositorySearcherEnabled) }
+
+    if (showRestoreDialog) {
+        RestoreAppDialog(
+            onDismiss = { showRestoreDialog = false },
+            onConfirm = {
+                showRestoreDialog = false
+                scope.launch {
+                    val success = loadingDialog.withLoading {
+                        AppMigration.restoreApp(context)
+                    }
+                    if (!success) context.toast(CoreR.string.failure, Toast.LENGTH_LONG)
+                }
+            }
+        )
+    }
 
     SmallTitle(text = stringResource(CoreR.string.settings_customization))
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -192,6 +223,24 @@ private fun CustomizationSection(viewModel: SettingsViewModel) {
                 Config.doh = it
             }
         )
+
+        SettingsSwitchAction(
+            title = stringResource(CoreR.string.repository_searcher),
+            summary = stringResource(CoreR.string.repository_searcher_summary),
+            checked = repositoryEnabled,
+            onClick = onOpenRepositorySettings,
+            onCheckedChange = { enabled ->
+                repositoryEnabled = enabled
+                Config.repositorySearcherEnabled = enabled
+            },
+        )
+        if (isHidden) {
+            SettingsArrow(
+                title = stringResource(CoreR.string.settings_restore_app_title),
+                summary = stringResource(CoreR.string.settings_restore_app_summary),
+                onClick = { showRestoreDialog = true },
+            )
+        }
     }
 }
 
@@ -270,14 +319,12 @@ private fun RgbColorSetting(title: String, color: Int, onColorChange: (Int) -> U
 // --- App Settings ---
 
 @Composable
-private fun AppSettingsSection(onOpenRepositorySettings: () -> Unit) {
+private fun AppSettingsSection() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val loadingDialog = rememberLoadingDialog()
     val isHidden = context.packageName != BuildConfig.APP_PACKAGE_NAME
     var showHideDialog by rememberSaveable { mutableStateOf(false) }
-    var showRestoreDialog by rememberSaveable { mutableStateOf(false) }
-    var repositoryEnabled by remember { mutableStateOf(Config.repositorySearcherEnabled) }
     var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
     var backgroundModules by remember { mutableStateOf(Config.udongeBackgroundModules) }
     var backgroundKeyboxes by remember { mutableStateOf(Config.udongeBackgroundKeyboxes) }
@@ -339,46 +386,15 @@ private fun AppSettingsSection(onOpenRepositorySettings: () -> Unit) {
         )
     }
 
-    if (showRestoreDialog) {
-        RestoreAppDialog(
-            onDismiss = { showRestoreDialog = false },
-            onConfirm = {
-                showRestoreDialog = false
-                scope.launch {
-                    val success = loadingDialog.withLoading {
-                        AppMigration.restoreApp(context)
-                    }
-                    if (!success) context.toast(CoreR.string.failure, Toast.LENGTH_LONG)
-                }
-            }
-        )
-    }
-
     SmallTitle(text = stringResource(CoreR.string.home_app_title))
     Card(modifier = Modifier.fillMaxWidth()) {
-        SettingsSwitchAction(
-            title = stringResource(CoreR.string.repository_searcher),
-            summary = stringResource(CoreR.string.repository_searcher_summary),
-            checked = repositoryEnabled,
-            onClick = onOpenRepositorySettings,
-            onCheckedChange = { enabled ->
-                repositoryEnabled = enabled
-                Config.repositorySearcherEnabled = enabled
-            },
-        )
-        SettingsArrow(
-            title = stringResource(
-                if (isHidden) CoreR.string.settings_restore_app_title
-                else CoreR.string.settings_hide_app_title
-            ),
-            summary = stringResource(
-                if (isHidden) CoreR.string.settings_restore_app_summary
-                else CoreR.string.settings_hide_app_summary
-            ),
-            onClick = {
-                if (isHidden) showRestoreDialog = true else showHideDialog = true
-            }
-        )
+        if (!isHidden) {
+            SettingsArrow(
+                title = stringResource(CoreR.string.settings_hide_app_title),
+                summary = stringResource(CoreR.string.settings_hide_app_summary),
+                onClick = { showHideDialog = true },
+            )
+        }
         val selectedTargets = listOfNotNull(
             stringResource(CoreR.string.udonge_background_updates_modules)
                 .takeIf { backgroundModules },
@@ -683,11 +699,15 @@ private fun HideAppDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
         text = { Text(stringResource(CoreR.string.hide_app_randomize_confirmation)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
+                Icon(Icons.Default.Check, contentDescription = null)
+                Spacer(Modifier.size(4.dp))
                 Text(stringResource(android.R.string.ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = null)
+                Spacer(Modifier.size(4.dp))
                 Text(stringResource(android.R.string.cancel))
             }
         },
@@ -702,11 +722,15 @@ private fun RestoreAppDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
         text = { Text(stringResource(CoreR.string.restore_app_confirmation)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
+                Icon(Icons.Default.Check, contentDescription = null)
+                Spacer(Modifier.size(4.dp))
                 Text(stringResource(android.R.string.ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = null)
+                Spacer(Modifier.size(4.dp))
                 Text(stringResource(android.R.string.cancel))
             }
         },

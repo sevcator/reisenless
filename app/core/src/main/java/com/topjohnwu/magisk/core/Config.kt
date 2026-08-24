@@ -17,7 +17,15 @@ object Config : PreferenceConfig, DBConfig {
     const val DEFAULT_MODULE_REPOSITORIES =
         "https://gr.dergoogler.com/gmr/\n" +
         "https://magisk-modules-alt-repo.github.io/json-v2/\n" +
-        "https://rikj000.github.io/Magisk-Modules-Rikj000-Repo/"
+        "https://apt.izzysoft.de/magisk/\n" +
+        "https://rikj000.github.io/Magisk-Modules-Rikj000-Repo/\n" +
+        "https://natsumerinchan.github.io/celica-magisk-modules-repo/\n" +
+        "https://codeberg.org/fruitsnack/magisk-font-repo/raw/branch/main/\n" +
+        "https://leloubil.github.io/magisk-repo/\n" +
+        "https://zguation-projects.github.io/ZG-R/\n" +
+        "https://mrepo.rem01gaming.dev/\n" +
+        "https://ssmg4.github.io/SSR/\n" +
+        "https://juliazero.github.io/mrbj/"
 
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB
@@ -59,6 +67,7 @@ object Config : PreferenceConfig, DBConfig {
         const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
         const val REPOSITORY_SEARCHER_ENABLED = "repository_searcher_enabled"
         const val MODULE_REPOSITORY_URLS = "module_repository_urls"
+        const val MODULE_REPOSITORY_DEFAULTS_VERSION = "module_repository_defaults_version"
 
         val NO_MIGRATION = setOf(
             ASKED_HOME, SU_REQUEST_TIMEOUT, SU_AUTO_RESPONSE, SU_REAUTH, SU_TAPJACK,
@@ -142,10 +151,29 @@ object Config : PreferenceConfig, DBConfig {
         set(value) { storedUdongeKeyboxUrls = value }
     var udongeRomKeywords by preference(Key.UDONGE_ROM_KEYWORDS, "")
     var repositorySearcherEnabled by preference(Key.REPOSITORY_SEARCHER_ENABLED, true)
-    var moduleRepositoryUrls by preference(
+    private var storedModuleRepositoryUrls by preference(
         Key.MODULE_REPOSITORY_URLS,
         DEFAULT_MODULE_REPOSITORIES,
     )
+    private var moduleRepositoryDefaultsVersion by preference(
+        Key.MODULE_REPOSITORY_DEFAULTS_VERSION,
+        0,
+    )
+    var moduleRepositoryUrls
+        get() {
+            if (moduleRepositoryDefaultsVersion < 1) {
+                storedModuleRepositoryUrls =
+                    (storedModuleRepositoryUrls.lineSequence() +
+                        DEFAULT_MODULE_REPOSITORIES.lineSequence())
+                        .map(String::trim)
+                        .filter(String::isNotBlank)
+                        .distinctBy { it.lowercase() }
+                        .joinToString("\n")
+                moduleRepositoryDefaultsVersion = 1
+            }
+            return storedModuleRepositoryUrls.ifBlank { DEFAULT_MODULE_REPOSITORIES }
+        }
+        set(value) { storedModuleRepositoryUrls = value }
     private var localePrefs by preference(Key.LOCALE, "")
     var doh by preference(Key.DOH, false)
     var locale

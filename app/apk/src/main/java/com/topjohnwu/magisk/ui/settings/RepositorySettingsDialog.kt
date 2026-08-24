@@ -36,10 +36,8 @@ internal class RepositorySettingsDialog(private val anchor: View) {
     private val density = context.resources.displayMetrics.density
     private val repository = ModuleRepository(ServiceLocator.networkService)
     private val configuredContainer = verticalLayout()
-    private val trustedContainer = verticalLayout().apply { visibility = View.GONE }
     private var configured = readConfigured().toMutableList()
     private var trusted = emptyList<TrustedRepository>()
-    private var showTrusted = false
     private var loadJob: Job? = null
 
     fun show() {
@@ -64,19 +62,10 @@ internal class RepositorySettingsDialog(private val anchor: View) {
             addView(customUrl, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             addView(add)
         }
-        val trustedButton = actionButton(CoreR.string.repository_add_trusted).apply {
-            setOnClickListener {
-                showTrusted = !showTrusted
-                trustedContainer.visibility = if (showTrusted) View.VISIBLE else View.GONE
-                if (showTrusted) renderTrusted()
-            }
-        }
         val content = verticalLayout().apply {
             val padding = dp(16)
             setPadding(padding)
             addView(inputRow)
-            addView(trustedButton, matchWidthParams(top = dp(8)))
-            addView(trustedContainer, matchWidthParams(top = dp(8)))
             addView(sectionTitle(CoreR.string.repository_configured), matchWidthParams(top = dp(16)))
             addView(configuredContainer)
         }
@@ -89,13 +78,15 @@ internal class RepositorySettingsDialog(private val anchor: View) {
         loadJob = activity.lifecycleScope.launch {
             trusted = repository.loadTrustedRepositories()
             renderConfigured()
-            if (showTrusted) renderTrusted()
         }
 
         MagiskDialog(activity).apply {
             setTitle(CoreR.string.repository_searcher)
             setView(scroll)
-            setButton(MagiskDialog.ButtonType.NEGATIVE) { text = android.R.string.cancel }
+            setButton(MagiskDialog.ButtonType.NEGATIVE) {
+                text = android.R.string.cancel
+                icon = R.drawable.ic_close_md2
+            }
             setOnDismissListener { loadJob?.cancel() }
         }.show()
     }
@@ -117,38 +108,6 @@ internal class RepositorySettingsDialog(private val anchor: View) {
                     actionText = CoreR.string.module_state_remove,
                     removeAction = true,
                     onAction = { updateConfigured(configured - source) },
-                ),
-                matchWidthParams(top = dp(8)),
-            )
-        }
-    }
-
-    private fun renderTrusted() {
-        trustedContainer.removeAllViews()
-        trusted.forEach { item ->
-            val installed = configured.any { sameRepository(it, item.url) }
-            val description = item.description.ifBlank {
-                item.modulesCount?.let { context.getString(CoreR.string.repository_module_count, it) }.orEmpty()
-            }
-            trustedContainer.addView(
-                repositoryCard(
-                    name = item.name,
-                    url = item.url,
-                    description = description,
-                    trusted = true,
-                    actionText = if (installed) {
-                        CoreR.string.module_state_remove
-                    } else {
-                        CoreR.string.repository_add
-                    },
-                    removeAction = installed,
-                    onAction = {
-                        if (installed) {
-                            updateConfigured(configured.filterNot { sameRepository(it, item.url) })
-                        } else {
-                            updateConfigured(configured + item.url)
-                        }
-                    },
                 ),
                 matchWidthParams(top = dp(8)),
             )
@@ -245,7 +204,6 @@ internal class RepositorySettingsDialog(private val anchor: View) {
         }.toMutableList()
         Config.moduleRepositoryUrls = configured.joinToString("\n")
         renderConfigured()
-        if (showTrusted) renderTrusted()
     }
 
     private fun readConfigured() = Config.moduleRepositoryUrls.lineSequence()

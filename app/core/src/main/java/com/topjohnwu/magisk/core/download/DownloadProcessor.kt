@@ -11,6 +11,7 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import org.apache.commons.compress.archivers.zip.ZipFile
 import java.io.InputStream
+import java.io.OutputStream
 
 class DownloadProcessor(notifier: DownloadNotifier) : DownloadNotifier by notifier {
 
@@ -22,13 +23,17 @@ class DownloadProcessor(notifier: DownloadNotifier) : DownloadNotifier by notifi
     }
 
     suspend fun handleModule(src: InputStream, file: Uri) {
+        handleModule(src, file.outputStream())
+    }
+
+    suspend fun handleModule(src: InputStream, destination: OutputStream) {
         val tmp = context.cachedFile("module.zip")
         try {
             // First download the entire zip into cache so we can process it
             src.writeTo(tmp)
 
             val input = ZipFile.Builder().setFile(tmp).get()
-            val output = ZipArchiveOutputStream(file.outputStream())
+            val output = ZipArchiveOutputStream(destination)
             withInOut(input, output) { zin, zout ->
                 zout.putArchiveEntry(ZipArchiveEntry("META-INF/"))
                 zout.closeArchiveEntry()

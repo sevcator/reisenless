@@ -72,10 +72,12 @@ object Hide : BaseSettingsItem.Blank() {
                 setMessage(CoreR.string.hide_app_randomize_confirmation)
                 setButton(MagiskDialog.ButtonType.POSITIVE) {
                     text = android.R.string.ok
+                    icon = R.drawable.ic_check_md2
                     onClick { handler.onItemAction(view, this@Hide) }
                 }
                 setButton(MagiskDialog.ButtonType.NEGATIVE) {
                     text = android.R.string.cancel
+                    icon = R.drawable.ic_close_md2
                 }
                 setCancelable(true)
                 show()
@@ -95,10 +97,12 @@ object Restore : BaseSettingsItem.Blank() {
                 setMessage(CoreR.string.restore_app_confirmation)
                 setButton(MagiskDialog.ButtonType.POSITIVE) {
                     text = android.R.string.ok
+                    icon = R.drawable.ic_check_md2
                     onClick { handler.onItemAction(view, this@Restore) }
                 }
                 setButton(MagiskDialog.ButtonType.NEGATIVE) {
                     text = android.R.string.cancel
+                    icon = R.drawable.ic_close_md2
                 }
                 setCancelable(true)
                 show()

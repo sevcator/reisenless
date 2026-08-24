@@ -45,12 +45,15 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         )
         if (isRunningAsStub && ShortcutManagerCompat.isRequestPinShortcutSupported(context))
             list.add(AddShortcut)
+        list.add(RepositorySearcher)
+        if (Const.USER_ID == 0 && hidden) {
+            list.add(Restore)
+        }
 
         // Reisenless
         list.add(ReisenlessSettings)
-        list.add(RepositorySearcher)
-        if (Const.USER_ID == 0) {
-            list.add(if (hidden) Restore else Hide)
+        if (Const.USER_ID == 0 && !hidden) {
+            list.add(Hide)
         }
         if (Info.env.isActive) {
             list.add(UdongeBackgroundUpdates)

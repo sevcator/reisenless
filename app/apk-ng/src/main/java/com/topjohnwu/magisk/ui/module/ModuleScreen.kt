@@ -80,6 +80,7 @@ import com.topjohnwu.magisk.core.di.ServiceLocator
 import com.topjohnwu.magisk.core.download.DownloadEngine
 import com.topjohnwu.magisk.core.model.module.OnlineModule
 import com.topjohnwu.magisk.core.repository.RepositoryModule
+import com.topjohnwu.magisk.core.repository.RepositoryQueueProcessor
 import com.topjohnwu.magisk.ui.MainActivity
 import com.topjohnwu.magisk.ui.component.ConfirmResult
 import com.topjohnwu.magisk.ui.component.MarkdownTextAsync
@@ -114,7 +115,6 @@ fun ModuleScreen(viewModel: ModuleViewModel) {
         androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.loadRepository() }
         RepositoryScreen(
             viewModel = viewModel,
-            activity = activity,
             onBack = { showRepository = false },
         )
         return
@@ -293,12 +293,59 @@ fun ModuleScreen(viewModel: ModuleViewModel) {
 @Composable
 private fun RepositoryScreen(
     viewModel: ModuleViewModel,
-    activity: MainActivity,
     onBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val processor = remember { RepositoryQueueProcessor(ServiceLocator.networkService) }
     var query by rememberSaveable { mutableStateOf(uiState.repositoryQuery) }
+    var queued by remember { mutableStateOf(linkedMapOf<String, RepositoryModule>()) }
+    var processing by remember { mutableStateOf(false) }
+    var operationStatus by remember { mutableStateOf("") }
+
+    fun updateQueue(module: RepositoryModule) {
+        queued = LinkedHashMap(queued).apply {
+            val key = repositoryQueueKey(module)
+            if (remove(key) == null) put(key, module)
+        }
+    }
+
+    fun processQueue(install: Boolean) {
+        if (processing || queued.isEmpty()) return
+        val snapshot = queued.values.toList()
+        scope.launch {
+            processing = true
+            val result = processor.process(snapshot, install) { current ->
+                operationStatus = current.module.name.let { name ->
+                    context.getString(
+                        if (current.installing) CoreR.string.repository_queue_installing
+                        else CoreR.string.repository_queue_downloading,
+                        current.position,
+                        current.total,
+                        name,
+                    )
+                }
+            }
+            queued = LinkedHashMap(queued).apply {
+                snapshot.take(result.completed).forEach { remove(repositoryQueueKey(it)) }
+            }
+            operationStatus = if (result.successful) {
+                context.getString(
+                    if (install) CoreR.string.repository_queue_installed
+                    else CoreR.string.repository_queue_downloaded,
+                    result.completed,
+                )
+            } else {
+                context.getString(
+                    CoreR.string.repository_queue_failed,
+                    result.failedModule?.name.orEmpty(),
+                )
+            }
+            processing = false
+        }
+    }
 
     androidx.compose.runtime.LaunchedEffect(query) {
         kotlinx.coroutines.delay(300)
@@ -316,9 +363,45 @@ private fun RepositoryScreen(
                         )
                     }
                 },
-                title = { Text(stringResource(CoreR.string.repository_searcher)) },
+                title = {
+                    Text(
+                        if (queued.isEmpty()) stringResource(CoreR.string.repository_searcher)
+                        else stringResource(CoreR.string.repository_searcher_queue_count, queued.size)
+                    )
+                },
                 scrollBehavior = scrollBehavior,
             )
+        },
+        bottomBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    enabled = queued.isNotEmpty() && !processing,
+                    onClick = { processQueue(false) },
+                ) {
+                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                    Spacer(Modifier.size(4.dp))
+                    Text(stringResource(CoreR.string.download))
+                }
+                TextButton(
+                    enabled = queued.isNotEmpty() && !processing,
+                    onClick = { processQueue(true) },
+                ) {
+                    Icon(Icons.Default.SystemUpdateAlt, contentDescription = null)
+                    Spacer(Modifier.size(4.dp))
+                    Text(stringResource(CoreR.string.install))
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onBack) {
+                    Icon(Icons.Default.Close, contentDescription = null)
+                    Spacer(Modifier.size(4.dp))
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
         },
     ) { padding ->
         Column(
@@ -350,6 +433,15 @@ private fun RepositoryScreen(
                 },
                 placeholder = { Text(stringResource(CoreR.string.repository_search_hint)) },
             )
+
+            if (operationStatus.isNotBlank()) {
+                Text(
+                    text = operationStatus,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
 
             when {
                 uiState.repositoryLoading -> Box(
@@ -387,18 +479,8 @@ private fun RepositoryScreen(
                     items(uiState.repositoryModules, key = { "${it.id}:${it.zipUrl}" }) { module ->
                         RepositoryModuleCard(
                             module = module,
-                            onDownload = {
-                                DownloadEngine.startWithActivity(
-                                    activity,
-                                    OnlineModuleSubject(module.asOnlineModule(), false),
-                                )
-                            },
-                            onInstall = {
-                                DownloadEngine.startWithActivity(
-                                    activity,
-                                    OnlineModuleSubject(module.asOnlineModule(), true),
-                                )
-                            },
+                            queued = repositoryQueueKey(module) in queued,
+                            onToggleQueue = { updateQueue(module) },
                         )
                     }
                 }
@@ -410,8 +492,8 @@ private fun RepositoryScreen(
 @Composable
 private fun RepositoryModuleCard(
     module: RepositoryModule,
-    onDownload: () -> Unit,
-    onInstall: () -> Unit,
+    queued: Boolean,
+    onToggleQueue: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -444,23 +526,26 @@ private fun RepositoryModuleCard(
                     .padding(top = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             ) {
-                Button(
-                    onClick = onDownload,
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.secondaryContainer),
-                ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                TextButton(onClick = onToggleQueue) {
+                    Icon(
+                        if (queued) Icons.AutoMirrored.Filled.Undo else Icons.Default.Add,
+                        contentDescription = null,
+                    )
                     Spacer(Modifier.size(6.dp))
-                    Text(stringResource(CoreR.string.download))
-                }
-                Button(onClick = onInstall) {
-                    Icon(Icons.Default.SystemUpdateAlt, contentDescription = null)
-                    Spacer(Modifier.size(6.dp))
-                    Text(stringResource(CoreR.string.install))
+                    Text(
+                        stringResource(
+                            if (queued) CoreR.string.repository_remove_from_queue
+                            else CoreR.string.repository_add_to_queue
+                        )
+                    )
                 }
             }
         }
     }
 }
+
+private fun repositoryQueueKey(module: RepositoryModule) =
+    "${module.id.lowercase()}|${module.zipUrl}"
 
 @Composable
 private fun ModuleCard(

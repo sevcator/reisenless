@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -61,8 +60,6 @@ internal fun RepositorySettingsScreen(onBack: () -> Unit) {
     val repository = remember { ModuleRepository(ServiceLocator.networkService) }
     var configured by remember { mutableStateOf(readConfiguredRepositories()) }
     var trusted by remember { mutableStateOf(emptyList<TrustedRepository>()) }
-    var trustedLoading by remember { mutableStateOf(true) }
-    var showTrusted by rememberSaveable { mutableStateOf(false) }
     var customUrl by rememberSaveable { mutableStateOf("") }
     var invalidCustomUrl by rememberSaveable { mutableStateOf(false) }
 
@@ -70,7 +67,6 @@ internal fun RepositorySettingsScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         trusted = repository.loadTrustedRepositories()
-        trustedLoading = false
     }
 
     fun updateConfigured(values: List<String>) {
@@ -141,65 +137,6 @@ internal fun RepositorySettingsScreen(onBack: () -> Unit) {
                         }
                     },
                 )
-            }
-
-            item {
-                Button(
-                    onClick = { showTrusted = !showTrusted },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.secondaryContainer),
-                ) {
-                    Icon(
-                        Icons.Default.Verified,
-                        contentDescription = null,
-                        tint = colors.onSecondaryContainer,
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        stringResource(CoreR.string.repository_add_trusted),
-                        color = colors.onSecondaryContainer,
-                    )
-                }
-            }
-
-            if (showTrusted) {
-                if (trustedLoading) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                } else {
-                    items(trusted, key = { "trusted:${it.url}" }) { item ->
-                        val installed = configured.any { source -> sameRepository(source, item.url) }
-                        RepositorySourceCard(
-                            name = item.name,
-                            url = item.url,
-                            description = item.description.ifBlank {
-                                item.modulesCount?.let { count ->
-                                    stringResource(CoreR.string.repository_module_count, count)
-                                }.orEmpty()
-                            },
-                            trusted = true,
-                            installed = installed,
-                            onWeb = { runCatching { uriHandler.openUri(item.url) } },
-                            onAction = {
-                                if (installed) {
-                                    updateConfigured(configured.filterNot { source ->
-                                        sameRepository(source, item.url)
-                                    })
-                                } else {
-                                    updateConfigured(configured + item.url)
-                                }
-                            },
-                        )
-                    }
-                }
             }
 
             item {
