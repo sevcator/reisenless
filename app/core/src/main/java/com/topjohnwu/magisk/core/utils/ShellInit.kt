@@ -154,6 +154,15 @@ class ShellInit : Shell.Initializer() {
         identityKeywords.forEach { (signal, keywords) ->
             if (identity.contains(signal)) detected.addAll(keywords)
         }
+        // Udonge can sanitize ROM properties before the manager starts.
+        // Installed framework/overlay package names remain available and are
+        // a reliable fallback on already-cleaned systems.
+        val installedPackages = shell.newJob()
+            .add("pm list packages 2>/dev/null")
+            .exec().out.joinToString("\n").lowercase()
+        identityKeywords.forEach { (signal, keywords) ->
+            if (installedPackages.contains(signal)) detected.addAll(keywords)
+        }
         if (detected.isEmpty()) return
         val existing = Config.udongeRomKeywords
         val combined = (existing.lineSequence().filter { it.isNotBlank() } + detected.asSequence())
