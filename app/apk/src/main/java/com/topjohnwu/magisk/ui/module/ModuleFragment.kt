@@ -290,7 +290,6 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
             setButton(MagiskDialog.ButtonType.NEUTRAL) {
                 downloadButton = this
                 text = CoreR.string.download
-                icon = R.drawable.ic_download_md2
                 isEnabled = false
                 doNotDismiss = true
                 onClick { processQueue(false) }
@@ -298,14 +297,12 @@ class ModuleFragment : BaseFragment<FragmentModuleMd2Binding>(), MenuProvider {
             setButton(MagiskDialog.ButtonType.NEGATIVE) {
                 installButton = this
                 text = CoreR.string.install
-                icon = R.drawable.ic_install
                 isEnabled = false
                 doNotDismiss = true
                 onClick { processQueue(true) }
             }
             setButton(MagiskDialog.ButtonType.POSITIVE) {
                 text = android.R.string.cancel
-                icon = R.drawable.ic_close_md2
             }
         }
         val loadJob = viewLifecycleOwner.lifecycleScope.launch {
