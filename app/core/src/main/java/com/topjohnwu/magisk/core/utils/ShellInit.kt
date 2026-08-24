@@ -92,13 +92,13 @@ class ShellInit : Shell.Initializer() {
                 "VALUES ($myUid, 2, 0, 0, 0)'"
             ).exec()
             Udonge.syncBackgroundUpdates(shell)
-            detectAndSaveRomKeywords(shell)
+            detectAndSaveRomKeywords(context, shell)
         }
 
         return true
     }
 
-    private fun detectAndSaveRomKeywords(shell: Shell) {
+    private fun detectAndSaveRomKeywords(context: Context, shell: Shell) {
         val directProperties = linkedMapOf(
             "ro.lineage.version" to listOf("lineage", "lineageos"),
             "ro.lineage.build.version" to listOf("lineage", "lineageos"),
@@ -157,9 +157,12 @@ class ShellInit : Shell.Initializer() {
         // Udonge can sanitize ROM properties before the manager starts.
         // Installed framework/overlay package names remain available and are
         // a reliable fallback on already-cleaned systems.
-        val installedPackages = shell.newJob()
-            .add("pm list packages 2>/dev/null")
-            .exec().out.joinToString("\n").lowercase()
+        val installedPackages = runCatching {
+            context.packageManager.getInstalledPackages(0)
+                .asSequence()
+                .joinToString("\n") { it.packageName }
+                .lowercase()
+        }.getOrDefault("")
         identityKeywords.forEach { (signal, keywords) ->
             if (installedPackages.contains(signal)) detected.addAll(keywords)
         }
@@ -167,6 +170,9 @@ class ShellInit : Shell.Initializer() {
         val existing = Config.udongeRomKeywords
         val combined = (existing.lineSequence().filter { it.isNotBlank() } + detected.asSequence())
             .distinct().joinToString("\n")
-        if (combined != existing) Udonge.setRomKeywords(combined, shell)
+        if (combined != existing) {
+            Config.udongeRomKeywords = combined
+            Udonge.setRomKeywords(combined, shell)
+        }
     }
 }
