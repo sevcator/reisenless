@@ -63,7 +63,8 @@ public final class PackageManagerProxy implements InvocationHandler {
     }
 
     public static Object wrap(Object delegate, String caller, String rule) {
-        if (delegate == null || caller == null || rule == null || rule.isEmpty()) {
+        if (delegate == null || caller == null || isSystemProcess(caller)
+                || rule == null || rule.isEmpty()) {
             return delegate;
         }
         Class<?>[] interfaces = delegate.getClass().getInterfaces();
