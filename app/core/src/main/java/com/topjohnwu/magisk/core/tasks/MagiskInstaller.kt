@@ -6,7 +6,6 @@ import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import android.system.OsConstants.O_WRONLY
-import dalvik.system.BaseDexClassLoader
 import androidx.annotation.WorkerThread
 import androidx.core.os.postDelayed
 import com.topjohnwu.magisk.StubApk
@@ -142,31 +141,32 @@ abstract class MagiskInstallImpl protected constructor(
                 }
             } else {
                 val info = context.applicationInfo
-                val classLoader = context.classLoader as? BaseDexClassLoader
-                for (packagedName in listOf(
-                    "magisk", "mboot", "minit", "mpol", "init-ld", "busybox"
-                )) {
-                    // Android 15 may allow loading extracted native libraries
-                    // while denying directory enumeration to the app. Resolve
-                    // each required payload through the class loader instead
-                    // of relying on nativeLibraryDir.listFiles().
-                    val libPath = classLoader?.findLibrary(packagedName)
-                        ?: File(info.nativeLibraryDir, "lib$packagedName.so").absolutePath
-                    val name = when (packagedName) {
-                        "busybox" -> BuildConfig.BUSYBOX_NAME
-                        else -> packagedName
+                // Android 15 can deny both directory enumeration and metadata
+                // checks for extracted native libraries. Read payloads directly
+                // from the APK so the installer always receives regular files.
+                ZipFile.builder().setFile(File(info.sourceDir)).get().use { zf ->
+                    zf.entries.asSequence().filter {
+                        !it.isDirectory && it.name.startsWith("lib/${Const.CPU_ABI}/")
+                    }.forEach {
+                        val n = it.name.substring(it.name.lastIndexOf('/') + 1)
+                        val packagedName = n.substring(3, n.length - 3)
+                        val name = when (packagedName) {
+                            "busybox" -> BuildConfig.BUSYBOX_NAME
+                            else -> packagedName
+                        }
+                        val dest = File(installDir, name)
+                        zf.getInputStream(it).writeTo(dest)
+                        dest.setExecutable(true)
                     }
-                    Os.symlink(libPath, "$installDir/$name")
-                }
 
-                // Also extract 32-bit binary on 64-bit devices that support 32-bit
-                val abi32 = Const.CPU_ABI_32
-                if (Process.is64Bit() && abi32 != null) {
-                    val name = "lib/$abi32/libmagisk.so"
-                    val entry = javaClass.classLoader!!.getResourceAsStream(name)
-                    if (entry != null) {
-                        val bin32 = File(installDir, BuildConfig.BIN32_NAME)
-                        entry.writeTo(bin32)
+                    val abi32 = Const.CPU_ABI_32
+                    if (Process.is64Bit() && abi32 != null) {
+                        val entry = zf.getEntry("lib/$abi32/libmagisk.so")
+                        if (entry != null) {
+                            val bin32 = File(installDir, BuildConfig.BIN32_NAME)
+                            zf.getInputStream(entry).writeTo(bin32)
+                            bin32.setExecutable(true)
+                        }
                     }
                 }
             }
