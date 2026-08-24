@@ -21,7 +21,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -36,7 +35,6 @@ import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.base.ActivityExtension
 import com.topjohnwu.magisk.core.base.SplashController
 import com.topjohnwu.magisk.core.base.SplashScreenHost
-import com.topjohnwu.magisk.core.isRunningAsStub
 import com.topjohnwu.magisk.core.ktx.toast
 import com.topjohnwu.magisk.core.tasks.AppMigration
 import com.topjohnwu.magisk.core.wrap
@@ -54,7 +52,6 @@ import com.topjohnwu.magisk.ui.navigation.LocalNavigator
 import com.topjohnwu.magisk.ui.navigation.Navigator
 import com.topjohnwu.magisk.ui.navigation.Route
 import com.topjohnwu.magisk.ui.navigation.rememberNavigator
-import com.topjohnwu.magisk.view.Shortcuts
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -68,7 +65,6 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
     private val intentState = MutableStateFlow(0)
     internal val showInvalidState = MutableStateFlow(false)
     internal val showUnsupported = MutableStateFlow<List<Pair<Int, Int>>>(emptyList())
-    internal val showShortcutPrompt = MutableStateFlow(false)
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base.wrap())
@@ -95,7 +91,6 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
     @SuppressLint("InlinedApi")
     override fun onCreateUi(savedInstanceState: Bundle?) {
         showUnsupportedMessage()
-        askForHomeShortcut()
 
         if (Info.env.isActive && Config.udongeRomKeywords.isNotBlank()) {
             lifecycleScope.launch(Dispatchers.IO) {
@@ -244,20 +239,12 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
         }
     }
 
-    private fun askForHomeShortcut() {
-        if (isRunningAsStub && !Config.askedHome &&
-            ShortcutManagerCompat.isRequestPinShortcutSupported(this)) {
-            Config.askedHome = true
-            showShortcutPrompt.value = true
-        }
-    }
 }
 
 @Composable
 private fun MainActivityDialogs(activity: MainActivity) {
     val showInvalid by activity.showInvalidState.collectAsState()
     val unsupportedMessages by activity.showUnsupported.collectAsState()
-    val showShortcut by activity.showShortcutPrompt.collectAsState()
 
     val invalidDialog = com.topjohnwu.magisk.ui.component.rememberConfirmDialog(
         onConfirm = {
@@ -292,20 +279,4 @@ private fun MainActivityDialogs(activity: MainActivity) {
         }
     }
 
-    val shortcutDialog = com.topjohnwu.magisk.ui.component.rememberConfirmDialog(
-        onConfirm = {
-            activity.showShortcutPrompt.value = false
-            Shortcuts.addHomeIcon(activity)
-        },
-        onDismiss = { activity.showShortcutPrompt.value = false }
-    )
-
-    LaunchedEffect(showShortcut) {
-        if (showShortcut) {
-            shortcutDialog.showConfirm(
-                title = activity.getString(CoreR.string.add_shortcut_title),
-                content = activity.getString(CoreR.string.add_shortcut_msg),
-            )
-        }
-    }
 }
