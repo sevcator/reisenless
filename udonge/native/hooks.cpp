@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <set>
 #include <mutex>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -833,7 +834,10 @@ void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
     FILE *maps = fopen("/proc/self/maps", "re");
     if (!maps) return;
 
-    static std::set<std::pair<dev_t, ino_t>> seen;
+    // APK-embedded native libraries share the base APK's device/inode. Track
+    // each executable ELF mapping base as well, otherwise an earlier APK/Dex
+    // mapping makes a library loaded later look "already hooked".
+    static std::set<std::tuple<dev_t, ino_t, unsigned long>> seen;
     char line[512];
     while (fgets(line, sizeof line, maps)) {
         unsigned long start, end, off;
@@ -843,7 +847,7 @@ void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
         char path[400] = {0};
         int n = sscanf(line, "%lx-%lx %7s %lx %x:%x %lu %399[^\n]",
                        &start, &end, perms, &off, &major, &minor, &inode, path);
-        if (n < 7 || inode == 0) continue;
+        if (n < 7 || inode == 0 || !strchr(perms, 'x')) continue;
         char *p = path;
         while (*p == ' ') ++p;
         if (*p != '/') continue;
@@ -852,7 +856,8 @@ void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
         // our hook then accesses the already-freed UdongeModule's g_cfg → SIGSEGV.
         if (strstr(p, "libzygisk")) continue;
         dev_t dev = makedev(major, minor);
-        if (!seen.insert({dev, inode}).second) continue;
+        const unsigned long image_base = start - off;
+        if (!seen.insert({dev, inode, image_base}).second) continue;
         for (size_t i = 0; i < nhooks; i++)
             api->pltHookRegister(dev, inode, hooks[i].sym, hooks[i].hook, hooks[i].orig);
     }
