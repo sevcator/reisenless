@@ -160,7 +160,7 @@ public:
             return;
         }
         if (hide_apps_) {
-            hideapps::install(env_, package_, hide_rule_, hide_dex_);
+            hideapps::install(env_, package_, hide_rule_, hide_dex_, cfg_.rom_keywords);
         }
         if (cloak_) {
             cloak::install_hooks(api_, &cfg_);

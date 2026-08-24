@@ -14,6 +14,7 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -71,6 +72,58 @@ public final class PackageManagerProxy implements InvocationHandler {
                 PackageManagerProxy.class.getClassLoader(),
                 interfaces,
                 new PackageManagerProxy(delegate, caller, rule));
+    }
+
+    public static Object wrapServiceManager(Object delegate, String keywords) {
+        if (delegate == null || keywords == null || keywords.isEmpty()) return delegate;
+        Class<?>[] interfaces = delegate.getClass().getInterfaces();
+        if (interfaces.length == 0) return delegate;
+        return Proxy.newProxyInstance(
+                PackageManagerProxy.class.getClassLoader(),
+                interfaces,
+                new ServiceManagerFilter(delegate, keywords));
+    }
+
+    private static final class ServiceManagerFilter implements InvocationHandler {
+        private final Object delegate;
+        private final List<String> keywords = new ArrayList<>();
+
+        ServiceManagerFilter(Object delegate, String rawKeywords) {
+            this.delegate = delegate;
+            for (String item : rawKeywords.split("\\n")) {
+                item = item.trim().toLowerCase(Locale.ROOT);
+                if (item.length() >= 3) keywords.add(item);
+            }
+        }
+
+        private boolean shouldHide(String service) {
+            if (service == null) return false;
+            String lower = service.toLowerCase(Locale.ROOT);
+            for (String keyword : keywords) if (lower.contains(keyword)) return true;
+            return false;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            String name = method.getName();
+            if (args != null && args.length > 0 && args[0] instanceof String
+                    && shouldHide((String) args[0])) {
+                return hiddenValue(method.getReturnType(), name);
+            }
+            final Object result;
+            try {
+                result = method.invoke(delegate, args);
+            } catch (InvocationTargetException e) {
+                throw e.getCause();
+            }
+            if (result instanceof String[]) {
+                String[] input = (String[]) result;
+                List<String> output = new ArrayList<>(input.length);
+                for (String service : input) if (!shouldHide(service)) output.add(service);
+                return output.toArray(new String[0]);
+            }
+            return result;
+        }
     }
 
     @Override

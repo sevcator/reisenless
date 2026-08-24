@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cerrno>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
@@ -157,6 +158,7 @@ static int     (*o_prop_get)(const char *, char *);
 static void    (*o_prop_read_cb)(const void *, void (*)(void *, const char *, const char *, uint32_t), void *);
 static struct dirent *(*o_readdir)(DIR *);
 static char   *(*o_getenv)(const char *);
+static void   *(*o_dlsym)(void *, const char *);
 
 // ---- file-existence hiding ----
 static int h_faccessat(int d, const char *p, int m, int f) {
@@ -423,6 +425,16 @@ static char *h_getenv(const char *name) {
     char *val = o_getenv(name);
     if (val && is_blocked(val)) return nullptr;
     return val;
+}
+
+// Duck Detector checks one Lineage-added private stagefright symbol. Keep the
+// filter exact so ordinary native symbol resolution is untouched.
+static void *h_dlsym(void *handle, const char *symbol) {
+    if (g_cfg && !g_cfg->rom_keywords.empty() && symbol &&
+        strcmp(symbol, "_ZN7android15ANetworkSession10threadLoopEv") == 0) {
+        return nullptr;
+    }
+    return o_dlsym(handle, symbol);
 }
 
 // ---- hardcoded boot-state props ----
@@ -705,6 +717,7 @@ static const HookSpec kHooks[] = {
     {"readlinkat", (void *)h_readlinkat, (void **)&o_readlinkat},
     {"readdir",    (void *)h_readdir,    (void **)&o_readdir},
     {"getenv",     (void *)h_getenv,     (void **)&o_getenv},
+    {"dlsym",      (void *)h_dlsym,      (void **)&o_dlsym},
     {"__system_property_get",           (void *)h_prop_get,     (void **)&o_prop_get},
     {"__system_property_read_callback", (void *)h_prop_read_cb, (void **)&o_prop_read_cb},
 };
