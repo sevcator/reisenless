@@ -415,14 +415,13 @@ impl ManagerInfo {
         if !db_pkg.is_empty() {
             match self.check_stub(user, &db_pkg) {
                 Status::Installed => {
-                    return if matches!(self.check_dyn(daemon, user, &db_pkg), Status::Installed) {
-                        (
+                    if matches!(self.check_dyn(daemon, user, &db_pkg), Status::Installed) {
+                        return (
                             user * AID_USER_OFFSET + self.repackaged_app_id,
                             &self.repackaged_pkg,
-                        )
-                    } else {
-                        (-1, "")
-                    };
+                        );
+                    }
+                    daemon.rm_db_string(DbEntryKey::SuManager).ok();
                 }
                 Status::NotInstalled => {
                     daemon.rm_db_string(DbEntryKey::SuManager).ok();
