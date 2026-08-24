@@ -159,7 +159,7 @@ object Config : PreferenceConfig, DBConfig {
         Key.MODULE_REPOSITORY_DEFAULTS_VERSION,
         0,
     )
-    var moduleRepositoryUrls
+    var moduleRepositoryUrls: String
         get() {
             if (moduleRepositoryDefaultsVersion < 1) {
                 storedModuleRepositoryUrls =
