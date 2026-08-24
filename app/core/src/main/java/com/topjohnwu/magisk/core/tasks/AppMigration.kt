@@ -85,6 +85,31 @@ object AppMigration {
         }
     }
 
+    private fun shellInstalledUid(pkg: String): Int? {
+        val prefix = "package:$pkg uid:"
+        return Shell.cmd("cmd package list packages -U $pkg").exec().out
+            .asSequence()
+            .mapNotNull { line ->
+                line.takeIf { it.startsWith(prefix) }
+                    ?.removePrefix(prefix)
+                    ?.toIntOrNull()
+            }
+            .firstOrNull()
+    }
+
+    private fun shellIsInstalled(pkg: String): Boolean {
+        return Shell.cmd("pm path $pkg").exec().out.any { it.startsWith("package:") }
+    }
+
+    private fun shellUidIsExclusive(uid: Int, pkg: String): Boolean {
+        val suffix = " uid:$uid"
+        return Shell.cmd("cmd package list packages -U").exec().out
+            .asSequence()
+            .filter { it.endsWith(suffix) }
+            .map { it.removePrefix("package:").removeSuffix(suffix) }
+            .singleOrNull() == pkg
+    }
+
     /** Give a newly installed migration target root before its first launch. */
     private fun authorizeMigrationTarget(uid: Int): Boolean {
         val query = "REPLACE INTO policies " +
@@ -580,18 +605,22 @@ object AppMigration {
 
     fun completeMigration(context: Context, source: String): Boolean {
         if (!isValidPackageName(source) || source == context.packageName) return false
-        val sourceUid = installedUid(context, source)
+        val sourceUid = installedUid(context, source) ?: shellInstalledUid(source)
         val sourceUidIsExclusive = sourceUid != null &&
-            context.packageManager.getPackagesForUid(sourceUid).orEmpty().singleOrNull() == source
+            (context.packageManager.getPackagesForUid(sourceUid).orEmpty().singleOrNull() == source ||
+                shellUidIsExclusive(sourceUid, source))
         val sourceTest = "$source.test"
         Shell.cmd("${Const.MAIN_BIN} --sulist rm $source").exec()
-        if (isInstalled(context, sourceTest)) {
+        // App visibility may be filtered by the OS or by Udonge during the
+        // hidden manager's first launch. The source and target are authenticated
+        // migration values, so use the rooted package manager for final cleanup.
+        if (shellIsInstalled(sourceTest)) {
             Shell.cmd("pm uninstall $sourceTest").exec()
         }
-        if (isInstalled(context, source)) {
+        if (shellIsInstalled(source)) {
             Shell.cmd("pm uninstall $source").exec()
         }
-        val complete = !isInstalled(context, sourceTest) && !isInstalled(context, source)
+        val complete = !shellIsInstalled(sourceTest) && !shellIsInstalled(source)
         if (complete) {
             if (sourceUidIsExclusive) sourceUid?.let(::revokeMigrationPolicy)
             Config.migrationSource = ""
