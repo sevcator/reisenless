@@ -59,7 +59,7 @@ open class FlashZip(
         val installCommand = "sh $installDir/update-binary dummy 1 \'$zipFile\'"
         val command = if (timeoutSeconds > 0) {
             "timeout -s KILL ${timeoutSeconds}s $installCommand; " +
-                "rc=\$?; [ \$rc -eq 137 ] && echo '$TIMEOUT_MARKER'; exit \$rc"
+                "rc=\$?; [ \$rc -eq 137 ] && echo '$TIMEOUT_MARKER'; [ \$rc -eq 0 ]"
         } else {
             installCommand
         }
