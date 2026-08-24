@@ -6,6 +6,7 @@ import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import android.system.OsConstants.O_WRONLY
+import dalvik.system.BaseDexClassLoader
 import androidx.annotation.WorkerThread
 import androidx.core.os.postDelayed
 import com.topjohnwu.magisk.StubApk
@@ -141,17 +142,21 @@ abstract class MagiskInstallImpl protected constructor(
                 }
             } else {
                 val info = context.applicationInfo
-                val libs = File(info.nativeLibraryDir).listFiles { _, name ->
-                    name.startsWith("lib") && name.endsWith(".so")
-                } ?: emptyArray()
-
-                for (lib in libs) {
-                    val packagedName = lib.name.substring(3, lib.name.length - 3)
+                val classLoader = context.classLoader as? BaseDexClassLoader
+                for (packagedName in listOf(
+                    "magisk", "mboot", "minit", "mpol", "init-ld", "busybox"
+                )) {
+                    // Android 15 may allow loading extracted native libraries
+                    // while denying directory enumeration to the app. Resolve
+                    // each required payload through the class loader instead
+                    // of relying on nativeLibraryDir.listFiles().
+                    val libPath = classLoader?.findLibrary(packagedName)
+                        ?: File(info.nativeLibraryDir, "lib$packagedName.so").absolutePath
                     val name = when (packagedName) {
                         "busybox" -> BuildConfig.BUSYBOX_NAME
                         else -> packagedName
                     }
-                    Os.symlink(lib.path, "$installDir/$name")
+                    Os.symlink(libPath, "$installDir/$name")
                 }
 
                 // Also extract 32-bit binary on 64-bit devices that support 32-bit
