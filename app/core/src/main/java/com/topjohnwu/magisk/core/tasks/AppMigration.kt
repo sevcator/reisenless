@@ -374,8 +374,7 @@ object AppMigration {
 
     private suspend fun selectManager(pkg: String): Boolean {
         repeat(3) {
-            Config.suManager = pkg
-            if (Config.stringDB.fetch(Config.Key.SU_MANAGER) == pkg) return true
+            if (Config.stringDB.putAndFetch(Config.Key.SU_MANAGER, pkg) == pkg) return true
             delay(250)
         }
         return false
@@ -512,7 +511,7 @@ object AppMigration {
                 return@withContext true
             } finally {
                 if (!committed) {
-                    if (managerChanged) Config.suManager = previousManager
+                    if (managerChanged) selectManager(previousManager)
                     installedTestPackage?.let { Shell.cmd("pm uninstall $it").exec() }
                     installedMainUid?.let(::revokeMigrationPolicy)
                     installedMainPackage?.let {
@@ -593,7 +592,7 @@ object AppMigration {
             return@withContext false
         } finally {
             if (!committed) {
-                if (managerChanged) Config.suManager = previousManager
+                if (managerChanged) selectManager(previousManager)
                 if (installedTest) Shell.cmd("pm uninstall $TEST_PKG_NAME").exec()
                 installedMainUid?.let(::revokeMigrationPolicy)
                 if (installedMain) Shell.cmd("pm uninstall $APP_PACKAGE_NAME").exec()

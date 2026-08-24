@@ -13,6 +13,12 @@ class StringDao : MagiskDB() {
         exec(query)
     }
 
+    suspend fun putAndFetch(key: String, value: String): String? {
+        val kv = mapOf("key" to key, "value" to value)
+        val query = "REPLACE INTO ${Table.STRINGS} ${kv.toQuery()} RETURNING value"
+        return exec(query) { it["value"] }.firstOrNull()
+    }
+
     suspend fun fetch(key: String, default: String = ""): String {
         val query = "SELECT value FROM ${Table.STRINGS} WHERE key=\"$key\" LIMIT 1"
         return exec(query) { it["value"] }.firstOrNull() ?: default
