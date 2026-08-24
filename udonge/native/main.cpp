@@ -57,6 +57,22 @@ bool read_str(int fd, std::string &value) {
 #endif
 
 const char *CONF_DIR = UDONGE_ROOT "/state";
+
+static bool starts_with(const std::string &value, const char *prefix) {
+    return value.rfind(prefix, 0) == 0;
+}
+
+static bool is_system_process(const std::string &package) {
+    return package == "android"
+        || starts_with(package, "android.")
+        || starts_with(package, "com.android.")
+        || starts_with(package, "com.google.android.")
+        || starts_with(package, "com.oneplus.")
+        || starts_with(package, "com.qualcomm.")
+        || starts_with(package, "lineageos.")
+        || starts_with(package, "org.lineageos.")
+        || starts_with(package, "vendor.");
+}
 std::string base_package(const std::string &process_name) {
     size_t separator = process_name.find(':');
     return process_name.substr(0, separator);
@@ -137,6 +153,7 @@ public:
         std::string package = base_package(package_name);
         is_gms_unstable_ = package_name == "com.google.android.gms.unstable";
         if (!fetch_config(package_name)) return;
+        if (is_system_process(package)) cfg_.rom_keywords.clear();
 
         hide_apps_ = !hide_rule_.empty() && !hide_dex_.empty();
 

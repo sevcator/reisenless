@@ -497,6 +497,9 @@ static const struct { const char *name; const char *spoof; } kRecoveryProps[] = 
 static const char *const kDeletedProps[] = {
     "ro.boot.verifiedbooterror",
     "ro.boot.verifyerrorpart",
+};
+
+static const char *const kRomDeletedProps[] = {
     // LineageOS-specific props that reveal ROM identity
     "ro.lineage.build.version", "ro.lineage.build.date", "ro.lineage.build.date.utc",
     "ro.lineage.releasetype",   "ro.lineage.device",     "ro.lineage.version",
@@ -562,11 +565,12 @@ static const char *const kRomValueCheckProps[] = {
 static bool is_deleted_prop(const char *name) {
     for (const char *p : kDeletedProps)
         if (strcmp(name, p) == 0) return true;
+    if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
+    for (const char *p : kRomDeletedProps)
+        if (strcmp(name, p) == 0) return true;
     // Dynamic: any prop whose NAME contains a ROM keyword is suppressed
-    if (g_cfg) {
-        for (const auto &kw : g_cfg->rom_keywords)
-            if (contains_ci(name, kw)) return true;
-    }
+    for (const auto &kw : g_cfg->rom_keywords)
+        if (contains_ci(name, kw)) return true;
     return false;
 }
 
