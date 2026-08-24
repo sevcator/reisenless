@@ -173,6 +173,8 @@ static char   *(*o_getenv)(const char *);
 static void   *(*o_dlsym)(void *, const char *);
 static void   *(*o_dlopen)(const char *, int);
 static void   *(*o_android_dlopen_ext)(const char *, int, const void *);
+static void   *(*o_loader_dlopen)(const char *, int, const void *);
+static void   *(*o_loader_android_dlopen_ext)(const char *, int, const void *, const void *);
 
 static void refresh_late_library_hooks() {
     static thread_local bool refreshing = false;
@@ -183,13 +185,23 @@ static void refresh_late_library_hooks() {
 }
 
 static void *h_dlopen(const char *filename, int flags) {
-    void *handle = o_dlopen(filename, flags);
+    // Calling the public dlopen from this wrapper changes the linker caller to
+    // our trampoline. Android then chooses the wrong linker namespace and may
+    // reject vendor EGL/HAL dependencies. Forward the real call-site address
+    // to the linker's exported entry point so namespace selection is unchanged.
+    const void *caller = __builtin_return_address(0);
+    void *handle = o_loader_dlopen
+        ? o_loader_dlopen(filename, flags, caller)
+        : o_dlopen(filename, flags);
     if (handle) refresh_late_library_hooks();
     return handle;
 }
 
 static void *h_android_dlopen_ext(const char *filename, int flags, const void *info) {
-    void *handle = o_android_dlopen_ext(filename, flags, info);
+    const void *caller = __builtin_return_address(0);
+    void *handle = o_loader_android_dlopen_ext
+        ? o_loader_android_dlopen_ext(filename, flags, info, caller)
+        : o_android_dlopen_ext(filename, flags, info);
     if (handle) refresh_late_library_hooks();
     return handle;
 }
@@ -801,6 +813,18 @@ void install_hooks(zygisk::Api *api, const Config *cfg, bool props_only) {
     g_cfg = &s_cfg;
     g_api = api;
     g_props_only = props_only;
+
+    // These linker exports accept the original call-site explicitly. Resolve
+    // them before registering dlopen hooks; see h_dlopen above.
+    if (!o_loader_dlopen) {
+        o_loader_dlopen = reinterpret_cast<decltype(o_loader_dlopen)>(
+            dlsym(RTLD_DEFAULT, "__loader_dlopen"));
+    }
+    if (!o_loader_android_dlopen_ext) {
+        o_loader_android_dlopen_ext =
+            reinterpret_cast<decltype(o_loader_android_dlopen_ext)>(
+                dlsym(RTLD_DEFAULT, "__loader_android_dlopen_ext"));
+    }
 
     const HookSpec *hooks = props_only ? kPropsHooks : kHooks;
     size_t nhooks  = props_only ? sizeof(kPropsHooks) / sizeof(kPropsHooks[0])
