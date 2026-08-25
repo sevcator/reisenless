@@ -531,8 +531,8 @@ object AppMigration {
             show()
         }
         val success = patchAndHide(activity)
+        dialog.dismiss()
         if (!success) {
-            dialog.dismiss()
             activity.toast(R.string.failure, Toast.LENGTH_LONG)
         }
     }
