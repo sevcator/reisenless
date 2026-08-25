@@ -16,16 +16,15 @@ object Theme {
                 .setContentBasedSource(accent)
                 .build(),
         )
+        activity.theme.applyStyle(R.style.ThemeOverlay_Reisenless_NeutralSurfaces, true)
     }
 
     fun apply(activity: Activity) {
         activity.setTheme(R.style.ThemeFoundationMD2)
-        activity.theme.applyStyle(R.style.ThemeOverlay_Reisenless_Accent, true)
         applyAccentResources(activity)
     }
 
     fun applyOverlays(activity: Activity) {
-        activity.theme.applyStyle(R.style.ThemeOverlay_Reisenless_Accent, true)
         applyAccentResources(activity)
     }
 }

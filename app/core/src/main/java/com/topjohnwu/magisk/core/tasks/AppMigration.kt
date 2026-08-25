@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.core.net.toUri
 import com.topjohnwu.magisk.StubApk
@@ -457,6 +458,7 @@ object AppMigration {
             val previousManager = Config.suManager
             var managerChanged = false
             var committed = false
+            var stage = "prepare"
             try {
                 val stub = File(workDir, Const.STUB_NAME)
                 try {
@@ -512,29 +514,36 @@ object AppMigration {
 
 
                 delay(15_000)
+                stage = "uid"
                 installedMainPackage = newPackage
                 val newUid = installedUid(context, newPackage)
                     ?: return@withContext false
                 installedMainUid = newUid
+                stage = "initialize"
                 if (!initializeMigrationTarget(context, newPackage, newUid)) {
                     return@withContext false
                 }
+                stage = "authorize"
                 if (!authorizeMigrationTarget(newUid)) {
                     return@withContext false
                 }
+                stage = "seed"
                 if (!seedMigrationTarget(context, newPackage, newUid)) {
                     return@withContext false
                 }
+                stage = "sulist"
                 if (!Shell.cmd("${Const.MAIN_BIN} --sulist add $newPackage").exec().isSuccess) {
                     return@withContext false
                 }
                 managerChanged = true
                 Shell.cmd("touch $AppApkPath").exec()
+                stage = "launch"
                 if (!launchApp(context, newPackage, newPackage)) return@withContext false
                 committed = true
                 return@withContext true
             } finally {
                 if (!committed) {
+                    Log.e("AppMigration", "failed stage=$stage")
                     if (managerChanged) selectManager(previousManager)
                     installedTestPackage?.let { Shell.cmd("pm uninstall $it").exec() }
                     installedMainUid?.let(::revokeMigrationPolicy)

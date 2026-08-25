@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:gravity="fill"
-    android:src="@drawable/reisen"
-    android:tint="#FFFFFFFF" />
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:tint="#FFFFFFFF">
+    <item android:drawable="@drawable/reisen" />
+</layer-list>

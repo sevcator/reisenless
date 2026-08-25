@@ -31,13 +31,10 @@
         <item name="colorDisabledVariant">#66808080</item>
     </style>
 
-    <style name="ThemeOverlay.Reisenless.Accent" parent="">
-        <item name="colorPrimary">@color/reisenless_accent</item>
-        <item name="colorPrimaryVariant">@color/reisenless_accent_variant</item>
-        <item name="colorSecondary">@color/reisenless_accent</item>
-        <item name="colorSecondaryVariant">@color/reisenless_accent_variant</item>
-        <item name="colorOnPrimary">@color/reisenless_on_accent</item>
-        <item name="colorOnPrimaryVariant">@color/reisenless_on_accent_variant</item>
-        <item name="colorOnSecondary">@color/reisenless_on_accent</item>
+    <style name="ThemeOverlay.Reisenless.NeutralSurfaces" parent="">
+        <item name="android:colorBackground">#F9F9F9</item>
+        <item name="colorSurface">#F9F9F9</item>
+        <item name="colorSurfaceVariant">#EEEEEE</item>
+        <item name="colorSurfaceSurfaceVariant">#F9F9F9</item>
     </style>
 </resources>

@@ -29,15 +29,16 @@ fun MagiskTheme(
     } else {
         lightColorScheme()
     }
+    val neutralContainer = base.surfaceVariant
     val colorScheme = base.copy(
         primary = accent,
         onPrimary = contentColor(accent),
-        primaryContainer = accent,
-        onPrimaryContainer = contentColor(accent),
+        primaryContainer = neutralContainer,
+        onPrimaryContainer = base.onSurface,
         secondary = accent,
         onSecondary = contentColor(accent),
-        secondaryContainer = accent,
-        onSecondaryContainer = contentColor(accent),
+        secondaryContainer = neutralContainer,
+        onSecondaryContainer = base.onSurface,
     )
 
     MaterialTheme(
