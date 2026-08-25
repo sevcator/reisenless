@@ -237,6 +237,9 @@ int su_client_main(int argc, char *argv[]) {
     if (atty) {
 
         int ptmx = recv_fd(fd);
+        if (ptmx < 0) {
+            return EIO;
+        }
         setup_sighandlers(sighandler);
 
 

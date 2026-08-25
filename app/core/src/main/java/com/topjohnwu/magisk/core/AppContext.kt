@@ -140,7 +140,7 @@ object AppContext : ContextWrapper(null),
                     "/system/bin/sh",
                     "-c",
                     "export PATH=/debug_ramdisk:/sbin:/system/bin:/system/xbin; " +
-                        "exec -a su '$suCmd' --mount-master",
+                        "exec -a su '$suCmd' --mount-master -c 'exec /system/bin/sh'",
                 )
             } else {
                 shellBuilder.setCommands(suCmd)
