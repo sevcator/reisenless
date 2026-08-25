@@ -215,8 +215,6 @@ int su_client_main(int argc, char *argv[]) {
 
 
     if (read_int(fd)) {
-
-        fprintf(stderr, "%s\n", strerror(EACCES));
         return EACCES;
     }
 

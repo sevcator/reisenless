@@ -199,12 +199,6 @@ impl MagiskD {
         let is_zygote = &context == "u:r:zygote:s0";
         let is_manager = self.is_manager_uid(to_user_id(cred.uid as i32), cred.uid as i32);
 
-        if !is_root && !is_zygote && !is_manager && !self.is_client(cred.pid.unwrap_or(-1)) {
-
-            client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
-            return;
-        }
-
         let mut code = -1;
         client.read_pod(&mut code).ok();
         if !(0..RequestCode::END.repr).contains(&code)
@@ -216,6 +210,18 @@ impl MagiskD {
         }
 
         let code = RequestCode { repr: code };
+
+        let is_authorized_su = code.repr == RequestCode::SUPERUSER.repr
+            && self.uid_granted_root(cred.uid as i32);
+        if !is_root
+            && !is_zygote
+            && !is_manager
+            && !self.is_client(cred.pid.unwrap_or(-1))
+            && !is_authorized_su
+        {
+            client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
+            return;
+        }
 
 
         match code {
