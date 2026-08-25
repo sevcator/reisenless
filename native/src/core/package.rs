@@ -413,20 +413,23 @@ impl ManagerInfo {
         }
 
         if !db_pkg.is_empty() {
-            for attempt in 0..20 {
-                if matches!(self.check_stub(user, &db_pkg), Status::Installed)
-                    && matches!(self.check_dyn(daemon, user, &db_pkg), Status::Installed)
-                {
-                    return (
-                        user * AID_USER_OFFSET + self.repackaged_app_id,
-                        &self.repackaged_pkg,
-                    );
+            match self.check_stub(user, &db_pkg) {
+                Status::Installed => {
+                    if matches!(self.check_dyn(daemon, user, &db_pkg), Status::Installed) {
+                        return (
+                            user * AID_USER_OFFSET + self.repackaged_app_id,
+                            &self.repackaged_pkg,
+                        );
+                    }
+                    daemon.rm_db_string(DbEntryKey::SuManager).ok();
                 }
-                if attempt < 19 {
-                    std::thread::sleep(Duration::from_millis(500));
+                Status::NotInstalled => {
+                    daemon.rm_db_string(DbEntryKey::SuManager).ok();
+                }
+                Status::CertMismatch => {
+                    daemon.rm_db_string(DbEntryKey::SuManager).ok();
                 }
             }
-            daemon.rm_db_string(DbEntryKey::SuManager).ok();
         }
 
         self.repackaged_pkg.clear();

@@ -124,6 +124,27 @@ object AppMigration {
         ).exec()
     }
 
+    @Suppress("DEPRECATION")
+    private fun initializeMigrationTarget(context: Context, pkg: String, uid: Int): Boolean {
+        val info = try {
+            context.packageManager.getApplicationInfo(pkg, 0)
+        } catch (_: PackageManager.NameNotFoundException) {
+            return false
+        }
+        val dataDir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            info.deviceProtectedDataDir
+        } else {
+            info.dataDir
+        }
+        return Shell.cmd(
+            "cmd package wait-for-handler --timeout 30000",
+            "cmd package wait-for-background-handler --timeout 30000",
+            "pm clear $pkg",
+            "cmd package wait-for-handler --timeout 30000",
+            "test \"\$(stat -c %u $dataDir)\" -eq $uid",
+        ).exec().isSuccess
+    }
+
 
     @Suppress("DEPRECATION")
     private fun seedMigrationTarget(context: Context, pkg: String, uid: Int): Boolean {
@@ -495,6 +516,9 @@ object AppMigration {
                 val newUid = installedUid(context, newPackage)
                     ?: return@withContext false
                 installedMainUid = newUid
+                if (!initializeMigrationTarget(context, newPackage, newUid)) {
+                    return@withContext false
+                }
                 if (!authorizeMigrationTarget(newUid)) {
                     return@withContext false
                 }
