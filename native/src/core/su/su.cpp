@@ -160,19 +160,21 @@ int su_client_main(int argc, char *argv[]) {
                 req.context = optarg;
                 break;
             case 'M':
+                if (req.target_pid != -1) {
+                    fprintf(stderr, "Can't use -M and -t at the same time\n");
+                    usage(EXIT_FAILURE);
+                }
+                req.target_pid = 0;
+                break;
             case 't':
                 if (req.target_pid != -1) {
                     fprintf(stderr, "Can't use -M and -t at the same time\n");
                     usage(EXIT_FAILURE);
                 }
-                if (optarg == nullptr) {
-                    req.target_pid = 0;
-                } else {
-                    req.target_pid = parse_int(optarg);
-                    if (*optarg == '-' || req.target_pid == -1) {
-                        fprintf(stderr, "Invalid PID: %s\n", optarg);
-                        usage(EXIT_FAILURE);
-                    }
+                req.target_pid = parse_int(optarg);
+                if (*optarg == '-' || req.target_pid == -1) {
+                    fprintf(stderr, "Invalid PID: %s\n", optarg);
+                    usage(EXIT_FAILURE);
                 }
                 break;
             case 'g':
