@@ -111,9 +111,14 @@ abstract class MagiskInstallImpl protected constructor(
         installDir.mkdirs()
 
         try {
+            val sourceApk = if (isRunningAsStub) {
+                StubApk.current(context)
+            } else {
+                File(context.applicationInfo.sourceDir)
+            }
 
             if (isRunningAsStub) {
-                ZipFile.builder().setFile(StubApk.current(context)).get().use { zf ->
+                ZipFile.builder().setFile(sourceApk).get().use { zf ->
                     zf.entries.asSequence().filter {
                         !it.isDirectory && it.name.startsWith("lib/${Const.CPU_ABI}/")
                     }.forEach {
@@ -140,11 +145,7 @@ abstract class MagiskInstallImpl protected constructor(
                     }
                 }
             } else {
-                val info = context.applicationInfo
-
-
-
-                ZipFile.builder().setFile(File(info.sourceDir)).get().use { zf ->
+                ZipFile.builder().setFile(sourceApk).get().use { zf ->
                     zf.entries.asSequence().filter {
                         !it.isDirectory && it.name.startsWith("lib/${Const.CPU_ABI}/")
                     }.forEach {
@@ -195,19 +196,18 @@ abstract class MagiskInstallImpl protected constructor(
             }
 
 
-            for (script in listOf(
-                "util_functions.sh", "boot_patch.sh", "addon.d.sh",
-                BuildConfig.STUB_NAME, BuildConfig.UDONGE_ARCHIVE
-            )) {
-                val dest = File(installDir, script)
-                context.assets.open(script).writeTo(dest)
-            }
-
-            File(installDir, "chromeos").mkdir()
-            for (file in listOf("futility", "kernel_data_key.vbprivk", "kernel.keyblock")) {
-                val name = "chromeos/$file"
-                val dest = File(installDir, name)
-                context.assets.open(name).writeTo(dest)
+            ZipFile.builder().setFile(sourceApk).get().use { zf ->
+                for (asset in listOf(
+                    "util_functions.sh", "boot_patch.sh", "addon.d.sh",
+                    BuildConfig.STUB_NAME, BuildConfig.UDONGE_ARCHIVE,
+                    "chromeos/futility", "chromeos/kernel_data_key.vbprivk",
+                    "chromeos/kernel.keyblock"
+                )) {
+                    val entry = requireNotNull(zf.getEntry("assets/$asset"))
+                    val dest = File(installDir, asset)
+                    dest.parentFile?.mkdirs()
+                    zf.getInputStream(entry).writeTo(dest)
+                }
             }
         } catch (e: Exception) {
             console.add("! unable to extract files")
