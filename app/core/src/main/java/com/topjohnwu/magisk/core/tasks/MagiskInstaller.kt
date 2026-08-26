@@ -106,7 +106,7 @@ abstract class MagiskInstallImpl protected constructor(
         console.add("- device platform: ${Const.CPU_ABI}")
         console.add("- installing: ${BuildConfig.APP_VERSION_NAME} (${BuildConfig.APP_VERSION_CODE})")
 
-        installDir = localFS.getFile(context.filesDir.parent, "install")
+        installDir = localFS.getFile(context.cacheDir, "install")
         installDir.deleteRecursively()
         installDir.mkdirs()
 
@@ -125,6 +125,7 @@ abstract class MagiskInstallImpl protected constructor(
                         val n = it.name.substring(it.name.lastIndexOf('/') + 1)
                         val packagedName = n.substring(3, n.length - 3)
                         val name = when (packagedName) {
+                            "magisk" -> BuildConfig.MAIN_BIN_NAME
                             "mpol" -> BuildConfig.POLICY_NAME
                             "init-ld" -> BuildConfig.INIT_LD_NAME
                             "busybox" -> BuildConfig.BUSYBOX_NAME
@@ -152,6 +153,9 @@ abstract class MagiskInstallImpl protected constructor(
                         val n = it.name.substring(it.name.lastIndexOf('/') + 1)
                         val packagedName = n.substring(3, n.length - 3)
                         val name = when (packagedName) {
+                            "magisk" -> BuildConfig.MAIN_BIN_NAME
+                            "mpol" -> BuildConfig.POLICY_NAME
+                            "init-ld" -> BuildConfig.INIT_LD_NAME
                             "busybox" -> BuildConfig.BUSYBOX_NAME
                             else -> packagedName
                         }
@@ -171,31 +175,6 @@ abstract class MagiskInstallImpl protected constructor(
                     }
                 }
             }
-
-
-
-            val packagedMain = File(installDir, "magisk")
-            val runtimeMain = File(installDir, BuildConfig.MAIN_BIN_NAME)
-            if (packagedMain != runtimeMain && packagedMain.exists()) {
-                if (!packagedMain.renameTo(runtimeMain)) {
-                    packagedMain.copyTo(runtimeMain, overwrite = true)
-                    packagedMain.delete()
-                }
-                runtimeMain.setExecutable(true)
-            }
-
-            val packagedPolicy = File(installDir, "mpol")
-            val runtimePolicy = File(installDir, BuildConfig.POLICY_NAME)
-            if (packagedPolicy != runtimePolicy && packagedPolicy.exists()) {
-                packagedPolicy.renameTo(runtimePolicy)
-            }
-            val packagedInitLd = File(installDir, "init-ld")
-            val runtimeInitLd = File(installDir, BuildConfig.INIT_LD_NAME)
-            if (packagedInitLd != runtimeInitLd && packagedInitLd.exists()) {
-                packagedInitLd.renameTo(runtimeInitLd)
-            }
-
-
             ZipFile.builder().setFile(sourceApk).get().use { zf ->
                 for (asset in listOf(
                     "util_functions.sh", "boot_patch.sh", "addon.d.sh",

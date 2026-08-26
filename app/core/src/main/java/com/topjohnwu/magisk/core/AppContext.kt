@@ -94,7 +94,6 @@ object AppContext : ContextWrapper(null),
         base.cacheDir.listFiles { file -> file.extension == "md" }?.forEach { it.delete() }
         java.io.File(base.cacheDir, "app-migration").deleteRecursively()
         java.io.File(base.cacheDir, "flash").deleteRecursively()
-        java.io.File(base.filesDir.parentFile, "install").deleteRecursively()
         app.registerActivityLifecycleCallbacks(this)
         app.registerComponentCallbacks(this)
 
