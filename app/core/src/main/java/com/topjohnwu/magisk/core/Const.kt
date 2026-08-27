@@ -44,6 +44,7 @@ object Const {
 
     object ID {
         const val DOWNLOAD_JOB_ID = 6
+        const val BACKGROUND_UPDATE_JOB_ID = 7
     }
 
     object Url {

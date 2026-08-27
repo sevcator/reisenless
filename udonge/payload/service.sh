@@ -124,7 +124,7 @@ refresh_keybox() {
     now="$(date +%s 2>/dev/null)"
     last="$(cat "$marker" 2>/dev/null)"
     if [ ! -f "$state/.keybox-refresh" ] && [ -n "$now" ] && [ -n "$last" ]; then
-        [ $((now - last)) -lt 86400 ] && return 0
+        [ $((now - last)) -lt 3600 ] && return 0
     fi
 
     rm -rf "$work"

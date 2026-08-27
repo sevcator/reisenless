@@ -158,6 +158,7 @@ object AppContext : ContextWrapper(null),
             lm.overrideLocaleConfig = LocaleSetting.localeConfig
         }
         networkObserver = NetworkObserver(this)
+        Udonge.scheduleBackgroundUpdates(this)
     }
 
     override fun createDeviceProtectedStorageContext(): Context {

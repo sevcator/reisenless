@@ -18,13 +18,6 @@
         <item name="android:textStyle">bold</item>
     </style>
 
-    <style name="AppearanceFoundation.Title.OnPrimary">
-        <item name="android:textColor">?attr/colorOnPrimary</item>
-    </style>
-
-
-
-
     <style name="AppearanceFoundation.Body" parent="TextAppearance.AppCompat.Body1">
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
@@ -43,13 +36,6 @@
     <style name="AppearanceFoundation.Caption.Primary">
         <item name="android:textColor">?attr/colorPrimary</item>
     </style>
-
-    <style name="AppearanceFoundation.Caption.OnPrimary">
-        <item name="android:textColor">?attr/colorOnPrimary</item>
-    </style>
-
-
-
 
     <style name="AppearanceFoundation.Tiny" parent="TextAppearance.AppCompat.Caption">
         <item name="android:textColor">?attr/colorOnSurface</item>

@@ -11,8 +11,8 @@ import kotlinx.coroutines.GlobalScope
 object Config : PreferenceConfig, DBConfig {
 
     const val DEFAULT_UDONGE_KEYBOX_URLS =
-        "https://raw.githubusercontent.com/sevcator/Reisenless/master/udonge/payload/defaults/keybox.xml\n" +
-        "https://gist.githubusercontent.com/GreyElaina/2401596f3b8a01f8602768ad5221e2fd/raw/kb_b.xml"
+        "https://git.evolution-x.org/EvoX/keybox/raw/branch/main/keybox.xml\n" +
+        "https://raw.githubusercontent.com/AresOS-AOSP/.github/main/profile/keybox.xml"
 
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB
@@ -49,7 +49,7 @@ object Config : PreferenceConfig, DBConfig {
         const val UDONGE_BACKGROUND_UPDATES = "udonge_background_updates"
         const val UDONGE_BACKGROUND_MODULES = "udonge_background_modules"
         const val UDONGE_BACKGROUND_KEYBOXES = "udonge_background_keyboxes"
-        const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls"
+        const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls_v2"
         const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
         const val UDONGE_ROM_HIDING = "udonge_rom_hiding"
 

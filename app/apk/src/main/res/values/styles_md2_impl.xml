@@ -23,10 +23,6 @@
         <item name="cardPreventCornerOverlap">false</item>
     </style>
 
-    <style name="WidgetFoundation.Card.Primary">
-        <item name="cardBackgroundColor">?colorPrimary</item>
-    </style>
-
     <style name="WidgetFoundation.Card.Elevated">
         <item name="cardBackgroundColor">?colorSurfaceSurfaceVariant</item>
         <item name="cardCornerRadius">@dimen/l_50</item>
@@ -61,12 +57,6 @@
         <item name="iconPadding">@dimen/l_50</item>
     </style>
 
-    <style name="WidgetFoundation.Button.Text.OnPrimary">
-        <item name="rippleColor">?colorOnPrimary</item>
-        <item name="android:textColor">?colorOnPrimary</item>
-        <item name="iconTint">?colorOnPrimary</item>
-    </style>
-
 
     <style name="WidgetFoundation.Image">
         <item name="android:layout_width">32dp</item>
@@ -92,10 +82,6 @@
 
     <style name="WidgetFoundation.Icon.Primary">
         <item name="tint">@color/color_primary_transient</item>
-    </style>
-
-    <style name="WidgetFoundation.Icon.OnPrimary">
-        <item name="tint">@color/color_on_primary_transient</item>
     </style>
 
     <style name="WidgetFoundation.Checkbox" parent="Widget.AppCompat.CompoundButton.CheckBox">

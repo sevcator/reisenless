@@ -91,6 +91,7 @@ class ShellInit : Shell.Initializer() {
                 "'INSERT OR IGNORE INTO policies (uid, policy, until, logging, notification) " +
                 "VALUES ($myUid, 2, 0, 0, 0)'"
             ).exec()
+            Udonge.syncKeyboxUrls(shell)
             Udonge.syncBackgroundUpdates(shell)
             detectAndSaveRomKeywords(context, shell)
         }
