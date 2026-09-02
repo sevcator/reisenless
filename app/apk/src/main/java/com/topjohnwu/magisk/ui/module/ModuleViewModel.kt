@@ -10,7 +10,6 @@ import com.topjohnwu.magisk.MainDirections
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.arch.AsyncLoadViewModel
 import com.topjohnwu.magisk.core.AppContext
-import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.base.ContentResultCallback
 import com.topjohnwu.magisk.core.model.module.LocalModule
@@ -54,15 +53,17 @@ class ModuleViewModel : AsyncLoadViewModel() {
         loading = true
         val moduleLoaded = Info.env.isActive &&
                 withContext(Dispatchers.IO) { LocalModule.loaded() }
-        if (moduleLoaded) {
-            loadInstalled()
+        if (Info.env.isActive) {
+            if (moduleLoaded) {
+                loadInstalled()
+            }
             if (items.isEmpty()) {
                 items.insertItem(InstallModule)
                     .insertList(itemsInstalled)
             }
         }
         loading = false
-        if (Config.udongeBackgroundUpdates && Config.udongeBackgroundModules) {
+        if (moduleLoaded) {
             loadUpdateInfo()
         }
     }

@@ -114,12 +114,9 @@
     <string name="settings_accent_color">accent color</string>
     <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">allow background updates</string>
-    <string name="udonge_background_updates_summary">select modules and keyboxes</string>
-    <string name="udonge_background_updates_modules">modules</string>
-    <string name="udonge_background_updates_keyboxes">keyboxes</string>
-    <string name="udonge_background_updates_none">no update categories selected</string>
+    <string name="udonge_background_updates_summary">refresh keyboxes in the background once per day</string>
     <string name="udonge_integrity_title">pass strong integrity</string>
-    <string name="udonge_integrity_summary">udonge will make your device legit!</string>
+    <string name="udonge_integrity_summary">apply integrity and device-hiding changes safely after reboot</string>
     <string name="udonge_keybox_list_title">keybox sources</string>
     <string name="udonge_keybox_list_summary">add or remove links for keyboxes</string>
     <string name="udonge_keybox_hint">one https link per line</string>
@@ -142,6 +139,9 @@
     <string name="hide_app_randomize_confirmation">a random app name, package, android version, version number, version code, and icon will be generated. continue?</string>
     <string name="settings_restore_app_title">restore the reisenless app</string>
     <string name="settings_restore_app_summary">unhide the app and restore the original apk</string>
+    <string name="settings_rotate_hidden_app_title" tools:ignore="MissingTranslation">rotate hidden Reisenless identity</string>
+    <string name="settings_rotate_hidden_app_summary" tools:ignore="MissingTranslation">replace this hidden app with a new randomized identity</string>
+    <string name="rotate_hidden_app_confirmation" tools:ignore="MissingTranslation">A new random app identity will be created and this one will be removed. Continue?</string>
     <string name="language">language</string>
     <string name="system_default">(system default)</string>
     <string name="settings_zygisk_summary">run parts of reisenless in the zygote daemon</string>
@@ -202,7 +202,7 @@
 
     <string name="yes">yes</string>
     <string name="no">no</string>
-    <string name="repo_install_title">install %1$s %2$s(%3$d)</string>
+    <string name="module_update_install_title">install %1$s %2$s(%3$d)</string>
     <string name="download_dialog_title">enter image url</string>
     <string name="download_dialog_msg">full ota image or factory image</string>
     <string name="download">download</string>
@@ -215,6 +215,11 @@
     <string name="done_action">done running action of %1$s</string>
     <string name="failure">failed!</string>
     <string name="hide_app_title">hiding the reisenless app…</string>
+    <string name="mandatory_hide_title" tools:ignore="MissingTranslation">hidden Reisenless required</string>
+    <string name="mandatory_hide_message" tools:ignore="MissingTranslation">Reisenless cannot be used under its public package. Create a randomized hidden Reisenless now. The public installer will be removed after migration.</string>
+    <string name="mandatory_hide_action" tools:ignore="MissingTranslation">create hidden Reisenless</string>
+    <string name="mandatory_hide_exit" tools:ignore="MissingTranslation">exit</string>
+    <string name="mandatory_hide_failure" tools:ignore="MissingTranslation">Hidden Reisenless could not be created. Retry is required to continue.</string>
     <string name="open_link_failed_toast">no app found to open the link</string>
     <string name="complete_uninstall">complete uninstall</string>
     <string name="restore_img">restore images</string>

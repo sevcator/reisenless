@@ -269,7 +269,9 @@ start_tee() {
     printf '%s\n' "$boot_id" > "$run/.pid-boot"
 
     (
-        sleep 60
+        sleep 2
+        rm -rf "$tee_state/logs"
+        sleep 58
         sync_vbmeta_digest || true
         healthy="$(find_tee_supervisor "$run")"
         if [ -n "$healthy" ] && remember_tee_supervisor "$run" "$healthy"; then
@@ -281,7 +283,12 @@ start_tee() {
             : > "$state/tee-unavailable"
             chmod 600 "$state/tee-unavailable"
         fi
+        rm -f "$run/.health-pid" "$run/.health-start" "$run/.health-boot"
     ) &
+    health_pid="$!"
+    printf '%s\n' "$health_pid" > "$run/.health-pid"
+    awk '{print $22}' "/proc/$health_pid/stat" > "$run/.health-start" 2>/dev/null
+    printf '%s\n' "$boot_id" > "$run/.health-boot"
 }
 
 refresh_keybox

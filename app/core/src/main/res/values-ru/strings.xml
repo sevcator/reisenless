@@ -187,7 +187,7 @@
 
     <string name="yes">да</string>
     <string name="no">нет</string>
-    <string name="repo_install_title">установка %1$s %2$s(%3$d)</string>
+    <string name="module_update_install_title">установка %1$s %2$s(%3$d)</string>
     <string name="download">скачать</string>
     <string name="reboot">перезагрузка</string>
     <string name="release_notes">о версии</string>
@@ -253,10 +253,7 @@
     <string name="webui">веб-интерфейс</string>
     <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">разрешить фоновые обновления</string>
-    <string name="udonge_background_updates_summary">выберите modules и keyboxes</string>
-    <string name="udonge_background_updates_modules">modules</string>
-    <string name="udonge_background_updates_keyboxes">keyboxes</string>
-    <string name="udonge_background_updates_none">категории обновлений не выбраны</string>
+    <string name="udonge_background_updates_summary">обновлять keybox в фоне не чаще одного раза в день</string>
     <string name="udonge_integrity_title">пройти strong integrity</string>
     <string name="udonge_integrity_summary">udonge сделает ваше устройство легитимным!</string>
     <string name="udonge_keybox_list_title">enable</string>

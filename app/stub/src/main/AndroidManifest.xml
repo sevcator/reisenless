@@ -17,6 +17,9 @@
     </queries>
 
     <application tools:ignore="MissingApplicationIcon">
+        <meta-data
+            android:name="reisenless.migration.source"
+            android:value="source.reisenless.manager" />
     </application>
 
 </manifest>

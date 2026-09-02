@@ -431,14 +431,6 @@ def _build_flag_metadata():
         "randomizeBuild": config.get("randomizeBuild", "true").lower() == "true",
         "identityNamespace": _repository_namespace(),
         "identity": _build_identity(),
-        "spoofFingerprint": config.get("spoofFingerprint", ""),
-        "spoofManufacturer": config.get("spoofManufacturer", ""),
-        "spoofModel": config.get("spoofModel", ""),
-        "spoofProduct": config.get("spoofProduct", ""),
-        "spoofDevice": config.get("spoofDevice", ""),
-        "spoofBuildId": config.get("spoofBuildId", ""),
-        "spoofSecurityPatch": config.get("spoofSecurityPatch", ""),
-        "spoofVersionRelease": config.get("spoofVersionRelease", ""),
     }
 
 
@@ -494,14 +486,6 @@ def dump_flag_header():
     spoof_ver = config.get("spoofVersionRelease", "")
 
     version = _escape_flag_string(config["version"])
-    spoof_fp = _escape_flag_string(spoof_fp)
-    spoof_mfr = _escape_flag_string(spoof_mfr)
-    spoof_model = _escape_flag_string(spoof_model)
-    spoof_product = _escape_flag_string(spoof_product)
-    spoof_device = _escape_flag_string(spoof_device)
-    spoof_bid = _escape_flag_string(spoof_bid)
-    spoof_patch = _escape_flag_string(spoof_patch)
-    spoof_ver = _escape_flag_string(spoof_ver)
 
     flag_txt = "#pragma once\n"
     flag_txt += f'#define MAGISK_VERSION      "{version}"\n'
@@ -526,14 +510,6 @@ def dump_flag_header():
     }
     for key, macro in identity_flags.items():
         flag_txt += f'#define {macro:<24} "{identity[key]}"\n'
-    flag_txt += f'#define SPOOF_FINGERPRINT   "{spoof_fp}"\n'
-    flag_txt += f'#define SPOOF_MANUFACTURER  "{spoof_mfr}"\n'
-    flag_txt += f'#define SPOOF_MODEL         "{spoof_model}"\n'
-    flag_txt += f'#define SPOOF_PRODUCT       "{spoof_product}"\n'
-    flag_txt += f'#define SPOOF_DEVICE        "{spoof_device}"\n'
-    flag_txt += f'#define SPOOF_BUILD_ID      "{spoof_bid}"\n'
-    flag_txt += f'#define SPOOF_SECURITY_PATCH "{spoof_patch}"\n'
-    flag_txt += f'#define SPOOF_VERSION_RELEASE "{spoof_ver}"\n'
 
     native_gen_path = Path("native", "out", "generated")
     native_gen_path.mkdir(mode=0o755, parents=True, exist_ok=True)
@@ -545,14 +521,6 @@ def dump_flag_header():
     rust_flag_txt += f'pub const BUILD_SECURE_DIR: &str = "{secure_dir}";\n'
     for key, const_name in identity_flags.items():
         rust_flag_txt += f'pub const {const_name}: &str = "{identity[key]}";\n'
-    rust_flag_txt += f'pub const SPOOF_FINGERPRINT: &str = "{spoof_fp}";\n'
-    rust_flag_txt += f'pub const SPOOF_MANUFACTURER: &str = "{spoof_mfr}";\n'
-    rust_flag_txt += f'pub const SPOOF_MODEL: &str = "{spoof_model}";\n'
-    rust_flag_txt += f'pub const SPOOF_PRODUCT: &str = "{spoof_product}";\n'
-    rust_flag_txt += f'pub const SPOOF_DEVICE: &str = "{spoof_device}";\n'
-    rust_flag_txt += f'pub const SPOOF_BUILD_ID: &str = "{spoof_bid}";\n'
-    rust_flag_txt += f'pub const SPOOF_SECURITY_PATCH: &str = "{spoof_patch}";\n'
-    rust_flag_txt += f'pub const SPOOF_VERSION_RELEASE: &str = "{spoof_ver}";\n'
     write_if_diff(native_gen_path / "flags.rs", rust_flag_txt)
     write_if_diff(
         native_gen_path / "flags.json",
@@ -770,6 +738,10 @@ def build_udonge():
         Path("udonge", "native", name)
         for name in ("main.cpp", "config.cpp", "hideapps.cpp", "hooks.cpp", "spoof.cpp")
     ]
+    native_sources.extend([
+        Path("native", "src", "external", "lsplt", "lsplt", "src", "main", "jni", "elf_util.cc"),
+        Path("native", "src", "external", "lsplt", "lsplt", "src", "main", "jni", "lsplt.cc"),
+    ])
     api = "23"
     identity = _build_identity()
     secure_dir = identity["secureDir"].rstrip("/")
@@ -815,23 +787,38 @@ def build_udonge():
 
     output = config["outdir"] / "udonge.bin"
     payload = Path("udonge", "payload")
+    entries: list[tuple[str, bytes, int]] = [
+        ("version", f"{config['version']}\n".encode(), 0o644),
+        ("hideapps.dex", hideapps_dex.read_bytes(), 0o644),
+    ]
+    for lib in sorted(zygisk_out.glob("*.so")):
+        entries.append((f"zygisk/{lib.name}", lib.read_bytes(), 0o644))
+    for source in sorted(item for item in payload.rglob("*") if item.is_file()):
+        name = source.relative_to(payload).as_posix()
+        data = source.read_bytes()
+        if name == "tee/classes.dex":
+            data = _patch_tee_dex(data, udonge_root)
+        if name.endswith(".sh") or name in {"tee/daemon"} or name.endswith("/inject") or name.endswith("/supervisor"):
+            mode = 0o700
+        else:
+            mode = 0o600 if name.startswith("defaults/") else 0o644
+        if name.endswith(".sh"):
+            data = data.replace(b"root=/data/adb/udonge", f"root={udonge_root}".encode())
+            data = data.replace(b"udonge_lib_file", identity["udongeFileType"].encode())
+        entries.append((name, data, mode))
+
+    payload_hash = hashlib.sha256()
+    for name, data, mode in entries:
+        payload_hash.update(name.encode())
+        payload_hash.update(b"\0")
+        payload_hash.update(mode.to_bytes(4, "little"))
+        payload_hash.update(len(data).to_bytes(8, "little"))
+        payload_hash.update(data)
+    payload_id = f"{payload_hash.hexdigest()}\n".encode()
+
     with ZipFile(output, "w") as zf:
-        _zip_bytes(zf, "version", f"{config['version']}\n".encode())
-        _zip_bytes(zf, "hideapps.dex", hideapps_dex.read_bytes())
-        for lib in sorted(zygisk_out.glob("*.so")):
-            _zip_bytes(zf, f"zygisk/{lib.name}", lib.read_bytes())
-        for source in sorted(item for item in payload.rglob("*") if item.is_file()):
-            name = source.relative_to(payload).as_posix()
-            data = source.read_bytes()
-            if name == "tee/classes.dex":
-                data = _patch_tee_dex(data, udonge_root)
-            if name.endswith(".sh") or name in {"tee/daemon"} or name.endswith("/inject") or name.endswith("/supervisor"):
-                mode = 0o700
-            else:
-                mode = 0o600 if name.startswith("defaults/") else 0o644
-            if name.endswith(".sh"):
-                data = data.replace(b"root=/data/adb/udonge", f"root={udonge_root}".encode())
-                data = data.replace(b"udonge_lib_file", identity["udongeFileType"].encode())
+        _zip_bytes(zf, "payload.id", payload_id)
+        for name, data, mode in entries:
             _zip_bytes(zf, name, data, mode)
 
     rm_rf(work)

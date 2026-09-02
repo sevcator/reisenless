@@ -403,11 +403,9 @@ int disable_deny() {
     return DenyResponse::OK;
 }
 
-void initialize_denylist() {
-    if (!denylist_enforced) {
-        if (MagiskD::Get().get_db_setting(DbEntryKey::SulistConfig))
-            enable_deny();
-    }
+void initialize_denylist(bool enabled) {
+    if (enabled && !denylist_enforced)
+        enable_deny();
 }
 
 bool is_deny_target(int uid, string_view process) {

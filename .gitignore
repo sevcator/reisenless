@@ -65,6 +65,7 @@ ehthumbs.db
 ramdisk.img
 *.img
 /notes.md
+/upload-to-github.bat
 
 
 tools/ndk/

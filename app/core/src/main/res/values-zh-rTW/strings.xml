@@ -179,7 +179,7 @@
 
     <string name="yes">是</string>
     <string name="no">否</string>
-    <string name="repo_install_title">安裝 %1$s %2$s(%3$d)</string>
+    <string name="module_update_install_title">安裝 %1$s %2$s(%3$d)</string>
     <string name="download">下載</string>
     <string name="reboot">重新啟動</string>
     <string name="release_notes">版本資訊</string>
@@ -231,10 +231,7 @@
     <string name="webui">網頁介面</string>
     <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">允許背景更新</string>
-    <string name="udonge_background_updates_summary">選擇 modules 和 keyboxes</string>
-    <string name="udonge_background_updates_modules">modules</string>
-    <string name="udonge_background_updates_keyboxes">keyboxes</string>
-    <string name="udonge_background_updates_none">未選擇更新類別</string>
+    <string name="udonge_background_updates_summary">每天在背景更新一次 keybox</string>
     <string name="udonge_integrity_title">通過 strong integrity</string>
     <string name="udonge_integrity_summary">udonge 會讓你的裝置成為合法裝置！</string>
     <string name="udonge_keybox_list_title">keybox 清單</string>

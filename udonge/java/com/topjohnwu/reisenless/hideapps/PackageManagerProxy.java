@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.ComponentInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.ResolveInfo;
+import android.os.Process;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
@@ -18,13 +19,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-
-
-
-
-
+/**
+ * Process-local IPackageManager wrapper installed by Udonge's built-in Zygisk
+ * runtime. This class deliberately uses framework-only APIs so the DEX
+ * can be loaded directly into an app process without an Android dependency.
+ */
 public final class PackageManagerProxy implements InvocationHandler {
     private static final Set<String> NEVER_HIDE = new HashSet<>();
+    private static final Set<String> ROM_PACKAGE_SIGNATURES = new HashSet<>();
+    private static final Set<String> ROM_SERVICE_SIGNATURES = new HashSet<>();
 
     static {
         NEVER_HIDE.add("android");
@@ -40,6 +43,34 @@ public final class PackageManagerProxy implements InvocationHandler {
         NEVER_HIDE.add("com.android.providers.settings");
         NEVER_HIDE.add("com.google.android.providers.media.module");
         NEVER_HIDE.add("com.google.android.webview");
+
+        String[] romPackages = {
+                "org.lineageos.jelly", "org.lineageos.aperture",
+                "org.lineageos.recorder", "org.lineageos.etar",
+                "org.lineageos.twelve", "org.lineageos.glimpse",
+                "org.lineageos.updater", "org.lineageos.lineageparts",
+                "org.lineageos.profiles", "org.lineageos.backgrounds",
+                "org.lineageos.camelot", "org.lineageos.lineagesettings",
+                "com.crdroid.settings", "com.crdroid.updater",
+                "com.crdroid.ltpo.oplus", "co.aospa.sense",
+                "co.aospa.dolby.oplus", "org.protonaosp.columbus",
+                "org.protonaosp.deviceconfig", "org.omnirom.omnijaws",
+                "org.omnirom.omnistyle", "io.chaldeaprjkt.gamespace"
+        };
+        for (String packageName : romPackages) ROM_PACKAGE_SIGNATURES.add(packageName);
+
+        String[] romServices = {
+                "lineageglobalactions", "lineagehardware", "lineagehealth",
+                "lineagelivedisplay", "lineagetrust", "profile",
+                "vendor.lineage.health.IChargingControl/default",
+                "vendor.lineage.health.IFastCharge/default",
+                "vendor.lineage.livedisplay.IPictureAdjustment/default",
+                "vendor.lineage.touch.ITouchscreenGesture/default",
+                "vendor.lineage.livedisplay.IDisplayModes/default"
+        };
+        for (String serviceName : romServices) {
+            ROM_SERVICE_SIGNATURES.add(serviceName.toLowerCase(Locale.ROOT));
+        }
     }
 
     private final Object delegate;
@@ -47,12 +78,18 @@ public final class PackageManagerProxy implements InvocationHandler {
     private final String manager;
     private final boolean whitelist;
     private final boolean excludeSystem;
+    private final boolean integrityTarget;
+    private final List<String> romKeywords;
     private final Set<String> selected;
     private final Set<String> systemPackages;
+    private static volatile boolean soterSuppressed;
 
-    private PackageManagerProxy(Object delegate, String caller, String rule) {
+    private PackageManagerProxy(Object delegate, String caller, String rule, String keywords,
+                                boolean integrityTarget) {
         this.delegate = delegate;
         this.caller = caller;
+        this.integrityTarget = integrityTarget;
+        this.romKeywords = splitKeywords(keywords);
 
         String[] fields = rule.split("\\t", -1);
         this.whitelist = fields.length > 2 && "W".equals(fields[2]);
@@ -62,9 +99,10 @@ public final class PackageManagerProxy implements InvocationHandler {
         this.systemPackages = splitPackages(fields.length > 6 ? fields[6] : "");
     }
 
-    public static Object wrap(Object delegate, String caller, String rule) {
+    public static Object wrap(Object delegate, String caller, String rule, String keywords,
+                              boolean integrityTarget) {
         if (delegate == null || caller == null || isSystemProcess(caller)
-                || rule == null || rule.isEmpty()) {
+                || rule == null || (rule.isEmpty() && !integrityTarget)) {
             return delegate;
         }
         Class<?>[] interfaces = delegate.getClass().getInterfaces();
@@ -72,29 +110,27 @@ public final class PackageManagerProxy implements InvocationHandler {
         return Proxy.newProxyInstance(
                 PackageManagerProxy.class.getClassLoader(),
                 interfaces,
-                new PackageManagerProxy(delegate, caller, rule));
+                new PackageManagerProxy(delegate, caller, rule, keywords, integrityTarget));
     }
 
-    public static Object wrapServiceManager(Object delegate, String caller, String keywords) {
+    public static Object wrapServiceManager(Object delegate, String caller, String keywords,
+                                            boolean integrityTarget) {
         if (delegate == null || caller == null || isSystemProcess(caller)
-                || keywords == null || keywords.isEmpty()) return delegate;
+                || ((keywords == null || keywords.isEmpty()) && !integrityTarget)) return delegate;
         Class<?>[] interfaces = delegate.getClass().getInterfaces();
         if (interfaces.length == 0) return delegate;
         return Proxy.newProxyInstance(
                 PackageManagerProxy.class.getClassLoader(),
                 interfaces,
-                new ServiceManagerFilter(delegate, keywords));
+                new ServiceManagerFilter(delegate, keywords, integrityTarget));
     }
 
     private static boolean isSystemProcess(String caller) {
-        return "android".equals(caller)
+        return Process.myUid() % 100000 < 10000
+                || "android".equals(caller)
                 || caller.startsWith("android.")
                 || caller.startsWith("com.android.")
                 || caller.startsWith("com.google.android.")
-                || caller.startsWith("com.oneplus.")
-                || caller.startsWith("com.qualcomm.")
-                || caller.startsWith("lineageos.")
-                || caller.startsWith("org.lineageos.")
                 || caller.startsWith("vendor.");
     }
 
@@ -102,17 +138,21 @@ public final class PackageManagerProxy implements InvocationHandler {
         private final Object delegate;
         private final List<String> keywords = new ArrayList<>();
 
-        ServiceManagerFilter(Object delegate, String rawKeywords) {
+        ServiceManagerFilter(Object delegate, String rawKeywords, boolean integrityTarget) {
             this.delegate = delegate;
-            for (String item : rawKeywords.split("\\n")) {
-                item = item.trim().toLowerCase(Locale.ROOT);
-                if (item.length() >= 3) keywords.add(item);
+            if (rawKeywords != null) {
+                for (String item : rawKeywords.split("\\n")) {
+                    item = item.trim().toLowerCase(Locale.ROOT);
+                    if (item.length() >= 3) keywords.add(item);
+                }
             }
+            if (integrityTarget) keywords.add("soter");
         }
 
         private boolean shouldHide(String service) {
             if (service == null) return false;
             String lower = service.toLowerCase(Locale.ROOT);
+            if (!keywords.isEmpty() && ROM_SERVICE_SIGNATURES.contains(lower)) return true;
             for (String keyword : keywords) if (lower.contains(keyword)) return true;
             return false;
         }
@@ -142,6 +182,7 @@ public final class PackageManagerProxy implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        if (integrityTarget) suppressSoter();
         if (hasHiddenExplicitPackage(method.getName(), args)) {
             return hiddenValue(method.getReturnType(), method.getName());
         }
@@ -153,6 +194,21 @@ public final class PackageManagerProxy implements InvocationHandler {
             throw e.getCause();
         }
         return filter(result, method.getName());
+    }
+
+    private static void suppressSoter() {
+        if (soterSuppressed) return;
+        try {
+            ClassLoader loader = Thread.currentThread().getContextClassLoader();
+            if (loader == null) return;
+            Class<?> delegate = Class.forName(
+                    "com.tencent.soter.core.model.SoterDelegate", true, loader);
+            delegate.getMethod("onTriggerOOM").invoke(null);
+            soterSuppressed = true;
+        } catch (ReflectiveOperationException | LinkageError ignored) {
+            // The app ClassLoader may not be installed on the first framework
+            // query. A later package-manager call retries after startup.
+        }
     }
 
     private Object filter(Object value, String method) {
@@ -177,7 +233,7 @@ public final class PackageManagerProxy implements InvocationHandler {
                         && shouldHide(String.valueOf(entry.getKey())))
                         || shouldHide(packageNameOf(entry.getValue(), false)));
             } catch (UnsupportedOperationException ignored) {
-
+                // Framework returned an immutable map.
             }
             return value;
         }
@@ -193,8 +249,8 @@ public final class PackageManagerProxy implements InvocationHandler {
             return array;
         }
 
-
-
+        // Android package queries commonly return ParceledListSlice. Hidden API
+        // exemptions are installed natively before this handler is created.
         if (value.getClass().getName().endsWith("ParceledListSlice")) {
             try {
                 Method getList = value.getClass().getMethod("getList");
@@ -208,12 +264,12 @@ public final class PackageManagerProxy implements InvocationHandler {
                             ((List<?>) list).removeIf(
                                     item -> shouldHide(packageNameOf(item, stringsArePackages)));
                         } catch (UnsupportedOperationException ignoredAgain) {
-
+                            // Unknown immutable framework implementation.
                         }
                     }
                 }
             } catch (ReflectiveOperationException ignored) {
-
+                // Unknown framework revision: leave the original result intact.
             }
         }
         return value;
@@ -231,6 +287,14 @@ public final class PackageManagerProxy implements InvocationHandler {
     private boolean shouldHide(String target) {
         if (target == null || target.isEmpty() || target.equals(caller)) {
             return false;
+        }
+        if (integrityTarget && "com.tencent.soter.soterserver".equals(target)) return true;
+        if (integrityTarget && !romKeywords.isEmpty()) {
+            if (ROM_PACKAGE_SIGNATURES.contains(target)) return true;
+            String lower = target.toLowerCase(Locale.ROOT);
+            for (String keyword : romKeywords) {
+                if (lower.contains(keyword)) return true;
+            }
         }
         if (NEVER_HIDE.contains(target)) return false;
         if (whitelist && excludeSystem && systemPackages.contains(target)) return false;
@@ -301,5 +365,15 @@ public final class PackageManagerProxy implements InvocationHandler {
         if (value.isEmpty()) return packages;
         for (String item : value.split(",")) if (!item.isEmpty()) packages.add(item);
         return packages;
+    }
+
+    private static List<String> splitKeywords(String value) {
+        List<String> keywords = new ArrayList<>();
+        if (value == null) return keywords;
+        for (String item : value.split("\\n")) {
+            item = item.trim().toLowerCase(Locale.ROOT);
+            if (item.length() >= 3) keywords.add(item);
+        }
+        return keywords;
     }
 }

@@ -10,6 +10,7 @@ import android.content.ContextWrapper;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ProviderInfo;
 import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.Build;
@@ -31,6 +32,7 @@ import java.util.Map;
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class DynLoad {
 
+    private static final String MIGRATION_SOURCE = "reisenless.migration.source";
     static Object componentFactory;
     static ClassLoader activeClassLoader = DynLoad.class.getClassLoader();
 
@@ -65,15 +67,43 @@ public class DynLoad {
         } catch (Exception ignored) {                  }
     }
 
+    private static boolean makeManagerApkReadOnly(File apk) {
+        // The regular app process and the isolated UID-0 RootService both load
+        // this archive. File.setReadOnly() preserves a newly created file's
+        // 0600 read mask as 0400, which makes the second process fail before it
+        // can initialize. Keep the containing directory private and publish
+        // only the APK itself as immutable 0444.
+        return apk.setReadable(true, false) && apk.setWritable(false, false);
+    }
+
     private static InputStream openManagerApk(Context context)
             throws IOException, PackageManager.NameNotFoundException {
-        try {
-            var uri = Uri.parse("content://" + APPLICATION_ID + ".migration/apk");
-            var input = context.getContentResolver().openInputStream(uri);
-            if (input != null) return input;
-        } catch (IOException | SecurityException | IllegalArgumentException ignored) {
+        var pm = context.getPackageManager();
+        var self = pm.getApplicationInfo(
+                context.getPackageName(), PackageManager.GET_META_DATA);
+        String sourcePackage = self.metaData == null
+                ? null : self.metaData.getString(MIGRATION_SOURCE);
+        if (sourcePackage == null || sourcePackage.equals(context.getPackageName())) {
+            sourcePackage = APPLICATION_ID;
         }
-        var info = context.getPackageManager().getApplicationInfo(APPLICATION_ID, 0);
+        // Current hidden stubs have a dedicated provider. Older hidden stubs
+        // publish only `.provider`; the dynamically loaded full manager serves
+        // the same guarded endpoint there as a compatibility bridge.
+        for (String suffix : new String[] { ".migration", ".provider" }) {
+            try {
+                var uri = Uri.parse("content://" + sourcePackage + suffix + "/apk");
+                var input = context.getContentResolver().openInputStream(uri);
+                if (input != null) return input;
+            } catch (IOException | SecurityException | IllegalArgumentException ignored) {
+            }
+        }
+        // Only the original public package is itself a full APK. A hidden
+        // source package is another stub, so copying its base.apk would poison
+        // the target's dynamic payload.
+        if (!APPLICATION_ID.equals(sourcePackage)) {
+            throw new IOException("migration provider unavailable");
+        }
+        var info = pm.getApplicationInfo(sourcePackage, 0);
         return new FileInputStream(info.sourceDir);
     }
 
@@ -96,7 +126,7 @@ public class DynLoad {
                     try {
                         var in = new FileInputStream(external);
                         var out = new FileOutputStream(apk);
-                        apk.setReadOnly();
+                        makeManagerApkReadOnly(apk);
                         try (in; out) {
                             APKInstall.transfer(in, out);
                         }
@@ -112,27 +142,52 @@ public class DynLoad {
         }
 
         if (apk.exists()) {
-            apk.setReadOnly();
+            makeManagerApkReadOnly(apk);
             return new DynamicClassLoader(apk);
         }
 
 
         if (!context.getPackageName().equals(APPLICATION_ID)) {
+            File bootstrap = new File(apk.getParentFile(), "bootstrap.apk.tmp");
             try {
-                apk.delete();
+                bootstrap.delete();
                 var src = openManagerApk(context);
-                var out = new FileOutputStream(apk);
+                var out = new FileOutputStream(bootstrap);
                 try (src; out) {
                     APKInstall.transfer(src, out);
                 }
-                if (!apk.setReadOnly()) {
-                    apk.delete();
+                if (!makeManagerApkReadOnly(bootstrap)) {
+                    bootstrap.delete();
+                    if (apk.exists()) {
+                        makeManagerApkReadOnly(apk);
+                        return new DynamicClassLoader(apk);
+                    }
+                    return null;
+                }
+                // A rooted migration source may have published current.apk
+                // while the provider copy was in progress. Never overwrite or
+                // delete that authoritative file.
+                if (apk.exists()) {
+                    bootstrap.delete();
+                    makeManagerApkReadOnly(apk);
+                    return new DynamicClassLoader(apk);
+                }
+                if (!bootstrap.renameTo(apk)) {
+                    bootstrap.delete();
+                    if (apk.exists()) {
+                        makeManagerApkReadOnly(apk);
+                        return new DynamicClassLoader(apk);
+                    }
                     return null;
                 }
                 return new DynamicClassLoader(apk);
             } catch (PackageManager.NameNotFoundException ignored) {
             } catch (IOException e) {
-                apk.delete();
+                bootstrap.delete();
+                if (apk.exists()) {
+                    makeManagerApkReadOnly(apk);
+                    return new DynamicClassLoader(apk);
+                }
             }
         }
 
@@ -282,9 +337,28 @@ public class DynLoad {
         {
             var src = stub.providers;
             var dest = app.providers;
-            mapping.put(src[0].name, dest[0].name);
+            for (ProviderInfo source : src) {
+                ProviderInfo match = null;
+                String sourceSuffix = authoritySuffix(source.authority);
+                for (ProviderInfo target : dest) {
+                    if (sourceSuffix.equals(authoritySuffix(target.authority))) {
+                        match = target;
+                        break;
+                    }
+                }
+                if (match == null) {
+                    throw new IllegalStateException("unable to map manager provider");
+                }
+                mapping.put(source.name, match.name);
+            }
         }
         return mapping;
+    }
+
+    private static String authoritySuffix(String authority) {
+        if (authority == null) return "";
+        int separator = authority.lastIndexOf('.');
+        return separator < 0 ? authority : authority.substring(separator);
     }
 
     private static boolean hasEmptyTaskAffinity(ActivityInfo info) {

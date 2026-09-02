@@ -152,7 +152,7 @@ pub mod ffi {
         fn check_key_combo() -> bool;
         fn unlock_blocks();
         fn update_deny_flags(uid: i32, process: &str, flags: &mut u32);
-        fn initialize_denylist();
+        fn initialize_denylist(enabled: bool);
         fn is_uid_on_sulist(uid: i32) -> bool;
         fn switch_mnt_ns(pid: i32) -> i32;
         fn exec_root_shell(client: i32, pid: i32, req: &mut SuRequest, mode: MntNsMode);

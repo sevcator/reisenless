@@ -110,6 +110,18 @@ private abstract class ManifestUpdater: DefaultTask() {
             |    android:grantUriPermissions="true" />""".ind(2)
         )
 
+        // Hidden-to-hidden identity rotation streams the full manager APK
+        // through this non-exported, explicitly granted provider. It has to
+        // exist in the stub manifest because Android resolves the provider
+        // before the dynamic manager APK and its components are loaded.
+        cmpList.add("""
+            |<provider
+            |    android:name="x.COMPONENT_PLACEHOLDER_7"
+            |    android:authorities="${'$'}{applicationId}.migration"
+            |    android:exported="false"
+            |    android:grantUriPermissions="true" />""".ind(2)
+        )
+
         cmpList.add("""
             |<receiver
             |    android:name="x.COMPONENT_PLACEHOLDER_1"

@@ -117,8 +117,6 @@ object Config : PreferenceConfig, DBConfig {
     var accentColor by preference(Key.ACCENT_COLOR, 0xFFC95BC8.toInt())
     var udongeEnabled by preference(Key.UDONGE_ENABLED, true)
     var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
-    var udongeBackgroundModules by preference(Key.UDONGE_BACKGROUND_MODULES, true)
-    var udongeBackgroundKeyboxes by preference(Key.UDONGE_BACKGROUND_KEYBOXES, true)
     private var storedUdongeKeyboxUrls by preference(
         Key.UDONGE_KEYBOX_URLS,
         DEFAULT_UDONGE_KEYBOX_URLS,

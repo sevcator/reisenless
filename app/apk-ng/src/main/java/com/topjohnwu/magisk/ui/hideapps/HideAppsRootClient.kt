@@ -42,6 +42,18 @@ object HideAppsRootClient {
         return true
     }
 
+    /**
+     * Publish the private app configuration on every manager start. The default
+     * configuration hides the live (possibly randomized) manager package from
+     * every non-exempt app, so protection does not depend on opening Settings.
+     */
+    fun syncCurrentConfig(): Boolean {
+        return sync(
+            HideAppsRepository(AppContext).config,
+            packageList(systemOnly = true),
+        )
+    }
+
     fun status(): HideAppsStatus {
         val active = Info.isZygiskEnabled && Shell.cmd(
             "test -f '$runtime/hideapps.dex' && test ! -f '$state/disabled'"
@@ -86,4 +98,13 @@ object HideAppsRootClient {
 
     private fun isPackageName(value: String): Boolean =
         value.matches(Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+"))
+
+    private fun packageList(systemOnly: Boolean = false): Set<String> {
+        val option = if (systemOnly) " -s" else ""
+        return Shell.cmd("cmd package list packages$option").exec().out
+            .asSequence()
+            .map { it.removePrefix("package:").trim() }
+            .filter(::isPackageName)
+            .toSet()
+    }
 }

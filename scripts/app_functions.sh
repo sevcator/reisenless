@@ -153,7 +153,7 @@ refresh_udonge_runtime() {
     return 1
   }
 
-  required="version hideapps.dex post-fs-data.sh service.sh defaults/keybox.xml defaults/keybox_urls.conf defaults/pif.conf defaults/props.conf defaults/targets.conf"
+  required="version hideapps.dex post-fs-data.sh service.sh stop.sh defaults/keybox.xml defaults/keybox_urls.conf defaults/pif.conf defaults/props.conf defaults/targets.conf"
   case "$ARCH" in
     arm64)
       required="$required zygisk/arm64-v8a.so tee/arm64-v8a/inject tee/arm64-v8a/libTEESimulator.so tee/arm64-v8a/libcertgen.so tee/arm64-v8a/supervisor tee/classes.dex tee/daemon"
@@ -189,7 +189,7 @@ refresh_udonge_runtime() {
     rm -rf "$old"
     chmod -R 600 "$runtime"
     find "$runtime" -type d -exec chmod 700 {} \;
-    chmod 700 "$runtime/post-fs-data.sh" "$runtime/service.sh"
+    chmod 700 "$runtime/post-fs-data.sh" "$runtime/service.sh" "$runtime/stop.sh"
     return 0
   fi
   [ -d "$runtime" ] || [ ! -d "$old" ] || mv "$old" "$runtime"

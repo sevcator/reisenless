@@ -192,7 +192,7 @@
 
     <string name="yes">是</string>
     <string name="no">否</string>
-    <string name="repo_install_title">安装 %1$s %2$s(%3$d)</string>
+    <string name="module_update_install_title">安装 %1$s %2$s(%3$d)</string>
     <string name="download">下载</string>
     <string name="reboot">重启</string>
     <string name="close">关闭</string>
@@ -240,10 +240,7 @@
     <string name="webui">网页界面</string>
     <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">允许后台更新</string>
-    <string name="udonge_background_updates_summary">选择 modules 和 keyboxes</string>
-    <string name="udonge_background_updates_modules">modules</string>
-    <string name="udonge_background_updates_keyboxes">keyboxes</string>
-    <string name="udonge_background_updates_none">未选择更新类别</string>
+    <string name="udonge_background_updates_summary">每天在后台刷新一次 keybox</string>
     <string name="udonge_integrity_title">通过 strong integrity</string>
     <string name="udonge_integrity_summary">udonge 会让你的设备成为正版设备！</string>
     <string name="udonge_keybox_list_title">keybox 列表</string>

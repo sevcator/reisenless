@@ -16,6 +16,21 @@ for name in targets.conf props.conf pif.conf keybox_urls.conf rom_keywords.conf;
     fi
 done
 
+# Upgrade active pre-catalog configurations once. An empty file means ROM
+# hiding is disabled and must stay empty.
+if [ ! -f "$state/.rom-catalog-v2" ]; then
+    if [ -s "$state/rom_keywords.conf" ]; then
+        while IFS= read -r keyword; do
+            case "$keyword" in ''|'#'*) continue ;; esac
+            grep -Fxiq "$keyword" "$state/rom_keywords.conf" ||
+                printf '%s\n' "$keyword" >> "$state/rom_keywords.conf"
+        done < "$runtime/defaults/rom_keywords.conf"
+        chmod 600 "$state/rom_keywords.conf"
+    fi
+    : > "$state/.rom-catalog-v2"
+    chmod 600 "$state/.rom-catalog-v2"
+fi
+
 sync_vbmeta_digest() {
     [ "$(wc -c < "$state/boot_hash.bin" 2>/dev/null)" = 32 ] || return 1
     digest="$(od -An -tx1 -v "$state/boot_hash.bin" 2>/dev/null | tr -d ' \n')"
@@ -35,7 +50,6 @@ normalize_boot_properties() {
     resetprop -n ro.boot.verifiedbootstate green
     resetprop -n ro.boot.flash.locked 1
     resetprop -n ro.boot.vbmeta.device_state locked
-
     for name in \
         ro.build.type \
         ro.product.build.type \
@@ -52,6 +66,7 @@ normalize_boot_properties() {
         value="$(resetprop "$name" 2>/dev/null)"
         case "$value" in
             *userdebug*) resetprop -n "$name" "$(printf '%s' "$value" | sed 's/userdebug/user/g')" ;;
+            eng|*-eng|*_eng) resetprop -n "$name" user ;;
         esac
     done
 
@@ -62,8 +77,26 @@ normalize_boot_properties() {
 normalize_boot_properties || true
 
 sanitize_rom_traces() {
-    [ -f "$state/rom_keywords.conf" ] || return 0
+    [ -s "$state/rom_keywords.conf" ] || return 0
     command -v resetprop >/dev/null 2>&1 || return 1
+
+    # These are exact Duck Detector signatures; several deliberately use
+    # neutral abbreviations (ro.pa.*, ro.cm.*, ro.modversion) and therefore
+    # cannot be found by keyword matching.
+    for pname in \
+        ro.modversion \
+        ro.cm.version \
+        ro.lineage.version \
+        ro.resurrection.version \
+        ro.pa.version \
+        ro.aospa.version \
+        ro.crdroid.version \
+        ro.pixelexperience.version \
+        ro.evolution.version \
+        ro.havoc.version; do
+        [ -n "$(resetprop "$pname" 2>/dev/null)" ] &&
+            resetprop --delete "$pname" 2>/dev/null || true
+    done
 
     while IFS= read -r keyword; do
 

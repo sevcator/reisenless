@@ -1,21 +1,18 @@
 #include "hideapps.hpp"
 
-#include <android/log.h>
-
 namespace hideapps {
 namespace {
 
-bool clear_exception(JNIEnv *env, const char *stage) {
+bool clear_exception(JNIEnv *env) {
     if (!env->ExceptionCheck()) return false;
     env->ExceptionClear();
-    __android_log_print(ANDROID_LOG_WARN, "ReisenlessHideApps", "JNI failure at %s", stage);
     return true;
 }
 
 void exempt_hidden_apis(JNIEnv *env) {
     jclass vm_class = env->FindClass("dalvik/system/VMRuntime");
     if (!vm_class) {
-        clear_exception(env, "VMRuntime class");
+        clear_exception(env);
         return;
     }
     jmethodID get_runtime = env->GetStaticMethodID(
@@ -23,10 +20,10 @@ void exempt_hidden_apis(JNIEnv *env) {
     jmethodID set_exemptions = env->GetMethodID(
             vm_class, "setHiddenApiExemptions", "([Ljava/lang/String;)V");
     if (!get_runtime || !set_exemptions) {
-        clear_exception(env, "hidden API methods");
+        clear_exception(env);
         return;
     }
-    if (clear_exception(env, "hidden API methods")) return;
+    if (clear_exception(env)) return;
 
     jobject runtime = env->CallStaticObjectMethod(vm_class, get_runtime);
     jclass string_class = env->FindClass("java/lang/String");
@@ -34,14 +31,17 @@ void exempt_hidden_apis(JNIEnv *env) {
     jstring all = env->NewStringUTF("L");
     env->SetObjectArrayElement(prefixes, 0, all);
     env->CallVoidMethod(runtime, set_exemptions, prefixes);
-    clear_exception(env, "hidden API exemptions");
+    clear_exception(env);
 }
 
-}
+} // namespace
 
 bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
-             const std::string &dex, const std::vector<std::string> &rom_keywords) {
-    if (!env || caller.empty() || rule.empty() || dex.empty()) return false;
+             const std::string &dex, const std::vector<std::string> &rom_keywords,
+             bool integrity_target) {
+    if (!env || caller.empty() || dex.empty() || (rule.empty() && !integrity_target)) {
+        return false;
+    }
     exempt_hidden_apis(env);
 
     jclass activity_thread = env->FindClass("android/app/ActivityThread");
@@ -60,10 +60,10 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
         }
     }
     if (!original) {
-        clear_exception(env, "ActivityThread.sPackageManager");
+        clear_exception(env);
         return false;
     }
-    if (clear_exception(env, "ActivityThread.sPackageManager")) return false;
+    if (clear_exception(env)) return false;
 
     jbyteArray bytes = env->NewByteArray(static_cast<jsize>(dex.size()));
     env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(dex.size()),
@@ -91,10 +91,10 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
             ? env->NewObject(memory_loader, loader_ctor, buffer, parent)
             : nullptr;
     if (!loader) {
-        clear_exception(env, "InMemoryDexClassLoader");
+        clear_exception(env);
         return false;
     }
-    if (clear_exception(env, "InMemoryDexClassLoader")) return false;
+    if (clear_exception(env)) return false;
 
     jmethodID load_class = env->GetMethodID(
             class_loader, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
@@ -103,30 +103,37 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
     auto proxy_class = static_cast<jclass>(
             env->CallObjectMethod(loader, load_class, class_name));
     if (!proxy_class) {
-        clear_exception(env, "PackageManagerProxy class");
+        clear_exception(env);
         return false;
     }
-    if (clear_exception(env, "PackageManagerProxy class")) return false;
+    if (clear_exception(env)) return false;
 
     jmethodID wrap_proxy = env->GetStaticMethodID(
             proxy_class, "wrap",
-            "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;");
+            "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Ljava/lang/Object;");
     jstring caller_string = env->NewStringUTF(caller.c_str());
     jstring rule_string = env->NewStringUTF(rule.c_str());
+    std::string joined_keywords;
+    for (const auto &keyword : rom_keywords) {
+        if (!joined_keywords.empty()) joined_keywords.push_back('\n');
+        joined_keywords.append(keyword);
+    }
+    jstring package_keyword_string = env->NewStringUTF(joined_keywords.c_str());
     jobject proxy = wrap_proxy
             ? env->CallStaticObjectMethod(proxy_class, wrap_proxy, original,
-                                          caller_string, rule_string)
+                                          caller_string, rule_string, package_keyword_string,
+                                          integrity_target ? JNI_TRUE : JNI_FALSE)
             : nullptr;
     if (!proxy) {
-        clear_exception(env, "PackageManagerProxy.wrap");
+        clear_exception(env);
         return false;
     }
-    if (clear_exception(env, "PackageManagerProxy.wrap")) return false;
+    if (clear_exception(env)) return false;
 
     env->SetStaticObjectField(activity_thread, pm_field, proxy);
-    if (clear_exception(env, "install package proxy")) return false;
+    if (clear_exception(env)) return false;
 
-    if (!rom_keywords.empty()) {
+    if (!rom_keywords.empty() || integrity_target) {
         jclass service_manager = env->FindClass("android/os/ServiceManager");
         jfieldID manager_field = service_manager
                 ? env->GetStaticFieldID(service_manager, "sServiceManager",
@@ -141,32 +148,28 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
                     service_manager, "getIServiceManager", "()Landroid/os/IServiceManager;");
             if (get_manager) manager = env->CallStaticObjectMethod(service_manager, get_manager);
         }
-        if (manager && manager_field && !clear_exception(env, "ServiceManager instance")) {
-            std::string joined;
-            for (const auto &keyword : rom_keywords) {
-                if (!joined.empty()) joined.push_back('\n');
-                joined.append(keyword);
-            }
+        if (manager && manager_field && !clear_exception(env)) {
             jmethodID wrap_services = env->GetStaticMethodID(
                     proxy_class, "wrapServiceManager",
-                    "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;");
+                    "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Z)Ljava/lang/Object;");
             jstring service_caller = env->NewStringUTF(caller.c_str());
-            jstring keyword_string = env->NewStringUTF(joined.c_str());
+            jstring keyword_string = env->NewStringUTF(joined_keywords.c_str());
             jobject service_proxy = wrap_services
                     ? env->CallStaticObjectMethod(proxy_class, wrap_services,
-                                                  manager, service_caller, keyword_string)
+                                                  manager, service_caller, keyword_string,
+                                                  integrity_target ? JNI_TRUE : JNI_FALSE)
                     : nullptr;
-            if (service_proxy && !clear_exception(env, "ServiceManager proxy")) {
+            if (service_proxy && !clear_exception(env)) {
                 env->SetStaticObjectField(service_manager, manager_field, service_proxy);
-                clear_exception(env, "install ServiceManager proxy");
+                clear_exception(env);
             } else {
-                clear_exception(env, "ServiceManager proxy");
+                clear_exception(env);
             }
         } else {
-            clear_exception(env, "ServiceManager instance");
+            clear_exception(env);
         }
     }
     return true;
 }
 
-}
+} // namespace hideapps

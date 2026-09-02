@@ -73,7 +73,7 @@ void clear_pkg(const char *pkg, int user_id);
 extern std::atomic<bool> denylist_enforced;
 int denylist_cli(rust::Vec<rust::String> &args);
 void denylist_handler(int client);
-void initialize_denylist();
+void initialize_denylist(bool enabled);
 void scan_deny_apps();
 bool is_deny_target(int uid, std::string_view process);
 bool is_uid_on_sulist(int uid);

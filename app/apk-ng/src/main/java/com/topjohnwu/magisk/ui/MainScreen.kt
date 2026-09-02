@@ -45,7 +45,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.arch.VMFactory
 import com.topjohnwu.magisk.core.Info
-import com.topjohnwu.magisk.core.model.module.LocalModule
 import com.topjohnwu.magisk.ui.home.HomeScreen
 import com.topjohnwu.magisk.ui.home.HomeViewModel
 import com.topjohnwu.magisk.ui.install.InstallViewModel
@@ -74,7 +73,7 @@ fun MainScreen(initialTab: Int = Tab.HOME.ordinal) {
         Tab.entries.filter { tab ->
             when (tab) {
                 Tab.SUPERUSER -> Info.showSuperUser
-                Tab.MODULES -> Info.env.isActive && LocalModule.loaded()
+                Tab.MODULES -> Info.env.isActive
                 else -> true
             }
         }
@@ -86,7 +85,7 @@ fun MainScreen(initialTab: Int = Tab.HOME.ordinal) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
-            beyondViewportPageCount = visibleTabs.size - 1,
+            beyondViewportPageCount = 0,
             userScrollEnabled = true,
         ) { page ->
             when (visibleTabs[page]) {

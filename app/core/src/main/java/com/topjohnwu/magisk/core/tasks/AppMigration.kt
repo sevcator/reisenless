@@ -42,7 +42,6 @@ object AppMigration {
 
     private const val LEGACY_PACKAGE_NAME = "com.topjohnwu.magisk"
     private const val SOURCE_PACKAGE_PLACEHOLDER = "source.reisenless.manager"
-    private val MIGRATION_APK_URI = "content://$APP_PACKAGE_NAME.migration/apk".toUri()
     private val PACKAGE_ROOTS = arrayOf(
         "com", "org", "net", "io", "co", "app", "dev", "me", "tech", "cloud",
     )
@@ -300,7 +299,7 @@ object AppMigration {
                 val sourcePackages = setOf(APP_PACKAGE_NAME, LEGACY_PACKAGE_NAME)
                 val p = xml.patchStrings {
                     when {
-                        it == SOURCE_PACKAGE_PLACEHOLDER -> APP_PACKAGE_NAME
+                        it == SOURCE_PACKAGE_PLACEHOLDER -> context.packageName
                         sourcePackages.any(it::contains) -> sourcePackages.fold(it) { value, source ->
                             value.replace(source, identity.packageName)
                         }
@@ -310,6 +309,10 @@ object AppMigration {
                         else -> it
                     }
                 }
+                // Hidden identities are security credentials, including in a
+                // debug manager build. Never let `adb shell run-as` inherit the
+                // manager UID and authenticate to the root daemon.
+                xml.patchIntAttribute("debuggable", 0)
                 if (!p ||
                     !xml.patchIntAttribute("minSdkVersion", identity.minSdk) ||
                     !xml.patchIntAttribute("versionCode", identity.versionCode)
@@ -342,6 +345,7 @@ object AppMigration {
                         value.replace(source, targetPkg)
                     }
                 }
+                xml.patchIntAttribute("debuggable", 0)
                 if (!p) return false
 
                 jar.getOutputStream(je).use { it.write(xml.bytes) }
@@ -382,13 +386,23 @@ object AppMigration {
     private suspend fun launchApp(context: Context, pkg: String, manager: String): Boolean {
         if (!isValidPackageName(pkg) || pkg == context.packageName) return false
         val intent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return false
-        try {
-            context.grantUriPermission(
-                pkg,
-                MIGRATION_APK_URI,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-        } catch (_: RuntimeException) {
+        val migrationApkUris = listOf(
+            "content://${context.packageName}.migration/apk".toUri(),
+            "content://${context.packageName}.provider/apk".toUri(),
+        )
+        var granted = false
+        migrationApkUris.forEach { uri ->
+            try {
+                context.grantUriPermission(
+                    pkg,
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+                granted = true
+            } catch (_: RuntimeException) {
+            }
+        }
+        if (!granted) {
             return false
         }
         Config.migrationSource = context.packageName
@@ -414,10 +428,12 @@ object AppMigration {
             }
         }
         if (!launched) {
-            context.revokeUriPermission(
-                MIGRATION_APK_URI,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
+            migrationApkUris.forEach { uri ->
+                context.revokeUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
             Config.migrationSource = ""
             Config.migrationTarget = ""
         }
@@ -497,6 +513,14 @@ object AppMigration {
                 if (!authorizeMigrationTarget(newUid)) {
                     return@withContext false
                 }
+                // Package verifiers can launch an unknown randomized APK as
+                // soon as installation is approved. Stop that premature stub
+                // process before publishing current.apk; otherwise its missing-
+                // payload fallback can race with and discard the seeded file.
+                if (!Shell.cmd(
+                        "am force-stop --user ${Const.USER_ID} $newPackage"
+                    ).exec().isSuccess
+                ) return@withContext false
                 if (!seedMigrationTarget(context, newPackage, newUid)) {
                     return@withContext false
                 }

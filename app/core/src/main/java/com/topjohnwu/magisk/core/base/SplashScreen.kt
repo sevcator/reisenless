@@ -1,8 +1,11 @@
 package com.topjohnwu.magisk.core.base
 
 import android.Manifest.permission.REQUEST_INSTALL_PACKAGES
+import android.app.AlertDialog
+import android.app.ProgressDialog
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
@@ -22,8 +25,11 @@ import com.topjohnwu.magisk.view.Notifications
 import com.topjohnwu.magisk.view.Shortcuts
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
+import kotlin.coroutines.resume
 
 interface SplashScreenHost : IActivityExtension {
     val splashController: SplashController<*>
@@ -41,6 +47,9 @@ class SplashController<T>(private val activity: T)
     }
 
     private var shouldCreateUiOnResume = false
+    private var shouldRequireHiddenOnResume = false
+    private var mandatoryHideDialog: AlertDialog? = null
+    private var mandatoryHideProgress: ProgressDialog? = null
 
     fun preOnCreate() {
         if (isRunningAsStub && !splashShown) {
@@ -51,16 +60,45 @@ class SplashController<T>(private val activity: T)
     }
 
     fun onCreate(savedInstanceState: Bundle?) {
+        if (isPublicBootstrap) {
+            // Never wait for or expose the regular manager UI under the public
+            // package. Root initialization is deferred until the user accepts
+            // the mandatory hidden-identity migration.
+            splashShown = true
+            if (activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                requireHiddenManager()
+            } else {
+                shouldRequireHiddenOnResume = true
+            }
+            return
+        }
         if (splashShown) {
             doCreateUi(savedInstanceState)
         } else {
+            val migrationLaunch =
+                activity.intent.hasExtra(Const.Key.PREV_PACKAGE) &&
+                    activity.intent.hasExtra(Const.Key.PREV_CONFIG)
+            val alreadyRetried =
+                activity.intent.getBooleanExtra(MIGRATION_ROOT_RETRY, false)
+            if (migrationLaunch && !alreadyRetried) {
+                // The daemon can briefly retain the previous manager identity
+                // after the database and APK handoff are both complete. In
+                // that state Shell.getShell may wait indefinitely instead of
+                // returning a non-root shell. A bounded, authenticated restart
+                // refreshes the daemon lookup and preserves all migration data.
+                val retryIntent = Intent(activity.intent).apply {
+                    putExtra(MIGRATION_ROOT_RETRY, true)
+                }
+                activity.window.decorView.postDelayed({
+                    if (!splashShown && !activity.isFinishing) {
+                        activity.finishAffinity()
+                        activity.startActivity(retryIntent)
+                        Runtime.getRuntime().exit(0)
+                    }
+                }, 4_000L)
+            }
             Shell.getShell(Shell.EXECUTOR) {
                 if (isRunningAsStub && !it.isRoot) {
-                    val migrationLaunch =
-                        activity.intent.hasExtra(Const.Key.PREV_PACKAGE) &&
-                            activity.intent.hasExtra(Const.Key.PREV_CONFIG)
-                    val alreadyRetried =
-                        activity.intent.getBooleanExtra(MIGRATION_ROOT_RETRY, false)
                     if (migrationLaunch && !alreadyRetried) {
 
 
@@ -101,13 +139,95 @@ class SplashController<T>(private val activity: T)
     }
 
     fun onResume() {
-        if (shouldCreateUiOnResume) {
+        if (shouldRequireHiddenOnResume) {
+            requireHiddenManager()
+        } else if (shouldCreateUiOnResume) {
             doCreateUi(null)
         }
     }
 
+    /** The signed public package is a bootstrap installer, never a usable manager. */
+    private val isPublicBootstrap
+        get() = activity.packageName == APP_PACKAGE_NAME
+
+    @Suppress("DEPRECATION")
+    private fun requireHiddenManager() {
+        shouldRequireHiddenOnResume = false
+        shouldCreateUiOnResume = false
+        if (activity.isFinishing || mandatoryHideDialog?.isShowing == true ||
+            mandatoryHideProgress?.isShowing == true
+        ) return
+
+        val dialog = AlertDialog.Builder(activity)
+            .setTitle(R.string.mandatory_hide_title)
+            .setMessage(R.string.mandatory_hide_message)
+            .setCancelable(false)
+            .setPositiveButton(R.string.mandatory_hide_action) { _, _ ->
+                startMandatoryHide()
+            }
+            .setNegativeButton(R.string.mandatory_hide_exit) { _, _ ->
+                activity.finishAffinity()
+            }
+            .create()
+        dialog.setOnDismissListener {
+            if (mandatoryHideDialog === dialog) mandatoryHideDialog = null
+        }
+        mandatoryHideDialog = dialog
+        dialog.show()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun startMandatoryHide() {
+        if (activity.isFinishing || mandatoryHideProgress?.isShowing == true) return
+        val progress = ProgressDialog(activity).apply {
+            setTitle(activity.getString(R.string.hide_app_title))
+            isIndeterminate = true
+            setCancelable(false)
+            show()
+        }
+        mandatoryHideProgress = progress
+        activity.lifecycleScope.launch {
+            val success = preparePublicBootstrap() && AppMigration.patchAndHide(activity)
+            if (progress.isShowing) progress.dismiss()
+            if (mandatoryHideProgress === progress) mandatoryHideProgress = null
+            if (!success && !activity.isFinishing) {
+                Toast.makeText(
+                    activity,
+                    R.string.mandatory_hide_failure,
+                    Toast.LENGTH_LONG,
+                ).show()
+                if (activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                    requireHiddenManager()
+                } else {
+                    shouldRequireHiddenOnResume = true
+                }
+            }
+        }
+    }
+
+    private suspend fun preparePublicBootstrap(): Boolean {
+        return withTimeoutOrNull(25_000L) {
+            suspendCancellableCoroutine { continuation ->
+                Shell.getShell(Shell.EXECUTOR) { shell ->
+                    if (!continuation.isActive) return@getShell
+                    if (!shell.isRoot) {
+                        continuation.resume(false)
+                        return@getShell
+                    }
+                    RootUtils.Connection.await()
+                    activity.initializeApp()
+                    if (continuation.isActive) continuation.resume(true)
+                }
+            }
+        } ?: false
+    }
+
     private fun doCreateUi(savedInstanceState: Bundle?) {
         shouldCreateUiOnResume = false
+        if (isPublicBootstrap) {
+            shouldRequireHiddenOnResume = true
+            return
+        }
         activity.onCreateUi(savedInstanceState)
     }
 

@@ -110,7 +110,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             SuList -> SettingsFragmentDirections.actionSettingsFragmentToDenyFragment().navigate()
             HideApps -> SettingsFragmentDirections.actionSettingsFragmentToHideAppsFragment().navigate()
             Hide -> viewModelScope.launch { AppMigration.hide(view.activity) }
-            Restore -> viewModelScope.launch { AppMigration.restore(view.activity) }
+            Restore -> viewModelScope.launch { AppMigration.hide(view.activity) }
             Zygisk -> if (Zygisk.mismatch) SnackbarEvent(R.string.reboot_apply_change).publish()
             else -> Unit
         }

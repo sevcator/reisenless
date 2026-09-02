@@ -481,7 +481,7 @@ private fun OnlineModuleDialog(
 ) {
     val svc = ServiceLocator.networkService
     val title = stringResource(
-        CoreR.string.repo_install_title,
+        CoreR.string.module_update_install_title,
         item.name, item.version, item.versionCode
     )
 

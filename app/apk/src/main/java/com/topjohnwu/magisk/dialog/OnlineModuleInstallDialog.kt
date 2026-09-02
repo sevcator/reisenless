@@ -37,7 +37,7 @@ class OnlineModuleInstallDialog(private val item: OnlineModule) : MarkDownDialog
                 DownloadEngine.startWithActivity(activity, Module(item, install))
             }
 
-            val title = context.getString(R.string.repo_install_title,
+            val title = context.getString(R.string.module_update_install_title,
                 item.name, item.version, item.versionCode)
 
             setTitle(title)

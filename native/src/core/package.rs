@@ -1,12 +1,14 @@
-use crate::consts::{APP_PACKAGE_NAME, BUILD_STUB_NAME, BUILD_SU_CACHE, MAGISK_VER_CODE, SECURE_DIR};
-use crate::daemon::{AID_APP_END, AID_APP_START, AID_USER_OFFSET, MagiskD, to_app_id};
+use crate::consts::{
+    APP_PACKAGE_NAME, BUILD_STUB_NAME, BUILD_SU_CACHE, MAGISK_VER_CODE, SECURE_DIR,
+};
+use crate::daemon::{AID_APP_END, AID_APP_START, AID_ROOT, AID_USER_OFFSET, MagiskD, to_app_id};
 use crate::ffi::{DbEntryKey, get_magisk_tmp};
 use base::WalkResult::{Continue, Skip};
+use base::const_format::concatcp;
 use base::{
     BufReadExt, Directory, FsPathBuilder, LoggedResult, ReadExt, ResultExt, Utf8CStrBuf,
     Utf8CString, cstr, error, fd_get_attr, warn,
 };
-use base::const_format::concatcp;
 use bit_set::BitSet;
 use nix::fcntl::OFlag;
 use std::collections::BTreeMap;
@@ -219,6 +221,7 @@ pub struct ManagerInfo {
     repackaged_pkg: String,
     repackaged_cert: Vec<u8>,
     tracked_files: BTreeMap<i32, TrackedFile>,
+    tracked_stubs: BTreeMap<i32, TrackedFile>,
 }
 
 impl Default for ManagerInfo {
@@ -230,6 +233,7 @@ impl Default for ManagerInfo {
             repackaged_pkg: String::new(),
             repackaged_cert: Vec::new(),
             tracked_files: BTreeMap::new(),
+            tracked_stubs: BTreeMap::new(),
         }
     }
 }
@@ -311,13 +315,18 @@ impl ManagerInfo {
 
         if cert.is_empty() || cert != self.trusted_cert {
             error!("pkg: dyn APK signature mismatch: {}", apk);
-            #[cfg(all(feature = "check-signature", not(debug_assertions)))]
-            {
-                return Status::CertMismatch;
-            }
+            return Status::CertMismatch;
         }
 
-        self.repackaged_app_id = to_app_id(uid);
+        // Bind the credential to Android's owner of the configured package data
+        // directory. current.apk is legitimately root-owned after migration,
+        // so its inode owner cannot be used as the manager UID.
+        let package_uid = daemon.get_package_uid(user, pkg);
+        if package_uid < 0 || (uid != AID_ROOT && uid != package_uid) {
+            return Status::CertMismatch;
+        }
+
+        self.repackaged_app_id = to_app_id(package_uid);
         self.tracked_files
             .insert(user, TrackedFile::new(apk.to_owned()));
         Status::Installed
@@ -341,7 +350,7 @@ impl ManagerInfo {
         self.repackaged_pkg.clear();
         self.repackaged_pkg.push_str(pkg);
         self.repackaged_cert = cert;
-        self.tracked_files.insert(user, TrackedFile::new(apk));
+        self.tracked_stubs.insert(user, TrackedFile::new(apk));
         Status::Installed
     }
 
@@ -357,10 +366,7 @@ impl ManagerInfo {
 
         if cert.is_empty() || cert != self.trusted_cert {
             error!("pkg: APK signature mismatch: {}", apk);
-            #[cfg(all(feature = "check-signature", not(debug_assertions)))]
-            {
-                return Status::CertMismatch;
-            }
+            return Status::CertMismatch;
         }
 
         self.tracked_files.insert(user, TrackedFile::new(apk));
@@ -373,6 +379,7 @@ impl ManagerInfo {
 
         if db_pkg != self.repackaged_pkg {
             self.tracked_files.remove(&user);
+            self.tracked_stubs.remove(&user);
         }
 
         if let Some(file) = self.tracked_files.get(&user)
@@ -384,10 +391,17 @@ impl ManagerInfo {
             }
 
             if file.path.starts_with(daemon.app_data_dir().as_str()) {
-                return (
-                    user * AID_USER_OFFSET + self.repackaged_app_id,
-                    &self.repackaged_pkg,
-                );
+                // A kept or archived data directory can outlive the installed
+                // public stub. Never let a stable private current.apk keep an
+                // uninstalled hidden identity authorized from cache.
+                if self.tracked_stubs.get(&user).is_some_and(TrackedFile::is_same) {
+                    return (
+                        user * AID_USER_OFFSET + self.repackaged_app_id,
+                        &self.repackaged_pkg,
+                    );
+                }
+                self.tracked_files.remove(&user);
+                self.tracked_stubs.remove(&user);
             }
 
             if !self.repackaged_pkg.is_empty() {
@@ -434,6 +448,7 @@ impl ManagerInfo {
 
         self.repackaged_pkg.clear();
         self.repackaged_cert.clear();
+        self.tracked_stubs.remove(&user);
 
         match self.check_orig(user) {
             Status::Installed => {

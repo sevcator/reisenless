@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -117,16 +116,16 @@ private fun CustomizationSection(
     val scope = rememberCoroutineScope()
     val loadingDialog = rememberLoadingDialog()
     val isHidden = context.packageName != BuildConfig.APP_PACKAGE_NAME
-    var showRestoreDialog by rememberSaveable { mutableStateOf(false) }
+    var showRotateDialog by rememberSaveable { mutableStateOf(false) }
 
-    if (showRestoreDialog) {
-        RestoreAppDialog(
-            onDismiss = { showRestoreDialog = false },
+    if (showRotateDialog) {
+        RotateHiddenAppDialog(
+            onDismiss = { showRotateDialog = false },
             onConfirm = {
-                showRestoreDialog = false
+                showRotateDialog = false
                 scope.launch {
                     val success = loadingDialog.withLoading {
-                        AppMigration.restoreApp(context)
+                        AppMigration.patchAndHide(context)
                     }
                     if (!success) context.toast(CoreR.string.failure, Toast.LENGTH_LONG)
                 }
@@ -205,9 +204,9 @@ private fun CustomizationSection(
 
         if (isHidden) {
             SettingsArrow(
-                title = stringResource(CoreR.string.settings_restore_app_title),
-                summary = stringResource(CoreR.string.settings_restore_app_summary),
-                onClick = { showRestoreDialog = true },
+                title = stringResource(CoreR.string.settings_rotate_hidden_app_title),
+                summary = stringResource(CoreR.string.settings_rotate_hidden_app_summary),
+                onClick = { showRotateDialog = true },
             )
         }
     }
@@ -295,50 +294,6 @@ private fun AppSettingsSection() {
     val isHidden = context.packageName != BuildConfig.APP_PACKAGE_NAME
     var showHideDialog by rememberSaveable { mutableStateOf(false) }
     var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
-    var backgroundModules by remember { mutableStateOf(Config.udongeBackgroundModules) }
-    var backgroundKeyboxes by remember { mutableStateOf(Config.udongeBackgroundKeyboxes) }
-    var draftBackgroundModules by remember { mutableStateOf(backgroundModules) }
-    var draftBackgroundKeyboxes by remember { mutableStateOf(backgroundKeyboxes) }
-    var showBackgroundTargets by rememberSaveable { mutableStateOf(false) }
-
-    if (showBackgroundTargets) {
-        AlertDialog(
-            onDismissRequest = { showBackgroundTargets = false },
-            title = { Text(stringResource(CoreR.string.udonge_background_updates_title)) },
-            text = {
-                Column {
-                    BackgroundUpdateTarget(
-                        title = stringResource(CoreR.string.udonge_background_updates_modules),
-                        checked = draftBackgroundModules,
-                        onCheckedChange = { draftBackgroundModules = it },
-                    )
-                    BackgroundUpdateTarget(
-                        title = stringResource(CoreR.string.udonge_background_updates_keyboxes),
-                        checked = draftBackgroundKeyboxes,
-                        onCheckedChange = { draftBackgroundKeyboxes = it },
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showBackgroundTargets = false
-                    backgroundModules = draftBackgroundModules
-                    backgroundKeyboxes = draftBackgroundKeyboxes
-                    scope.launch(Dispatchers.IO) {
-                        Udonge.setBackgroundUpdateTargets(
-                            modules = draftBackgroundModules,
-                            keyboxes = draftBackgroundKeyboxes,
-                        )
-                    }
-                }) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBackgroundTargets = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
 
     if (showHideDialog) {
         HideAppDialog(
@@ -364,23 +319,10 @@ private fun AppSettingsSection() {
                 onClick = { showHideDialog = true },
             )
         }
-        val selectedTargets = listOfNotNull(
-            stringResource(CoreR.string.udonge_background_updates_modules)
-                .takeIf { backgroundModules },
-            stringResource(CoreR.string.udonge_background_updates_keyboxes)
-                .takeIf { backgroundKeyboxes },
-        ).joinToString(", ").ifEmpty {
-            stringResource(CoreR.string.udonge_background_updates_none)
-        }
-        SettingsSwitchAction(
+        SettingsSwitch(
             title = stringResource(CoreR.string.udonge_background_updates_title),
-            summary = selectedTargets,
+            summary = stringResource(CoreR.string.udonge_background_updates_summary),
             checked = backgroundUpdates,
-            onClick = {
-                draftBackgroundModules = backgroundModules
-                draftBackgroundKeyboxes = backgroundKeyboxes
-                showBackgroundTargets = true
-            },
             onCheckedChange = { next ->
                 backgroundUpdates = next
                 scope.launch(Dispatchers.IO) {
@@ -388,23 +330,6 @@ private fun AppSettingsSection() {
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun BackgroundUpdateTarget(
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(vertical = 8.dp),
-    ) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-        Text(text = title, modifier = Modifier.padding(start = 12.dp, top = 12.dp))
     }
 }
 
@@ -661,11 +586,11 @@ private fun HideAppDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
 }
 
 @Composable
-private fun RestoreAppDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+private fun RotateHiddenAppDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(CoreR.string.settings_restore_app_title)) },
-        text = { Text(stringResource(CoreR.string.restore_app_confirmation)) },
+        title = { Text(stringResource(CoreR.string.settings_rotate_hidden_app_title)) },
+        text = { Text(stringResource(CoreR.string.rotate_hidden_app_confirmation)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Icon(Icons.Default.Check, contentDescription = null)

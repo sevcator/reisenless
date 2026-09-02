@@ -4,8 +4,9 @@ use crate::consts::{
 };
 use crate::ffi::{exec_script, exec_script_async, get_magisk_tmp};
 use base::const_format::concatcp;
-use base::{FsPathBuilder, ResultExt, cstr};
+use base::{FsPathBuilder, cstr};
 use std::os::unix::process::CommandExt;
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 pub const UDONGE_MODULE_NAME: &str = "@udonge";
@@ -15,13 +16,16 @@ const UDONGE_NEXT: &str = concatcp!(UDONGE_ROOT, "/runtime.new");
 const UDONGE_OLD: &str = concatcp!(UDONGE_ROOT, "/runtime.old");
 const UDONGE_DISABLED: &str = concatcp!(UDONGE_ROOT, "/state/disabled");
 const UDONGE_UNLOADED: &str = concatcp!(UDONGE_ROOT, "/state/unloaded");
+const UDONGE_PENDING_REBOOT: &str = concatcp!(UDONGE_ROOT, "/state/pending-reboot");
 const HIDEAPPS_GLOBAL_LOADER: &str =
     concatcp!(UDONGE_ROOT, "/state/hideapps-global-loader-v2");
 
+pub fn is_requested() -> bool {
+    !cstr!(UDONGE_DISABLED).exists()
+}
+
 pub fn is_enabled() -> bool {
-    runtime_complete(UDONGE_RUNTIME)
-        && !cstr!(UDONGE_DISABLED).exists()
-        && !cstr!(UDONGE_UNLOADED).exists()
+    is_requested() && !cstr!(UDONGE_UNLOADED).exists() && runtime_complete(UDONGE_RUNTIME)
 }
 
 pub fn is_hide_apps_target(process: &str) -> bool {
@@ -56,10 +60,12 @@ fn runtime_file_exists(root: &str, name: &str) -> bool {
 
 fn runtime_complete(root: &str) -> bool {
     const COMMON: &[&str] = &[
+        "payload.id",
         "version",
         "hideapps.dex",
         "post-fs-data.sh",
         "service.sh",
+        "stop.sh",
         "defaults/keybox.xml",
         "defaults/keybox_urls.conf",
         "defaults/pif.conf",
@@ -106,6 +112,27 @@ fn runtime_version_matches(root: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn runtime_payload_matches(root: &str, archive: &Path, busybox: &Path) -> bool {
+    let installed_path = cstr::buf::default().join_path(root).join_path("payload.id");
+    let Ok(installed) = std::fs::read_to_string(&installed_path) else {
+        return false;
+    };
+    let installed = installed.trim();
+    if installed.len() != 64 || !installed.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return false;
+    }
+
+    Command::new(busybox)
+        .arg0("busybox")
+        .arg("unzip")
+        .arg("-p")
+        .arg(archive)
+        .arg("payload.id")
+        .output()
+        .map(|output| output.status.success() && output.stdout == format!("{installed}\n").as_bytes())
+        .unwrap_or(false)
+}
+
 pub fn setup_runtime() {
     let buffer = cstr::buf::default();
     let ramdisk_archive = buffer.join_path(get_magisk_tmp()).join_path(BUILD_UDONGE_ARCHIVE);
@@ -116,26 +143,27 @@ pub fn setup_runtime() {
         &persistent_archive
     };
 
-    cstr!(UDONGE_ROOT).mkdirs(0o700).log_ok();
-    cstr!(UDONGE_ROOT).follow_link().chmod(0o700).log_ok();
+    cstr!(UDONGE_ROOT).mkdirs(0o700).ok();
+    cstr!(UDONGE_ROOT).follow_link().chmod(0o700).ok();
 
     if !cstr!(UDONGE_RUNTIME).exists() && cstr!(UDONGE_OLD).exists() {
-        cstr!(UDONGE_OLD)
-            .rename_to(cstr!(UDONGE_RUNTIME))
-            .log_ok();
+        cstr!(UDONGE_OLD).rename_to(cstr!(UDONGE_RUNTIME)).ok();
     }
 
+    let busybox = cstr::buf::default()
+        .join_path(get_magisk_tmp())
+        .join_path(BBPATH)
+        .join_path(BUILD_BUSYBOX_NAME);
+
     let installed = runtime_complete(UDONGE_RUNTIME)
-        && runtime_version_matches(UDONGE_RUNTIME);
+        && runtime_version_matches(UDONGE_RUNTIME)
+        && archive.exists()
+        && runtime_payload_matches(UDONGE_RUNTIME, archive.as_ref(), busybox.as_ref());
 
     if !installed && archive.exists() {
         cstr!(UDONGE_NEXT).remove_all().ok();
-        cstr!(UDONGE_NEXT).mkdirs(0o700).log_ok();
+        cstr!(UDONGE_NEXT).mkdirs(0o700).ok();
 
-        let busybox = cstr::buf::default()
-            .join_path(get_magisk_tmp())
-            .join_path(BBPATH)
-            .join_path(BUILD_BUSYBOX_NAME);
         let extracted = Command::new(&busybox)
             .arg0("busybox")
             .arg("unzip")
@@ -150,27 +178,24 @@ pub fn setup_runtime() {
             .unwrap_or(false);
         let verified = extracted
             && runtime_complete(UDONGE_NEXT)
-            && runtime_version_matches(UDONGE_NEXT);
+            && runtime_version_matches(UDONGE_NEXT)
+            && runtime_payload_matches(UDONGE_NEXT, archive.as_ref(), busybox.as_ref());
         if verified {
             cstr!(UDONGE_OLD).remove_all().ok();
             let backed_up = !cstr!(UDONGE_RUNTIME).exists()
                 || cstr!(UDONGE_RUNTIME)
                     .rename_to(cstr!(UDONGE_OLD))
-                    .log()
                     .is_ok();
             if backed_up
                 && cstr!(UDONGE_NEXT)
                     .rename_to(cstr!(UDONGE_RUNTIME))
-                    .log()
                     .is_ok()
             {
                 cstr!(UDONGE_OLD).remove_all().ok();
                 cstr!(UDONGE_UNLOADED).remove().ok();
             } else {
                 if !cstr!(UDONGE_RUNTIME).exists() {
-                    cstr!(UDONGE_OLD)
-                        .rename_to(cstr!(UDONGE_RUNTIME))
-                        .log_ok();
+                    cstr!(UDONGE_OLD).rename_to(cstr!(UDONGE_RUNTIME)).ok();
                 }
                 cstr!(UDONGE_NEXT).remove_all().ok();
             }
@@ -180,13 +205,22 @@ pub fn setup_runtime() {
     }
 
     if runtime_complete(UDONGE_RUNTIME) {
+        for script in ["post-fs-data.sh", "service.sh", "stop.sh"] {
+            cstr::buf::default()
+                .join_path(UDONGE_RUNTIME)
+                .join_path(script)
+                .follow_link()
+                .chmod(0o700)
+                .ok();
+        }
         cstr!(UDONGE_UNLOADED).remove().ok();
+        cstr!(UDONGE_PENDING_REBOOT).remove().ok();
         if let Ok(boot_id) = std::fs::read_to_string("/proc/sys/kernel/random/boot_id") {
-            std::fs::write(HIDEAPPS_GLOBAL_LOADER, boot_id).log_ok();
+            std::fs::write(HIDEAPPS_GLOBAL_LOADER, boot_id).ok();
             cstr!(HIDEAPPS_GLOBAL_LOADER)
                 .follow_link()
                 .chmod(0o600)
-                .log_ok();
+                .ok();
         }
     }
 
@@ -195,16 +229,13 @@ pub fn setup_runtime() {
             .join_path(UDONGE_RUNTIME)
             .join_path("post-fs-data.sh");
         if post_fs_data.exists() {
-            post_fs_data.follow_link().chmod(0o700).log_ok();
+            post_fs_data.follow_link().chmod(0o700).ok();
             exec_script(&post_fs_data);
         }
     }
 }
 
 pub fn run_service() {
-    if !runtime_version_matches(UDONGE_RUNTIME) {
-        setup_runtime();
-    }
     if !is_enabled() {
         return;
     }
@@ -212,7 +243,7 @@ pub fn run_service() {
         .join_path(UDONGE_RUNTIME)
         .join_path("service.sh");
     if service.exists() {
-        service.follow_link().chmod(0o700).log_ok();
+        service.follow_link().chmod(0o700).ok();
         exec_script_async(&service);
     }
 }

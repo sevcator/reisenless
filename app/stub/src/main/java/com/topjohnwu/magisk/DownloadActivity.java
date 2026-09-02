@@ -4,6 +4,7 @@ import static android.R.string.no;
 import static android.R.string.ok;
 import static android.R.string.yes;
 import static com.topjohnwu.magisk.R.string.dling;
+import static com.topjohnwu.magisk.R.string.finishing_setup;
 import static com.topjohnwu.magisk.R.string.no_internet_msg;
 import static com.topjohnwu.magisk.R.string.upgrade_msg;
 
@@ -18,6 +19,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
+import android.os.SystemClock;
 import android.system.Os;
 import android.system.OsConstants;
 import android.view.ContextThemeWrapper;
@@ -64,6 +66,42 @@ public class DownloadActivity extends Activity {
             error(e);
         }
 
+        if (dynLoad && !StubApk.current(this).exists()) {
+            recoverMigrationPayload();
+        } else {
+            continueStartup();
+        }
+    }
+
+    private void recoverMigrationPayload() {
+        var progress = ProgressDialog.show(
+                themed, APP_NAME, getString(finishing_setup), true, false);
+        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            boolean recovered = false;
+            for (int attempt = 0; attempt < 20 && !isFinishing(); ++attempt) {
+                try {
+                    if (DynLoad.loadApk(this) != null) {
+                        recovered = true;
+                        break;
+                    }
+                } catch (RuntimeException ignored) {
+                }
+                SystemClock.sleep(250);
+            }
+            final boolean success = recovered;
+            runOnUiThread(() -> {
+                if (progress.isShowing()) progress.dismiss();
+                if (isFinishing() || isDestroyed()) return;
+                if (success) {
+                    StubApk.restartProcess(this);
+                } else {
+                    continueStartup();
+                }
+            });
+        });
+    }
+
+    private void continueStartup() {
         ProviderInstaller.install(this);
 
         if (Networking.checkNetworkStatus(this)) {

@@ -642,6 +642,10 @@ install_module() {
   local MODDIRNAME=modules
   $BOOTMODE && MODDIRNAME=modules_update
   local MODULEROOT=${SECURE_DIR}/$MODDIRNAME
+  # Standard Magisk module variables must point at the randomized Reisenless
+  # storage root so well-behaved installers do not need hard-coded paths.
+  NVBASE=$SECURE_DIR
+  export NVBASE MAGISKBIN
   MODID=$(grep_prop id $TMPDIR/module.prop)
   MODNAME=$(grep_prop name $TMPDIR/module.prop)
   MODAUTH=$(grep_prop author $TMPDIR/module.prop)

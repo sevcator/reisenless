@@ -11,4 +11,5 @@ android {
 
 dependencies {
     implementation(project(":shared"))
+    testImplementation(kotlin("test-junit"))
 }

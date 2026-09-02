@@ -58,21 +58,6 @@ bool read_str(int fd, std::string &value) {
 
 const char *CONF_DIR = UDONGE_ROOT "/state";
 
-static bool starts_with(const std::string &value, const char *prefix) {
-    return value.rfind(prefix, 0) == 0;
-}
-
-static bool is_system_process(const std::string &package) {
-    return package == "android"
-        || starts_with(package, "android.")
-        || starts_with(package, "com.android.")
-        || starts_with(package, "com.google.android.")
-        || starts_with(package, "com.oneplus.")
-        || starts_with(package, "com.qualcomm.")
-        || starts_with(package, "lineageos.")
-        || starts_with(package, "org.lineageos.")
-        || starts_with(package, "vendor.");
-}
 std::string base_package(const std::string &process_name) {
     size_t separator = process_name.find(':');
     return process_name.substr(0, separator);
@@ -125,7 +110,7 @@ std::string find_hide_rule(const std::string &config, const std::string &package
     return "R\t" + package + "\tB\t0\t" + manager + "\t" + hidden + "\t";
 }
 
-}
+} // namespace
 
 class UdongeModule : public zygisk::ModuleBase {
 public:
@@ -139,26 +124,44 @@ public:
         hide_apps_ = false;
         is_gms_unstable_ = false;
         keep_loaded_ = false;
+        child_integrity_ = false;
+        integrity_target_ = false;
         hide_rule_.clear();
         hide_dex_.clear();
 
-
-
-
-
-        if (args->is_child_zygote && *args->is_child_zygote) return;
-
+        const bool child_zygote = args->is_child_zygote && *args->is_child_zygote;
         std::string package_name = jstr(args->nice_name);
         if (package_name.empty()) return;
+        // Android names a dedicated app zygote after its owner with this
+        // suffix. Resolve the configured Udonge target before asking the
+        // companion for its policy.
+        static const std::string zygote_suffix = "_zygote";
+        if (child_zygote && package_name.size() > zygote_suffix.size() &&
+            package_name.compare(package_name.size() - zygote_suffix.size(),
+                                 zygote_suffix.size(), zygote_suffix) == 0) {
+            package_name.resize(package_name.size() - zygote_suffix.size());
+        }
         std::string package = base_package(package_name);
         is_gms_unstable_ = package_name == "com.google.android.gms.unstable";
         if (!fetch_config(package_name)) return;
-        if (is_system_process(package)) cfg_.rom_keywords.clear();
+        if ((args->uid % 100000) < 10000) cfg_.rom_keywords.clear();
 
-        hide_apps_ = !hide_rule_.empty() && !hide_dex_.empty();
+        // Child zygotes (notably WebView's sandbox zygote) must otherwise stay
+        // pristine. A configured integrity target gets only the narrow SELinux
+        // query hook needed by its preload carrier; no PLT or package hooks are
+        // installed here.
+        if (child_zygote) {
+            if (integrity_target_) {
+                cloak::hook_selinux_access(api_, env_);
+                child_integrity_ = true;
+                keep_loaded_ = true;
+            }
+            return;
+        }
+        hide_apps_ = !hide_dex_.empty() && (!hide_rule_.empty() || integrity_target_);
 
         if (is_gms_unstable_) return;
-
+        // Cloak/stealth candidacy comes from the live targets configuration.
         if (cfg_.shouldStealth(package)) {
             api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
             return;
@@ -167,24 +170,29 @@ public:
             cloak_ = true;
             keep_loaded_ = true;
             cloak::hook_native_load(api_, env_);
+            cloak::hook_selinux_access(api_, env_);
             api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
         }
     }
 
     void postAppSpecialize(const AppSpecializeArgs *) override {
+        if (child_integrity_) {
+            return;
+        }
         if (is_gms_unstable_) {
             cloak::spoof_build(env_, cfg_);
             api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
             return;
         }
         if (hide_apps_) {
-            hideapps::install(env_, package_, hide_rule_, hide_dex_, cfg_.rom_keywords);
+            hideapps::install(env_, package_, hide_rule_, hide_dex_, cfg_.rom_keywords,
+                              integrity_target_);
         }
         if (cloak_) {
             cloak::install_hooks(api_, &cfg_);
             cloak::spoof_display(env_, cfg_);
-
-
+            // Patch Build.TYPE and Build.TAGS static constants so Java-level
+            // cross-checks (Build.TYPE vs fingerprint tail) see clean values.
             cloak::spoof_build_type(env_);
             cloak::spoof_rom_framework(env_, cfg_);
         }
@@ -202,6 +210,8 @@ private:
     bool hide_apps_ = false;
     bool is_gms_unstable_ = false;
     bool keep_loaded_ = false;
+    bool child_integrity_ = false;
+    bool integrity_target_ = false;
 
     std::string jstr(jstring value) {
         if (!value) return {};
@@ -248,6 +258,7 @@ private:
             rom_keywords = cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf");
         }
         cfg_ = cloak::parse_config(targets, props, pif, rom_keywords);
+        integrity_target_ = cfg_.shouldCloak(package_);
         if (is_gms_unstable_) return !cfg_.gms_build.empty();
         if (!cfg_.shouldCloak(package_) && !cfg_.shouldStealth(package_)) {
             cfg_.packages.insert(package_);
@@ -276,7 +287,7 @@ static void companion_handler(int client) {
     std::string hide_rule;
     if (!gms_unstable) hide_rule = find_hide_rule(hide_config, package);
     std::string hide_dex;
-    if (!hide_rule.empty()) {
+    if (!hide_rule.empty() || target_config.shouldCloak(package)) {
         hide_dex = cloak::read_file(UDONGE_ROOT "/runtime/hideapps.dex");
     }
     std::string rom_keywords = cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf");

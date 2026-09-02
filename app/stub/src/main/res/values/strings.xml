@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="upgrade_msg">upgrade to full magisk to finish the setup. download and install?</string>
+    <string name="finishing_setup">finishing secure setup…</string>
     <string name="no_internet_msg">please connect to the internet! upgrading to full magisk is required.</string>
     <string name="dling">downloading</string>
 </resources>

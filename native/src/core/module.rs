@@ -671,6 +671,21 @@ fn for_each_module(mut func: impl FnMut(&DirEntry) -> LoggedResult<()>) -> Logge
     Ok(())
 }
 
+fn has_external_module_work() -> bool {
+    if cstr!(MODULEUPGRADE).exists() {
+        return true;
+    }
+    let Ok(mut root) = Directory::open(cstr!(MODULEROOT)) else {
+        return false;
+    };
+    while let Ok(Some(entry)) = root.read() {
+        if entry.is_dir() && entry.name() != ".core" {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn disable_modules() {
     for_each_module(|e| {
         let dir = e.open_as_dir()?;
@@ -858,10 +873,27 @@ fn convert_zygisk_modules_to_memfd(modules: &mut [ModuleInfo]) {
 
 impl MagiskD {
     pub fn handle_modules(&self) {
+        let zygisk = self.zygisk_enabled.load(Ordering::Acquire);
+        if !has_external_module_work() {
+            let mut modules = Vec::new();
+            let needs_core_mount = zygisk
+                || get_magisk_tmp() != "/sbin"
+                || get_path_env().split(':').all(|path| path != "/sbin");
+            if needs_core_mount {
+                setup_module_mount();
+                self.apply_modules(&modules);
+            }
+            if zygisk {
+                append_udonge(&mut modules);
+                convert_zygisk_modules_to_memfd(&mut modules);
+            }
+            self.module_list.set(modules).ok();
+            return;
+        }
+
         setup_module_mount();
         upgrade_modules().ok();
 
-        let zygisk = self.zygisk_enabled.load(Ordering::Acquire);
         let modules = collect_modules(zygisk, false);
         exec_module_scripts(cstr!("post-fs-data"), &modules);
 
