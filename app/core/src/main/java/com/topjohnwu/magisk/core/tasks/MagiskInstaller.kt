@@ -8,6 +8,7 @@ import android.system.OsConstants
 import android.system.OsConstants.O_WRONLY
 import androidx.annotation.WorkerThread
 import androidx.core.os.postDelayed
+import com.topjohnwu.magisk.core.AppApkPath
 import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const

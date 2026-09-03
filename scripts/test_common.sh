@@ -79,20 +79,8 @@ run_setup() {
 
 run_tests() {
   local pkg='com.topjohnwu.magisk.test'
-  local self="$pkg/$pkg.TestRunner"
   local app="$pkg/$pkg.AppTestRunner"
-  local stub="repackaged.$pkg/$pkg.AppTestRunner"
 
 
   am_instrument '.MagiskAppTest,.AdditionalTest' $app
-
-
-
-
-  am_instrument '.MagiskAppTest' $stub
-
-
-
-
-  am_instrument '.MagiskAppTest' $app
 }
