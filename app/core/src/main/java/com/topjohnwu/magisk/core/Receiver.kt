@@ -8,8 +8,8 @@ import com.topjohnwu.magisk.core.base.BaseReceiver
 import com.topjohnwu.magisk.core.di.ServiceLocator
 import com.topjohnwu.magisk.core.download.DownloadEngine
 import com.topjohnwu.magisk.core.download.Subject
+import com.topjohnwu.magisk.core.sulist.SulistController
 import com.topjohnwu.magisk.view.Notifications
-import com.topjohnwu.magisk.view.Shortcuts
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -54,10 +54,16 @@ open class Receiver : BaseReceiver() {
             }
             Intent.ACTION_PACKAGE_FULLY_REMOVED -> {
                 getPkg(intent)?.let {
-                    Shell.cmd("${Const.MAIN_BIN} --sulist rm $it").submit()
+                    Shell.EXECUTOR.execute { SulistController.remove(it) }
                 }
             }
-            Intent.ACTION_LOCALE_CHANGED -> Shortcuts.setupDynamic(context)
+            Intent.ACTION_MY_PACKAGE_REPLACED -> {
+                @Suppress("DEPRECATION")
+                val installer = context.packageManager.getInstallerPackageName(context.packageName)
+                if (installer == context.packageName) {
+                    Notifications.updateDone()
+                }
+            }
         }
     }
 }

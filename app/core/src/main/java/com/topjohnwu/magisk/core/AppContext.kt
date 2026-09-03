@@ -2,7 +2,6 @@ package com.topjohnwu.magisk.core
 
 import android.app.Activity
 import android.app.Application
-import android.app.LocaleManager
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.ContextWrapper
@@ -12,7 +11,6 @@ import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.system.Os
 import androidx.profileinstaller.ProfileInstaller
-import com.topjohnwu.magisk.StubApk
 import com.topjohnwu.magisk.core.base.UntrackedActivity
 import com.topjohnwu.magisk.core.utils.LocaleSetting
 import com.topjohnwu.magisk.core.utils.NetworkObserver
@@ -54,7 +52,7 @@ object AppContext : ContextWrapper(null),
     }
 
     override fun onActivityStarted(activity: Activity) {
-        if (!profileInstallScheduled && !BuildConfig.DEBUG && !isRunningAsStub) {
+        if (!profileInstallScheduled && !BuildConfig.DEBUG) {
             profileInstallScheduled = true
             GlobalScope.launch(Dispatchers.IO) {
                 ProfileInstaller.writeProfile(this@AppContext)
@@ -88,28 +86,21 @@ object AppContext : ContextWrapper(null),
         val base = app.baseContext
         attachBaseContext(base)
         base.deleteDatabase("sulogs.db")
-        listOf(Const.STUB_NAME, "stub.apk", "test.apk", "patched.apk").forEach {
+        listOf(Const.STUB_NAME, "patched.apk").forEach {
             java.io.File(base.cacheDir, it).delete()
         }
         base.cacheDir.listFiles { file -> file.extension == "md" }?.forEach { it.delete() }
-        java.io.File(base.cacheDir, "app-migration").deleteRecursively()
         java.io.File(base.cacheDir, "flash").deleteRecursively()
         app.registerActivityLifecycleCallbacks(this)
         app.registerComponentCallbacks(this)
 
-        AppApkPath = if (isRunningAsStub) {
-            StubApk.current(base).path
-        } else {
-            base.packageResourcePath
-        }
+        AppApkPath = base.packageResourcePath
         resources.patch()
 
 
 
 
-        val (suCmd, needsArgvShim) = if (isRunningAsStub) {
-            preparePackagedSu(base) to true
-        } else run {
+        val (suCmd, needsArgvShim) = run {
             val tmp = try {
                 Runtime.getRuntime()
                     .exec(arrayOf(Const.MAIN_BIN, "--path"))
@@ -152,11 +143,6 @@ object AppContext : ContextWrapper(null),
             UiThreadHandler.executor,
             RootUtils.Connection
         )
-        if (SDK_INT >= 34 && isRunningAsStub) {
-
-            val lm = getSystemService(LocaleManager::class.java)
-            lm.overrideLocaleConfig = LocaleSetting.localeConfig
-        }
         networkObserver = NetworkObserver(this)
         Udonge.scheduleBackgroundUpdates(this)
     }

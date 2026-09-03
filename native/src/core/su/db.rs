@@ -12,10 +12,18 @@ impl Default for SuPolicy {
     }
 }
 
-#[derive(Default)]
 pub struct RootSettings {
     pub policy: SuPolicy,
     pub notify: bool,
+}
+
+impl Default for RootSettings {
+    fn default() -> Self {
+        RootSettings {
+            policy: SuPolicy::Query,
+            notify: true,
+        }
+    }
 }
 
 impl SqlTable for RootSettings {

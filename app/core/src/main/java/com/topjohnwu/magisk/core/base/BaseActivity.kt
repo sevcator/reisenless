@@ -22,7 +22,8 @@ import com.topjohnwu.magisk.core.utils.RequestInstall
 
 interface ContentResultCallback: ActivityResultCallback<Uri>, Parcelable {
     fun onActivityLaunch() {}
-
+    fun onActivityCancel() {}
+    // Make the result type explicitly non-null
     override fun onActivityResult(result: Uri)
 }
 
@@ -64,6 +65,7 @@ class ActivityExtension(private val activity: ComponentActivity) {
     private var contentCallback: ContentResultCallback? = null
     private val getContent = activity.registerForActivityResult(GetContent()) {
         if (it != null) contentCallback?.onActivityResult(it)
+        else contentCallback?.onActivityCancel()
         contentCallback = null
     }
 

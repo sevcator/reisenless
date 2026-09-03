@@ -243,11 +243,10 @@ restore_imgs() {
   flash_image $BACKUPDIR/boot.img.gz $1
 }
 
-
 post_ota() {
-  cd ${SECURE_DIR}
-  cp -f $1 bootctl
-  rm -f $1
+  cd /data/adb
+  cp -f $MAGISKBIN/bootctl bootctl
+  rm -f $MAGISKBIN/bootctl
   chmod 755 bootctl
   if ! ./bootctl hal-info; then
     rm -f bootctl

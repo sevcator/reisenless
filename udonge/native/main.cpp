@@ -58,9 +58,23 @@ bool read_str(int fd, std::string &value) {
 
 const char *CONF_DIR = UDONGE_ROOT "/state";
 
+bool full_udonge_enabled() {
+    return access(UDONGE_ROOT "/state/enabled", F_OK) == 0
+            && access(UDONGE_ROOT "/state/disabled", F_OK) != 0;
+}
+
 std::string base_package(const std::string &process_name) {
     size_t separator = process_name.find(':');
     return process_name.substr(0, separator);
+}
+
+std::string package_from_data_dir(const std::string &app_data_dir) {
+    size_t end = app_data_dir.find_last_not_of('/');
+    if (end == std::string::npos) return {};
+    size_t separator = app_data_dir.rfind('/', end);
+    return app_data_dir.substr(
+            separator == std::string::npos ? 0 : separator + 1,
+            end - (separator == std::string::npos ? 0 : separator + 1) + 1);
 }
 
 std::string tab_field(const std::string &line, size_t index) {
@@ -130,20 +144,25 @@ public:
         hide_dex_.clear();
 
         const bool child_zygote = args->is_child_zygote && *args->is_child_zygote;
-        std::string package_name = jstr(args->nice_name);
-        if (package_name.empty()) return;
+        std::string process_name = jstr(args->nice_name);
+        if (process_name.empty()) return;
         // Android names a dedicated app zygote after its owner with this
         // suffix. Resolve the configured Udonge target before asking the
         // companion for its policy.
         static const std::string zygote_suffix = "_zygote";
-        if (child_zygote && package_name.size() > zygote_suffix.size() &&
-            package_name.compare(package_name.size() - zygote_suffix.size(),
-                                 zygote_suffix.size(), zygote_suffix) == 0) {
-            package_name.resize(package_name.size() - zygote_suffix.size());
+        if (child_zygote && process_name.size() > zygote_suffix.size() &&
+            process_name.compare(process_name.size() - zygote_suffix.size(),
+                                  zygote_suffix.size(), zygote_suffix) == 0) {
+            process_name.resize(process_name.size() - zygote_suffix.size());
         }
-        std::string package = base_package(package_name);
-        is_gms_unstable_ = package_name == "com.google.android.gms.unstable";
-        if (!fetch_config(package_name)) return;
+        // Process names are application-controlled through android:process.
+        // Bind package-hiding policy to the system-owned app data directory so
+        // an ordinary app cannot name itself like an exempt system package.
+        std::string package = package_from_data_dir(jstr(args->app_data_dir));
+        if (package.empty()) package = base_package(process_name);
+        is_gms_unstable_ = package == "com.google.android.gms"
+                && process_name == "com.google.android.gms.unstable";
+        if (!fetch_config(process_name, package)) return;
         if ((args->uid % 100000) < 10000) cfg_.rom_keywords.clear();
 
         // Child zygotes (notably WebView's sandbox zygote) must otherwise stay
@@ -180,7 +199,11 @@ public:
             return;
         }
         if (is_gms_unstable_) {
-            cloak::spoof_build(env_, cfg_);
+            if (!cfg_.gms_build.empty()) cloak::spoof_build(env_, cfg_);
+            if (hide_apps_) {
+                hideapps::install(env_, package_, hide_rule_, hide_dex_, cfg_.rom_keywords,
+                                  false);
+            }
             api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
             return;
         }
@@ -221,8 +244,8 @@ private:
         return result;
     }
 
-    bool fetch_config(const std::string &process_name) {
-        package_ = base_package(process_name);
+    bool fetch_config(const std::string &process_name, const std::string &package_name) {
+        package_ = package_name;
         int fd = api_->connectCompanion();
         std::string targets;
         std::string props;
@@ -233,6 +256,7 @@ private:
             uint8_t request = 1;
             bool ok = xwrite(fd, &request, 1)
                 && write_str(fd, process_name)
+                && write_str(fd, package_)
                 && read_str(fd, targets)
                 && read_str(fd, props)
                 && read_str(fd, pif)
@@ -252,17 +276,20 @@ private:
             }
         }
         if (!from_companion) {
-            targets = cloak::read_file(std::string(CONF_DIR) + "/targets.conf");
-            props = cloak::read_file(std::string(CONF_DIR) + "/props.conf");
-            pif = cloak::read_file(std::string(CONF_DIR) + "/pif.conf");
-            rom_keywords = cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf");
+            if (full_udonge_enabled()) {
+                targets = cloak::read_file(std::string(CONF_DIR) + "/targets.conf");
+                props = cloak::read_file(std::string(CONF_DIR) + "/props.conf");
+                pif = cloak::read_file(std::string(CONF_DIR) + "/pif.conf");
+                rom_keywords = cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf");
+            }
         }
         cfg_ = cloak::parse_config(targets, props, pif, rom_keywords);
         integrity_target_ = cfg_.shouldCloak(package_);
-        if (is_gms_unstable_) return !cfg_.gms_build.empty();
-        if (!cfg_.shouldCloak(package_) && !cfg_.shouldStealth(package_)) {
-            cfg_.packages.insert(package_);
-        }
+        if (is_gms_unstable_) return !cfg_.gms_build.empty() || !hide_rule_.empty();
+        // Loading the built-in module is not authorization to apply Udonge's
+        // detector/integrity profile. Non-target processes may still have a
+        // package-hiding rule; they must otherwise remain untouched and let
+        // postAppSpecialize unload this library.
         return true;
     }
 };
@@ -272,11 +299,17 @@ static void companion_handler(int client) {
     if (!xread(client, &request, 1)) return;
     std::string process_name;
     if (!read_str(client, process_name)) return;
-    const std::string package = base_package(process_name);
-    std::string targets = cloak::read_file(std::string(CONF_DIR) + "/targets.conf");
+    std::string package;
+    if (!read_str(client, package)) return;
+    if (package.empty()) package = base_package(process_name);
+    const bool full_enabled = full_udonge_enabled();
+    std::string targets = full_enabled
+            ? cloak::read_file(std::string(CONF_DIR) + "/targets.conf") : std::string();
     const cloak::Config target_config = cloak::parse_config(targets, {}, {}, {});
-    const bool gms_unstable = process_name == "com.google.android.gms.unstable";
-    const bool needs_props = gms_unstable || target_config.shouldCloak(package);
+    const bool gms_unstable = package == "com.google.android.gms"
+            && process_name == "com.google.android.gms.unstable";
+    const bool needs_props = full_enabled
+            && (gms_unstable || target_config.shouldCloak(package));
     std::string props;
     std::string pif;
     if (needs_props) {
@@ -285,12 +318,13 @@ static void companion_handler(int client) {
     }
     std::string hide_config = cloak::read_file(std::string(CONF_DIR) + "/hideapps.conf");
     std::string hide_rule;
-    if (!gms_unstable) hide_rule = find_hide_rule(hide_config, package);
+    hide_rule = find_hide_rule(hide_config, package);
     std::string hide_dex;
     if (!hide_rule.empty() || target_config.shouldCloak(package)) {
         hide_dex = cloak::read_file(UDONGE_ROOT "/runtime/hideapps.dex");
     }
-    std::string rom_keywords = cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf");
+    std::string rom_keywords = full_enabled
+            ? cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf") : std::string();
     write_str(client, targets);
     write_str(client, props);
     write_str(client, pif);

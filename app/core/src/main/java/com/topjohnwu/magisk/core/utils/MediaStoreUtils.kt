@@ -24,6 +24,9 @@ object MediaStoreUtils {
         if (subFolder.isEmpty()) Environment.DIRECTORY_DOWNLOADS
         else Environment.DIRECTORY_DOWNLOADS + File.separator + subFolder
 
+    fun fullPath(subFolder: String): String =
+        File(Environment.getExternalStorageDirectory(), downloadRelPath(subFolder)).canonicalPath
+
     @RequiresApi(api = 30)
     @Throws(IOException::class)
     private fun insertFile(collection: Uri, displayName: String, relPath: String): MediaStoreFile {
@@ -129,11 +132,13 @@ object MediaStoreUtils {
 
     interface UriFile {
         val uri: Uri
+        val fullPath: String
         fun delete(): Boolean
     }
 
     private class LegacyUriFile(private val file: File) : UriFile {
         override val uri = file.toUri()
+        override val fullPath get() = file.path
         override fun delete() = file.delete()
         override fun toString() = file.toString()
     }
@@ -145,6 +150,7 @@ object MediaStoreUtils {
         private val data: String,
     ) : UriFile {
         override val uri = ContentUris.withAppendedId(collection, id)
+        override val fullPath get() = data
         override fun toString() = data
         override fun delete(): Boolean {
             val selection = "${MediaStore.MediaColumns._ID} == ?"

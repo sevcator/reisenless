@@ -1,28 +1,24 @@
 plugins {
-    id("com.android.application")
+    alias(libs.plugins.android.application)
     kotlin("plugin.parcelize")
-    id("com.android.legacy-kapt")
-    id("androidx.navigation.safeargs.kotlin")
+    alias(libs.plugins.compose.compiler)
 }
 
 setupMainApk()
 
-kapt {
-    correctErrorTypes = true
-    useBuildCache = true
-    mapDiagnosticLocations = true
-    javacOptions {
-        option("-Xmaxerrs", "1000")
-    }
-}
-
 android {
     buildFeatures {
-        dataBinding = true
+        compose = true
     }
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
+    }
+
+    packaging {
+        jniLibs {
+            excludes += "lib/*/libandroidx.graphics.path.so"
+        }
     }
 
     defaultConfig {
@@ -43,25 +39,23 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation(project(":hideapps"))
+    implementation(libs.webkit)
     coreLibraryDesugaring(libs.jdk.libs)
 
-    implementation(libs.indeterminate.checkbox)
-    implementation(libs.rikka.layoutinflater)
-    implementation(libs.rikka.insets)
-    implementation(libs.rikka.recyclerview)
+    // Compose
+    implementation(libs.compose.ui)
+    implementation(libs.accompanist.drawablepainter)
+    implementation(libs.compose.ui.tooling.preview)
+    debugImplementation(libs.compose.ui.tooling)
+    implementation(libs.compose.material.icons.extended)
+    implementation(libs.activity.compose)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.compose.material3)
 
-    implementation(libs.navigation.fragment.ktx)
-    implementation(libs.navigation.ui.ktx)
-
-    implementation(libs.constraintlayout)
-    implementation(libs.swiperefreshlayout)
-    implementation(libs.recyclerview)
-    implementation(libs.transition)
-    implementation(libs.fragment.ktx)
-    implementation(libs.appcompat)
-    implementation(libs.material)
-    implementation(libs.webkit)
-
-
-    kapt(kotlin("stdlib"))
+    // Navigation3
+    implementation(libs.navigation3.runtime)
+    implementation(libs.navigationevent.compose)
+    implementation(libs.lifecycle.viewmodel.navigation3)
+    implementation(libs.navigation3.ui)
 }

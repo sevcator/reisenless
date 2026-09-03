@@ -1,24 +1,33 @@
-
-out/
-native/out/
-native/libs/
-native/obj/
-
-
-app/build/
-app/**/build/
-.gradle/
-*.class
-
-
-*.apk
+# Artifacts
+out
 *.zip
-*.aab
 *.jks
-*.keystore
-*.p12
+*.apk
+*.log
+/native/src/target/
 
+# Local device-test exports and UI hierarchy dumps
+/duck_detector_report*.txt
+/duck_*.xml
+/duck*.xml
+/device_window*.xml
+/flash-ui.xml
+/flash[0-9]*.xml
+/install-ui.xml
+/install[0-9]*.xml
+/manager-ui.xml
+/picker.xml
+/unlock.xml
 
+# This local helper stages the repository and must never stage itself
+/upload-to-github.bat
+/.personalize.json
+
+# Python cache files created by local build/test helpers
+__pycache__/
+*.pyc
+
+# Local configs
 /config.prop
 *.local.properties
 local.properties
@@ -26,53 +35,13 @@ signing.properties
 keystore.properties
 /.private/
 
-
-target/
-tools/elf-cleaner/target/
-tools/rustup-wrapper/target/
-native/src/boot/proto/mod.rs
-native/src/boot/proto/update_metadata.rs
-native/**/*-rs.cpp
-native/**/*-rs.hpp
-
-
-*.log
-logs/
-
-
-__pycache__/
-*.py[cod]
-/.personalize.json
-
-
-.idea/
+# Android Studio
 *.iml
-.cursor/
-*.ipr
-*.iws
+.idea
+.cursor
 
+# Ignore all skills by default, as random skills may be installed
+/.agents/skills/*
 
-.DS_Store
-Thumbs.db
-desktop.ini
-ehthumbs.db
-*.swp
-*.swo
-*~
-.vscode/
-
-
-ramdisk.img
-*.img
-/notes.md
-/upload-to-github.bat
-
-
-tools/ndk/
-
-
-unpacked/
-Magiskless/
-
-official-magisk/
-vvb2060-magisk/
+# Keep Magisk custom skills in repository
+!/.agents/skills/magisk-*/

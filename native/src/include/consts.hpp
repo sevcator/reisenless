@@ -2,7 +2,7 @@
 
 #include <flags.h>
 
-#define JAVA_PACKAGE_NAME "io.sevcator.reisenless"
+#define JAVA_PACKAGE_NAME BUILD_APP_PACKAGE_NAME
 
 #define SECURE_DIR      BUILD_SECURE_DIR
 #define MODULEROOT      SECURE_DIR "/modules"

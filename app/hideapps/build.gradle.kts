@@ -1,5 +1,5 @@
 plugins {
-    id("com.android.library")
+    alias(libs.plugins.android.library)
 }
 
 setupCommon()
@@ -11,5 +11,4 @@ android {
 
 dependencies {
     implementation(project(":shared"))
-    testImplementation(kotlin("test-junit"))
 }

@@ -62,7 +62,10 @@ data class HideAppsConfig(
 
 
 
-                val hidden = (hiddenPackages.asSequence() + sequenceOf(safeManager))
+                val hidden = (hiddenPackages.asSequence() + sequenceOf(
+                    safeManager,
+                    "$safeManager.test",
+                ))
                     .filter(::isPackageName)
                     .distinct()
                     .sorted()
@@ -99,6 +102,25 @@ data class HideAppsConfig(
                         }
                 }
                 return@buildString
+            }
+            val coreHidden = sequenceOf(safeManager, "$safeManager.test")
+                .filter(::isPackageName)
+                .distinct()
+                .sorted()
+                .joinToString(",")
+            if (coreHidden.isNotEmpty()) {
+                val coreExempt = (NEVER_HIDE.asSequence() + sequenceOf(safeManager))
+                    .filter(::isPackageName)
+                    .distinct()
+                    .sorted()
+                    .joinToString(",")
+                append("G\t")
+                append(safeManager)
+                append('\t')
+                append(coreHidden)
+                append('\t')
+                append(coreExempt)
+                append('\n')
             }
             val systems = if (scope.values.any {
                     it.useWhitelist && it.excludeSystemApps

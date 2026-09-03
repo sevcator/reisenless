@@ -15,11 +15,12 @@
     <string name="loading">正在加载</string>
     <string name="update">更新</string>
     <string name="not_available">无法获取</string>
+    <string name="not_installed">未安装</string>
     <string name="hide">不再显示</string>
     <string name="home_package">包名</string>
-    <string name="home_app_title">reisenless</string>
-
-    <string name="home_notice_content">仅从官方 github 页面下载 reisenless。未知来源的文件可能具有恶意行为！</string>
+    <string name="home_app_title">App</string>
+    <string name="reinstall">重新安装</string>
+    <string name="home_notice_content">仅从官方 GitHub 页面下载 Magisk。未知来源的文件可能具有恶意行为！</string>
     <string name="home_support_title">支持开发</string>
     <string name="home_follow_title">关注我们</string>
     <string name="home_item_source">源代码</string>
@@ -70,8 +71,9 @@
     <string name="su_revoke_title">撤销</string>
     <string name="su_revoke_msg">确认撤销授予 %1$s 的权限？</string>
     <string name="toast">消息提示</string>
+    <string name="notification">通知</string>
     <string name="none">无</string>
-
+    <string name="back">返回</string>
     <string name="superuser_toggle_notification">通知</string>
     <string name="superuser_toggle_revoke">撤销</string>
     <string name="superuser_policy_none">尚无应用请求超级用户权限</string>
@@ -82,13 +84,21 @@
     <string name="target_pid">挂载命名空间目标 pid: %s</string>
     <string name="selinux_context">selinux 上下文: %s</string>
     <string name="supp_group">补充组: %s</string>
+    <string name="granted">允许</string>
+    <string name="denied">拒绝</string>
 
 
 
 
     <string name="show_system_app">显示系统应用</string>
-    <string name="show_os_app">显示操作系统</string>
+    <string name="show_os_app">显示核心应用</string>
     <string name="hide_filter_hint">按名称过滤</string>
+    <string name="sort_by_name">按名字排序</string>
+    <string name="sort_by_package_name">按包名排序</string>
+    <string name="sort_by_install_time">按安装时间排序</string>
+    <string name="sort_by_update_time">按更新时间排序</string>
+    <string name="sort_reverse">反向排序</string>
+    <string name="menu_sort">排序</string>
     <string name="hide_search">搜索</string>
 
 
@@ -126,17 +136,12 @@
     <string name="color_purple">紫色</string>
     <string name="color_teal">青色</string>
     <string name="color_gray">灰色</string>
-    <string name="settings_hide_app_title">隐藏 reisenless 应用</string>
-    <string name="settings_hide_app_summary">安装具有随机包名和自定义应用名称的代理应用</string>
-    <string name="settings_restore_app_title">还原 reisenless 应用</string>
-    <string name="settings_restore_app_summary">取消隐藏，恢复到原始应用</string>
     <string name="language">语言</string>
     <string name="system_default">系统默认</string>
     <string name="settings_zygisk_summary">在 zygote 中运行 reisenless</string>
     <string name="settings_hosts_title">systemless hosts</string>
     <string name="settings_hosts_summary">为广告屏蔽应用提供 systemless hosts 支持</string>
     <string name="settings_hosts_toast">已添加 systemless hosts 模块</string>
-    <string name="settings_app_name_error">无效输入</string>
     <string name="settings_su_app_adb">应用和 adb</string>
     <string name="settings_su_app">仅应用</string>
     <string name="settings_su_adb">仅 adb</string>
@@ -161,9 +166,13 @@
     <string name="settings_su_restrict_title">限制超级用户权能</string>
     <string name="settings_su_restrict_summary">默认限制新的超级用户应用。警告，这会破坏大多数应用，不建议启用。</string>
     <string name="settings_customization">个性化</string>
-    <string name="setting_add_shortcut_summary">在隐藏后难以识别名称和图标的情况下，添加快捷方式到桌面</string>
-    <string name="settings_doh_title">安全 dns（doh）</string>
-    <string name="settings_doh_description">解决某些地区的 dns 污染问题</string>
+    <string name="settings_color_mode">主题颜色</string>
+    <string name="color_mode_system">跟随系统</string>
+    <string name="color_mode_light">浅色主题</string>
+    <string name="color_mode_dark">深色主题</string>
+    <string name="color_mode_monet_system">跟随系统（动态取色）</string>
+    <string name="color_mode_monet_light">浅色主题（动态取色）</string>
+    <string name="color_mode_monet_dark">深色主题（动态取色）</string>
     <string name="settings_random_name_title">随机文件名</string>
     <string name="settings_random_name_description">随机修补镜像和 tar 文件的文件名以防止检测</string>
 
@@ -186,23 +195,28 @@
 
     <string name="progress_channel">下载进度</string>
     <string name="updated_channel">更新完成</string>
+    <string name="su_notification_channel">授权通知</string>
     <string name="download_complete">下载完成</string>
     <string name="download_file_error">下载失败</string>
+    <string name="magisk_update_title">Magisk 已发布新版本！</string>
+    <string name="updated_title">Magisk 已完成更新</string>
+    <string name="updated_text">点按即可打开应用</string>
+    <string name="su_notification_granted_title">已授权超级用户</string>
+    <string name="su_notification_denied_title">已拒绝超级用户</string>
 
 
     <string name="yes">是</string>
     <string name="no">否</string>
-    <string name="module_update_install_title">安装 %1$s %2$s(%3$d)</string>
+    <string name="enabled">启用</string>
+    <string name="disabled">禁用</string>
+    <string name="repo_install_title">安装 %1$s %2$s(%3$d)</string>
     <string name="download">下载</string>
     <string name="reboot">重启</string>
     <string name="close">关闭</string>
     <string name="release_notes">发布说明</string>
-    <string name="flashing">正在刷入</string>
-    <string name="running">运行中……</string>
-    <string name="done">完成！</string>
+    <string name="flashing">正在刷入</string>    <string name="done">完成！</string>
     <string name="done_action">%1$s 操作运行完成</string>
     <string name="failure">失败</string>
-    <string name="hide_app_title">正在隐藏 reisenless 应用</string>
     <string name="open_link_failed_toast">找不到能打开此链接的应用</string>
     <string name="complete_uninstall">完全卸载</string>
     <string name="restore_img">还原原厂映像</string>
@@ -220,39 +234,9 @@
     <string name="unsupport_system_app_msg">reisenless 不支持安装为系统应用，请还原为用户应用。</string>
     <string name="unsupport_other_su_msg">检测到不属于 reisenless 的 su 文件，请删除其他超级用户程序。</string>
     <string name="unsupport_external_storage_msg">不支持将 reisenless 安装到外置存储卡，请将应用移动回内部存储空间。</string>
-    <string name="unsupport_nonroot_stub_msg">超级用户权限丢失，应用无法在隐藏状态下继续工作，请恢复到原始 reisenless 应用。</string>
-    <string name="unsupport_nonroot_stub_title">@string/settings_restore_app_title</string>
     <string name="external_rw_permission_denied">允许访问存储空间以使用此功能</string>
     <string name="post_notifications_denied">允许发送通知以使用此功能</string>
     <string name="install_unknown_denied">允许安装未知应用以使用此功能</string>
-    <string name="add_shortcut_title">添加快捷方式到桌面</string>
-    <string name="add_shortcut_msg">隐藏后应用的名字和图标可能难以识别。需要在桌面上添加具有原始名称和图标的快捷方式吗？</string>
     <string name="app_not_found">找不到可处理此操作的应用</string>
     <string name="reboot_apply_change">重启后生效</string>
-    <string name="restore_app_confirmation">即将把隐藏的 reisenless 应用恢复回原始应用，是否继续？</string>
-
-    <string name="download_dialog_title">输入镜像 url</string>
-    <string name="download_dialog_msg">完整 ota 镜像或出厂镜像</string>
-    <string name="settings_sulist_title">sulist</string>
-    <string name="settings_sulist_summary">只有选中的应用和进程可以使用 root 或看到 reisenless 更改</string>
-    <string name="settings_sulist_config_title">配置 sulist</string>
-    <string name="settings_sulist_config_summary">选择允许使用 reisenless 的应用和进程</string>
-    <string name="webui">网页界面</string>
-    <string name="udonge">udonge</string>
-    <string name="udonge_background_updates_title">允许后台更新</string>
-    <string name="udonge_background_updates_summary">每天在后台刷新一次 keybox</string>
-    <string name="udonge_integrity_title">通过 strong integrity</string>
-    <string name="udonge_integrity_summary">udonge 会让你的设备成为正版设备！</string>
-    <string name="udonge_keybox_list_title">keybox 列表</string>
-    <string name="udonge_keybox_list_summary">添加或删除 keybox 链接</string>
-    <string name="udonge_keybox_hint">每行一个 https 链接</string>
-    <string name="udonge_rom_keywords_title">hide something wrong</string>
-    <string name="udonge_rom_keywords_summary">隐藏自定义 ROM 的运行时信号和框架痕迹</string>
-    <string name="udonge_rom_keywords_hint">每行一个 ROM 名称（例如 lineage、protonaosp）</string>
-    <string name="hide_app_randomize_confirmation">将随机生成应用名称、包名、Android 版本、应用版本、版本代码和图标。是否继续？</string>
-    <string name="webui_root_required">WebUI 需要 root 权限和有效的 Reisenless 安装</string>
-    <string name="webui_webview_required">需要 Android System WebView</string>
-    <string name="webui_webview_required_summary">此设备没有可用的 Android WebView 提供程序。请安装或启用 Android System WebView，然后重试。</string>
-    <string name="webui_install_webview">安装 WebView</string>
-    <string name="module_search_installed">搜索已安装模块</string>
 </resources>

@@ -1,6 +1,6 @@
 use crate::consts::{
-    BBPATH, BUILD_BUSYBOX_NAME, BUILD_UDONGE_ARCHIVE, BUILD_UDONGE_DIR, DATABIN,
-    MAGISK_VERSION, SECURE_DIR,
+    APP_PACKAGE_NAME, BBPATH, BUILD_BUSYBOX_NAME, BUILD_UDONGE_ARCHIVE, BUILD_UDONGE_DIR,
+    DATABIN, MAGISK_VERSION, SECURE_DIR,
 };
 use crate::ffi::{exec_script, exec_script_async, get_magisk_tmp};
 use base::const_format::concatcp;
@@ -9,46 +9,68 @@ use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+#[path = "../../../udonge/eligibility.rs"]
+mod eligibility;
+pub use eligibility::should_load;
+
 pub const UDONGE_MODULE_NAME: &str = "@udonge";
 pub const UDONGE_ROOT: &str = concatcp!(SECURE_DIR, "/", BUILD_UDONGE_DIR);
 pub const UDONGE_RUNTIME: &str = concatcp!(UDONGE_ROOT, "/runtime");
 const UDONGE_NEXT: &str = concatcp!(UDONGE_ROOT, "/runtime.new");
 const UDONGE_OLD: &str = concatcp!(UDONGE_ROOT, "/runtime.old");
 const UDONGE_DISABLED: &str = concatcp!(UDONGE_ROOT, "/state/disabled");
+const UDONGE_ENABLED: &str = concatcp!(UDONGE_ROOT, "/state/enabled");
 const UDONGE_UNLOADED: &str = concatcp!(UDONGE_ROOT, "/state/unloaded");
 const UDONGE_PENDING_REBOOT: &str = concatcp!(UDONGE_ROOT, "/state/pending-reboot");
 const HIDEAPPS_GLOBAL_LOADER: &str =
     concatcp!(UDONGE_ROOT, "/state/hideapps-global-loader-v2");
 
 pub fn is_requested() -> bool {
-    !cstr!(UDONGE_DISABLED).exists()
+    // The compact Hide Apps runtime is mandatory: it conceals the build-time
+    // randomized manager package from ordinary application UIDs.
+    true
 }
 
 pub fn is_enabled() -> bool {
-    is_requested() && !cstr!(UDONGE_UNLOADED).exists() && runtime_complete(UDONGE_RUNTIME)
+    cstr!(UDONGE_ENABLED).exists()
+        && !cstr!(UDONGE_DISABLED).exists()
+        && transport_enabled()
 }
 
-pub fn is_hide_apps_target(process: &str) -> bool {
-    let package = process.split_once(':').map_or(process, |(package, _)| package);
-    let path = format!("{UDONGE_ROOT}/state/hideapps.conf");
-    let Ok(config) = std::fs::read_to_string(path) else {
-        return false;
-    };
-    config.lines().any(|line| {
-        let mut fields = line.split('\t');
-        match fields.next() {
-            Some("R") => fields.next() == Some(package),
-            Some("G") => {
-                let manager = fields.next().unwrap_or_default();
-                let hidden = fields.next().unwrap_or_default();
-                let exempt = fields.next().unwrap_or_default();
-                !hidden.is_empty()
-                    && package != manager
-                    && !exempt.split(',').any(|entry| entry == package)
-            }
-            _ => false,
-        }
-    })
+pub fn transport_enabled() -> bool {
+    !cstr!(UDONGE_UNLOADED).exists() && runtime_complete(UDONGE_RUNTIME)
+}
+
+fn ensure_core_hide_config() {
+    const EXEMPT: &str = concat!(
+        "android,android.media,android.uid.shell,android.uid.system,",
+        "android.uid.systemui,com.android.permissioncontroller,",
+        "com.android.providers.downloads,com.android.providers.downloads.ui,",
+        "com.android.providers.media,com.android.providers.media.module,",
+        "com.android.providers.settings,com.google.android.providers.media.module,",
+        "com.google.android.webview",
+    );
+    let state = format!("{UDONGE_ROOT}/state");
+    let target = format!("{state}/hideapps.conf");
+    if std::fs::read_to_string(&target)
+        .map(|config| config.lines().any(|line| line.starts_with("G\t")))
+        .unwrap_or(false)
+    {
+        return;
+    }
+    let temp = format!("{state}/.hideapps.core");
+    let config = format!(
+        "V\t2\nG\t{0}\t{0},{0}.test\t{1},{0}\n",
+        APP_PACKAGE_NAME, EXEMPT
+    );
+    if std::fs::create_dir_all(&state).is_ok() && std::fs::write(&temp, config).is_ok() {
+        cstr::buf::default()
+            .join_path(&temp)
+            .follow_link()
+            .chmod(0o600)
+            .ok();
+        std::fs::rename(temp, target).ok();
+    }
 }
 
 fn runtime_file_exists(root: &str, name: &str) -> bool {
@@ -133,7 +155,7 @@ fn runtime_payload_matches(root: &str, archive: &Path, busybox: &Path) -> bool {
         .unwrap_or(false)
 }
 
-pub fn setup_runtime() {
+pub fn setup_runtime(run_optional_features: bool) {
     let buffer = cstr::buf::default();
     let ramdisk_archive = buffer.join_path(get_magisk_tmp()).join_path(BUILD_UDONGE_ARCHIVE);
     let persistent_archive = cstr::buf::default().join_path(DATABIN).join_path(BUILD_UDONGE_ARCHIVE);
@@ -205,6 +227,7 @@ pub fn setup_runtime() {
     }
 
     if runtime_complete(UDONGE_RUNTIME) {
+        ensure_core_hide_config();
         for script in ["post-fs-data.sh", "service.sh", "stop.sh"] {
             cstr::buf::default()
                 .join_path(UDONGE_RUNTIME)
@@ -224,7 +247,7 @@ pub fn setup_runtime() {
         }
     }
 
-    if is_enabled() {
+    if run_optional_features && is_enabled() {
         let post_fs_data = cstr::buf::default()
             .join_path(UDONGE_RUNTIME)
             .join_path("post-fs-data.sh");

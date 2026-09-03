@@ -123,17 +123,12 @@
     <string name="color_purple">фиолетовый</string>
     <string name="color_teal">бирюзовый</string>
     <string name="color_gray">серый</string>
-    <string name="settings_hide_app_title">скрыть reisenless</string>
-    <string name="settings_hide_app_summary">reisensense &gt;w&lt;</string>
-    <string name="settings_restore_app_title">восстановление приложения reisenless</string>
-    <string name="settings_restore_app_summary">восстановить приложение reisenless к исходному состоянию</string>
     <string name="language">язык</string>
     <string name="system_default">по умолчанию</string>
     <string name="settings_zygisk_summary">запускать компоненты reisenless в zygote процессе</string>
     <string name="settings_hosts_title">внесистемный hosts файл</string>
     <string name="settings_hosts_summary">поддержка внесистемного hosts файла для приложений, блокирующих рекламу</string>
     <string name="settings_hosts_toast">модуль для внесистемного hosts файла установлен</string>
-    <string name="settings_app_name_error">некорректный формат</string>
     <string name="settings_su_app_adb">приложения и adb</string>
     <string name="settings_su_app">только приложения</string>
     <string name="settings_su_adb">только adb</string>
@@ -156,9 +151,6 @@
     <string name="settings_su_auth_insecure">на устройстве не настроен метод аутентификации</string>
     <string name="settings_su_tapjack_summary">окно запроса прав суперпользователя будет неактивно пока активированы наложения экрана</string>
     <string name="settings_customization">приложение</string>
-    <string name="setting_add_shortcut_summary">добавить ярлык на рабочий стол для удобного восприятия приложения после его скрытия</string>
-    <string name="settings_doh_title">dns поверх https</string>
-    <string name="settings_doh_description">активировать doh (используйте при проблемах с подключением к сети)</string>
     <string name="settings_random_name_title">случайное имя образа</string>
     <string name="settings_random_name_description">генерировать случайные имена для патченных образов и tar-файлов для предотвращения обнаружения</string>
 
@@ -194,7 +186,6 @@
     <string name="flashing">установка…</string>
     <string name="done">завершено!</string>
     <string name="failure">ошибка!</string>
-    <string name="hide_app_title">скрытие приложения reisenless…</string>
     <string name="open_link_failed_toast">приложения для открытия ссылки не найдены</string>
     <string name="complete_uninstall">полное удаление</string>
     <string name="restore_img">восстановить разделы</string>
@@ -212,16 +203,11 @@
     <string name="unsupport_system_app_msg">запуск приложения в качестве системного невозможен. пожалуйста, переустановите его как пользовательское.</string>
     <string name="unsupport_other_su_msg">обнаружен неподдерживаемый бинарный файл \"su\". пожалуйста, удалите сторонний провайдер root-прав и/или переустановите reisenless.</string>
     <string name="unsupport_external_storage_msg">приложение установлено во внешнее хранилище. пожалуйста, переустановите его во внутреннее хранилище.</string>
-    <string name="unsupport_nonroot_stub_msg">пересобранное для скрытия приложение reisenless не может дальше работать, поскольку root-права недоступны. пожалуйста, восстановите приложение к исходному состоянию.</string>
-    <string name="unsupport_nonroot_stub_title">@string/settings_restore_app_title</string>
     <string name="external_rw_permission_denied">предоставьте разрешение на доступ к хранилищу</string>
     <string name="post_notifications_denied">предоставьте разрешение на отправку уведомлений</string>
     <string name="install_unknown_denied">предоставьте разрешение на "установку из неизвестных источников"</string>
-    <string name="add_shortcut_title">добавление ярлыка</string>
-    <string name="add_shortcut_msg">после скрытия приложения reisenless его название и иконка могут быть неудобны для восприятия. хотите создать ярлык на рабочем столе?</string>
     <string name="app_not_found">приложение для обработки этого действия не найдено</string>
     <string name="reboot_apply_change">перезагрузите устройство для применения изменений</string>
-    <string name="restore_app_confirmation">это действие восстановит пересобранное для скрытия приложение к исходному состоянию. вы действительно хотите продолжить?</string>
 
     <string name="restrict">ограничить</string>
     <string name="reboot_safe_mode">безопасный режим</string>
@@ -231,7 +217,6 @@
     <string name="download_dialog_title">введите url-адрес образа</string>
     <string name="download_dialog_msg">полный ota-образ или заводской образ</string>
     <string name="close">закрыть</string>
-    <string name="running">выполняется</string>
     <string name="done_action">действие %1$s выполнено</string>
     <string name="settings_sulist_title">sulist</string>
     <string name="settings_sulist_summary">только выбранные приложения и процессы могут использовать root и видеть изменения reisenless</string>
@@ -262,7 +247,6 @@
     <string name="udonge_rom_keywords_title">hide something wrong</string>
     <string name="udonge_rom_keywords_summary">скрыть runtime-сигналы и следы фреймворка кастомных ROM</string>
     <string name="udonge_rom_keywords_hint">по одному имени ROM на строку (например: lineage, protonaosp)</string>
-    <string name="hide_app_randomize_confirmation">Будут созданы случайные имя приложения, пакет, версия Android, версия приложения, код версии и значок. Продолжить?</string>
     <string name="webui_root_required">Для WebUI требуются root и активная установка Reisenless</string>
     <string name="webui_webview_required">Требуется Android System WebView</string>
     <string name="webui_webview_required_summary">На устройстве нет рабочего поставщика Android WebView. Установите или включите Android System WebView и повторите попытку.</string>

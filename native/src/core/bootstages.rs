@@ -12,8 +12,7 @@ use crate::mount::{clean_mounts, setup_preinit_dir};
 use crate::resetprop::get_prop;
 use crate::selinux::restorecon;
 use crate::udonge::{
-    is_enabled as udonge_enabled, is_requested as udonge_requested,
-    run_service as run_udonge_service,
+    is_requested as udonge_requested, run_service as run_udonge_service,
     setup_runtime as setup_udonge_runtime,
 };
 use base::const_format::concatcp;
@@ -153,6 +152,14 @@ impl MagiskD {
 
             disable_modules();
             self.set_db_setting(DbEntryKey::ZygiskConfig, 0).log_ok();
+            // Safe mode disables user modules and optional Udonge behavior,
+            // but the minimal manager-visibility filter remains mandatory.
+            setup_udonge_runtime(false);
+            self.zygisk_enabled.store(false, Ordering::Release);
+            self.zygote_injection_enabled
+                .store(crate::udonge::transport_enabled(), Ordering::Release);
+            self.handle_modules();
+            clean_mounts();
             return true;
         }
 
@@ -162,16 +169,14 @@ impl MagiskD {
         // after they finish and use it for the rest of this boot stage.
         let features = self.get_db_settings().unwrap_or_default();
         if udonge_requested() {
-            setup_udonge_runtime();
-        }
-        let udonge_enabled = udonge_enabled();
-        let mut zygisk_enabled = features.zygisk;
-        if udonge_enabled && !zygisk_enabled {
-            self.set_db_setting(DbEntryKey::ZygiskConfig, 1).log_ok();
-            zygisk_enabled = true;
+            setup_udonge_runtime(true);
         }
         self.zygisk_enabled
-            .store(zygisk_enabled, Ordering::Release);
+            .store(features.zygisk, Ordering::Release);
+        // Built-in Hide Apps/Udonge use the private zygote transport but must
+        // not enable user-facing Zygisk or load third-party Zygisk modules.
+        self.zygote_injection_enabled
+            .store(features.zygisk || crate::udonge::transport_enabled(), Ordering::Release);
         initialize_denylist(features.sulist);
         self.handle_modules();
         clean_mounts();
@@ -184,7 +189,11 @@ impl MagiskD {
         info!("** late_start service mode running");
 
         exec_common_scripts(cstr!("service"));
-        if let Some(module_list) = self.module_list.get() {
+        if let Some(module_list) = self.module_list.get()
+            && module_list
+                .iter()
+                .any(|module| !module.name.starts_with('@'))
+        {
             exec_module_scripts(cstr!("service"), module_list);
         }
         run_udonge_service();
@@ -205,7 +214,7 @@ impl MagiskD {
 
         setup_preinit_dir();
         self.ensure_manager();
-        if self.zygisk_enabled.load(Ordering::Relaxed) {
+        if self.zygote_injection_enabled.load(Ordering::Relaxed) {
             self.zygisk.lock().reset(true);
         }
     }

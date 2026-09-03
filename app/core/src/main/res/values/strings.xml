@@ -1,13 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
 
-
-    <string name="modules">modules</string>
-    <string name="superuser">superuser</string>
-    <string name="settings">settings</string>
-    <string name="install">install</string>
-    <string name="section_home">home</string>
-    <string name="section_theme">theme</string>
-    <string name="sulist">sulist</string>
+    <string name="not_installed">Not Installed</string>
+    <string name="invalid_update_channel">Invalid update channel</string>
 
 
     <string name="no_connection">no connection available</string>
@@ -133,22 +127,13 @@
     <string name="color_purple">purple</string>
     <string name="color_teal">teal</string>
     <string name="color_gray">gray</string>
-    <string name="settings_hide_app_title">hide reisenless</string>
     <string name="module_search_installed">Search installed modules</string>
-    <string name="settings_hide_app_summary">reisensense &gt;w&lt;</string>
-    <string name="hide_app_randomize_confirmation">a random app name, package, android version, version number, version code, and icon will be generated. continue?</string>
-    <string name="settings_restore_app_title">restore the reisenless app</string>
-    <string name="settings_restore_app_summary">unhide the app and restore the original apk</string>
-    <string name="settings_rotate_hidden_app_title" tools:ignore="MissingTranslation">rotate hidden Reisenless identity</string>
-    <string name="settings_rotate_hidden_app_summary" tools:ignore="MissingTranslation">replace this hidden app with a new randomized identity</string>
-    <string name="rotate_hidden_app_confirmation" tools:ignore="MissingTranslation">A new random app identity will be created and this one will be removed. Continue?</string>
     <string name="language">language</string>
     <string name="system_default">(system default)</string>
     <string name="settings_zygisk_summary">run parts of reisenless in the zygote daemon</string>
     <string name="settings_hosts_title">systemless hosts</string>
     <string name="settings_hosts_summary">systemless hosts support for ad blocking apps</string>
     <string name="settings_hosts_toast">added systemless hosts module</string>
-    <string name="settings_app_name_error">invalid format</string>
     <string name="settings_su_app_adb">apps and adb</string>
     <string name="settings_su_app">apps only</string>
     <string name="settings_su_adb">adb only</string>
@@ -173,9 +158,6 @@
     <string name="settings_su_restrict_title">restrict root capabilities</string>
     <string name="settings_su_restrict_summary">will restrict new superuser apps by default. warning: this will break most apps. don\'t enable it unless you know what you\'re doing.</string>
     <string name="settings_customization">app</string>
-    <string name="setting_add_shortcut_summary">add a pretty shortcut to the home screen in case the name and icon are difficult to recognize after hiding the app</string>
-    <string name="settings_doh_title">dns over https</string>
-    <string name="settings_doh_description">workaround dns poisoning in some nations</string>
     <string name="settings_random_name_title">randomize output name</string>
     <string name="settings_random_name_description">randomize the output file name of patched images and tar files to prevent detection</string>
     <string name="multiuser_mode">multiuser mode</string>
@@ -194,60 +176,41 @@
     <string name="isolate_summary">each root session will have its own isolated namespace</string>
 
 
-    <string name="progress_channel">progress notifications</string>
-    <string name="updated_channel">update complete</string>
-    <string name="download_complete">download complete</string>
-    <string name="download_file_error">error downloading file</string>
-
-
-    <string name="yes">yes</string>
-    <string name="no">no</string>
-    <string name="module_update_install_title">install %1$s %2$s(%3$d)</string>
-    <string name="download_dialog_title">enter image url</string>
-    <string name="download_dialog_msg">full ota image or factory image</string>
-    <string name="download">download</string>
-    <string name="reboot">reboot</string>
-    <string name="close">close</string>
-    <string name="release_notes">release notes</string>
-    <string name="flashing">flashing…</string>
-    <string name="running">running…</string>
-    <string name="done">done!</string>
-    <string name="done_action">done running action of %1$s</string>
-    <string name="failure">failed!</string>
-    <string name="hide_app_title">hiding the reisenless app…</string>
-    <string name="mandatory_hide_title" tools:ignore="MissingTranslation">hidden Reisenless required</string>
-    <string name="mandatory_hide_message" tools:ignore="MissingTranslation">Reisenless cannot be used under its public package. Create a randomized hidden Reisenless now. The public installer will be removed after migration.</string>
-    <string name="mandatory_hide_action" tools:ignore="MissingTranslation">create hidden Reisenless</string>
-    <string name="mandatory_hide_exit" tools:ignore="MissingTranslation">exit</string>
-    <string name="mandatory_hide_failure" tools:ignore="MissingTranslation">Hidden Reisenless could not be created. Retry is required to continue.</string>
-    <string name="open_link_failed_toast">no app found to open the link</string>
-    <string name="complete_uninstall">complete uninstall</string>
-    <string name="restore_img">restore images</string>
-    <string name="restore_img_msg">restoring…</string>
-    <string name="restore_done">restoration done!</string>
-    <string name="restore_fail">stock backup doesn\'t exist!</string>
-    <string name="setup_fail">setup failed</string>
-    <string name="env_fix_title">requires additional setup</string>
-    <string name="env_fix_msg">your device needs additional setup for reisenless to work properly. do you want to proceed and reboot?</string>
-    <string name="env_full_fix_msg">your device needs reflash reisenless to work properly. please reinstall reisenless within app, recovery mode cannot get correct device info.</string>
-    <string name="setup_msg">running environment setup…</string>
-    <string name="unsupport_magisk_title">unsupported reisenless version</string>
-    <string name="unsupport_magisk_msg">this version of the app doesn\'t support reisenless versions lower than %1$s.\n\nthe app will behave as if no reisenless is installed. please update reisenless as soon as possible.</string>
-    <string name="unsupport_general_title">abnormal state</string>
-    <string name="unsupport_system_app_msg">running this app as a system app isn\'t supported. please revert the app to a user app.</string>
-    <string name="unsupport_other_su_msg">a \"su\" binary not from reisenless has been detected. please remove any competing root solution and/or reinstall reisenless.</string>
-    <string name="unsupport_external_storage_msg">reisenless is installed to external storage. please move the app to internal storage.</string>
-    <string name="unsupport_nonroot_stub_msg">the hidden reisenless app cannot continue to work because root was lost. please restore the original apk.</string>
-    <string name="unsupport_nonroot_stub_title">@string/settings_restore_app_title</string>
+    <!--Toasts, Dialogs-->
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="repo_install_title">Install %1$s %2$s(%3$d)</string>
+    <string name="download">Download</string>
+    <string name="reboot">Reboot</string>
+    <string name="close">Close</string>
+    <string name="release_notes">Release notes</string>
+    <string name="flashing">Flashing…</string>    <string name="done">Done!</string>
+    <string name="done_action">Done running action of %1$s</string>
+    <string name="failure">Failed!</string>
+    <string name="open_link_failed_toast">No app found to open the link</string>
+    <string name="complete_uninstall">Complete uninstall</string>
+    <string name="restore_img">Restore images</string>
+    <string name="restore_img_msg">Restoring…</string>
+    <string name="restore_done">Restoration done!</string>
+    <string name="restore_fail">Stock backup doesn\'t exist!</string>
+    <string name="setup_fail">Setup failed</string>
+    <string name="env_fix_title">Requires additional setup</string>
+    <string name="env_fix_msg">Your device needs additional setup for Magisk to work properly. Do you want to proceed and reboot?</string>
+    <string name="env_full_fix_msg">Your device needs reflash Magisk to work properly. Please reinstall Magisk within app, Recovery mode cannot get correct device info.</string>
+    <string name="setup_msg">Running environment setup…</string>
+    <string name="unsupport_magisk_title">Unsupported Magisk version</string>
+    <string name="unsupport_magisk_msg">This version of the app doesn\'t support Magisk versions lower than %1$s.\n\nThe app will behave as if no Magisk is installed. Please update Magisk as soon as possible.</string>
+    <string name="unsupport_general_title">Abnormal state</string>
+    <string name="unsupport_system_app_msg">Running this app as a system app isn\'t supported. Please revert the app to a user app.</string>
+    <string name="unsupport_other_su_msg">A \"su\" binary not from Magisk has been detected. Please remove any competing root solution and/or reinstall Magisk.</string>
+    <string name="unsupport_external_storage_msg">Magisk is installed to external storage. Please move the app to internal storage.</string>
     <string name="external_rw_permission_denied">grant storage permission to enable this functionality</string>
     <string name="post_notifications_denied">grant notifications permission to enable this functionality</string>
     <string name="install_unknown_denied">allow \"install unknown apps\" to enable this functionality</string>
-    <string name="add_shortcut_title">add shortcut to home screen</string>
-    <string name="add_shortcut_msg">after hiding this app, its name and icon might become difficult to recognize. do you want to add a pretty shortcut to the home screen?</string>
     <string name="app_not_found">no app found to handle this action</string>
     <string name="reboot_apply_change">reboot to apply changes</string>
-    <string name="restore_app_confirmation">this will restore the hidden app back to the original app. do you really want to do this?</string>
     <string name="settings_sulist_title">sulist</string>
+    <string name="sulist">sulist</string>
     <string name="settings_sulist_summary">only listed apps and processes can use root or see reisenless changes</string>
     <string name="settings_sulist_config_title">configure sulist</string>
     <string name="settings_sulist_config_summary">select apps and processes allowed to use reisenless</string>
@@ -282,5 +245,57 @@
     <string name="webui_webview_required">Android System WebView required</string>
     <string name="webui_webview_required_summary">This device does not have a usable Android WebView provider. Install or enable Android System WebView, then try again.</string>
     <string name="webui_install_webview">install WebView</string>
+
+    <!-- Upstream application compatibility -->
+    <string name="modules">modules</string>
+    <string name="superuser">superuser</string>
+    <string name="settings">settings</string>
+    <string name="install">install</string>
+    <string name="section_home">home</string>
+    <string name="section_theme">themes</string>
+    <string name="download_patch_file">download and patch a file</string>
+    <string name="download_dialog_title">enter image url</string>
+    <string name="download_dialog_msg">full ota image or factory image</string>
+    <string name="notification">notification</string>
+    <string name="back">back</string>
+    <string name="granted">granted</string>
+    <string name="denied">denied</string>
+    <string name="update_available">update available</string>
+    <string name="settings_dark_mode_title">theme mode</string>
+    <string name="settings_dark_mode_message">select the mode that best suits your style</string>
+    <string name="settings_dark_mode_light">always light</string>
+    <string name="settings_dark_mode_system">follow system</string>
+    <string name="settings_dark_mode_dark">always dark</string>
+    <string name="settings_download_path_title">download path</string>
+    <string name="settings_download_path_message">files will be saved to %1$s</string>
+    <string name="settings_check_update_title">check for updates</string>
+    <string name="settings_check_update_summary">periodically check for updates in the background</string>
+    <string name="settings_update_channel_title">update channel</string>
+    <string name="settings_update_stable">stable</string>
+    <string name="settings_update_beta">beta</string>
+    <string name="settings_update_debug">debug</string>
+    <string name="settings_update_custom">custom</string>
+    <string name="settings_update_custom_msg">insert a custom channel url</string>
+    <string name="settings_color_mode">color mode</string>
+    <string name="color_mode_system">system</string>
+    <string name="color_mode_light">light</string>
+    <string name="color_mode_dark">dark</string>
+    <string name="color_mode_monet_system">monet (system)</string>
+    <string name="color_mode_monet_light">monet (light)</string>
+    <string name="color_mode_monet_dark">monet (dark)</string>
+    <string name="update_channel">Reisenless updates</string>
+    <string name="progress_channel">progress notifications</string>
+    <string name="updated_channel">update complete</string>
+    <string name="su_notification_channel">superuser notifications</string>
+    <string name="download_complete">download complete</string>
+    <string name="download_file_error">error downloading file</string>
+    <string name="magisk_update_title">Reisenless update available</string>
+    <string name="updated_title">Reisenless updated</string>
+    <string name="updated_text">tap to open app</string>
+    <string name="su_notification_granted_title">superuser granted</string>
+    <string name="su_notification_denied_title">superuser denied</string>
+    <string name="menuSaveLog">save output</string>
+    <string name="module_update_install_title">Install %1$s %2$s (%3$d)</string>
+    <string name="method_download">download image</string>
 
 </resources>

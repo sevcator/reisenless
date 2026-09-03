@@ -1,84 +1,81 @@
 package com.topjohnwu.magisk.ui
 
-import android.Manifest.permission.REQUEST_INSTALL_PACKAGES
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
-import android.view.MenuItem
-import android.view.View
 import android.view.WindowManager
-import android.widget.Toast
-import androidx.core.view.forEach
-import androidx.core.view.isGone
-import androidx.core.view.isVisible
-import androidx.lifecycle.lifecycleScope
-import androidx.navigation.NavDirections
-import com.topjohnwu.magisk.MainDirections
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
+import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 import com.topjohnwu.magisk.R
-import com.topjohnwu.magisk.arch.BaseViewModel
-import com.topjohnwu.magisk.arch.NavigationActivity
-import com.topjohnwu.magisk.arch.startAnimations
-import com.topjohnwu.magisk.arch.viewModel
+import com.topjohnwu.magisk.arch.VMFactory
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
-import com.topjohnwu.magisk.core.Udonge
+import com.topjohnwu.magisk.core.base.ActivityExtension
 import com.topjohnwu.magisk.core.base.SplashController
 import com.topjohnwu.magisk.core.base.SplashScreenHost
-import com.topjohnwu.magisk.core.isRunningAsStub
-import com.topjohnwu.magisk.core.ktx.toast
-import com.topjohnwu.magisk.core.tasks.AppMigration
-import com.topjohnwu.magisk.databinding.ActivityMainMd2Binding
-import com.topjohnwu.magisk.ui.home.HomeFragmentDirections
+import com.topjohnwu.magisk.core.wrap
+import com.topjohnwu.magisk.ui.component.rememberConfirmDialog
+import com.topjohnwu.magisk.ui.deny.DenyListScreen
+import com.topjohnwu.magisk.ui.deny.DenyListViewModel
+import com.topjohnwu.magisk.ui.flash.FlashScreen
+import com.topjohnwu.magisk.ui.flash.FlashUtils
+import com.topjohnwu.magisk.ui.flash.FlashViewModel
+import com.topjohnwu.magisk.ui.hideapps.HideAppsScreen
 import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
-import com.topjohnwu.magisk.ui.theme.Theme
-import com.topjohnwu.magisk.view.MagiskDialog
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
+import com.topjohnwu.magisk.ui.hideapps.HideAppsViewModel
+import com.topjohnwu.magisk.ui.module.ActionScreen
+import com.topjohnwu.magisk.ui.module.ActionViewModel
+import com.topjohnwu.magisk.ui.navigation.LocalNavigator
+import com.topjohnwu.magisk.ui.navigation.Navigator
+import com.topjohnwu.magisk.ui.navigation.Route
+import com.topjohnwu.magisk.ui.navigation.rememberNavigator
+import com.topjohnwu.magisk.ui.superuser.SuperuserDetailScreen
+import com.topjohnwu.magisk.ui.superuser.SuperuserViewModel
+import com.topjohnwu.superuser.Shell
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 import com.topjohnwu.magisk.core.R as CoreR
 
-class MainViewModel : BaseViewModel()
+class MainActivity : ComponentActivity(), SplashScreenHost {
 
-class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenHost {
-
-    override val layoutRes = R.layout.activity_main_md2
-    override val viewModel by viewModel<MainViewModel>()
-    override val navHostId: Int = R.id.main_nav_host
+    override val extension = ActivityExtension(this)
     override val splashController = SplashController(this)
-    override val snackbarView: View
-        get() {
-            val fragmentOverride = currentFragment?.snackbarView
-            return fragmentOverride ?: super.snackbarView
-        }
-    override val snackbarAnchorView: View?
-        get() {
-            val fragmentAnchor = currentFragment?.snackbarAnchorView
-            return when {
-                fragmentAnchor?.isVisible == true -> fragmentAnchor
-                binding.mainNavigation.isVisible -> return binding.mainNavigation
-                else -> null
-            }
-        }
 
-    private var isRootFragment = true
+    private val intentState = MutableStateFlow(0)
+    internal val showUnsupported = MutableStateFlow<List<Pair<Int, Int>>>(emptyList())
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        if (isRunningAsStub) {
-            Theme.apply(this)
-        }
-        splashController.preOnCreate()
-        if (!isRunningAsStub) {
-            Theme.applyOverlays(this)
-        }
-        super.onCreate(savedInstanceState)
-        splashController.onCreate(savedInstanceState)
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base.wrap())
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        extension.onCreate(savedInstanceState)
+        splashController.preOnCreate()
+        theme.applyStyle(R.style.Main, true)
+        super.onCreate(savedInstanceState)
+        splashController.onCreate(savedInstanceState)
     }
 
     override fun onResume() {
@@ -86,179 +83,198 @@ class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenH
         splashController.onResume()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        extension.onSaveInstanceState(outState)
+    }
+
     @SuppressLint("InlinedApi")
     override fun onCreateUi(savedInstanceState: Bundle?) {
-        setContentView()
+        // Publish the manager visibility policy at every authenticated start.
+        Shell.EXECUTOR.execute { HideAppsRootClient.syncCurrentConfig() }
+
         showUnsupportedMessage()
 
-        if (Info.env.isActive && Config.udongeRomHidingEnabled) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                if (Udonge.setRomHidingEnabled(true)) {
-                    HideAppsRootClient.syncRomKeywordsHideApps(Udonge.DEFAULT_ROM_KEYWORDS)
-                }
+        if (Config.checkUpdate) {
+            extension.withPermission(Manifest.permission.POST_NOTIFICATIONS) {
+                Config.checkUpdate = it
             }
         }
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
-        navigation.addOnDestinationChangedListener { _, destination, _ ->
-            isRootFragment = when (destination.id) {
-                R.id.homeFragment,
-                R.id.modulesFragment,
-                R.id.superuserFragment -> true
-                else -> false
-            }
+        val initialTab = getInitialTab(intent)
 
-            setDisplayHomeAsUpEnabled(!isRootFragment)
-            requestNavigationHidden(!isRootFragment)
+        setContent {
+            MagiskTheme {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    val navigator = rememberNavigator(Route.Main)
+                    CompositionLocalProvider(LocalNavigator provides navigator) {
+                        HandleFlashIntent(navigator)
 
-            binding.mainNavigation.menu.forEach {
-                if (it.itemId == destination.id) {
-                    it.isChecked = true
-                }
-            }
-        }
-
-        setSupportActionBar(binding.mainToolbar)
-
-        binding.mainNavigation.setOnItemSelectedListener {
-            getScreen(it.itemId)?.navigate()
-            true
-        }
-        binding.mainNavigation.setOnItemReselectedListener {
-
-        }
-        binding.mainNavigation.menu.apply {
-            findItem(R.id.superuserFragment)?.isEnabled = Info.showSuperUser
-            findItem(R.id.modulesFragment)?.isEnabled = Info.env.isActive
-        }
-
-        val section =
-            if (intent.action == Intent.ACTION_APPLICATION_PREFERENCES)
-                Const.Nav.SETTINGS
-            else
-                intent.getStringExtra(Const.Key.OPEN_SECTION)
-
-        getScreen(section)?.navigate()
-
-        if (!isRootFragment) {
-            requestNavigationHidden(requiresAnimation = savedInstanceState == null)
-        }
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            android.R.id.home -> onBackPressed()
-            else -> return super.onOptionsItemSelected(item)
-        }
-        return true
-    }
-
-    fun setDisplayHomeAsUpEnabled(isEnabled: Boolean) {
-        binding.mainToolbar.startAnimations()
-        when {
-            isEnabled -> binding.mainToolbar.setNavigationIcon(R.drawable.ic_back_md2)
-            else -> binding.mainToolbar.navigationIcon = null
-        }
-    }
-
-    internal fun requestNavigationHidden(hide: Boolean = true, requiresAnimation: Boolean = true) {
-        val bottomView = binding.mainNavigation
-        if (requiresAnimation) {
-            bottomView.isVisible = true
-            bottomView.isHidden = hide
-        } else {
-            bottomView.isGone = hide
-        }
-    }
-
-    fun invalidateToolbar() {
-
-        binding.mainToolbar.invalidate()
-    }
-
-    private fun getScreen(name: String?): NavDirections? {
-        return when (name) {
-            Const.Nav.SUPERUSER -> MainDirections.actionSuperuserFragment()
-            Const.Nav.MODULES -> MainDirections.actionModuleFragment()
-            Const.Nav.SETTINGS -> HomeFragmentDirections.actionHomeFragmentToSettingsFragment()
-            else -> null
-        }
-    }
-
-    private fun getScreen(id: Int): NavDirections? {
-        return when (id) {
-            R.id.homeFragment -> MainDirections.actionHomeFragment()
-            R.id.modulesFragment -> MainDirections.actionModuleFragment()
-            R.id.superuserFragment -> MainDirections.actionSuperuserFragment()
-            else -> null
-        }
-    }
-
-    @SuppressLint("InlinedApi")
-    override fun showInvalidStateMessage(): Unit = runOnUiThread {
-        MagiskDialog(this).apply {
-            setTitle(CoreR.string.unsupport_nonroot_stub_title)
-            setMessage(CoreR.string.unsupport_nonroot_stub_msg)
-            setButton(MagiskDialog.ButtonType.POSITIVE) {
-                text = CoreR.string.install
-                onClick {
-                    withPermission(REQUEST_INSTALL_PACKAGES) {
-                        if (!it) {
-                            toast(CoreR.string.install_unknown_denied, Toast.LENGTH_SHORT)
-                            showInvalidStateMessage()
-                        } else {
-                            lifecycleScope.launch {
-                                AppMigration.restore(this@MainActivity)
+                        NavDisplay(
+                            backStack = navigator.backStack,
+                            onBack = { navigator.pop() },
+                            entryDecorators = listOf(
+                                rememberSaveableStateHolderNavEntryDecorator(),
+                                rememberViewModelStoreNavEntryDecorator<Any>()
+                            ),
+                            entryProvider = entryProvider {
+                                entry<Route.Main> {
+                                    val superuserVm: SuperuserViewModel = viewModel(
+                                        viewModelStoreOwner = this@MainActivity, factory = VMFactory
+                                    )
+                                    MainScreen(
+                                        initialTab = initialTab,
+                                        superuserViewModel = superuserVm,
+                                        onAuthenticate = { action ->
+                                            extension.withAuthentication { if (it) action() }
+                                        }
+                                    )
+                                }
+                                entry<Route.DenyList> { _ ->
+                                    val vm: DenyListViewModel = viewModel(factory = VMFactory)
+                                    LaunchedEffect(Unit) { vm.startLoading() }
+                                    DenyListScreen(vm, onBack = { navigator.pop() })
+                                }
+                                entry<Route.HideApps> { _ ->
+                                    val vm: HideAppsViewModel = viewModel(factory = VMFactory)
+                                    LaunchedEffect(Unit) { vm.startLoading() }
+                                    HideAppsScreen(vm, onBack = { navigator.pop() })
+                                }
+                                entry<Route.Flash> { key ->
+                                    val vm: FlashViewModel = viewModel(factory = VMFactory)
+                                    LaunchedEffect(key) {
+                                        if (vm.flashAction.isEmpty()) {
+                                            vm.flashAction = key.action
+                                            vm.flashUri = key.additionalData?.toUri()
+                                            vm.startFlashing()
+                                        }
+                                    }
+                                    FlashScreen(vm, action = key.action, onBack = { navigator.pop() })
+                                }
+                                entry<Route.SuperuserDetail> { key ->
+                                    val vm: SuperuserViewModel = viewModel(
+                                        viewModelStoreOwner = this@MainActivity, factory = VMFactory
+                                    )
+                                    LaunchedEffect(Unit) {
+                                        vm.authenticate = { onSuccess ->
+                                            extension.withAuthentication { if (it) onSuccess() }
+                                        }
+                                    }
+                                    SuperuserDetailScreen(
+                                        uid = key.uid,
+                                        viewModel = vm,
+                                        onBack = { navigator.pop() },
+                                        onAuthenticate = { action ->
+                                            extension.withAuthentication { if (it) action() }
+                                        }
+                                    )
+                                }
+                                entry<Route.Action> { key ->
+                                    val vm: ActionViewModel = viewModel(factory = VMFactory)
+                                    LaunchedEffect(key) {
+                                        if (vm.actionId.isEmpty()) {
+                                            vm.actionId = key.id
+                                            vm.actionName = key.name
+                                            vm.startRunAction()
+                                        }
+                                    }
+                                    ActionScreen(vm, actionName = key.name, onBack = { navigator.pop() })
+                                }
                             }
-                        }
+                        )
                     }
+                    MainActivityDialogs(
+                        unsupportedMessages = showUnsupported.collectAsStateWithLifecycle().value,
+                    )
                 }
             }
-            setCancelable(false)
-            show()
+        }
+    }
+
+    @Composable
+    private fun HandleFlashIntent(navigator: Navigator) {
+        val intentVersion by intentState.collectAsStateWithLifecycle()
+        LaunchedEffect(intentVersion) {
+            val currentIntent = intent ?: return@LaunchedEffect
+            if (currentIntent.action == FlashUtils.INTENT_FLASH) {
+                val action = currentIntent.getStringExtra(FlashUtils.EXTRA_FLASH_ACTION)
+                    ?: return@LaunchedEffect
+                val uri = currentIntent.getStringExtra(FlashUtils.EXTRA_FLASH_URI)
+                navigator.push(Route.Flash(action, uri))
+                currentIntent.action = null
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intentState.value += 1
+    }
+
+    private fun getInitialTab(intent: Intent?): Int {
+        val section = when {
+            intent?.action == Intent.ACTION_APPLICATION_PREFERENCES -> Const.Nav.SETTINGS
+            intent?.action == FlashUtils.INTENT_FLASH &&
+                intent.getStringExtra(FlashUtils.EXTRA_FLASH_ACTION) == Const.Value.FLASH_ZIP -> Const.Nav.MODULES
+            else -> intent?.getStringExtra(Const.Key.OPEN_SECTION)
+        }
+        return when (section) {
+            Const.Nav.SUPERUSER -> Tab.SUPERUSER.ordinal
+            Const.Nav.MODULES -> Tab.MODULES.ordinal
+            Const.Nav.SETTINGS -> Tab.SETTINGS.ordinal
+            else -> Tab.HOME.ordinal
         }
     }
 
     private fun showUnsupportedMessage() {
-        if (Info.env.isUnsupported) {
-            MagiskDialog(this).apply {
-                setTitle(CoreR.string.unsupport_magisk_title)
-                setMessage(CoreR.string.unsupport_magisk_msg, Const.Version.MIN_VERSION)
-                setButton(MagiskDialog.ButtonType.POSITIVE) { text = android.R.string.ok }
-                setCancelable(false)
-            }.show()
-        }
+        val messages = mutableListOf<Pair<Int, Int>>()
 
+        if (Info.env.isUnsupported) {
+            messages.add(CoreR.string.unsupport_magisk_title to CoreR.string.unsupport_magisk_msg)
+        }
         if (!Info.isEmulator && Info.env.isActive && System.getenv("PATH")
                 ?.split(':')
-                ?.map { File(it, "su") }
-                ?.any { it.exists() && !Info.isReisenlessSu(it) } == true) {
-            MagiskDialog(this).apply {
-                setTitle(CoreR.string.unsupport_general_title)
-                setMessage(CoreR.string.unsupport_other_su_msg)
-                setButton(MagiskDialog.ButtonType.POSITIVE) { text = android.R.string.ok }
-                setCancelable(false)
-            }.show()
+                ?.filterNot { File("$it/magisk").exists() }
+                ?.any { File("$it/su").exists() } == true) {
+            messages.add(CoreR.string.unsupport_general_title to CoreR.string.unsupport_other_su_msg)
         }
-
         if (applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0) {
-            MagiskDialog(this).apply {
-                setTitle(CoreR.string.unsupport_general_title)
-                setMessage(CoreR.string.unsupport_system_app_msg)
-                setButton(MagiskDialog.ButtonType.POSITIVE) { text = android.R.string.ok }
-                setCancelable(false)
-            }.show()
+            messages.add(CoreR.string.unsupport_general_title to CoreR.string.unsupport_system_app_msg)
+        }
+        if (applicationInfo.flags and ApplicationInfo.FLAG_EXTERNAL_STORAGE != 0) {
+            messages.add(CoreR.string.unsupport_general_title to CoreR.string.unsupport_external_storage_msg)
         }
 
-        if (applicationInfo.flags and ApplicationInfo.FLAG_EXTERNAL_STORAGE != 0) {
-            MagiskDialog(this).apply {
-                setTitle(CoreR.string.unsupport_general_title)
-                setMessage(CoreR.string.unsupport_external_storage_msg)
-                setButton(MagiskDialog.ButtonType.POSITIVE) { text = android.R.string.ok }
-                setCancelable(false)
-            }.show()
+        if (messages.isNotEmpty()) {
+            showUnsupported.value = messages
         }
     }
 
+}
+
+@Composable
+private fun MainActivityDialogs(
+    unsupportedMessages: List<Pair<Int, Int>>,
+    modifier: Modifier = Modifier
+) {
+    val resources = LocalResources.current
+    var currentUnsupportedIndex by rememberSaveable { mutableIntStateOf(0) }
+    val unsupportedDialog = rememberConfirmDialog(
+        onConfirm = { currentUnsupportedIndex++ },
+        onDismiss = { currentUnsupportedIndex++ }
+    )
+
+    val currentUnsupported = unsupportedMessages.getOrNull(currentUnsupportedIndex)
+    LaunchedEffect(currentUnsupported) {
+        if (currentUnsupported != null) {
+            val (titleRes, msgRes) = currentUnsupported
+            unsupportedDialog.showConfirm(
+                title = resources.getString(titleRes),
+                content = resources.getString(msgRes),
+            )
+        }
+    }
 }

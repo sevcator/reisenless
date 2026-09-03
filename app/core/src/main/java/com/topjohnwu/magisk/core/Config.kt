@@ -1,8 +1,8 @@
 package com.topjohnwu.magisk.core
 
-import android.os.Bundle
 import androidx.core.content.edit
 import com.topjohnwu.magisk.core.di.ServiceLocator
+import com.topjohnwu.magisk.core.model.ColorMode
 import com.topjohnwu.magisk.core.repository.DBConfig
 import com.topjohnwu.magisk.core.repository.PreferenceConfig
 import com.topjohnwu.magisk.core.utils.LocaleSetting
@@ -17,6 +17,7 @@ object Config : PreferenceConfig, DBConfig {
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB
     override val context get() = ServiceLocator.deContext
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     override val coroutineScope get() = GlobalScope
 
     object Key {
@@ -28,10 +29,7 @@ object Config : PreferenceConfig, DBConfig {
         const val ZYGISK = "zygisk"
         const val SULIST = "sulist"
         const val BOOTLOOP = "bootloop"
-        const val SU_MANAGER = "requester"
         const val KEYSTORE = "keystore"
-        const val MIGRATION_SOURCE = "migration_source"
-        const val MIGRATION_TARGET = "migration_target"
 
 
         const val SU_REQUEST_TIMEOUT = "su_request_timeout"
@@ -39,26 +37,42 @@ object Config : PreferenceConfig, DBConfig {
         const val SU_NOTIFICATION = "su_notification"
         const val SU_REAUTH = "su_reauth"
         const val SU_TAPJACK = "su_tapjack"
+        const val SU_RESTRICT = "su_restrict"
+        const val CHECK_UPDATES = "check_update"
+        const val RELEASE_CHANNEL = "release_channel"
+        const val CUSTOM_CHANNEL = "custom_channel"
         const val LOCALE = "locale"
         const val DARK_THEME = "dark_theme_extended"
+        const val COLOR_MODE = "color_mode"
+        const val DOWNLOAD_DIR = "download_dir"
         const val ACCENT_COLOR = "accent_color"
         const val SAFETY = "safety_notice"
-        const val ASKED_HOME = "asked_home"
-        const val DOH = "doh"
+        const val THEME_ORDINAL = "theme_ordinal"
+        const val RAND_NAME = "rand_name"
         const val UDONGE_ENABLED = "udonge_enabled"
         const val UDONGE_BACKGROUND_UPDATES = "udonge_background_updates"
-        const val UDONGE_BACKGROUND_MODULES = "udonge_background_modules"
-        const val UDONGE_BACKGROUND_KEYBOXES = "udonge_background_keyboxes"
         const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls_v2"
         const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
         const val UDONGE_ROM_HIDING = "udonge_rom_hiding"
 
-        val NO_MIGRATION = setOf(
-            ASKED_HOME, SU_REQUEST_TIMEOUT, SU_AUTO_RESPONSE, SU_REAUTH, SU_TAPJACK,
-        )
+    }
+
+    object OldValue {
+        const val DEFAULT_CHANNEL = -1
+        const val STABLE_CHANNEL = 0
+        const val BETA_CHANNEL = 1
+        const val CUSTOM_CHANNEL = 2
+        const val CANARY_CHANNEL = 3
+        const val DEBUG_CHANNEL = 4
     }
 
     object Value {
+
+        const val DEFAULT_CHANNEL = -1
+        const val STABLE_CHANNEL = 0
+        const val BETA_CHANNEL = 1
+        const val DEBUG_CHANNEL = 2
+        const val CUSTOM_CHANNEL = 3
 
         const val ROOT_ACCESS_DISABLED = 0
         const val ROOT_ACCESS_APPS_ONLY = 1
@@ -78,6 +92,7 @@ object Config : PreferenceConfig, DBConfig {
 
         const val NO_NOTIFICATION = 0
         const val NOTIFICATION_TOAST = 1
+        const val NOTIFICATION_STATUS_BAR = 2
 
 
         const val SU_PROMPT = 0
@@ -94,28 +109,34 @@ object Config : PreferenceConfig, DBConfig {
     @JvmField var keepVerity = false
     @JvmField var keepEnc = false
     @JvmField var recovery = false
-    var suListActive = false
-
-    var askedHome by preference(Key.ASKED_HOME, false)
     var bootloop by dbSettings(Key.BOOTLOOP, 0)
 
-    var safetyNotice by preference(Key.SAFETY, false)
-    private var storedDarkTheme by preference(Key.DARK_THEME, Value.THEME_LIGHT)
-    var darkTheme
-        get() = if (storedDarkTheme == Value.THEME_DARK) {
-            Value.THEME_DARK
-        } else {
-            Value.THEME_LIGHT
-        }
+    var safetyNotice by preference(Key.SAFETY, true)
+    var darkTheme by preference(Key.DARK_THEME, -1)
+    var themeOrdinal by preference(Key.THEME_ORDINAL, 0)
+    var colorMode by preference(Key.COLOR_MODE, ColorMode.MONET_SYSTEM.value)
+
+    private var checkUpdatePrefs by preference(Key.CHECK_UPDATES, false)
+    private var localePrefs by preference(Key.LOCALE, "")
+    var updateChannel by preference(Key.RELEASE_CHANNEL, Value.DEFAULT_CHANNEL)
+    val updateChannelIndex get() = when (updateChannel) {
+        Value.DEFAULT_CHANNEL ->
+            if (BuildConfig.DEBUG) Value.DEBUG_CHANNEL else Value.STABLE_CHANNEL
+        else -> updateChannel
+    }
+    var customChannelUrl by preference(Key.CUSTOM_CHANNEL, "")
+    var downloadDir by preference(Key.DOWNLOAD_DIR, "")
+    var randName by preference(Key.RAND_NAME, true)
+    var checkUpdate
+        get() = checkUpdatePrefs
         set(value) {
-            storedDarkTheme = if (value == Value.THEME_DARK) {
-                Value.THEME_DARK
-            } else {
-                Value.THEME_LIGHT
+            if (checkUpdatePrefs != value) {
+                checkUpdatePrefs = value
+                JobService.schedule(AppContext)
             }
         }
     var accentColor by preference(Key.ACCENT_COLOR, 0xFFC95BC8.toInt())
-    var udongeEnabled by preference(Key.UDONGE_ENABLED, true)
+    var udongeEnabled by preference(Key.UDONGE_ENABLED, false)
     var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
     private var storedUdongeKeyboxUrls by preference(
         Key.UDONGE_KEYBOX_URLS,
@@ -125,9 +146,7 @@ object Config : PreferenceConfig, DBConfig {
         get() = storedUdongeKeyboxUrls.ifBlank { DEFAULT_UDONGE_KEYBOX_URLS }
         set(value) { storedUdongeKeyboxUrls = value }
     var udongeRomKeywords by preference(Key.UDONGE_ROM_KEYWORDS, "")
-    var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, true)
-    private var localePrefs by preference(Key.LOCALE, "")
-    var doh by preference(Key.DOH, false)
+    var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, false)
     var locale
         get() = localePrefs
         set(value) {
@@ -137,10 +156,7 @@ object Config : PreferenceConfig, DBConfig {
 
     var zygisk by dbSettings(Key.ZYGISK, Info.isEmulator)
     var sulist by dbSettings(Key.SULIST, true)
-    var suManager by dbStrings(Key.SU_MANAGER, "", true)
     var keyStoreRaw by dbStrings(Key.KEYSTORE, "", true)
-    var migrationSource by dbStrings(Key.MIGRATION_SOURCE, "", true)
-    var migrationTarget by dbStrings(Key.MIGRATION_TARGET, "", true)
 
     var suDefaultTimeout by preferenceStrInt(Key.SU_REQUEST_TIMEOUT, 10)
     var suAutoResponse by preferenceStrInt(Key.SU_AUTO_RESPONSE, Value.SU_PROMPT)
@@ -156,44 +172,28 @@ object Config : PreferenceConfig, DBConfig {
         }
     var suReAuth by preference(Key.SU_REAUTH, false)
     var suTapjack by preference(Key.SU_TAPJACK, true)
+    var suRestrict by preference(Key.SU_RESTRICT, false)
 
     private const val SU_FINGERPRINT = "su_fingerprint"
+    private const val UPDATE_CHANNEL = "update_channel"
 
-    fun toBundle(): Bundle {
-        val map = prefs.all - Key.NO_MIGRATION
-        return Bundle().apply {
-            for ((key, value) in map) {
-                when (value) {
-                    is String -> putString(key, value)
-                    is Int -> putInt(key, value)
-                    is Boolean -> putBoolean(key, value)
-                }
-            }
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    private fun fromBundle(bundle: Bundle) {
-        val keys = bundle.keySet().apply { removeAll(Key.NO_MIGRATION) }
-        prefs.edit {
-            for (key in keys) {
-                when (val value = bundle.get(key)) {
-                    is String -> putString(key, value)
-                    is Int -> putInt(key, value)
-                    is Boolean -> putBoolean(key, value)
-                }
-            }
-        }
-    }
-
-    fun init(bundle: Bundle?) {
-        if (bundle != null && prefs.all.isEmpty()) {
-            fromBundle(bundle)
-        }
+    fun init() {
         prefs.edit {
             if (prefs.getBoolean(SU_FINGERPRINT, false))
                 suBiometric = true
             remove(SU_FINGERPRINT)
+
+            prefs.getString(UPDATE_CHANNEL, null)?.let {
+                val channel = when (it.toInt()) {
+                    OldValue.STABLE_CHANNEL -> Value.STABLE_CHANNEL
+                    OldValue.CANARY_CHANNEL, OldValue.BETA_CHANNEL -> Value.BETA_CHANNEL
+                    OldValue.DEBUG_CHANNEL -> Value.DEBUG_CHANNEL
+                    OldValue.CUSTOM_CHANNEL -> Value.CUSTOM_CHANNEL
+                    else -> Value.DEFAULT_CHANNEL
+                }
+                putInt(Key.RELEASE_CHANNEL, channel)
+            }
+            remove(UPDATE_CHANNEL)
         }
     }
 }

@@ -11,7 +11,7 @@ pub const APPLET_NAMES: &[&str] = &["su", "resetprop"];
 pub use flags::*;
 pub const MAGISK_FULL_VER: &str = concatcp!(MAGISK_VERSION, "(", MAGISK_VER_CODE, ")");
 
-pub const APP_PACKAGE_NAME: &str = "io.sevcator.reisenless";
+pub const APP_PACKAGE_NAME: &str = BUILD_APP_PACKAGE_NAME;
 
 
 pub const REDIR_PATH: &str = BUILD_REDIR_PATH;

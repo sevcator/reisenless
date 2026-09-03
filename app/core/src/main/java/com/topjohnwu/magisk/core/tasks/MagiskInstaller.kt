@@ -8,17 +8,15 @@ import android.system.OsConstants
 import android.system.OsConstants.O_WRONLY
 import androidx.annotation.WorkerThread
 import androidx.core.os.postDelayed
-import com.topjohnwu.magisk.StubApk
-import com.topjohnwu.magisk.core.AppApkPath
 import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.di.ServiceLocator
-import com.topjohnwu.magisk.core.isRunningAsStub
 import com.topjohnwu.magisk.core.ktx.copyAll
 import com.topjohnwu.magisk.core.ktx.writeTo
 import com.topjohnwu.magisk.core.utils.DummyList
+import com.topjohnwu.magisk.core.utils.DataSourceChannel
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils.inputStream
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils.outputStream
@@ -111,67 +109,32 @@ abstract class MagiskInstallImpl protected constructor(
         installDir.mkdirs()
 
         try {
-            val sourceApk = if (isRunningAsStub) {
-                StubApk.current(context)
-            } else {
-                File(context.applicationInfo.sourceDir)
-            }
-
-            if (isRunningAsStub) {
-                ZipFile.builder().setFile(sourceApk).get().use { zf ->
-                    zf.entries.asSequence().filter {
-                        !it.isDirectory && it.name.startsWith("lib/${Const.CPU_ABI}/")
-                    }.forEach {
-                        val n = it.name.substring(it.name.lastIndexOf('/') + 1)
-                        val packagedName = n.substring(3, n.length - 3)
-                        val name = when (packagedName) {
-                            "magisk" -> BuildConfig.MAIN_BIN_NAME
-                            "mpol" -> BuildConfig.POLICY_NAME
-                            "init-ld" -> BuildConfig.INIT_LD_NAME
-                            "busybox" -> BuildConfig.BUSYBOX_NAME
-                            else -> packagedName
-                        }
-                        val dest = File(installDir, name)
-                        zf.getInputStream(it).writeTo(dest)
-                        dest.setExecutable(true)
+            val sourceApk = File(context.applicationInfo.sourceDir)
+            ZipFile.builder().setFile(sourceApk).get().use { zf ->
+                zf.entries.asSequence().filter {
+                    !it.isDirectory && it.name.startsWith("lib/${Const.CPU_ABI}/")
+                }.forEach {
+                    val n = it.name.substring(it.name.lastIndexOf('/') + 1)
+                    val packagedName = n.substring(3, n.length - 3)
+                    val name = when (packagedName) {
+                        "magisk" -> BuildConfig.MAIN_BIN_NAME
+                        "mpol" -> BuildConfig.POLICY_NAME
+                        "init-ld" -> BuildConfig.INIT_LD_NAME
+                        "busybox" -> BuildConfig.BUSYBOX_NAME
+                        else -> packagedName
                     }
-
-                    val abi32 = Const.CPU_ABI_32
-                    if (Process.is64Bit() && abi32 != null) {
-                        val entry = zf.getEntry("lib/$abi32/libmagisk.so")
-                        if (entry != null) {
-                            val bin32 = File(installDir, BuildConfig.BIN32_NAME)
-                            zf.getInputStream(entry).writeTo(bin32)
-                        }
-                    }
+                    val dest = File(installDir, name)
+                    zf.getInputStream(it).writeTo(dest)
+                    dest.setExecutable(true)
                 }
-            } else {
-                ZipFile.builder().setFile(sourceApk).get().use { zf ->
-                    zf.entries.asSequence().filter {
-                        !it.isDirectory && it.name.startsWith("lib/${Const.CPU_ABI}/")
-                    }.forEach {
-                        val n = it.name.substring(it.name.lastIndexOf('/') + 1)
-                        val packagedName = n.substring(3, n.length - 3)
-                        val name = when (packagedName) {
-                            "magisk" -> BuildConfig.MAIN_BIN_NAME
-                            "mpol" -> BuildConfig.POLICY_NAME
-                            "init-ld" -> BuildConfig.INIT_LD_NAME
-                            "busybox" -> BuildConfig.BUSYBOX_NAME
-                            else -> packagedName
-                        }
-                        val dest = File(installDir, name)
-                        zf.getInputStream(it).writeTo(dest)
-                        dest.setExecutable(true)
-                    }
 
-                    val abi32 = Const.CPU_ABI_32
-                    if (Process.is64Bit() && abi32 != null) {
-                        val entry = zf.getEntry("lib/$abi32/libmagisk.so")
-                        if (entry != null) {
-                            val bin32 = File(installDir, BuildConfig.BIN32_NAME)
-                            zf.getInputStream(entry).writeTo(bin32)
-                            bin32.setExecutable(true)
-                        }
+                val abi32 = Const.CPU_ABI_32
+                if (Process.is64Bit() && abi32 != null) {
+                    val entry = zf.getEntry("lib/$abi32/libmagisk.so")
+                    if (entry != null) {
+                        val bin32 = File(installDir, BuildConfig.BIN32_NAME)
+                        zf.getInputStream(entry).writeTo(bin32)
+                        bin32.setExecutable(true)
                     }
                 }
             }
@@ -549,6 +512,46 @@ abstract class MagiskInstallImpl protected constructor(
         return true
     }
 
+    private suspend fun processUrl(url: String): Boolean {
+        try {
+            srcBoot = installDir.getChildFile("boot.img")
+            ExtractImage(srcBoot, console, logs)
+                .consume(DataSourceChannel(ServiceLocator.okhttp, url))
+        } catch (e: IOException) {
+            console.add("! error: ${e.message.orEmpty()}")
+            return false
+        }
+
+        if (!patchBoot()) return false
+
+        val outFile = try {
+            MediaStoreUtils.getFileAtStorageRoot("$destName.$destExt", destFolder)
+        } catch (e: IOException) {
+            console.add("! failed to create output file")
+            return false
+        }
+        try {
+            val newBoot = installDir.getChildFile("new-boot.img")
+            outFile.uri.outputStream().use { out ->
+                newBoot.newInputStream().use { it.copyAll(out, 1024 * 1024) }
+            }
+            newBoot.delete()
+            console.add("")
+            console.add("****************************")
+            console.add(" output file is written to ")
+            console.add(" $outFile ")
+            console.add("****************************")
+        } catch (_: IOException) {
+            console.add("! failed to output to $outFile")
+            outFile.delete()
+            return false
+        }
+
+        srcBoot.delete()
+        "cp_readlink $installDir".sh()
+        return true
+    }
+
     private fun patchBoot(): Boolean {
         val newBoot = installDir.getChildFile("new-boot.img")
         if (!useRootDir) {
@@ -574,25 +577,13 @@ abstract class MagiskInstallImpl protected constructor(
 
     private fun flashBoot() = "direct_install $installDir $srcBoot".sh().isSuccess
 
-    private suspend fun postOTA(): Boolean {
-        var bootctl: File? = null
-        return try {
-            val file = File.createTempFile("bootctl", null, context.cacheDir)
-            bootctl = file
-            context.assets.open("bootctl").writeTo(file)
-            "post_ota $file".sh()
-
-            console.add("*************************************************************")
-            console.add(" next reboot will boot to second slot!")
-            console.add(" go back to system updates and press restart to complete ota")
-            console.add("*************************************************************")
-            true
-        } catch (_: IOException) {
-            console.add("! unable to download bootctl")
-            false
-        } finally {
-            bootctl?.delete()
-        }
+    private fun postOTA(): Boolean {
+        "post_ota".sh()
+        console.add("*************************************************************")
+        console.add(" next reboot will boot to second slot!")
+        console.add(" go back to system updates and press restart to complete ota")
+        console.add("*************************************************************")
+        return true
     }
 
     private fun Array<String>.eq() = shell.newJob().add(*this).to(console, logs).enqueue()
@@ -602,6 +593,8 @@ abstract class MagiskInstallImpl protected constructor(
     private fun Array<String>.fsh() = ShellUtils.fastCmd(shell, *this)
 
     protected suspend fun patchFile(file: Uri) = extractFiles() && processFile(file)
+
+    protected suspend fun patchFile(url: String) = extractFiles() && processUrl(url)
 
     protected suspend fun direct() = findImage() && extractFiles() && patchBoot() && flashBoot()
 
@@ -668,6 +661,14 @@ class MagiskInstaller {
         logs: MutableList<String>
     ) : ConsoleInstaller(console, logs) {
         override suspend fun operations() = patchFile(uri)
+    }
+
+    class Download(
+        private val url: String,
+        console: MutableList<String>,
+        logs: MutableList<String>,
+    ) : ConsoleInstaller(console, logs) {
+        override suspend fun operations() = patchFile(url)
     }
 
     class SecondSlot(

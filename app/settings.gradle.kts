@@ -7,5 +7,21 @@ dependencyResolutionManagement {
         maven("https://jitpack.io")
     }
 }
+
+pluginManagement {
+    includeBuild("build-logic")
+    repositories {
+        google {
+            content {
+                includeGroupAndSubgroups("androidx")
+                includeGroupAndSubgroups("com.android")
+                includeGroupAndSubgroups("com.google")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 rootProject.name = "Reisenless"
-include(":apk", ":apk-ng", ":core", ":hideapps", ":shared", ":stub", ":stub-res")
+include(":apk", ":apk-legacy", ":core", ":hideapps", ":shared", ":stub")

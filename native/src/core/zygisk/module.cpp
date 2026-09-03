@@ -427,7 +427,8 @@ void ZygiskContext::app_specialize_pre() {
 
 void ZygiskContext::app_specialize_post() {
     run_modules_post();
-    if (info_flags & +ZygiskStateFlags::ProcessIsMagiskApp) {
+    if ((info_flags & +ZygiskStateFlags::ProcessIsMagiskApp) &&
+        (info_flags & +ZygiskStateFlags::ZygiskEnabled)) {
         setenv("ZYG_ENABLED", "1", 1);
     }
 

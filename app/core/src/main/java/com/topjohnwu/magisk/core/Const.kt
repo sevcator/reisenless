@@ -43,6 +43,7 @@ object Const {
     }
 
     object ID {
+        const val CHECK_UPDATE_JOB_ID = 5
         const val DOWNLOAD_JOB_ID = 6
         const val BACKGROUND_UPDATE_JOB_ID = 7
     }
@@ -50,19 +51,19 @@ object Const {
     object Url {
         const val PATREON_URL = "https://www.patreon.com/topjohnwu"
         const val SOURCE_CODE_URL = "https://github.com/sevcator/Reisenless"
+        const val GITHUB_API_URL = "https://api.github.com/"
         const val INVALID_URL = "https://example.com/"
     }
 
     object Key {
 
         const val OPEN_SECTION = "section"
-        const val PREV_CONFIG = "prev_config"
-        const val PREV_PACKAGE = "prev_package"
     }
 
     object Value {
         const val FLASH_ZIP = "flash"
         const val PATCH_FILE = "patch"
+        const val DOWNLOAD = "download"
         const val FLASH_MAGISK = "magisk"
         const val FLASH_INACTIVE_SLOT = "slot"
         const val UNINSTALL = "uninstall"

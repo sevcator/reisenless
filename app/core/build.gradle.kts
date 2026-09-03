@@ -1,8 +1,8 @@
 plugins {
-    id("com.android.library")
+    alias(libs.plugins.android.library)
     kotlin("plugin.parcelize")
-    id("dev.zacsweers.moshix")
-    id("com.squareup.wire")
+    alias(libs.plugins.moshix)
+    alias(libs.plugins.wire)
 }
 
 setupCoreLib()
@@ -15,7 +15,7 @@ android {
     namespace = "com.topjohnwu.magisk.core"
 
     defaultConfig {
-        buildConfigField("String", "APP_PACKAGE_NAME", "\"io.sevcator.reisenless\"")
+        buildConfigField("String", "APP_PACKAGE_NAME", "\"${Config.appPackageName}\"")
         buildConfigField("int", "APP_VERSION_CODE", "${Config.versionCode}")
         buildConfigField("String", "APP_VERSION_NAME", "\"${Config.version}\"")
         buildConfigField("int", "STUB_VERSION", Config.stubVersion)
@@ -64,7 +64,6 @@ dependencies {
     implementation(libs.retrofit.scalars)
 
     implementation(libs.okhttp)
-    implementation(libs.okhttp.dnsoverhttps)
 
     implementation(libs.core.splashscreen)
     implementation(libs.core.ktx)

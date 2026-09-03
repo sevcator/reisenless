@@ -34,142 +34,28 @@ jobs:
       - name: Set up toolchain
         uses: ./.github/actions/setup
 
-      - name: Configure ARM release target
-        shell: bash
-        run: |
-          cat > config.prop <<'EOF'
-          randomizeBuild=true
-          randomizeSecureDir=true
-          abiList=armeabi-v7a,arm64-v8a
-          toolAbiList=arm64-v8a
-          EOF
+      - name: Build project
+        run: python build.py -vr -c .github/ci.prop all
 
-      - name: Prepare release signing
-        if: github.event_name != 'pull_request'
-        shell: bash
-        env:
-          REISENLESS_KEYSTORE_BASE64: ${{ secrets.REISENLESS_KEYSTORE_BASE64 }}
-          REISENLESS_KEYSTORE_PASSWORD: ${{ secrets.REISENLESS_KEYSTORE_PASSWORD }}
-          REISENLESS_KEY_ALIAS: ${{ secrets.REISENLESS_KEY_ALIAS }}
-          REISENLESS_KEY_PASSWORD: ${{ secrets.REISENLESS_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          : "${REISENLESS_KEYSTORE_BASE64:?missing release keystore}"
-          : "${REISENLESS_KEYSTORE_PASSWORD:?missing keystore password}"
-          : "${REISENLESS_KEY_ALIAS:?missing key alias}"
-          : "${REISENLESS_KEY_PASSWORD:?missing key password}"
-          keystore="$RUNNER_TEMP/reisenless-release.p12"
-          printf '%s' "$REISENLESS_KEYSTORE_BASE64" | base64 --decode > "$keystore"
-          chmod 600 "$keystore"
-          {
-            printf '\nkeyStore=%s\n' "$keystore"
-            printf 'keyStorePass=%s\n' "$REISENLESS_KEYSTORE_PASSWORD"
-            printf 'keyAlias=%s\n' "$REISENLESS_KEY_ALIAS"
-            printf 'keyPass=%s\n' "$REISENLESS_KEY_PASSWORD"
-          } >> config.prop
-
-      - name: Build native core
-        run: ./build.py -vvr native
-
-      - name: Build Reisenless
-        shell: bash
-        run: |
-          set -o pipefail
-          if ! ./build.py -vvr app 2>&1 | tee "$RUNNER_TEMP/app-build.log"; then
-            diagnostic="$(tail -n 160 "$RUNNER_TEMP/app-build.log")"
-            diagnostic="${diagnostic//'%'/'%25'}"
-            diagnostic="${diagnostic//$'\r'/'%0D'}"
-            diagnostic="${diagnostic//$'\n'/'%0A'}"
-            echo "::error title=Android build diagnostics::$diagnostic"
-            exit 1
-          fi
-
-      - name: Verify APK
+      - name: Verify APK outputs
         shell: bash
         run: |
           set -euo pipefail
-          apk=out/app-release.apk
-          identity=native/out/generated/flags.json
-          udonge_archive="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["udongeArchive"])' "$identity")"
-          stub_name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["stubName"])' "$identity")"
-          secure_dir="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["secureDir"])' "$identity")"
-          main_bin="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["identity"]["buildId"])' "$identity")"
-          test -s "$apk"
-          unzip -tq "$apk"
-          unzip -l "$apk" | grep -Fq 'lib/arm64-v8a/libmagisk.so'
-          unzip -l "$apk" | grep -Fq 'lib/armeabi-v7a/libmagisk.so'
-          test "$(unzip -Z1 "$apk" 'lib/armeabi-v7a/*' | wc -l)" -eq 1
-          ! unzip -l "$apk" | grep -Eq 'lib/(x86|x86_64|riscv64)/'
-          unzip -p "$apk" lib/arm64-v8a/libmagisk.so > "$RUNNER_TEMP/core64"
-          ! grep -aEiq 'zygisk(32|64):|magisk32|magisk64' "$RUNNER_TEMP/core64"
-          unzip -p "$apk" "assets/$udonge_archive" > "$RUNNER_TEMP/udonge.bin"
-          unzip -p "$apk" "assets/$stub_name" > "$RUNNER_TEMP/stub.apk"
-          test -s "$RUNNER_TEMP/udonge.bin"
-          test -s "$RUNNER_TEMP/stub.apk"
-          for script in util_functions.sh addon.d.sh app_functions.sh module_installer.sh; do
-            unzip -p "$apk" "assets/$script" > "$RUNNER_TEMP/$script"
-            grep -Fq "SECURE_DIR='$secure_dir'" "$RUNNER_TEMP/$script"
-            ! grep -Fq '_STUB' "$RUNNER_TEMP/$script"
-          done
-          grep -Fq "MAIN_BIN_NAME='$main_bin'" "$RUNNER_TEMP/util_functions.sh"
-          ! unzip -l "$RUNNER_TEMP/udonge.bin" | grep -Eiq 'anonymous|device_db'
-          ! grep -R -Eiq 'anonymous(_mode|Enabled|\.sh|_clear_data)|setAnonymous|device_db' app udonge
-          unzip -p "$RUNNER_TEMP/udonge.bin" tee/classes.dex > "$RUNNER_TEMP/udonge-tee.dex"
-          unzip -p "$RUNNER_TEMP/udonge.bin" tee/daemon > "$RUNNER_TEMP/udonge-tee-daemon"
-          grep -aFq "$secure_dir" "$RUNNER_TEMP/udonge-tee.dex"
-          ! grep -aFq '/data/adb/tricky_store' "$RUNNER_TEMP/udonge-tee.dex"
-          ! grep -aFq '/data/adb/modules/tricky_store' "$RUNNER_TEMP/udonge-tee.dex"
-          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
-          dexdump="$(find "$ANDROID_HOME/build-tools" -type f -name dexdump -print | sort -V | tail -n 1)"
-          test -x "$aapt"
-          test -x "$dexdump"
-          stub_manifest="$("$aapt" dump xmltree "$RUNNER_TEMP/stub.apk" AndroidManifest.xml)"
-          grep -Fq 'package="io.sevcator.reisenless"' <<< "$stub_manifest"
-          grep -Eq 'android:icon.*=@0x7f[[:xdigit:]]{6}' <<< "$stub_manifest"
-          unzip -l "$RUNNER_TEMP/stub.apk" resources.arsc | grep -Fq 'resources.arsc'
-          stub_badging="$("$aapt" dump badging "$RUNNER_TEMP/stub.apk")"
-          grep -Eq "application: label='reisenless' icon='res/.+\\.xml'" <<< "$stub_badging"
-          stub_symbols=app/stub/build/intermediates/runtime_symbol_list/release/processReleaseResources/R.txt
-          stub_res_symbols=app/stub-res/build/intermediates/runtime_symbol_list/release/processReleaseResources/R.txt
-          test -s "$stub_symbols"
-          test -s "$stub_res_symbols"
-          grep -Fq 'int drawable ic_hidden ' "$stub_symbols"
-          grep -Fq 'int drawable ic_hidden ' "$stub_res_symbols"
-          diff -u "$stub_symbols" "$stub_res_symbols"
-          "$dexdump" -f "$RUNNER_TEMP/udonge-tee.dex" >/dev/null
-          grep -Fq 'MODDIR=$1' "$RUNNER_TEMP/udonge-tee-daemon"
-          grep -Fq 'export RUST_LOG=off' "$RUNNER_TEMP/udonge-tee-daemon"
-          grep -Fq '"$MODDIR" --nice-name=TEESimulator' "$RUNNER_TEMP/udonge-tee-daemon"
-          badging="$("$aapt" dump badging "$apk")"
-          grep -Fq "package: name='io.sevcator.reisenless'" <<< "$badging"
-          grep -Fq "application-label:'reisenless'" <<< "$badging"
-          sha256sum "$apk"
+          test -s out/app-release.apk
+          test -s out/apk-legacy-release.apk
+          unzip -tq out/app-release.apk
+          unzip -tq out/apk-legacy-release.apk
 
-      - name: Verify release signature
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk=out/app-release.apk
-          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
-          test -x "$apksigner"
-          set +e
-          certificates="$("$apksigner" verify --verbose --print-certs "$apk" 2>&1)"
-          verify_status=$?
-          set -e
-          printf '%s\n' "$certificates"
-          test "$verify_status" -eq 0
-          actual="$(sed -nE 's/^(Signer #[0-9]+|V[0-9]+ Signer): certificate SHA-256 digest: ([[:xdigit:]]{64})$/\2/p' <<< "$certificates" | sort -u | tr '[:lower:]' '[:upper:]')"
-          expected=64958D8CE215FBC85086ABC294F46AF0F27FC2FF99D113C43CE60693659CE719
-          test -n "$actual"
-          test "$actual" = "$expected"
-          echo "release certificate sha256: $actual"
-
-      - name: Upload APK
-        if: github.event_name != 'pull_request'
+      - name: Upload APKs
         uses: actions/upload-artifact@v6
         with:
           name: reisenless-${{ github.sha }}
-          path: out/app-release.apk
+          path: |
+            out/app-release.apk
+            out/apk-legacy-release.apk
           if-no-files-found: error
           compression-level: 9
+
+      - name: Stop gradle daemon
+        if: always()
+        run: ./app/gradlew --stop

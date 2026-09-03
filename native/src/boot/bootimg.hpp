@@ -5,9 +5,11 @@
 #include <bitset>
 #include <rust/cxx.h>
 
+enum class FileFormat : uint8_t;
 
-
-
+/******************
+ * Special Headers
+ *****************/
 
 struct mtk_hdr {
     uint32_t magic;
@@ -41,18 +43,9 @@ struct blob_hdr {
     uint32_t version;
 } __attribute__((packed));
 
-struct zimage_hdr {
-    uint32_t code[9];
-    uint32_t magic;
-    uint32_t start;
-    uint32_t end;
-    uint32_t endian;
-
-} __attribute__((packed));
-
-
-
-
+/**************
+ * AVB Headers
+ **************/
 
 #define AVB_FOOTER_MAGIC_LEN 4
 #define AVB_MAGIC_LEN 4
@@ -610,6 +603,8 @@ enum {
     BOOT_FLAGS_MAX
 };
 
+struct ZImage;
+
 struct boot_img {
 
     const mmap_data map;
@@ -645,19 +640,7 @@ struct boot_img {
     const mtk_hdr *k_hdr = nullptr;
     const mtk_hdr *r_hdr = nullptr;
 
-
-
-
-
-
-
-
-
-    struct {
-        const zimage_hdr *hdr = nullptr;
-        uint32_t hdr_sz = 0;
-        byte_view tail{};
-    } z_info;
+    std::unique_ptr<ZImage> z_info;
 
 
     const AvbFooter *avb_footer = nullptr;
@@ -681,7 +664,6 @@ struct boot_img {
     ~boot_img();
 
     bool parse_image(const uint8_t *addr, FileFormat type);
-    void parse_zimage();
     const uint8_t *parse_hdr(const uint8_t *addr, FileFormat type);
     std::span<const vendor_ramdisk_table_entry_v4> vendor_ramdisk_tbl() const;
 

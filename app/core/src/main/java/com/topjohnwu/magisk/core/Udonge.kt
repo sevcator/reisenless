@@ -6,18 +6,13 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import android.util.Base64
-import com.topjohnwu.magisk.core.di.ServiceLocator
+import com.topjohnwu.magisk.core.udonge.UdongeDeviceSignals
 import com.topjohnwu.superuser.Shell
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
 
 object Udonge {
 
     private const val UPDATE_INTERVAL_MS = 60L * 60L * 1000L
     private const val UPDATE_FLEX_MS = 15L * 60L * 1000L
-    private const val MAX_KEYBOX_BYTES = 256 * 1024
-
     const val DEFAULT_ROM_KEYWORDS =
         "lineage\n" +
         "crdroid\n" +
@@ -57,13 +52,24 @@ object Udonge {
 
     fun setEnabled(enabled: Boolean): Boolean {
         val action = if (enabled) {
-            "mkdir -p '$state' && rm -f '$state/disabled' '$state/unloaded' && " +
-                ": > '$pendingReboot'"
+            "mkdir -p '$state' && " +
+                "if [ ! -f '$state/enabled' ] || [ -f '$state/disabled' ] || " +
+                "[ -f '$state/unloaded' ]; then " +
+                "rm -f '$state/disabled' '$state/unloaded' && : > '$state/enabled' && " +
+                ": > '$pendingReboot'; " +
+                "fi"
         } else {
-            "mkdir -p '$state' && : > '$state/disabled' && : > '$pendingReboot'"
+            "mkdir -p '$state' && rm -f '$state/enabled' && : > '$state/disabled' && " +
+                ": > '$pendingReboot' && " +
+                "rm -f '$state/background-updates' '$state/.keybox-refresh' && " +
+                "if [ -x '$runtime/stop.sh' ]; then " +
+                "'$runtime/stop.sh' </dev/null >/dev/null 2>&1; fi"
         }
         val success = Shell.cmd(action).exec().isSuccess
-        if (success) Config.udongeEnabled = enabled
+        if (success) {
+            Config.udongeEnabled = enabled
+            scheduleBackgroundUpdates(AppContext)
+        }
         return success
     }
 
@@ -94,6 +100,23 @@ object Udonge {
             "rm -f '$state/background-updates' '$state/.keybox-refresh'"
         }
         return shell.newJob().add(action).exec().isSuccess
+    }
+
+    fun syncState(context: Context, shell: Shell) {
+        val enabled = Config.udongeEnabled
+        val enabledCommand = if (enabled) {
+            "mkdir -p '$state' && : > '$state/enabled' && rm -f '$state/disabled'"
+        } else {
+            "mkdir -p '$state' && rm -f '$state/enabled' && : > '$state/disabled'"
+        }
+        shell.newJob().add(enabledCommand).exec()
+        if (enabled) syncKeyboxUrls(shell)
+        syncBackgroundUpdates(shell)
+        if (enabled && Config.udongeRomHidingEnabled) {
+            UdongeDeviceSignals.sync(context, shell)
+        } else if (enabled) {
+            setRomKeywords("", shell)
+        }
     }
 
     fun setKeyboxUrls(value: String): Boolean {
@@ -169,70 +192,15 @@ object Udonge {
         scheduler.schedule(job)
     }
 
-    suspend fun runBackgroundUpdates(): Boolean = withContext(Dispatchers.IO) {
-        if (!Config.udongeEnabled || !Config.udongeBackgroundUpdates) return@withContext true
-        updateKeyboxes()
-    }
-
-    private suspend fun updateKeyboxes(): Boolean {
-        val sources = Config.udongeKeyboxUrls.lineSequence()
-            .map(String::trim)
-            .filter { it.startsWith("https://") }
-            .distinct()
-            .take(16)
-        var selected: ByteArray? = null
-        var bestCertificateCount = 0
-        for (source in sources) {
-            val candidate = runCatching {
-                ServiceLocator.networkService.fetchFile(source).use { body ->
-                    val length = body.contentLength()
-                    require(length in -1L..MAX_KEYBOX_BYTES.toLong())
-                    body.byteStream().use { input ->
-                        val output = java.io.ByteArrayOutputStream()
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        var total = 0
-                        while (true) {
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            total += count
-                            require(total <= MAX_KEYBOX_BYTES)
-                            output.write(buffer, 0, count)
-                        }
-                        output.toByteArray()
-                    }
-                }
-            }.getOrNull() ?: continue
-            val text = candidate.toString(Charsets.UTF_8)
-            if (!text.contains("<AndroidAttestation>") ||
-                !text.contains("<NumberOfKeyboxes>") ||
-                !text.contains("<Keybox") ||
-                !text.contains("-----BEGIN CERTIFICATE-----") ||
-                !text.contains("-----END CERTIFICATE-----") ||
-                !Regex("-----BEGIN (EC |RSA )?PRIVATE KEY-----").containsMatchIn(text)
-            ) continue
-            val certificateCount = "-----BEGIN CERTIFICATE-----".toRegex()
-                .findAll(text).count()
-            if (certificateCount > bestCertificateCount) {
-                selected = candidate
-                bestCertificateCount = certificateCount
-            }
+    fun runBackgroundUpdates(): Boolean {
+        if (!Config.udongeEnabled || !Config.udongeBackgroundUpdates) {
+            return Shell.cmd("rm -f '$state/.keybox-refresh'").exec().isSuccess
         }
-        val bytes = selected ?: return false
-        val sourceFile = File(AppContext.cacheDir, "keybox-update.xml")
-        return try {
-            sourceFile.writeBytes(bytes)
-            Shell.cmd(
-                "mkdir -p '$state' && " +
-                    "cp '${sourceFile.absolutePath}' '$state/.keybox.new' && " +
-                    "chmod 600 '$state/.keybox.new' && " +
-                    "mv -f '$state/.keybox.new' '$state/keybox.xml' && " +
-                    "date +%s > '$state/.keybox-checked' && " +
-                    "chmod 600 '$state/.keybox-checked' && " +
-                    "rm -f '$state/.keybox-refresh'"
-            ).exec().isSuccess
-        } finally {
-            sourceFile.delete()
-        }
+        return Shell.cmd(
+            "mkdir -p '$state' && : > '$state/.keybox-refresh' && " +
+                "if [ ! -f '$pendingReboot' ] && [ -f '$runtime/service.sh' ]; then " +
+                "'$runtime/service.sh' </dev/null >/dev/null 2>&1; fi"
+        ).exec().isSuccess
     }
 
     fun setRomKeywords(value: String): Boolean = setRomKeywords(value) { command ->

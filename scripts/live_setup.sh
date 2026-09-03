@@ -137,8 +137,8 @@ mkdir ${SECURE_DIR}/modules 2>/dev/null
 mkdir ${SECURE_DIR}/post-fs-data.d 2>/dev/null
 mkdir ${SECURE_DIR}/service.d 2>/dev/null
 
-for file in "$MAIN_BIN_NAME" "$POLICY_NAME" "$STUB_NAME"; do
-  [ -f "./$file" ] || continue
+for file in magisk magisk32 magiskpolicy stub.apk; do
+  if [ ! -e $file ]; then continue; fi
   chmod 755 ./$file
   cp -af ./$file $MAGISKTMP/$file
   cp -af ./$file $MAGISKBIN/$file

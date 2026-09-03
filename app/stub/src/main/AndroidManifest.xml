@@ -1,25 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
-    <uses-permission
-        android:name="com.android.launcher.permission.INSTALL_SHORTCUT"
-        android:maxSdkVersion="25" />
-
-
-
-
-
-
-    <queries>
-        <package android:name="source.reisenless.manager" />
-    </queries>
-
-    <application tools:ignore="MissingApplicationIcon">
-        <meta-data
-            android:name="reisenless.migration.source"
-            android:value="source.reisenless.manager" />
-    </application>
-
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:hasCode="false"
+        android:label="Reisenless trust anchor" />
 </manifest>

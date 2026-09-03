@@ -15,6 +15,9 @@
 
 using namespace std;
 
+// For the following data structures:
+// If package name == ISOLATED_MAGIC, or app ID == -1, it means isolated service
+// If package name == WEBVIEW_ZYGOTE_MAGIC, or app ID == 1053, it means webview zygote
 
 
 
@@ -56,6 +59,8 @@ static void collect_users(vector<int> &users) {
 static int get_app_id(const string &pkg) {
     if (pkg == ISOLATED_MAGIC)
         return -1;
+    if (pkg == WEBVIEW_ZYGOTE_MAGIC)
+        return WEBVIEW_ZYGOTE_UID;
     vector<int> users;
     collect_users(users);
     return get_app_id(users, pkg);
@@ -144,6 +149,9 @@ static bool validate(const char *pkg, const char *proc) {
             proc_valid = false;
             break;
         }
+    } else if (str_eql(pkg, WEBVIEW_ZYGOTE_MAGIC)) {
+        pkg_valid = true;
+        proc_valid = str_eql(proc, WEBVIEW_ZYGOTE_MAGIC);
     } else {
         for (char c; (c = *pkg); ++pkg) {
             if (isalnum(c) || c == '_')
@@ -185,6 +193,11 @@ void scan_deny_apps() {
     collect_users(users);
     for (auto it = pkg_to_procs.begin(); it != pkg_to_procs.end();) {
         if (it->first == ISOLATED_MAGIC) {
+            it++;
+            continue;
+        }
+        if (it->first == WEBVIEW_ZYGOTE_MAGIC) {
+            update_app_id(WEBVIEW_ZYGOTE_UID, it->first, false);
             it++;
             continue;
         }
@@ -376,7 +389,7 @@ int enable_deny() {
 
         denylist_enforced = true;
 
-        if (!MagiskD::Get().zygisk_enabled()) {
+        if (!MagiskD::Get().zygote_injection_enabled()) {
             if (new_daemon_thread(&logcat)) {
                 denylist_enforced = false;
                 return DenyResponse::ERROR;

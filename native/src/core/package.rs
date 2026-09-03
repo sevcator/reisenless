@@ -1,13 +1,13 @@
 use crate::consts::{
     APP_PACKAGE_NAME, BUILD_STUB_NAME, BUILD_SU_CACHE, MAGISK_VER_CODE, SECURE_DIR,
 };
-use crate::daemon::{AID_APP_END, AID_APP_START, AID_ROOT, AID_USER_OFFSET, MagiskD, to_app_id};
-use crate::ffi::{DbEntryKey, get_magisk_tmp};
+use crate::daemon::{AID_APP_END, AID_APP_START, MagiskD, to_app_id};
+use crate::ffi::get_magisk_tmp;
 use base::WalkResult::{Continue, Skip};
 use base::const_format::concatcp;
 use base::{
     BufReadExt, Directory, FsPathBuilder, LoggedResult, ReadExt, ResultExt, Utf8CStrBuf,
-    Utf8CString, cstr, error, fd_get_attr, warn,
+    Utf8CString, cstr, error,
 };
 use bit_set::BitSet;
 use nix::fcntl::OFlag;
@@ -15,7 +15,6 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Seek, SeekFrom};
-use std::os::fd::AsRawFd;
 use std::time::Duration;
 
 const EOCD_MAGIC: u32 = 0x06054B50;
@@ -214,28 +213,10 @@ enum Status {
     CertMismatch,
 }
 
+#[derive(Default)]
 pub struct ManagerInfo {
-    stub_apk_fd: Option<File>,
     trusted_cert: Vec<u8>,
-    repackaged_app_id: i32,
-    repackaged_pkg: String,
-    repackaged_cert: Vec<u8>,
     tracked_files: BTreeMap<i32, TrackedFile>,
-    tracked_stubs: BTreeMap<i32, TrackedFile>,
-}
-
-impl Default for ManagerInfo {
-    fn default() -> Self {
-        ManagerInfo {
-            stub_apk_fd: None,
-            trusted_cert: Vec::new(),
-            repackaged_app_id: -1,
-            repackaged_pkg: String::new(),
-            repackaged_cert: Vec::new(),
-            tracked_files: BTreeMap::new(),
-            tracked_stubs: BTreeMap::new(),
-        }
-    }
 }
 
 #[derive(Default)]
@@ -292,68 +273,6 @@ impl ManagerInfo {
         true
     }
 
-    fn check_dyn(&mut self, daemon: &MagiskD, user: i32, pkg: &str) -> Status {
-        let apk = cstr::buf::default()
-            .join_path(daemon.app_data_dir())
-            .join_path_fmt(user)
-            .join_path(pkg)
-            .join_path("dyn")
-            .join_path("current.apk");
-        let uid: i32;
-        let cert = match apk.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
-            Ok(mut fd) => {
-                uid = fd_get_attr(fd.as_raw_fd())
-                    .map(|attr| attr.st.st_uid as i32)
-                    .unwrap_or(-1);
-                read_certificate(&mut fd, MAGISK_VER_CODE)
-            }
-            Err(_) => {
-                warn!("pkg: no dyn APK, ignore");
-                return Status::NotInstalled;
-            }
-        };
-
-        if cert.is_empty() || cert != self.trusted_cert {
-            error!("pkg: dyn APK signature mismatch: {}", apk);
-            return Status::CertMismatch;
-        }
-
-        // Bind the credential to Android's owner of the configured package data
-        // directory. current.apk is legitimately root-owned after migration,
-        // so its inode owner cannot be used as the manager UID.
-        let package_uid = daemon.get_package_uid(user, pkg);
-        if package_uid < 0 || (uid != AID_ROOT && uid != package_uid) {
-            return Status::CertMismatch;
-        }
-
-        self.repackaged_app_id = to_app_id(package_uid);
-        self.tracked_files
-            .insert(user, TrackedFile::new(apk.to_owned()));
-        Status::Installed
-    }
-
-    fn check_stub(&mut self, user: i32, pkg: &str) -> Status {
-        let Ok(apk) = find_apk_path(pkg) else {
-            return Status::NotInstalled;
-        };
-
-        let cert = match apk.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
-            Ok(mut fd) => read_certificate(&mut fd, -1),
-            Err(_) => return Status::NotInstalled,
-        };
-
-        if cert.is_empty() || (pkg == self.repackaged_pkg && cert != self.repackaged_cert) {
-            error!("pkg: repackaged APK signature invalid: {}", apk);
-            return Status::CertMismatch;
-        }
-
-        self.repackaged_pkg.clear();
-        self.repackaged_pkg.push_str(pkg);
-        self.repackaged_cert = cert;
-        self.tracked_stubs.insert(user, TrackedFile::new(apk));
-        Status::Installed
-    }
-
     fn check_orig(&mut self, user: i32) -> Status {
         let Ok(apk) = find_orig_apk_path() else {
             return Status::NotInstalled;
@@ -373,49 +292,12 @@ impl ManagerInfo {
         Status::Installed
     }
 
-    fn get_manager(&mut self, daemon: &MagiskD, user: i32) -> (i32, &str) {
-        let db_pkg = daemon.get_db_string(DbEntryKey::SuManager);
-
-
-        if db_pkg != self.repackaged_pkg {
-            self.tracked_files.remove(&user);
-            self.tracked_stubs.remove(&user);
-        }
-
+    fn get_manager(&mut self, daemon: &MagiskD, user: i32) -> (i32, &'static str) {
         if let Some(file) = self.tracked_files.get(&user)
             && file.is_same()
         {
-
             if &file.path == PACKAGES_XML {
                 return (-1, "");
-            }
-
-            if file.path.starts_with(daemon.app_data_dir().as_str()) {
-                // A kept or archived data directory can outlive the installed
-                // public stub. Never let a stable private current.apk keep an
-                // uninstalled hidden identity authorized from cache.
-                if self.tracked_stubs.get(&user).is_some_and(TrackedFile::is_same) {
-                    return (
-                        user * AID_USER_OFFSET + self.repackaged_app_id,
-                        &self.repackaged_pkg,
-                    );
-                }
-                self.tracked_files.remove(&user);
-                self.tracked_stubs.remove(&user);
-            }
-
-            if !self.repackaged_pkg.is_empty() {
-                return if matches!(
-                    self.check_dyn(daemon, user, self.repackaged_pkg.clone().as_str()),
-                    Status::Installed
-                ) {
-                    (
-                        user * AID_USER_OFFSET + self.repackaged_app_id,
-                        &self.repackaged_pkg,
-                    )
-                } else {
-                    (-1, "")
-                };
             }
 
             let uid = daemon.get_package_uid(user, APP_PACKAGE_NAME);
@@ -426,47 +308,17 @@ impl ManagerInfo {
             };
         }
 
-        if !db_pkg.is_empty() {
-            match self.check_stub(user, &db_pkg) {
-                Status::Installed => {
-                    if matches!(self.check_dyn(daemon, user, &db_pkg), Status::Installed) {
-                        return (
-                            user * AID_USER_OFFSET + self.repackaged_app_id,
-                            &self.repackaged_pkg,
-                        );
-                    }
-                    daemon.rm_db_string(DbEntryKey::SuManager).ok();
-                }
-                Status::NotInstalled => {
-                    daemon.rm_db_string(DbEntryKey::SuManager).ok();
-                }
-                Status::CertMismatch => {
-                    daemon.rm_db_string(DbEntryKey::SuManager).ok();
-                }
-            }
+        if matches!(self.check_orig(user), Status::Installed) {
+            let uid = daemon.get_package_uid(user, APP_PACKAGE_NAME);
+            return if uid < 0 {
+                (-1, "")
+            } else {
+                (uid, APP_PACKAGE_NAME)
+            };
         }
-
-        self.repackaged_pkg.clear();
-        self.repackaged_cert.clear();
-        self.tracked_stubs.remove(&user);
-
-        match self.check_orig(user) {
-            Status::Installed => {
-                let uid = daemon.get_package_uid(user, APP_PACKAGE_NAME);
-                return if uid < 0 {
-                    (-1, "")
-                } else {
-                    (uid, APP_PACKAGE_NAME)
-                };
-            }
-            Status::CertMismatch => {}
-            Status::NotInstalled => {}
-        }
-
 
         self.tracked_files
             .insert(user, TrackedFile::new(PACKAGES_XML.into()));
-
         (-1, "")
     }
 }
@@ -491,9 +343,6 @@ impl MagiskD {
 
         if let Ok(mut fd) = apk.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
             info.trusted_cert = read_certificate(&mut fd, MAGISK_VER_CODE);
-
-            fd.seek(SeekFrom::Start(0)).log_ok();
-            info.stub_apk_fd = Some(fd);
         }
 
         apk.remove().log_ok();

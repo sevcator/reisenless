@@ -10,10 +10,9 @@
 *.cmd text eol=crlf
 *.bat text eol=crlf
 
-
-tools/** binary
-tools/rustup-wrapper/** -binary
-tools/elf-cleaner/** -binary
+# Denote all files that are truly binary and should not be modified.
+/tools/keys/** binary
+/tools/keys/futility binary
 *.jar binary
 *.exe binary
 *.apk binary

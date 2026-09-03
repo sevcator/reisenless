@@ -120,17 +120,12 @@
     <string name="color_purple">紫色</string>
     <string name="color_teal">青色</string>
     <string name="color_gray">灰色</string>
-    <string name="settings_hide_app_title">隱藏 reisenless</string>
-    <string name="settings_hide_app_summary">安裝一個隨機套件名稱和客製化應用程式名稱的代理應用程式</string>
-    <string name="settings_restore_app_title">還原 reisenless</string>
-    <string name="settings_restore_app_summary">取消隱藏並還原為原始套件</string>
     <string name="language">語言</string>
     <string name="system_default">（系統預設值）</string>
     <string name="settings_zygisk_summary">在 zygote 中執行 reisenless</string>
     <string name="settings_hosts_title">主機（hosts）模組化</string>
     <string name="settings_hosts_summary">為廣告阻擋程式提供主機模組</string>
     <string name="settings_hosts_toast">已安裝主機模組</string>
-    <string name="settings_app_name_error">無效的格式</string>
     <string name="settings_su_app_adb">應用程式及 adb</string>
     <string name="settings_su_app">僅限應用程式</string>
     <string name="settings_su_adb">僅限 adb</string>
@@ -150,9 +145,6 @@
     <string name="settings_su_tapjack_title">啟用點選攔截保護</string>
     <string name="settings_su_tapjack_summary">發現有其他應用程式重疊在超級使用者視窗上面時，不回應允許操作</string>
     <string name="settings_customization">客製化</string>
-    <string name="setting_add_shortcut_summary">在主螢幕中新增一個精緻的捷徑。防止隱藏 reisenless 以後，其名稱與圖示將難以辨識</string>
-    <string name="settings_doh_title">安全化的網域解析(doh)</string>
-    <string name="settings_doh_description">解決某些地區的 dns 中毒問題</string>
 
     <string name="multiuser_mode">多重使用者模式</string>
     <string name="settings_owner_only">僅限裝置擁有者</string>
@@ -186,7 +178,6 @@
     <string name="flashing">正在刷入……</string>
     <string name="done">完成！</string>
     <string name="failure">失敗！</string>
-    <string name="hide_app_title">正在隱藏 reisenless……</string>
     <string name="open_link_failed_toast">沒有可以開啟此連結的應用程式</string>
     <string name="complete_uninstall">完全解除安裝</string>
     <string name="restore_img">還原原始映像檔</string>
@@ -204,15 +195,10 @@
     <string name="unsupport_system_app_msg">本應用程式不支援以系統應用程式的方式執行。請恢復為使用者應用程式。</string>
     <string name="unsupport_other_su_msg">偵測到一個不是來自 reisenless 的「su」二進位檔案。請移除其他 root 方案。</string>
     <string name="unsupport_external_storage_msg">應用程式已被安裝到外部儲存空間。請移動應用程式至內部儲存空間。</string>
-    <string name="unsupport_nonroot_stub_msg">應用程式無法在 root 權限遺失的情況下以隱藏模式執行。請還原為原始套件。</string>
-    <string name="unsupport_nonroot_stub_title">@string/settings_restore_app_title</string>
     <string name="external_rw_permission_denied">授予儲存空間存取權以啟用此功能</string>
     <string name="install_unknown_denied">允許「安裝未知應用程式」以啟用此功能</string>
-    <string name="add_shortcut_title">在主螢幕中新增捷徑</string>
-    <string name="add_shortcut_msg">在隱藏應用程式以後，其名稱與圖示將難以辨識。請問您想要在主螢幕中新增一個精緻的捷徑嗎？</string>
     <string name="app_not_found">沒有可以處理這個動作的應用程式</string>
     <string name="reboot_apply_change">重新啟動裝置以套用設定變更</string>
-    <string name="restore_app_confirmation">這將會還原隱藏的應用程式至原始。請問您確定要執行？</string>
 
     <string name="restrict">限制</string>
     <string name="reboot_safe_mode">安全模式</string>
@@ -222,7 +208,6 @@
     <string name="download_dialog_title">輸入映像檔 url</string>
     <string name="download_dialog_msg">完整 ota 映像檔或原廠映像檔</string>
     <string name="close">關閉</string>
-    <string name="running">執行中</string>
     <string name="done_action">%1$s 的操作已完成</string>
     <string name="settings_sulist_title">sulist</string>
     <string name="settings_sulist_summary">只有選取的應用程式和處理程序可以使用 root 或看到 reisenless 變更</string>
@@ -240,7 +225,6 @@
     <string name="udonge_rom_keywords_title">hide something wrong</string>
     <string name="udonge_rom_keywords_summary">隱藏自訂 ROM 的執行階段訊號和框架痕跡</string>
     <string name="udonge_rom_keywords_hint">每行一個 ROM 名稱（例如 lineage、protonaosp）</string>
-    <string name="hide_app_randomize_confirmation">將隨機產生應用程式名稱、套件名稱、Android 版本、應用程式版本、版本代碼和圖示。是否繼續？</string>
     <string name="webui_root_required">WebUI 需要 root 權限和有效的 Reisenless 安裝</string>
     <string name="webui_webview_required">需要 Android System WebView</string>
     <string name="webui_webview_required_summary">此裝置沒有可用的 Android WebView 提供者。請安裝或啟用 Android System WebView，然後再試一次。</string>

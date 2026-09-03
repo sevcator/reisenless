@@ -620,6 +620,40 @@ set_default_perm() {
   set_perm_recursive $1/system/vendor/bin 0 2000 0755 0755 u:object_r:vendor_file:s0
 }
 
+# Rewrite legacy Magisk storage paths in every text file while preserving the
+# original inode, permissions, ownership, and SELinux label. Binary files are
+# deliberately left intact because changing string lengths would corrupt most
+# executable and archive formats; they can use NVBASE/MAGISKBIN instead.
+fix_reisenless_module_paths() {
+  local root="$1"
+  local file replacement temp failed
+
+  [ "$SECURE_DIR" = /data/adb ] && return 0
+  replacement=$(printf '%s\n' "$SECURE_DIR" | sed 's/[&|\\]/\\&/g')
+  temp="$TMPDIR/.reisenless-path-fix.$$"
+  failed="$TMPDIR/.reisenless-path-fix-failed.$$"
+  rm -f "$temp" "$failed"
+
+  find "$root" -type f ! -name '.reisenless-path-fix.*' 2>/dev/null |
+  while IFS= read -r file; do
+    grep -Fq '/data/adb' "$file" 2>/dev/null || continue
+    # NUL bytes identify binary payloads without relying on the optional
+    # `file` utility. Rewriting them with a longer randomized path is unsafe.
+    od -An -v -N 8192 -tx1 "$file" 2>/dev/null | grep -q ' 00' && continue
+    if ! sed "s|/data/adb|$replacement|g" "$file" > "$temp" ||
+       ! cat "$temp" > "$file"; then
+      : > "$failed"
+      break
+    fi
+  done
+
+  rm -f "$temp"
+  [ ! -f "$failed" ] || {
+    rm -f "$failed"
+    abort "! reisenless could not update module paths"
+  }
+}
+
 install_module() {
   rm -rf $TMPDIR
   mkdir -p $TMPDIR
@@ -651,12 +685,16 @@ install_module() {
   MODAUTH=$(grep_prop author $TMPDIR/module.prop)
   MODPATH=$MODULEROOT/$MODID
 
+  ui_print "- reisen is fixing module !!"
+
   rm -rf $MODPATH
   mkdir -p $MODPATH
   chcon u:object_r:system_file:s0 $MODPATH
 
   if is_legacy_script; then
     unzip -oj "$ZIPFILE" module.prop install.sh uninstall.sh 'common/*' -d $TMPDIR >&2
+
+    fix_reisenless_module_paths "$TMPDIR"
 
     . $TMPDIR/install.sh
 
@@ -684,8 +722,13 @@ install_module() {
       set_default_perm $MODPATH
     fi
 
+    fix_reisenless_module_paths "$MODPATH"
     [ -f $MODPATH/customize.sh ] && . $MODPATH/customize.sh
   fi
+
+  # Install hooks can create additional scripts and configuration after the
+  # initial extraction, so perform a final complete text-file pass.
+  fix_reisenless_module_paths "$MODPATH"
 
   for TARGET in $REPLACE; do
     ui_print "- replace target: $TARGET"

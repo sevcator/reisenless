@@ -60,6 +60,7 @@ pub struct MagiskD {
     pub boot_stage_lock: Mutex<BootState>,
     pub module_list: OnceLock<Vec<ModuleInfo>>,
     pub zygisk_enabled: AtomicBool,
+    pub zygote_injection_enabled: AtomicBool,
     pub zygisk: Mutex<ZygiskState>,
     pub cached_su_info: AtomicArc<SuInfo>,
     pub sdk_int: i32,
@@ -127,7 +128,7 @@ impl MagiskD {
                 info!("** zygote restarted");
                 self.prune_su_access();
                 scan_deny_apps();
-                if self.zygisk_enabled.load(Ordering::Relaxed) {
+                if self.zygote_injection_enabled.load(Ordering::Relaxed) {
                     self.zygisk.lock().reset(false);
                 }
             }

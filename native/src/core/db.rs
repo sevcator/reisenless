@@ -71,6 +71,8 @@ impl Default for DbSettings {
             multiuser_mode: MultiuserMode::default(),
             mnt_ns: MntNsMode::default(),
             boot_count: 0,
+            // A missing row means a fresh installation. Explicit database
+            // values still override this secure default during upgrades.
             sulist: true,
             zygisk: false,
         }
@@ -111,7 +113,6 @@ impl DbEntryKey {
             DbEntryKey::SulistConfig => "sulist",
             DbEntryKey::ZygiskConfig => "zygisk",
             DbEntryKey::BootloopCount => "bootloop",
-            DbEntryKey::SuManager => "requester",
             _ => "",
         }
     }
@@ -263,7 +264,7 @@ impl MagiskD {
             DbEntryKey::RootAccess => RootAccess::default() as i32,
             DbEntryKey::SuMultiuserMode => MultiuserMode::default() as i32,
             DbEntryKey::SuMntNs => MntNsMode::default().repr,
-            DbEntryKey::SulistConfig => 0,
+            DbEntryKey::SulistConfig => 1,
             DbEntryKey::ZygiskConfig => self.is_emulator as i32,
             DbEntryKey::BootloopCount => 0,
             _ => -1,
@@ -290,27 +291,6 @@ impl MagiskD {
         self.db_exec_with_rows("SELECT * FROM settings", &[], &mut cfg)
             .sql_result()?;
         Ok(cfg)
-    }
-
-    pub fn get_db_string(&self, key: DbEntryKey) -> String {
-        let mut val = "".to_string();
-        let mut func = |_: &[String], values: &DbValues| {
-            val.push_str(values.get_text(0));
-        };
-        self.db_exec_with_rows(
-            "SELECT value FROM strings WHERE key=?",
-            &[Text(key.to_str())],
-            &mut func,
-        )
-        .sql_result()
-        .log()
-        .ok();
-        val
-    }
-
-    pub fn rm_db_string(&self, key: DbEntryKey) -> SqliteResult<()> {
-        self.db_exec("DELETE FROM strings WHERE key=?", &[Text(key.to_str())])
-            .sql_result()
     }
 
     pub fn db_exec_for_cli(&self, mut file: UnixStream) -> LoggedResult<()> {
@@ -359,5 +339,15 @@ unsafe extern "C" fn sql_exec_for_cxx(
                 exec_cookie,
             )
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DbSettings;
+
+    #[test]
+    fn missing_sulist_setting_has_secure_default() {
+        assert!(DbSettings::default().sulist);
     }
 }

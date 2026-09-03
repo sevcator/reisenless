@@ -5,6 +5,8 @@ import android.content.Context
 import android.text.method.LinkMovementMethod
 import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.Const
+import com.topjohnwu.magisk.core.data.GithubApiServices
+import com.topjohnwu.magisk.core.data.RawUrl
 import com.topjohnwu.magisk.core.data.magiskdb.PolicyDao
 import com.topjohnwu.magisk.core.data.magiskdb.SettingsDao
 import com.topjohnwu.magisk.core.data.magiskdb.StringDao
@@ -29,7 +31,10 @@ object ServiceLocator {
     val retrofit by lazy { createRetrofit(okhttp) }
     val markwon by lazy { createMarkwon(AppContext) }
     val networkService by lazy {
-        NetworkService(createApiService(retrofit, Const.Url.INVALID_URL))
+        NetworkService(
+            createApiService<RawUrl>(retrofit, Const.Url.INVALID_URL),
+            createApiService<GithubApiServices>(retrofit, Const.Url.GITHUB_API_URL),
+        )
     }
 }
 

@@ -3,11 +3,9 @@ package com.topjohnwu.magisk.ui.superuser
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES
+import android.graphics.drawable.Drawable
 import android.os.Process
-import androidx.databinding.Bindable
-import androidx.databinding.ObservableArrayList
 import androidx.lifecycle.viewModelScope
-import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.arch.AsyncLoadViewModel
 import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.Config
@@ -16,51 +14,65 @@ import com.topjohnwu.magisk.core.R
 import com.topjohnwu.magisk.core.data.magiskdb.PolicyDao
 import com.topjohnwu.magisk.core.ktx.getLabel
 import com.topjohnwu.magisk.core.model.su.SuPolicy
-import com.topjohnwu.magisk.databinding.MergeObservableList
-import com.topjohnwu.magisk.databinding.RvItem
-import com.topjohnwu.magisk.databinding.bindExtra
-import com.topjohnwu.magisk.databinding.diffList
-import com.topjohnwu.magisk.databinding.set
-import com.topjohnwu.magisk.events.AuthEvent
-import com.topjohnwu.magisk.events.SnackbarEvent
-import com.topjohnwu.magisk.core.utils.asText
-import com.topjohnwu.magisk.view.TextItem
+import com.topjohnwu.magisk.core.su.SuEvents
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+
+data class PolicyItem(
+    val policy: SuPolicy,
+    val packageName: String,
+    val isSharedUid: Boolean,
+    val icon: Drawable,
+    val appName: String,
+    val policyValue: Int = policy.policy,
+    val notification: Boolean = policy.notification,
+) {
+    val title get() = appName
+    val isEnabled get() = policyValue >= SuPolicy.ALLOW
+    val isRestricted get() = policyValue == SuPolicy.RESTRICT
+}
 
 class SuperuserViewModel(
     private val db: PolicyDao
 ) : AsyncLoadViewModel() {
 
-    private val itemNoData = TextItem(R.string.superuser_policy_none)
+    var authenticate: (onSuccess: () -> Unit) -> Unit = { it() }
 
-    private val itemsHelpers = ObservableArrayList<TextItem>()
-    private val itemsPolicies = diffList<PolicyRvItem>()
-
-    val items = MergeObservableList<RvItem>()
-        .insertList(itemsHelpers)
-        .insertList(itemsPolicies)
-    val extraBindings = bindExtra {
-        it.put(BR.listener, this)
+    init {
+        @OptIn(FlowPreview::class)
+        viewModelScope.launch {
+            SuEvents.policyChanged.debounce(500).collect { reload() }
+        }
     }
 
-    @get:Bindable
-    var loading = true
-        private set(value) = set(value, field, { field = it }, BR.loading)
+    data class UiState(
+        val loading: Boolean = true,
+        val policies: List<PolicyItem> = emptyList(),
+        val suRestrict: Boolean = Config.suRestrict,
+    )
+
+    private val _uiState = MutableStateFlow(UiState())
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     @SuppressLint("InlinedApi")
     override suspend fun doLoadWork() {
         if (!Info.showSuperUser) {
-            loading = false
+            _uiState.update { it.copy(loading = false) }
             return
         }
-        loading = true
+        _uiState.update { it.copy(loading = true) }
         withContext(Dispatchers.IO) {
             db.deleteOutdated()
             db.delete(AppContext.applicationInfo.uid)
-            val policies = ArrayList<PolicyRvItem>()
+            val policies = ArrayList<PolicyItem>()
             val pm = AppContext.packageManager
             for (policy in db.fetchAll()) {
                 val pkgs =
@@ -73,14 +85,16 @@ class SuperuserViewModel(
                 val map = pkgs.mapNotNull { pkg ->
                     try {
                         val info = pm.getPackageInfo(pkg, MATCH_UNINSTALLED_PACKAGES)
-                        PolicyRvItem(
-                            this@SuperuserViewModel, policy,
-                            info.packageName,
-                            info.sharedUserId != null,
-                            info.applicationInfo?.loadIcon(pm) ?: pm.defaultActivityIcon,
-                            info.applicationInfo?.getLabel(pm) ?: info.packageName
+                        PolicyItem(
+                            policy = policy,
+                            packageName = info.packageName,
+                            isSharedUid = info.sharedUserId != null,
+                            icon = info.applicationInfo?.loadIcon(pm) ?: pm.defaultActivityIcon,
+                            appName = info.applicationInfo?.getLabel(pm) ?: info.packageName,
+                            policyValue = policy.policy,
+                            notification = policy.notification,
                         )
-                    } catch (e: PackageManager.NameNotFoundException) {
+                    } catch (_: PackageManager.NameNotFoundException) {
                         null
                     }
                 }
@@ -94,35 +108,74 @@ class SuperuserViewModel(
                 { it.appName.lowercase(Locale.ROOT) },
                 { it.packageName }
             ))
-            itemsPolicies.update(policies)
+            _uiState.update { it.copy(loading = false, policies = policies, suRestrict = Config.suRestrict) }
         }
-        if (itemsPolicies.isNotEmpty())
-            itemsHelpers.clear()
-        else if (itemsHelpers.isEmpty())
-            itemsHelpers.add(itemNoData)
-        loading = false
     }
 
+    fun refreshSuRestrict() {
+        _uiState.update { it.copy(suRestrict = Config.suRestrict) }
+    }
 
+    val requiresAuth get() = Config.suAuth
 
-    fun updatePolicy(item: PolicyRvItem, policy: Int) {
-        val items = itemsPolicies.filter { it.item.uid == item.item.uid }
+    fun performDelete(item: PolicyItem, onDeleted: () -> Unit = {}) {
+        viewModelScope.launch {
+            db.delete(item.policy.uid)
+            _uiState.update { state ->
+                state.copy(policies = state.policies.filter { it.policy.uid != item.policy.uid })
+            }
+            onDeleted()
+        }
+    }
+
+    fun updateNotify(item: PolicyItem) {
+        val newNotification = !item.notification
+        item.policy.notification = newNotification
+        viewModelScope.launch {
+            db.update(item.policy)
+            _uiState.update { state ->
+                state.copy(
+                    policies = state.policies.map {
+                        if (it.policy.uid == item.policy.uid) it.copy(notification = newNotification) else it
+                    }
+                )
+            }
+            val res = if (newNotification) R.string.su_snack_notif_on else R.string.su_snack_notif_off
+            showSnackbar(AppContext.getString(res, item.appName))
+        }
+    }
+
+    fun updatePolicy(item: PolicyItem, newPolicy: Int) {
         fun updateState() {
             viewModelScope.launch {
-                val res = if (policy >= SuPolicy.ALLOW) R.string.su_snack_grant else R.string.su_snack_deny
-                item.item.policy = policy
-                db.update(item.item)
-                items.forEach {
-                    it.notifyPropertyChanged(BR.enabled)
+                item.policy.policy = newPolicy
+                db.update(item.policy)
+                _uiState.update { state ->
+                    state.copy(
+                        policies = state.policies.map {
+                            if (it.policy.uid == item.policy.uid) it.copy(policyValue = newPolicy) else it
+                        }
+                    )
                 }
-                SnackbarEvent(res.asText(item.appName)).publish()
+                val res = if (newPolicy >= SuPolicy.ALLOW) R.string.su_snack_grant else R.string.su_snack_deny
+                showSnackbar(AppContext.getString(res, item.appName))
             }
         }
 
         if (Config.suAuth) {
-            AuthEvent { updateState() }.publish()
+            authenticate { updateState() }
         } else {
             updateState()
         }
+    }
+
+    fun togglePolicy(item: PolicyItem) {
+        val newPolicy = if (item.isEnabled) SuPolicy.DENY else SuPolicy.ALLOW
+        updatePolicy(item, newPolicy)
+    }
+
+    fun toggleRestrict(item: PolicyItem) {
+        val newPolicy = if (item.isRestricted) SuPolicy.ALLOW else SuPolicy.RESTRICT
+        updatePolicy(item, newPolicy)
     }
 }

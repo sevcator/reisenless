@@ -1,13 +1,18 @@
 package com.topjohnwu.magisk.view
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import androidx.core.content.getSystemService
 import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.R
+import com.topjohnwu.magisk.core.download.DownloadEngine
+import com.topjohnwu.magisk.core.download.Subject
+import com.topjohnwu.magisk.core.ktx.selfLaunchIntent
 import java.util.concurrent.atomic.AtomicInteger
 
 @Suppress("DEPRECATION")
@@ -15,17 +20,65 @@ object Notifications {
 
     val mgr by lazy { AppContext.getSystemService<NotificationManager>()!! }
 
-    private const val PROGRESS_CHANNEL = "progress"
+    private const val APP_UPDATED_ID = 4
+    private const val APP_UPDATE_AVAILABLE_ID = 5
 
-    private val nextId = AtomicInteger(10)
+    private const val UPDATE_CHANNEL = "update"
+    private const val PROGRESS_CHANNEL = "progress"
+    private const val UPDATED_CHANNEL = "updated"
+    private const val SU_CHANNEL = "su_notification"
+
+    private val nextId = AtomicInteger(APP_UPDATE_AVAILABLE_ID)
 
     fun setup() {
         AppContext.apply {
             if (SDK_INT >= Build.VERSION_CODES.O) {
+                val update = NotificationChannel(UPDATE_CHANNEL,
+                    getString(R.string.update_channel), NotificationManager.IMPORTANCE_DEFAULT)
                 val channel = NotificationChannel(PROGRESS_CHANNEL,
                     getString(R.string.progress_channel), NotificationManager.IMPORTANCE_LOW)
-                mgr.createNotificationChannels(listOf(channel))
+                val updated = NotificationChannel(UPDATED_CHANNEL,
+                    getString(R.string.updated_channel), NotificationManager.IMPORTANCE_HIGH)
+                val su = NotificationChannel(SU_CHANNEL,
+                    getString(R.string.su_notification_channel), NotificationManager.IMPORTANCE_HIGH)
+                mgr.createNotificationChannels(listOf(update, channel, updated, su))
             }
+        }
+    }
+
+    fun updateDone() {
+        AppContext.apply {
+            val flag = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            val pending = PendingIntent.getActivity(this, 0, selfLaunchIntent(), flag)
+            val builder = if (SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(this, UPDATED_CHANNEL)
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            } else {
+                Notification.Builder(this).setPriority(Notification.PRIORITY_HIGH)
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            }
+                .setContentIntent(pending)
+                .setContentTitle(getText(R.string.updated_title))
+                .setContentText(getText(R.string.updated_text))
+                .setAutoCancel(true)
+            mgr.notify(APP_UPDATED_ID, builder.build())
+        }
+    }
+
+    fun updateAvailable() {
+        AppContext.apply {
+            val intent = DownloadEngine.getPendingIntent(this, Subject.App())
+            val builder = if (SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(this, UPDATE_CHANNEL)
+                    .setSmallIcon(android.R.drawable.stat_sys_download)
+            } else {
+                Notification.Builder(this).setSmallIcon(android.R.drawable.stat_sys_download)
+            }
+                .setContentTitle(getString(R.string.magisk_update_title))
+                .setContentText(getString(R.string.manager_download_install))
+                .setAutoCancel(true)
+                .setContentIntent(intent)
+            mgr.notify(APP_UPDATE_AVAILABLE_ID, builder.build())
         }
     }
 
@@ -42,6 +95,36 @@ object Notifications {
         if (SDK_INT >= Build.VERSION_CODES.S)
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         return builder
+    }
+
+    @SuppressLint("InlinedApi")
+    fun suNotification(granted: Boolean, appName: String) {
+        AppContext.apply {
+            val flag = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            val pending = PendingIntent.getActivity(this, 0, selfLaunchIntent(), flag)
+            val title = getString(
+                if (granted) R.string.su_notification_granted_title
+                else R.string.su_notification_denied_title
+            )
+            val text = getString(
+                if (granted) R.string.su_allow_toast else R.string.su_deny_toast,
+                appName
+            )
+            val builder = (if (SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(this, SU_CHANNEL)
+            } else {
+                Notification.Builder(this).setPriority(Notification.PRIORITY_HIGH)
+            })
+                .setSmallIcon(android.R.drawable.stat_sys_warning)
+                .setContentIntent(pending)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setAutoCancel(true)
+            if (SDK_INT >= Build.VERSION_CODES.O) {
+                builder.setTimeoutAfter(3_000L)
+            }
+            mgr.notify(nextId(), builder.build())
+        }
     }
 
     fun nextId() = nextId.incrementAndGet()

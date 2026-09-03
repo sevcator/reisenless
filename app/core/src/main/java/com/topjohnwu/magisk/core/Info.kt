@@ -4,20 +4,32 @@ import android.app.KeyguardManager
 import android.os.Build
 import android.system.Os
 import androidx.lifecycle.MutableLiveData
-import com.topjohnwu.magisk.StubApk
 import com.topjohnwu.magisk.core.ktx.getProperty
+import com.topjohnwu.magisk.core.model.UpdateInfo
+import com.topjohnwu.magisk.core.repository.NetworkService
 import com.topjohnwu.superuser.CallbackList
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ShellUtils.fastCmd
-import com.topjohnwu.superuser.ShellUtils.fastCmdResult
 import kotlinx.coroutines.Runnable
 import java.io.File
 
-val isRunningAsStub get() = Info.stub != null
-
 object Info {
 
-    var stub: StubApk.Data? = null
+    private val EMPTY_UPDATE = UpdateInfo()
+    var update = EMPTY_UPDATE
+        private set
+
+    suspend fun fetchUpdate(svc: NetworkService): UpdateInfo? {
+        return if (update === EMPTY_UPDATE) {
+            svc.fetchUpdate()?.apply { update = this }
+        } else {
+            update
+        }
+    }
+
+    fun resetUpdate() {
+        update = EMPTY_UPDATE
+    }
 
     var isRooted = false
     var noDataExec = false
@@ -92,7 +104,6 @@ object Info {
                 v[0], v.size >= 3 && v[2] == "D",
                 runCatching { fastCmd(shell, "$main -V").toInt() }.getOrDefault(-1)
             )
-            Config.suListActive = fastCmdResult(shell, "$main --sulist status")
         }
 
         val map = mutableMapOf<String, String>()

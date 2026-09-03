@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -127,11 +128,7 @@ public final class PackageManagerProxy implements InvocationHandler {
 
     private static boolean isSystemProcess(String caller) {
         return Process.myUid() % 100000 < 10000
-                || "android".equals(caller)
-                || caller.startsWith("android.")
-                || caller.startsWith("com.android.")
-                || caller.startsWith("com.google.android.")
-                || caller.startsWith("vendor.");
+                || "android".equals(caller);
     }
 
     private static final class ServiceManagerFilter implements InvocationHandler {
@@ -228,14 +225,15 @@ public final class PackageManagerProxy implements InvocationHandler {
         if (value instanceof List<?>) return filterList((List<?>) value, stringsArePackages);
         if (value instanceof Map<?, ?>) {
             Map<?, ?> map = (Map<?, ?>) value;
-            try {
-                map.entrySet().removeIf(entry -> (stringsArePackages
-                        && shouldHide(String.valueOf(entry.getKey())))
-                        || shouldHide(packageNameOf(entry.getValue(), false)));
-            } catch (UnsupportedOperationException ignored) {
-                // Framework returned an immutable map.
+            Map<Object, Object> output = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if ((stringsArePackages && shouldHide(String.valueOf(entry.getKey())))
+                        || shouldHide(packageNameOf(entry.getValue(), false))) {
+                    continue;
+                }
+                output.put(entry.getKey(), entry.getValue());
             }
-            return value;
+            return output;
         }
         if (value.getClass().isArray() && !value.getClass().getComponentType().isPrimitive()) {
             int length = Array.getLength(value);

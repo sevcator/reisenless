@@ -1,9 +1,7 @@
 package com.topjohnwu.magisk.ui.webui
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.content.ActivityNotFoundException
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -33,6 +31,7 @@ class WebUIActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val moduleId = intent.getStringExtra(EXTRA_MODULE_ID)
         if (moduleId == null || !MODULE_ID.matches(moduleId)) {
             finish()
@@ -40,7 +39,9 @@ class WebUIActivity : ComponentActivity() {
         }
         val moduleName = intent.getStringExtra(EXTRA_MODULE_NAME).orEmpty().ifBlank { moduleId }
         title = moduleName
-        setContentView(ProgressBar(this))
+
+        val progress = ProgressBar(this)
+        setContentView(progress)
 
         try {
             webView = WebView(this).apply {
@@ -81,9 +82,13 @@ class WebUIActivity : ComponentActivity() {
             .setDomain(WEB_DOMAIN)
             .addPathHandler("/", RootFsPathHandler(webRoot))
             .build()
+
+        val bridge = WebViewInterface(this, webView, moduleId, moduleName, lifecycleScope)
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest) =
-                loader.shouldInterceptRequest(request.url)
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest,
+            ) = loader.shouldInterceptRequest(request.url)
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (request.url.host == WEB_DOMAIN) return false
@@ -95,10 +100,7 @@ class WebUIActivity : ComponentActivity() {
                 }
             }
         }
-        webView.addJavascriptInterface(
-            WebViewInterface(this, webView, moduleId, moduleName, lifecycleScope),
-            "ksu",
-        )
+        webView.addJavascriptInterface(bridge, "ksu")
         setContentView(webView)
         webView.loadUrl("https://$WEB_DOMAIN/index.html")
     }
@@ -119,7 +121,7 @@ class WebUIActivity : ComponentActivity() {
     private fun shellQuote(value: String) = "'${value.replace("'", "'\\''")}'"
 
     private fun showWebViewUnavailable() {
-        AlertDialog.Builder(this)
+        android.app.AlertDialog.Builder(this)
             .setTitle(CoreR.string.webui_webview_required)
             .setMessage(CoreR.string.webui_webview_required_summary)
             .setNegativeButton(android.R.string.cancel) { _, _ -> finish() }
@@ -132,7 +134,7 @@ class WebUIActivity : ComponentActivity() {
                 )
                 try { startActivity(market) } catch (_: ActivityNotFoundException) { startActivity(browser) }
             }
-            .setOnDismissListener { if (!isFinishing) finish() }
+            .setOnDismissListener { if (isFinishing.not()) finish() }
             .show()
     }
 
@@ -154,7 +156,7 @@ class WebUIActivity : ComponentActivity() {
         const val EXTRA_MODULE_ID = "module_id"
         const val EXTRA_MODULE_NAME = "module_name"
 
-        fun intent(context: Context, moduleId: String, moduleName: String) =
+        fun intent(context: android.content.Context, moduleId: String, moduleName: String) =
             Intent().setComponent(WebUIActivity::class.java.cmp(context.packageName)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 putExtra(EXTRA_MODULE_ID, moduleId)

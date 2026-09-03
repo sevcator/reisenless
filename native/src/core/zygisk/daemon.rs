@@ -5,8 +5,8 @@ use crate::daemon::{MagiskD, to_user_id};
 use crate::ffi::{ZygiskRequest, ZygiskStateFlags, get_magisk_tmp, update_deny_flags};
 use crate::resetprop::{get_prop, set_prop};
 use crate::udonge::{
-    UDONGE_MODULE_NAME, UDONGE_ROOT, UDONGE_RUNTIME, is_enabled as udonge_enabled,
-    is_hide_apps_target,
+    UDONGE_MODULE_NAME, UDONGE_ROOT, UDONGE_RUNTIME, transport_enabled as udonge_enabled,
+    should_load as udonge_should_load,
 };
 use crate::socket::{IpcRead, UnixSocketExt};
 use base::libc::STDOUT_FILENO;
@@ -25,38 +25,6 @@ use std::sync::atomic::Ordering;
 const NBPROP: &Utf8CStr = cstr!("ro.dalvik.vm.native.bridge");
 const UNMOUNT_MASK: u32 =
     ZygiskStateFlags::ProcessOnDenyList.repr | ZygiskStateFlags::DenyListEnforced.repr;
-
-fn is_udonge_target(process: &str) -> bool {
-    if is_hide_apps_target(process) {
-        return true;
-    }
-    let process = process.split_once(':').map_or(process, |(package, _)| package);
-    matches!(
-        process,
-        "com.google.android.gms.unstable"
-            | "com.eltavine.duckdetector"
-            | "ru.nspk.mirpay"
-            | "ru.nspk.sbpay"
-            | "ru.sberbankmobile"
-            | "com.idamob.tinkoff.android"
-            | "ru.vtb24.mobilebanking.android"
-            | "ru.alfabank.mobile.android"
-            | "ru.gazprombank.android.mobilebank.app"
-            | "ru.raiffeisennews"
-            | "ru.rosbank.android"
-            | "ru.mkb.mobile"
-            | "ru.rshb.dbo"
-            | "ru.letobank.Prometheus"
-            | "com.openbank"
-            | "ru.sovcombank.halva"
-            | "com.sovcombank.club"
-            | "ru.yoo.money"
-            | "com.yandex.bank"
-            | "ru.ozon.fintech.finance"
-            | "com.qiwi.wallet"
-            | "com.axlebolt.standoff2"
-    )
-}
 
 pub fn zygisk_should_load_module(flags: u32) -> bool {
     flags & ZygiskStateFlags::ProcessIsMagiskApp.repr == 0
@@ -149,19 +117,21 @@ impl ZygiskState {
         Ok(())
     }
 
-    pub fn reset(&mut self, mut restore: bool) {
+    pub fn reset(&mut self, restore: bool) {
         if restore {
+            // boot-complete: reset the crash counter but KEEP the native bridge prop set, so that
+            // zygote partitions that spawn lazily AFTER boot-complete (e.g. Meta Quest's
+            // per-trust-level partition zygotes, which fork untrusted apps) still load the zygisk
+            // loader. Clearing it here is why untrusted apps were never injected on such devices.
             self.start_count = 1;
-        } else {
-            self.sockets = (None, None);
-            self.start_count += 1;
-            if self.start_count > 3 {
-                warn!("zygote crashed too many times, rolling-back");
-                restore = true;
-            }
+            self.set_prop();
+            return;
         }
 
-        if restore {
+        self.sockets = (None, None);
+        self.start_count += 1;
+        if self.start_count > 3 {
+            warn!("zygote crashed too many times, rolling-back");
             self.restore_prop();
         } else {
             self.set_prop();
@@ -273,6 +243,9 @@ impl MagiskD {
             for module in module_list {
                 let mut fd = if is_64_bit { module.z64 } else { module.z32 };
                 if module.name == UDONGE_MODULE_NAME {
+                    // Reisenless only transports its built-in component here.
+                    // Udonge owns all per-process policy and self-unloads when
+                    // the process has no Udonge configuration.
                     has_udonge = true;
                     if !udonge_enabled() || (udonge_only && !allow_udonge) {
                         fd = -1;
@@ -311,6 +284,9 @@ impl MagiskD {
         if self.uid_granted_root(uid) {
             flags |= ZygiskStateFlags::ProcessGrantedRoot.repr
         }
+        if self.zygisk_enabled.load(Ordering::Acquire) {
+            flags |= ZygiskStateFlags::ZygiskEnabled.repr
+        }
 
 
         client.write_pod(&flags)?;
@@ -320,7 +296,7 @@ impl MagiskD {
             && let Some((module_fds, _opened)) = self.get_module_fds(
                 is_64_bit,
                 flags & UNMOUNT_MASK == UNMOUNT_MASK,
-                is_udonge_target(&process),
+                udonge_should_load(uid, &process),
             )
         {
             client.send_fds(&module_fds)?;
@@ -384,5 +360,9 @@ impl MagiskD {
 impl MagiskD {
     pub fn zygisk_enabled(&self) -> bool {
         self.zygisk_enabled.load(Ordering::Acquire)
+    }
+
+    pub fn zygote_injection_enabled(&self) -> bool {
+        self.zygote_injection_enabled.load(Ordering::Acquire)
     }
 }

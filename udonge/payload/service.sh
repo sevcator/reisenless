@@ -73,14 +73,22 @@ sync_vbmeta_digest() {
     mv -f "$temp" "$state/props.conf"
 }
 
-if ! mkdir "$lock" 2>/dev/null; then
+lock_wait=0
+while ! mkdir "$lock" 2>/dev/null; do
     owner="$(cat "$lock/pid" 2>/dev/null)"
     owner_start="$(cat "$lock/start" 2>/dev/null)"
     owner_boot="$(cat "$lock/boot" 2>/dev/null)"
-    process_is_current "$owner" "$owner_start" "$owner_boot" && exit 0
-    rm -rf "$lock"
-    mkdir "$lock" 2>/dev/null || exit 0
-fi
+    if process_is_current "$owner" "$owner_start" "$owner_boot"; then
+        # A scheduled refresh may set its marker after the current owner has
+        # already passed refresh_keybox. Wait, acquire the lock, and run again
+        # so JobScheduler observes completion of its own request.
+        [ "$lock_wait" -ge 420 ] && exit 1
+        sleep 1
+        lock_wait=$((lock_wait + 1))
+    else
+        rm -rf "$lock"
+    fi
+done
 printf '%s\n' "$$" > "$lock/pid"
 awk '{print $22}' "/proc/$$/stat" > "$lock/start" 2>/dev/null
 printf '%s\n' "$boot_id" > "$lock/boot"
@@ -113,7 +121,7 @@ fi
 chmod 700 "$root" "$state"
 
 refresh_keybox() {
-    local urls marker now last best score candidate count checked size temp
+    local urls marker now last best score safe candidate count checked size temp
     if [ ! -f "$state/background-updates" ]; then
         rm -f "$state/.keybox-refresh"
         return 0
@@ -140,9 +148,22 @@ refresh_keybox() {
         checked=$((checked + 1))
         [ "$checked" -le 16 ] || break
         score="$work/candidate.xml"
-        wget -q -T 12 -O "$score" "$candidate" >/dev/null 2>&1 || continue
+        # Stop the producer once 256 KiB + 1 byte has been observed. Checking
+        # only after wget completes lets an untrusted source fill /data as root.
+        wget -q -T 12 -O - "$candidate" 2>/dev/null |
+            head -c 262145 > "$score"
         size="$(wc -c < "$score" 2>/dev/null)"
         [ -n "$size" ] && [ "$size" -le 262144 ] || continue
+        # The TEE consumer is privileged and supplied as a prebuilt binary.
+        # Strip the harmless XML declaration and reject every remaining XML
+        # declaration/directive so remote content cannot request entities,
+        # DTD processing, XSL processing, or another external resource.
+        safe="$work/candidate.safe"
+        sed '/^[[:space:]]*<[?]xml[^>]*[?]>[[:space:]]*$/d' "$score" > "$safe" || continue
+        if grep -Fq '<!' "$safe" || grep -Fq '<?' "$safe"; then
+            continue
+        fi
+        mv -f "$safe" "$score" || continue
         grep -q '<NumberOfKeyboxes>' "$score" || continue
         grep -q '<Keybox' "$score" || continue
         grep -Eq -- '-----BEGIN (EC |RSA )?PRIVATE KEY-----' "$score" || continue

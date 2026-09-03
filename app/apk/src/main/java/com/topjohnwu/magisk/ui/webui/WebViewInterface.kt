@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
 
+
 internal class WebViewInterface(
     private val context: Context,
     private val webView: WebView,
@@ -28,7 +29,9 @@ internal class WebViewInterface(
     fun exec(command: String): String = runCommand(command).output
 
     @JavascriptInterface
-    fun exec(command: String, callback: String) = exec(command, null, callback)
+    fun exec(command: String, callback: String) {
+        exec(command, null, callback)
+    }
 
     @JavascriptInterface
     fun exec(command: String, options: String?, callback: String) {
@@ -42,8 +45,11 @@ internal class WebViewInterface(
         val commandLine = buildString {
             append(withOptions(command, options))
             if (args.isNotBlank()) {
-                runCatching { org.json.JSONArray(args) }.getOrNull()?.let { values ->
-                    for (index in 0 until values.length()) append(' ').append(values.optString(index))
+                val values = runCatching { org.json.JSONArray(args) }.getOrNull()
+                if (values != null) {
+                    for (index in 0 until values.length()) {
+                        append(' ').append(values.optString(index))
+                    }
                 }
             }
         }
@@ -96,7 +102,11 @@ internal class WebViewInterface(
 
         val commandLine = timeoutSeconds?.let { "timeout $it sh -c ${shellQuote(command)}" } ?: command
         val result = Shell.cmd(commandLine).exec()
-        return CommandResult(result.code, result.out.joinToString("\n"), result.err.joinToString("\n"))
+        return CommandResult(
+            code = result.code,
+            output = result.out.joinToString("\n"),
+            error = result.err.joinToString("\n"),
+        )
     }
 
     private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"

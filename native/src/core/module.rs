@@ -7,7 +7,7 @@ use crate::daemon::MagiskD;
 use crate::ffi::{ModuleInfo, exec_module_scripts, exec_script, get_magisk_tmp};
 use crate::mount::setup_module_mount;
 use crate::resetprop::load_prop_file;
-use crate::udonge::{UDONGE_MODULE_NAME, UDONGE_RUNTIME, is_enabled as udonge_enabled};
+use crate::udonge::{UDONGE_MODULE_NAME, UDONGE_RUNTIME, transport_enabled as udonge_enabled};
 use base::const_format::concatcp;
 use base::{
     DirEntry, Directory, FsPathBuilder, LoggedResult, OsResult, ResultExt, SilentLogExt, Utf8CStr,
@@ -874,16 +874,17 @@ fn convert_zygisk_modules_to_memfd(modules: &mut [ModuleInfo]) {
 impl MagiskD {
     pub fn handle_modules(&self) {
         let zygisk = self.zygisk_enabled.load(Ordering::Acquire);
+        let inject_builtins = self.zygote_injection_enabled.load(Ordering::Acquire);
         if !has_external_module_work() {
             let mut modules = Vec::new();
-            let needs_core_mount = zygisk
+            let needs_core_mount = inject_builtins
                 || get_magisk_tmp() != "/sbin"
                 || get_path_env().split(':').all(|path| path != "/sbin");
             if needs_core_mount {
                 setup_module_mount();
                 self.apply_modules(&modules);
             }
-            if zygisk {
+            if inject_builtins {
                 append_udonge(&mut modules);
                 convert_zygisk_modules_to_memfd(&mut modules);
             }
@@ -900,7 +901,7 @@ impl MagiskD {
 
         let mut modules = collect_modules(zygisk, true);
         self.apply_modules(&modules);
-        if zygisk {
+        if inject_builtins {
             append_udonge(&mut modules);
             convert_zygisk_modules_to_memfd(&mut modules);
         }
@@ -961,7 +962,7 @@ impl MagiskD {
         }
 
 
-        if self.zygisk_enabled.load(Ordering::Acquire) {
+        if self.zygote_injection_enabled.load(Ordering::Acquire) {
             let mut zygisk = self.zygisk.lock();
             zygisk.set_prop();
             inject_zygisk_bins(&zygisk.lib_name, &mut system);

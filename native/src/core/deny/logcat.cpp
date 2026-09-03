@@ -121,7 +121,6 @@ static void check_zygote() {
         if (st.st_uid != 0) continue;
         if (proc_context_match(pid, "u:r:zygote:s0") && parse_ppid(pid) == 1) {
             if (read_ns(pid, &st) == 0) {
-                LOGI("logcat: zygote PID=[%d]\n", pid);
                 zygote_map[pid] = st;
             }
         }
@@ -133,6 +132,28 @@ static void process_main_buffer(struct log_msg *msg) {
     if (android_log_processLogBuffer(&msg->entry, &entry) < 0) return;
     entry.tagLen--;
     auto tag = string_view(entry.tag, entry.tagLen);
+    auto revert = [](int pid) {
+        kill(pid, SIGSTOP);
+        if (fork_dont_care() == 0) {
+            revert_unmount(pid);
+            kill(pid, SIGCONT);
+            _exit(0);
+        }
+    };
+
+    // Unlike app zygote, webview zygote UID is fixed. This means we don't have to
+    // handle edge cases where apps print logs themselves and lead us into a honeycomb
+    if (tag == "WebViewZygoteInit") {
+        int pid = msg->entry.pid;
+        if (entry.uid != WEBVIEW_ZYGOTE_UID || entry.message[0] != 'S') {
+            return;
+        }
+
+        if (is_deny_target(WEBVIEW_ZYGOTE_UID, WEBVIEW_ZYGOTE_MAGIC)) {
+            revert(pid);
+        }
+        return;
+    }
 
     static bool ready = false;
     if (tag == "AppZygote") {
@@ -159,15 +180,7 @@ static void process_main_buffer(struct log_msg *msg) {
 
     if (!is_deny_target(entry.uid, cmdline)) {
         int pid = msg->entry.pid;
-        kill(pid, SIGSTOP);
-        if (fork_dont_care() == 0) {
-            LOGI("logcat: revert [%s] PID=[%d] UID=[%d]\n", cmdline, pid, entry.uid);
-            revert_unmount(pid);
-            kill(pid, SIGCONT);
-            _exit(0);
-        }
-    } else {
-        LOGD("logcat: skip [%s] PID=[%d] UID=[%d]\n", cmdline, msg->entry.pid, entry.uid);
+        revert(pid);
     }
 }
 
@@ -185,9 +198,6 @@ static void process_events_buffer(struct log_msg *msg) {
                 int ppid = parse_ppid(pid);
                 auto it = zygote_map.find(ppid);
                 if (it == zygote_map.end()) {
-                    LOGW("logcat: skip [%.*s] PID=[%d] UID=[%d] PPID=[%d]; parent not zygote\n",
-                         (int) proc.length(), proc.data(),
-                         pid, am_proc_start->uid.data, ppid);
                     _exit(0);
                 }
 
@@ -205,29 +215,19 @@ static void process_events_buffer(struct log_msg *msg) {
                     if (stat(path, &st) == 0 && st.st_uid == 0) {
                         usleep(10 * 1000);
                     } else {
-                        LOGW("logcat: skip [%.*s] PID=[%s] UID=[%d]; namespace not isolated\n",
-                             (int) proc.length(), proc.data(),
-                             path + 6, am_proc_start->uid.data);
                         _exit(0);
                     }
                     if (fd > 0) setns(fd, CLONE_NEWNS);
                 }
                 close(fd);
 
-                LOGI("logcat: revert [%.*s] PID=[%d] UID=[%d]\n",
-                     (int) proc.length(), proc.data(), pid, am_proc_start->uid.data);
                 revert_unmount(pid);
                 _exit(0);
             }
-        } else {
-            LOGD("logcat: skip [%.*s] PID=[%d] UID=[%d]\n",
-                 (int) proc.length(), proc.data(),
-                 am_proc_start->pid.data, am_proc_start->uid.data);
         }
         return;
     }
     if (event_header->tag == 3040) {
-        LOGD("logcat: soft reboot\n");
         check_zygote();
     }
 }
@@ -275,7 +275,6 @@ static void process_events_buffer(struct log_msg *msg) {
         retry_delay = std::min(retry_delay * 2, 5U);
     }
 
-    LOGD("logcat: terminate\n");
     pthread_exit(nullptr);
 }
 

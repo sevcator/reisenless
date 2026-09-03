@@ -58,13 +58,6 @@
             android:grantUriPermissions="true" />
 
         <provider
-            android:name=".MigrationApkProvider"
-            android:authorities="${applicationId}.migration"
-            android:exported="false"
-            android:grantUriPermissions="true" />
-
-
-        <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
             tools:node="remove" />

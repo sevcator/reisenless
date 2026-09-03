@@ -67,7 +67,7 @@ if not sys.version_info >= (3, 8):
 
 cpu_count = multiprocessing.cpu_count()
 
-
+# Common constants
 support_abis = {
     "armeabi-v7a": "thumbv7neon-linux-androideabi",
     "x86": "i686-linux-android",
@@ -350,6 +350,7 @@ def _build_identity() -> dict[str, str]:
     if not enabled:
         return {
             "buildId": "ms", "secureDir": config.get("secureDir", "/data/adb"),
+            "appPackageName": "io.sevcator.reisenless",
             "dataDir": "ms", "dbName": "ms.db", "internalDir": ".ms",
             "socketName": "socket", "policyName": "mpol", "bin32Name": "ms32",
             "busyboxName": "busybox",
@@ -394,6 +395,8 @@ def _build_identity() -> dict[str, str]:
     main_binary = token("main-binary", 5, 8)
     return {
         "buildId": main_binary,
+        "appPackageName": "com." + token("app-package-owner", 6, 9)
+            + "." + token("app-package", 6, 10),
         "secureDir": secure_dir,
         "dataDir": "." + token("data-bin", 6, 10),
         "dbName": "." + token("database", 6, 10),
@@ -494,6 +497,7 @@ def dump_flag_header():
     flag_txt += f'#define BUILD_ID            "{build_id}"\n'
     flag_txt += f'#define BUILD_SECURE_DIR    "{secure_dir}"\n'
     identity_flags = {
+        "appPackageName": "BUILD_APP_PACKAGE_NAME",
         "dataDir": "BUILD_DATA_DIR", "dbName": "BUILD_DB_NAME",
         "internalDir": "BUILD_INTERNAL_DIR", "socketName": "BUILD_SOCKET_NAME",
         "policyName": "BUILD_POLICY_NAME", "bin32Name": "BUILD_BIN32_NAME",
@@ -876,23 +880,18 @@ def build_app():
     header("* Building the Reisenless app")
     apk = build_apk(":apk")
 
-    build_type = "release" if args.release else "debug"
-
-
     source = apk
     target = apk.parent / apk.name.replace("apk-", "app-")
     mv(source, target)
     header(f"Output: {target}")
-
-
-
-    source = Path("app", "core", "src", build_type, "assets", "stub.apk")
-    target = config["outdir"] / f"stub-{build_type}.apk"
-    cp(source, target)
+def build_app_legacy():
+    header("* Building the legacy Magisk app")
+    apk = build_apk(":apk-legacy")
+    header(f"Output: {apk}")
 
 
 def build_stub():
-    header("* Building the stub app")
+    header("* Building the signed manager trust anchor")
     apk = build_apk(":stub")
     header(f"Output: {apk}")
 
@@ -940,6 +939,7 @@ def cleanup():
 def build_all():
     build_native()
     build_app()
+    build_app_legacy()
 
 
 
@@ -1277,9 +1277,13 @@ def parse_args():
         or empty for defaults ({', '.join(default_targets)})",
     )
 
-    app_parser = subparsers.add_parser("app", help="build the Reisenless app")
+    app_parser = subparsers.add_parser("app", help="build the Magisk app")
 
-    stub_parser = subparsers.add_parser("stub", help="build the stub app")
+    app_legacy_parser = subparsers.add_parser(
+        "app-legacy", help="build the legacy Magisk app"
+    )
+
+    stub_parser = subparsers.add_parser("stub", help="build the manager trust anchor")
 
     clean_parser = subparsers.add_parser("clean", help="cleanup")
     clean_parser.add_argument(
@@ -1336,6 +1340,7 @@ def parse_args():
     rustup_parser.set_defaults(func=setup_rustup)
     gen_parser.set_defaults(func=gen_ide)
     app_parser.set_defaults(func=build_app)
+    app_legacy_parser.set_defaults(func=build_app_legacy)
     stub_parser.set_defaults(func=build_stub)
     emu_parser.set_defaults(func=setup_avd)
     avd_patch_parser.set_defaults(func=patch_avd_file)
