@@ -18,7 +18,7 @@ import tempfile
 import urllib.request
 import zlib
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile, ZipInfo
 
 
 def color_print(code, str):
@@ -95,6 +95,7 @@ config = {}
 args: argparse.Namespace
 build_abis: dict[str, str]
 force_out = False
+udonge_built = False
 
 
 
@@ -691,6 +692,10 @@ def _patch_tee_dex(data: bytes, udonge_root: str) -> bytes:
 
 
 def build_udonge():
+    global udonge_built
+    if udonge_built:
+        return
+
     ensure_paths()
     header("* Building the built-in Udonge payload")
 
@@ -826,7 +831,45 @@ def build_udonge():
             _zip_bytes(zf, name, data, mode)
 
     rm_rf(work)
+    udonge_built = True
     header(f"Output: {output}")
+
+
+def _validate_packaged_udonge(apk: Path):
+    identity = _build_identity()
+    archive_name = identity["udongeArchive"]
+    archive_path = f"assets/{archive_name}"
+    payload = config["outdir"] / "udonge.bin"
+    if not payload.is_file():
+        error("Build the Udonge payload before packaging the app")
+
+    required_script_markers = {
+        "META-INF/com/google/android/update-binary": '"assets/*"',
+        "META-INF/com/google/android/updater-script":
+            "cp -af $BINDIR/. $COMMONDIR/. $BBBIN $MAGISKBIN",
+        "assets/util_functions.sh": f"UDONGE_ARCHIVE='{archive_name}'",
+        "assets/boot_patch.sh":
+            'overlay.d/sbin/$UDONGE_ARCHIVE.xz',
+    }
+    try:
+        with ZipFile(apk) as zf:
+            corrupt = zf.testzip()
+            if corrupt:
+                error(f"Corrupt APK entry: {corrupt}")
+            packaged = zf.read(archive_path)
+            expected = payload.read_bytes()
+            if packaged != expected:
+                error(f"Packaged Udonge payload does not match {payload}")
+            if archive_name != "udonge.bin" and "assets/udonge.bin" in zf.namelist():
+                error("Unrandomized Udonge asset leaked into the APK")
+            for script, marker in required_script_markers.items():
+                contents = zf.read(script).decode("utf-8")
+                if marker not in contents:
+                    error(f"Udonge installer handoff is missing from {script}")
+    except (BadZipFile, KeyError, OSError, UnicodeDecodeError) as exc:
+        error(f"Invalid packaged Udonge payload in {apk}: {exc}")
+
+    header(f"Verified randomized Udonge payload: {archive_path}")
 
 
 def build_apk(module: str):
@@ -869,6 +912,8 @@ def build_apk(module: str):
     source = Path("app", *paths, "build", "outputs", "apk", build_type, apk)
     target = config["outdir"] / apk
     mv(source, target)
+    if module in {":apk", ":apk-legacy"}:
+        _validate_packaged_udonge(target)
     return target
 
 
@@ -884,7 +929,13 @@ def build_app():
     target = apk.parent / apk.name.replace("apk-", "app-")
     mv(source, target)
     header(f"Output: {target}")
+
+
 def build_app_legacy():
+    _validate_generated_flags(
+        "Build native binaries with the same mode and configuration first."
+    )
+    build_udonge()
     header("* Building the legacy Magisk app")
     apk = build_apk(":apk-legacy")
     header(f"Output: {apk}")
