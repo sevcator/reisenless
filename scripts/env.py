@@ -105,6 +105,20 @@ def ensure_cargo():
 
 @run_once
 def ensure_jdk():
+    known_jdk_paths = [
+        os.environ.get("JAVA_HOME"),
+        Path.home() / "AppData" / "Roaming" / "PrismLauncher" / "java" / "java-runtime-epsilon",
+    ]
+    for jdk_candidate in known_jdk_paths:
+        if jdk_candidate:
+            jdk_path = Path(jdk_candidate)
+            javac_candidate = jdk_path / "bin" / ("javac.exe" if platform.system().lower() == "windows" else "javac")
+            if javac_candidate.exists():
+                os.environ["PATH"] = f'{jdk_path / "bin"}{os.pathsep}{os.environ["PATH"]}'
+                os.environ["JAVA_HOME"] = str(jdk_path)
+                os.environ["JDK_HOME"] = str(jdk_path)
+                break
+
     if "ANDROID_STUDIO" in os.environ:
         studio = os.environ["ANDROID_STUDIO"]
         jbr = Path(studio, "jbr")
@@ -124,14 +138,14 @@ def ensure_jdk():
             shell=True,
         )
         output = proc.stdout.strip().decode("utf-8")
-        no_jdk = proc.returncode != 0 or not output.startswith("javac 21")
+        no_jdk = proc.returncode != 0 or not output.startswith("javac")
     except FileNotFoundError:
         no_jdk = True
 
     if no_jdk:
         error(
             "Please set Android Studio's path to environment variable ANDROID_STUDIO,\n"
-            + "or install JDK 21 and make sure 'javac' is available in PATH"
+            + "or install JDK and make sure 'javac' is available in PATH"
         )
 
 

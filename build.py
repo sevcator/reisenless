@@ -814,6 +814,20 @@ def build_native():
 
 def find_jdk():
     env = os.environ.copy()
+    known_jdk_paths = [
+        env.get("JAVA_HOME"),
+        Path.home() / "AppData" / "Roaming" / "PrismLauncher" / "java" / "java-runtime-epsilon",
+    ]
+    for jdk_candidate in known_jdk_paths:
+        if jdk_candidate:
+            jdk_path = Path(jdk_candidate)
+            javac_candidate = jdk_path / "bin" / ("javac.exe" if platform.system().lower() == "windows" else "javac")
+            if javac_candidate.exists():
+                env["PATH"] = f'{jdk_path / "bin"}{os.pathsep}{env["PATH"]}'
+                env["JAVA_HOME"] = str(jdk_path)
+                env["JDK_HOME"] = str(jdk_path)
+                break
+
     if "ANDROID_STUDIO" in env:
         studio = env["ANDROID_STUDIO"]
         jbr = Path(studio, "jbr", "bin")
@@ -821,6 +835,8 @@ def find_jdk():
             jbr = Path(studio, "Contents", "jbr", "Contents", "Home", "bin")
         if jbr.exists():
             env["PATH"] = f'{jbr}{os.pathsep}{env["PATH"]}'
+            env["JAVA_HOME"] = str(jbr.parent)
+            env["JDK_HOME"] = str(jbr.parent)
 
     no_jdk = False
     try:
@@ -832,14 +848,14 @@ def find_jdk():
             shell=True,
             text=True,
         )
-        no_jdk = proc.returncode != 0 or not proc.stdout.strip().startswith("javac 21")
+        no_jdk = proc.returncode != 0 or not proc.stdout.strip().startswith("javac")
     except FileNotFoundError:
         no_jdk = True
 
     if no_jdk:
         error(
             "Please set Android Studio's path to environment variable ANDROID_STUDIO,\n"
-            + "or install JDK 21 and make sure 'javac' is available in PATH"
+            + "or install JDK and make sure 'javac' is available in PATH"
         )
 
     return env
