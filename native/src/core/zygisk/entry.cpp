@@ -17,11 +17,7 @@ static void zygiskd(int socket) {
     if (getuid() != 0 || fcntl(socket, F_GETFD) < 0)
         exit(-1);
 
-#if defined(__LP64__)
-    set_nice_name(ZYGISKD64);
-#else
-    set_nice_name(ZYGISKD32);
-#endif
+    set_nice_name(get_runtime_zygisk_name());
 
 
     vector<comp_entry> modules;

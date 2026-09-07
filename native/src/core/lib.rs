@@ -11,7 +11,7 @@
 use crate::ffi::SuRequest;
 use crate::socket::Encodable;
 use base::derive::Decodable;
-use daemon::{MagiskD, connect_daemon_for_cxx};
+use daemon::{MagiskD, connect_daemon_for_cxx, daemon_client_failure};
 use logging::{android_logging, zygisk_logging};
 use magisk::magisk_main;
 use mount::revert_unmount;
@@ -25,6 +25,7 @@ use std::os::fd::FromRawFd;
 use su::{get_pty_num, pump_tty};
 use zygisk::zygisk_should_load_module;
 
+mod apk_cert;
 mod bootstages;
 #[path = "../include/consts.rs"]
 mod consts;
@@ -32,6 +33,7 @@ mod daemon;
 mod db;
 mod logging;
 mod magisk;
+mod manager_auth;
 mod module;
 mod mount;
 mod package;
@@ -147,6 +149,10 @@ pub mod ffi {
 
         #[cxx_name = "get_magisk_tmp_rs"]
         fn get_magisk_tmp() -> Utf8CStrRef<'static>;
+        #[cxx_name = "get_runtime_socket_rs"]
+        fn get_runtime_socket() -> Utf8CStrRef<'static>;
+        #[cxx_name = "get_runtime_daemon_name_rs"]
+        fn get_runtime_daemon_name() -> Utf8CStrRef<'static>;
         #[cxx_name = "resolve_preinit_dir_rs"]
         fn resolve_preinit_dir(base_dir: Utf8CStrRef) -> String;
         fn check_key_combo() -> bool;
@@ -190,7 +196,7 @@ pub mod ffi {
         fn send_fd(socket: i32, fd: i32) -> bool;
         fn recv_fd(socket: i32) -> i32;
         fn recv_fds(socket: i32) -> Vec<i32>;
-        fn write_to_fd(self: &SuRequest, fd: i32);
+        fn write_to_fd(self: &SuRequest, fd: i32) -> bool;
         fn pump_tty(ptmx: i32, pump_stdin: bool);
         fn get_pty_num(fd: i32) -> i32;
         fn lgetfilecon(path: Utf8CStrRef, con: &mut [u8]) -> bool;
@@ -201,6 +207,7 @@ pub mod ffi {
 
         #[cxx_name = "connect_daemon"]
         fn connect_daemon_for_cxx(code: RequestCode, create: bool) -> i32;
+        fn daemon_client_failure() -> i32;
         unsafe fn magisk_main(argc: i32, argv: *mut *mut c_char) -> i32;
     }
 
@@ -228,10 +235,15 @@ pub mod ffi {
 }
 
 impl SuRequest {
-    fn write_to_fd(&self, fd: i32) {
+    fn write_to_fd(&self, fd: i32) -> bool {
+        // File::from_raw_fd(-1) aborts even in release builds. A failed
+        // connection is a normal client error, not a valid owned descriptor.
+        if fd < 0 {
+            return false;
+        }
         unsafe {
             let mut w = ManuallyDrop::new(File::from_raw_fd(fd));
-            self.encode(w.deref_mut()).ok();
+            self.encode(w.deref_mut()).is_ok()
         }
     }
 }

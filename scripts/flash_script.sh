@@ -21,6 +21,7 @@ fi
 
 
 . $COMMONDIR/util_functions.sh
+. $COMMONDIR/app_functions.sh
 
 setup_flashable
 
@@ -33,11 +34,11 @@ if echo $MAGISK_VER | grep -q '\.'; then
 else
   PRETTY_VER="$MAGISK_VER($MAGISK_VER_CODE)"
 fi
-print_title "reisenless $PRETTY_VER installer"
+print_title "system component $PRETTY_VER installer"
 
 is_mounted /data || mount /data || is_mounted /cache || mount /cache
 mount_partitions
-check_data
+[ -z "$PATCH_ONLY_OUTPUT" ] && check_data
 get_flags
 find_boot_image
 
@@ -47,7 +48,7 @@ ui_print "- target image: $BOOTIMAGE"
 
 api_level_arch_detect
 
-[ $API -lt 23 ] && abort "! magisk only support android 6.0 and above"
+[ $API -lt 23 ] && abort "! android 6.0 or newer is required"
 
 ui_print "- device platform: $ABI"
 
@@ -55,12 +56,30 @@ BINDIR=$INSTALLER/lib/$ABI
 cd $BINDIR
 for file in lib*.so; do mv "$file" "${file:3:${#file}-6}"; done
 cd /
-cp -af $INSTALLER/lib/$ABI32/libmagisk.so $BINDIR/$BIN32_NAME 2>/dev/null
-[ -f "$BINDIR/magisk" ] && mv "$BINDIR/magisk" "$BINDIR/$MAIN_BIN_NAME"
-[ -f "$BINDIR/busybox" ] && mv "$BINDIR/busybox" "$BINDIR/$BUSYBOX_NAME"
-[ -f "$BINDIR/mpol" ] && mv "$BINDIR/mpol" "$BINDIR/$POLICY_NAME"
-[ -f "$BINDIR/init-ld" ] && mv "$BINDIR/init-ld" "$BINDIR/$INIT_LD_NAME"
+cp -af "$INSTALLER/lib/$ABI32/lib$PACKAGED_MAIN_LIB.so" "$BINDIR/$BIN32_NAME" 2>/dev/null
+[ -f "$BINDIR/$PACKAGED_MAIN_LIB" ] && mv "$BINDIR/$PACKAGED_MAIN_LIB" "$BINDIR/$MAIN_BIN_NAME"
+[ -f "$BINDIR/$PACKAGED_BUSYBOX_LIB" ] && mv "$BINDIR/$PACKAGED_BUSYBOX_LIB" "$BINDIR/$BUSYBOX_NAME"
+[ -f "$BINDIR/$PACKAGED_POLICY_LIB" ] && mv "$BINDIR/$PACKAGED_POLICY_LIB" "$BINDIR/$POLICY_NAME"
+[ -f "$BINDIR/$PACKAGED_INIT_LD_LIB" ] && mv "$BINDIR/$PACKAGED_INIT_LD_LIB" "$BINDIR/$INIT_LD_NAME"
+[ -f "$BINDIR/$PACKAGED_BOOT_LIB" ] && mv "$BINDIR/$PACKAGED_BOOT_LIB" "$BINDIR/mboot"
+[ -f "$BINDIR/$PACKAGED_INIT_LIB" ] && mv "$BINDIR/$PACKAGED_INIT_LIB" "$BINDIR/minit"
+[ -f "$BINDIR/$PACKAGED_BOOTCTL_LIB" ] && mv "$BINDIR/$PACKAGED_BOOTCTL_LIB" "$BINDIR/bootctl"
 
+
+# Candidate generation must not replace the live payload, migrate durable
+# state, write addon.d, or install runtime hooks. Keep all work in INSTALLER.
+if [ -n "$PATCH_ONLY_OUTPUT" ]; then
+  $BOOTMODE || abort "! candidate generation requires a booted device"
+  MAGISKBIN="$INSTALLER/staged-payload"
+  mkdir -p "$MAGISKBIN" || abort "! unable to create candidate workspace"
+  cp -af "$BINDIR/." "$COMMONDIR/." "$BBBIN" "$MAGISKBIN" || abort "! unable to stage payload"
+  chmod -R 755 "$MAGISKBIN"
+  install_magisk
+  cd /
+  rm -rf "$TMPDIR"
+  ui_print "- candidate ready; live root state unchanged"
+  exit 0
+fi
 
 $BOOTMODE || remove_system_su
 
@@ -94,8 +113,10 @@ fi
 
 
 
-
+migrate_private_layout || abort "! unable to migrate existing root state"
+migrate_legacy_layout || abort "! unable to migrate legacy root state"
 install_magisk
+refresh_udonge_runtime || abort "! unable to install protection runtime"
 
 
 $BOOTMODE || recovery_cleanup

@@ -1,8 +1,6 @@
 package com.topjohnwu.magisk.core.data.magiskdb
 
-import com.topjohnwu.magisk.core.Const
-import com.topjohnwu.magisk.core.ktx.await
-import com.topjohnwu.superuser.Shell
+import com.topjohnwu.magisk.core.utils.ManagerCli
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -17,8 +15,8 @@ open class MagiskDB {
         crossinline mapper: (Map<String, String>) -> R
     ): List<R> {
         return withContext(Dispatchers.IO) {
-            val out = Shell.cmd("${Const.MAIN_BIN} --sqlite '$query'").await().out
-            out.map { line ->
+            val result = ManagerCli.execute("--sqlite", query)
+            result.requireSuccess().output.map { line ->
                 line.split("\\|".toRegex())
                     .map { it.split("=", limit = 2) }
                     .filter { it.size == 2 }
@@ -30,7 +28,7 @@ open class MagiskDB {
 
     suspend fun exec(query: String) {
         withContext(Dispatchers.IO) {
-            Shell.cmd("${Const.MAIN_BIN} --sqlite '$query'").await()
+            ManagerCli.execute("--sqlite", query).requireSuccess()
         }
     }
 

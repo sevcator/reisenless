@@ -26,9 +26,10 @@ import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.launch
 import java.io.File
 import java.lang.ref.WeakReference
-import kotlin.system.exitProcess
 
 lateinit var AppApkPath: String
+    private set
+lateinit var AppBinaryPath: String
     private set
 
 object AppContext : ContextWrapper(null),
@@ -42,8 +43,6 @@ object AppContext : ContextWrapper(null),
     private var profileInstallScheduled = false
 
     init {
-        Thread.setDefaultUncaughtExceptionHandler { _, _ -> exitProcess(1) }
-
         Os.setenv("PATH", "${Os.getenv("PATH")}:/debug_ramdisk:/sbin", true)
     }
 
@@ -77,8 +76,11 @@ object AppContext : ContextWrapper(null),
 
 
 
-        (base.classLoader as? BaseDexClassLoader)?.findLibrary("magisk")
-            ?: File(appInfo.nativeLibraryDir, "libmagisk.so").absolutePath
+        (base.classLoader as? BaseDexClassLoader)?.findLibrary(BuildConfig.MAIN_LIB_NAME)
+            ?: File(
+                appInfo.nativeLibraryDir,
+                "lib${BuildConfig.MAIN_LIB_NAME}.so",
+            ).absolutePath
     }.getOrNull()
 
     fun attachApplication(app: Application) {
@@ -95,6 +97,7 @@ object AppContext : ContextWrapper(null),
         app.registerComponentCallbacks(this)
 
         AppApkPath = base.packageResourcePath
+        AppBinaryPath = preparePackagedSu(base).orEmpty()
         resources.patch()
 
 
@@ -115,7 +118,7 @@ object AppContext : ContextWrapper(null),
             if (mounted != null) {
                 mounted to false
             } else {
-                preparePackagedSu(base) to true
+                AppBinaryPath.takeIf(String::isNotEmpty) to true
             }
         }
         val shellBuilder = Shell.Builder.create()
@@ -124,17 +127,20 @@ object AppContext : ContextWrapper(null),
             .setContext(this)
             .setTimeout(20)
         if (suCmd != null) {
-            if (needsArgvShim) {
-
-                shellBuilder.setCommands(
-                    "/system/bin/sh",
-                    "-c",
-                    "export PATH=/debug_ramdisk:/sbin:/system/bin:/system/xbin; " +
-                        "exec -a su '$suCmd' --mount-master -c 'exec /system/bin/sh'",
-                )
+            val rootCommand = if (needsArgvShim) {
+                "(exec -a su '$suCmd' --mount-master -c 'exec /system/bin/sh')"
             } else {
-                shellBuilder.setCommands(suCmd)
+                "'$suCmd' --mount-master -c 'exec /system/bin/sh'"
             }
+            // Explicit commands bypass libsu's built-in non-root fallback.
+            // Keep a usable local shell when a different/missing daemon denies
+            // this manager, otherwise getShell never delivers its callback.
+            shellBuilder.setCommands(
+                "/system/bin/sh",
+                "-c",
+                "export PATH=/debug_ramdisk:/sbin:/system/bin:/system/xbin; " +
+                    "$rootCommand || exec /system/bin/sh",
+            )
         }
         Shell.setDefaultBuilder(shellBuilder)
         Shell.EXECUTOR = Dispatchers.IO.asExecutor()

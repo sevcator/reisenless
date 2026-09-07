@@ -28,6 +28,7 @@ import com.topjohnwu.superuser.internal.UiThreadHandler
 import com.topjohnwu.superuser.nio.ExtendedFile
 import com.topjohnwu.superuser.nio.FileSystemManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
@@ -44,7 +45,7 @@ import java.io.OutputStream
 import java.io.PushbackInputStream
 import java.nio.ByteBuffer
 import java.security.SecureRandom
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.UUID
 
 abstract class MagiskInstallImpl protected constructor(
     protected val console: MutableList<String>,
@@ -105,9 +106,8 @@ abstract class MagiskInstallImpl protected constructor(
         console.add("- device platform: ${Const.CPU_ABI}")
         console.add("- installing: ${BuildConfig.APP_VERSION_NAME} (${BuildConfig.APP_VERSION_CODE})")
 
-        installDir = localFS.getFile(context.cacheDir, "install")
-        installDir.deleteRecursively()
-        installDir.mkdirs()
+        installDir = localFS.getFile(context.cacheDir, "install-${UUID.randomUUID()}")
+        if (!installDir.mkdirs()) throw IOException("unable to create installation directory")
 
         try {
             val sourceApk = File(context.applicationInfo.sourceDir)
@@ -118,20 +118,33 @@ abstract class MagiskInstallImpl protected constructor(
                     val n = it.name.substring(it.name.lastIndexOf('/') + 1)
                     val packagedName = n.substring(3, n.length - 3)
                     val name = when (packagedName) {
-                        "magisk" -> BuildConfig.MAIN_BIN_NAME
-                        "mpol" -> BuildConfig.POLICY_NAME
-                        "init-ld" -> BuildConfig.INIT_LD_NAME
-                        "busybox" -> BuildConfig.BUSYBOX_NAME
+                        BuildConfig.MAIN_LIB_NAME -> BuildConfig.MAIN_BIN_NAME
+                        BuildConfig.POLICY_LIB_NAME -> BuildConfig.POLICY_NAME
+                        BuildConfig.INIT_LD_LIB_NAME -> BuildConfig.INIT_LD_NAME
+                        BuildConfig.BUSYBOX_LIB_NAME -> BuildConfig.BUSYBOX_NAME
+                        BuildConfig.BOOT_LIB_NAME -> "mboot"
+                        BuildConfig.INIT_LIB_NAME -> "minit"
+                        BuildConfig.BOOTCTL_LIB_NAME -> "bootctl"
                         else -> packagedName
                     }
                     val dest = File(installDir, name)
-                    zf.getInputStream(it).writeTo(dest)
-                    dest.setExecutable(true)
+                    if (!shell.isRoot && (name == "mboot" || name == BuildConfig.MAIN_BIN_NAME)) {
+                        // Modern Android denies execution of files written into
+                        // app data. Execute the package-installed, read-only copy.
+                        val installed = File(context.applicationInfo.nativeLibraryDir, n)
+                        if (!installed.canExecute()) throw IOException("Missing installed tool")
+                        Os.symlink(installed.path, dest.path)
+                    } else {
+                        zf.getInputStream(it).writeTo(dest)
+                        dest.setExecutable(true)
+                    }
                 }
 
                 val abi32 = Const.CPU_ABI_32
                 if (Process.is64Bit() && abi32 != null) {
-                    val entry = zf.getEntry("lib/$abi32/libmagisk.so")
+                    val entry = zf.getEntry(
+                        "lib/$abi32/lib${BuildConfig.MAIN_LIB_NAME}.so"
+                    )
                     if (entry != null) {
                         val bin32 = File(installDir, BuildConfig.BIN32_NAME)
                         zf.getInputStream(entry).writeTo(bin32)
@@ -159,9 +172,8 @@ abstract class MagiskInstallImpl protected constructor(
 
         if (useRootDir) {
 
-            rootFS.getFile(Const.TMPDIR).also {
+            rootFS.getFile(Const.TMPDIR, installDir.name).also {
                 arrayOf(
-                    "rm -rf $it",
                     "mkdir -p $it",
                     "cp_readlink $installDir $it",
                     "rm -rf $installDir"
@@ -406,84 +418,44 @@ abstract class MagiskInstallImpl protected constructor(
     }
 
     private suspend fun processFile(uri: Uri): Boolean {
-        val outStream: OutputStream
-        val outFile: MediaStoreUtils.UriFile
+        var pendingStream: OutputStream? = null
+        var pendingFile: MediaStoreUtils.UriFile? = null
+        var completed = false
         var bootItem: BootItem? = null
-
-
         try {
             PushbackInputStream(uri.inputStream().buffered(1024 * 1024), 512).use { src ->
                 val head = ByteArray(512)
-                if (src.read(head) != head.size) {
-                    console.add("! invalid input file")
-                    return false
-                }
+                java.io.DataInputStream(src).readFully(head)
                 src.unread(head)
-
                 val magic = head.copyOf(4)
                 val tarMagic = head.copyOfRange(257, 262)
-
+                val outFile = MediaStoreUtils.getPatchOutputFile("$destName.$destExt", destFolder)
+                pendingFile = outFile
+                val stream = outFile.uri.outputStream()
+                pendingStream = stream
                 srcBoot = if (tarMagic.contentEquals("ustar".toByteArray())) {
-
-                    outFile = MediaStoreUtils.getFileAtStorageRoot(
-                        "$destName.$destExt",
-                        destFolder,
-                    )
-                    val os = outFile.uri.outputStream().buffered(1024 * 1024)
-                    outStream = TarArchiveOutputStream(os).also {
+                    val tar = TarArchiveOutputStream(stream.buffered(1024 * 1024)).also {
                         it.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_STAR)
                         it.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU)
                     }
-
-                    try {
-                        bootItem = processTar(TarArchiveInputStream(src), outStream)
-                        bootItem.file
-                    } catch (e: IOException) {
-                        outStream.close()
-                        outFile.delete()
-                        throw e
-                    }
+                    pendingStream = tar
+                    bootItem = processTar(TarArchiveInputStream(src), tar)
+                    bootItem.file
                 } else {
-
-                    outFile = MediaStoreUtils.getFileAtStorageRoot(
-                        "$destName.$destExt",
-                        destFolder,
-                    )
-                    outStream = outFile.uri.outputStream()
-
-                    try {
-                        if (magic.contentEquals("CrAU".toByteArray())) {
-                            processPayload(src)
-                        } else if (magic.contentEquals("PK\u0003\u0004".toByteArray())) {
-                            processZip(ZipArchiveInputStream(src))
-                        } else {
-                            console.add("- copying image to cache")
-                            installDir.getChildFile("boot.img").also {
-                                src.copyAndCloseOut(it.newOutputStream())
-                            }
+                    if (magic.contentEquals("CrAU".toByteArray())) {
+                        processPayload(src)
+                    } else if (magic.contentEquals("PK\u0003\u0004".toByteArray())) {
+                        processZip(ZipArchiveInputStream(src))
+                    } else {
+                        console.add("- copying image to cache")
+                        installDir.getChildFile("boot.img").also {
+                            src.copyAndCloseOut(it.newOutputStream())
                         }
-                    } catch (e: IOException) {
-                        outStream.close()
-                        outFile.delete()
-                        throw e
                     }
                 }
             }
-        } catch (e: IOException) {
-            if (e is NoBootException)
-                console.add("! no boot image found")
-            console.add("! process error")
-            return false
-        }
-
-
-        if (!patchBoot()) {
-            outFile.delete()
-            return false
-        }
-
-
-        try {
+            if (!patchBoot()) return false
+            val outStream = requireNotNull(pendingStream)
             val newBoot = installDir.getChildFile("new-boot.img")
             if (bootItem != null) {
                 bootItem.file = newBoot
@@ -492,25 +464,27 @@ abstract class MagiskInstallImpl protected constructor(
                 newBoot.newInputStream().use { it.copyAll(outStream, 1024 * 1024) }
             }
             newBoot.delete()
-
+            // Closing/finalizing the provider stream is part of success.
+            outStream.close()
+            pendingStream = null
+            srcBoot.delete()
+            "cp_readlink $installDir".sh()
+            completed = true
             console.add("")
             console.add("****************************")
             console.add(" output file is written to ")
-            console.add(" $outFile ")
+            console.add(" $pendingFile ")
             console.add("****************************")
+            return true
         } catch (e: IOException) {
-            console.add("! failed to output to $outFile")
-            outFile.delete()
+            if (e is NoBootException) console.add("! no boot image found")
+            console.add("! process error: ${e.message.orEmpty()}")
             return false
         } finally {
-            outStream.close()
+            runCatching { pendingStream?.close() }
+            if (!completed) runCatching { pendingFile?.delete() }
+                .onFailure { console.add("! unable to remove incomplete output") }
         }
-
-
-        srcBoot.delete()
-        "cp_readlink $installDir".sh()
-
-        return true
     }
 
     private suspend fun processUrl(url: String): Boolean {
@@ -526,7 +500,7 @@ abstract class MagiskInstallImpl protected constructor(
         if (!patchBoot()) return false
 
         val outFile = try {
-            MediaStoreUtils.getFileAtStorageRoot("$destName.$destExt", destFolder)
+            MediaStoreUtils.getPatchOutputFile("$destName.$destExt", destFolder)
         } catch (e: IOException) {
             console.add("! failed to create output file")
             return false
@@ -612,22 +586,31 @@ abstract class MagiskInstallImpl protected constructor(
     protected abstract suspend fun operations(): Boolean
 
     open suspend fun exec(): Boolean {
-        if (haveActiveSession.getAndSet(true))
+        val session = InstallSession.acquire() ?: run {
+            console.add("! another installation is already running")
             return false
+        }
 
-        val result = withContext(Dispatchers.IO) { operations() }
-        haveActiveSession.set(false)
-        if (result)
-            return true
-
-
-        if (::installDir.isInitialized)
-            Shell.cmd("rm -rf $installDir").submit()
-        return false
-    }
-
-    companion object {
-        private var haveActiveSession = AtomicBoolean(false)
+        return try {
+            withContext(Dispatchers.IO) { operations() }
+        } catch (e: IOException) {
+            console.add("! operation failed: ${e.message.orEmpty()}")
+            false
+        } catch (e: SecurityException) {
+            console.add("! access denied: ${e.message.orEmpty()}")
+            false
+        } finally {
+            try {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    // Only this operation's unique staging directory, never a
+                    // shared cache/root directory. Finish before releasing the lease.
+                    if (::installDir.isInitialized && !installDir.deleteRecursively())
+                        console.add("! unable to remove installation staging files")
+                }
+            } finally {
+                session.close()
+            }
+        }
     }
 }
 

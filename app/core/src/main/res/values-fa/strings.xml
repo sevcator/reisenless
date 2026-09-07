@@ -11,45 +11,38 @@
 
     <!--Home-->
     <string name="no_connection">هیچ اتصالی وجود ندارد</string>
-    <string name="app_changelog">تغییرات</string>
     <string name="loading">در حال بارگذاری…</string>
     <string name="update">بروزرسانی کردن</string>
     <string name="not_available">غیر/قابل دسترسی</string>
     <string name="hide">پنهان کردن</string>
     <string name="home_package">پکیج</string>
     <string name="home_app_title">برنامه</string>
-    <string name="home_notice_content">Magisk را فقط از صفحه رسمی GitHub دانلود کنید. فایل‌ها از منابع ناشناس می‌توانند مخرب باشند!</string>
     <string name="home_follow_title">ما را دنبال کنید</string>
-    <string name="home_support_title">حمایت ما</string>
-    <string name="home_item_source">منبع</string>
-    <string name="home_support_content">این برنامه (Magisk) رایگان و متن باز است و همیشه خواهد ماند. اگرچه شما میتواند با دونیت خود نشان دهد که به ما اهمیت می دهید.</string>
     <string name="home_installed_version">نصب شده</string>
     <string name="home_latest_version">آخرین نسخه</string>
-    <string name="invalid_update_channel">کانال بروزرسانی نامعتبر است</string>
-    <string name="uninstall_magisk_title">حذف Magisk</string>
+    <string name="uninstall_magisk_title">حذف magisk</string>
     <string name="uninstall_magisk_msg">همه ماژول ها غیرفعال/حذف می شوند!\nروت حذف می شود!\nداده های شما اگر از قبل رمزگذارری نشده بودند رمز نگاری میشوند!</string>
 
     <!--Install-->
     <string name="keep_force_encryption">حفظ رمزگذاری اجباری</string>
-    <string name="keep_dm_verity">حفظ AVB 2.0/dm-verity</string>
+    <string name="keep_dm_verity">حفظ avb 2.0/dm-verity</string>
     <string name="recovery_mode">حالت ریکاوری</string>
     <string name="install_options_title">گزینه ها</string>
     <string name="install_method_title">روش</string>
     <string name="install_next">بعدی</string>
     <string name="install_start">بزن بریم</string>
-    <string name="manager_download_install">برای دانلود و نصب فشار دهید</string>
     <string name="direct_install">نصب مستقیم (توصیه می شود)</string>
-    <string name="install_inactive_slot">نصب در حافظه غیر فعال (بعد OTA)</string>
-    <string name="install_inactive_slot_msg">بعد از راه اندازی مجدد دستگاه شما مجبور به راه اندازی در حافظه غیرفعال فعلی می شود! \nفقط پس از انجام OTA از این گزینه استفاده کنید. \nادامه می دهید؟</string>
+    <string name="install_inactive_slot">نصب در حافظه غیر فعال (بعد ota)</string>
+    <string name="install_inactive_slot_msg">بعد از راه اندازی مجدد دستگاه شما مجبور به راه اندازی در حافظه غیرفعال فعلی می شود! \nفقط پس از انجام ota از این گزینه استفاده کنید. \nادامه می دهید؟</string>
     <string name="setup_title">تنظیمات اضافی</string>
     <string name="select_patch_file">یک فایل را انتخاب و پچ کنید</string>
-    <string name="patch_file_msg">یک تصویر خام (*.img) یا یک فایل (ODIN (*.tar انتخاب کنید</string>
+    <string name="patch_file_msg">یک تصویر خام (*.img) یا یک فایل (odin (*.tar انتخاب کنید</string>
     <string name="reboot_delay_toast">راه اندازی مجدد در 5 ثانیه…</string>
     <string name="flash_screen_title">نصب و راه اندازی</string>
 
     <!--Superuser-->
     <string name="su_request_title">درخواست کاربر روت</string>
-    <string name="touch_filtered_warning">به دلیل اینکه یک برنامه در حال پوشاندن درخواست Superuser است، Magisk نمی‌تواند پاسخ شما را تأیید کند.</string>
+    <string name="touch_filtered_warning">به دلیل اینکه یک برنامه در حال پوشاندن درخواست superuser است، magisk نمی‌تواند پاسخ شما را تأیید کند.</string>
     <string name="deny">رد کردن</string>
     <string name="prompt">درخواست کردن</string>
     <string name="restrict">محدود کردن</string>
@@ -80,7 +73,7 @@
     <string name="pid">شناسه پردازش: %1$d</string>
     <string name="target_uid">شناسه کاربر هدف: %1$d</string>
     <string name="target_pid">شناسه پردازش هدف: %s</string>
-    <string name="selinux_context">متن SELinux: %s</string>
+    <string name="selinux_context">متن selinux: %s</string>
     <string name="supp_group">گروه تکمیلی: %s</string>
 
     <!-- MagiskHide -->
@@ -95,16 +88,15 @@
     <string name="reboot_recovery">راه اندازی مججد برای رفتن به ریکاوری</string>
     <string name="reboot_bootloader">راه اندازی مججد برای رفتن به بوت لودر</string>
     <string name="reboot_download">راه اندازی مججد برای دانلود کردن</string>
-    <string name="reboot_edl">راه اندازی مججد برای رفتن به EDL</string>
+    <string name="reboot_edl">راه اندازی مججد برای رفتن به edl</string>
     <string name="reboot_safe_mode">راه اندازی مججد برای رفتن به حالت امن</string>
     <string name="module_version_author">%1$s با %2$s</string>
     <string name="module_state_remove">حذف کردن</string>
     <string name="module_state_restore">بازگرداندن</string>
     <string name="module_action_install_external">نصب از حافظه</string>
-    <string name="update_available">بروزرسانی در دسترس است</string>
     <string name="suspend_text_riru">ماژول به دلیل فعال بودن %1$s متوقف شد</string>
     <string name="suspend_text_zygisk">ماژول به دلیل غیرفعال بودن %1$s متوقف شد</string>
-    <string name="zygisk_module_unloaded">ماژول Zygisk به دلیل ناسازگاری بارگذاری نشد</string>
+    <string name="zygisk_module_unloaded">ماژول zygisk به دلیل ناسازگاری بارگذاری نشد</string>
     <string name="module_empty">هیچ ماژولی نصب نشده است</string>
     <string name="confirm_install">نصب ماژول %1$s؟</string>
     <string name="confirm_install_title">تأیید نصب</string>
@@ -120,21 +112,13 @@
     <string name="settings_download_path_message">فایل ها در %1$s ذخیره خواهند شد.</string>
     <string name="language">زبان</string>
     <string name="system_default">(پیش فرض سیستم)</string>
-    <string name="settings_check_update_title">چک کردن بروز رسانی ها</string>
-    <string name="settings_check_update_summary"> برسی کردن به صورت دوره ای برای به روزرسانی در پس زمینه</string>
-    <string name="settings_update_channel_title">کانال بروزرسانی</string>
-    <string name="settings_update_stable">پایدار</string>
-    <string name="settings_update_beta">آزمایشی</string>
-    <string name="settings_update_debug">اشکال‌زدایی</string>
-    <string name="settings_update_custom">شخصی سازی شده</string>
-    <string name="settings_update_custom_msg">اضافه کردن یک URL سفارشی</string>
-    <string name="settings_zygisk_summary">اجرای بخش‌هایی از Magisk در سرویس Zygote</string>
+    <string name="settings_zygisk_summary">اجرای بخش‌هایی از magisk در سرویس zygote</string>
     <string name="settings_hosts_title">نصب بدون حذف یا تغییر در فایل ها</string>
-    <string name="settings_hosts_summary">نصب بدون حذف یا تغییر در فایل ها رای ساپورت از برنامه های Adblock</string>
+    <string name="settings_hosts_summary">نصب بدون حذف یا تغییر در فایل ها رای ساپورت از برنامه های adblock</string>
     <string name="settings_hosts_toast">ماژول نصب بدون حذف یا تغییر در فایل ها اضافه شد</string>
-    <string name="settings_su_app_adb">برنامه ها و ADB</string>
+    <string name="settings_su_app_adb">برنامه ها و adb</string>
     <string name="settings_su_app">فقط برنامه ها</string>
-    <string name="settings_su_adb">ADB فقط</string>
+    <string name="settings_su_adb">adb فقط</string>
     <string name="settings_su_disable">غییرفعال شده</string>
     <string name="settings_su_request_10">10 ثانیه</string>
     <string name="settings_su_request_15">15 ثانیه</string>
@@ -148,13 +132,13 @@
     <string name="superuser_notification">اعلان روت</string>
     <string name="settings_su_reauth_title">احراز هویت دوباره پس از بروز رسانی</string>
     <string name="settings_su_reauth_summary">تأیید کردندوباره مجوزهای روت پس از ارتقاء برنامه</string>
-    <string name="settings_su_tapjack_title">محافظت در برابر Tapjacking</string>
-    <string name="settings_su_tapjack_summary">پنجره درخواست Superuser زمانی که توسط پنجره یا لایه دیگری پوشانده شود، به ورودی پاسخ نخواهد داد</string>
+    <string name="settings_su_tapjack_title">محافظت در برابر tapjacking</string>
+    <string name="settings_su_tapjack_summary">پنجره درخواست superuser زمانی که توسط پنجره یا لایه دیگری پوشانده شود، به ورودی پاسخ نخواهد داد</string>
     <string name="settings_su_auth_title">احراز هویت کاربر</string>
-    <string name="settings_su_auth_summary">درخواست احراز هویت کاربر هنگام درخواست Superuser</string>
+    <string name="settings_su_auth_summary">درخواست احراز هویت کاربر هنگام درخواست superuser</string>
     <string name="settings_su_auth_insecure">هیچ روش احراز هویتی روی دستگاه پیکربندی نشده است</string>
     <string name="settings_su_restrict_title">محدود کردن دسترسی روت</string>
-    <string name="settings_su_restrict_summary">به طور پیش‌فرض برنامه‌های Superuser جدید را محدود می‌کند. هشدار: این کار بیشتر برنامه‌ها را از کار می‌اندازد. فقط اگر دقیقاً می‌دانید چه می‌کنید آن را فعال کنید.</string>
+    <string name="settings_su_restrict_summary">به طور پیش‌فرض برنامه‌های superuser جدید را محدود می‌کند. هشدار: این کار بیشتر برنامه‌ها را از کار می‌اندازد. فقط اگر دقیقاً می‌دانید چه می‌کنید آن را فعال کنید.</string>
     <string name="settings_customization">سفارشی سازی</string>
     <string name="settings_random_name_title">تغییر تصادفی نام خروجی</string>
     <string name="settings_random_name_description">تغییر تصادفی نام فایل خروجی تصاویر و فایل‌های tar پچ‌شده برای جلوگیری از شناسایی</string>
@@ -165,23 +149,18 @@
     <string name="owner_only_summary">فقط مالک دسترسی روت دارد</string>
     <string name="owner_manage_summary">فقط مالک می تواند دسترسی روت را مدیریت کرده و درخواست های پرامپت را دریافت کند</string>
     <string name="user_independent_summary">هر کاربر قوانین روت جداگانه خود را دارد</string>
-    <string name="mount_namespace_mode">نصب کردن Namespace Mode</string>
-    <string name="settings_ns_global">سراسری Namespace</string>
-    <string name="settings_ns_requester">وراثتی Namespace</string>
-    <string name="settings_ns_isolate">منزوی Namespace</string>
+    <string name="mount_namespace_mode">نصب کردن namespace mode</string>
+    <string name="settings_ns_global">سراسری namespace</string>
+    <string name="settings_ns_requester">وراثتی namespace</string>
+    <string name="settings_ns_isolate">منزوی namespace</string>
     <string name="global_summary">همه سشن های روت از global namespace نصب شده استفاده میکنند</string>
     <string name="requester_summary">سشن های روت namespace دراخواست کننده را به ارث می برند</string>
     <string name="isolate_summary">هر سشن روت namespace جداگانه خود را دارد</string>
 
     <!--Notifications-->
-    <string name="update_channel">Magisk بروزرسانی های</string>
     <string name="progress_channel">اعلان پیشرفت</string>
-    <string name="updated_channel">به‌روزرسانی کامل شد</string>
     <string name="download_complete">دانلود کامل شد</string>
     <string name="download_file_error">خطا در دانلود فایل</string>
-    <string name="magisk_update_title">بروزرسانی Magisk در دسترس است!</string>
-    <string name="updated_title">Magisk به‌روزرسانی شد</string>
-    <string name="updated_text">برای باز کردن برنامه لمس کنید</string>
 
     <!--Toasts, Dialogs-->
     <string name="yes">بله</string>
@@ -190,7 +169,6 @@
     <string name="download">دانلود کردن</string>
     <string name="reboot">راه اندازی مجدد</string>
     <string name="close">بستن</string>
-    <string name="release_notes">نکته های نسخه</string>
     <string name="flashing">ر حال فلش کردن…</string>    <string name="done">تمام!</string>
     <string name="done_action">انجام عملیات %1$s به پایان رسید</string>
     <string name="failure">ناموفق</string>
@@ -202,15 +180,15 @@
     <string name="restore_fail">نسخه پشتیبان استک موجود نیست!</string>
     <string name="setup_fail">نصب انجام نشد</string>
     <string name="env_fix_title">به تنظیمات اضافی نیاز دارد</string>
-    <string name="env_fix_msg">دستگاه شما به پیکربندی اضافی نیاز دارد تا Magisk به درستی کار کند. آیا می‌خواهید ادامه دهید و راه‌اندازی مجدد انجام شود؟</string>
-    <string name="env_full_fix_msg">دستگاه شما نیاز به نصب دوباره Magisk دارد تا به درستی کار کند. لطفاً Magisk را از داخل برنامه دوباره نصب کنید، حالت Recovery نمی‌تواند اطلاعات دستگاه را به درستی بگیرد.</string>
+    <string name="env_fix_msg">دستگاه شما به پیکربندی اضافی نیاز دارد تا magisk به درستی کار کند. آیا می‌خواهید ادامه دهید و راه‌اندازی مجدد انجام شود؟</string>
+    <string name="env_full_fix_msg">دستگاه شما نیاز به نصب دوباره magisk دارد تا به درستی کار کند. لطفاً magisk را از داخل برنامه دوباره نصب کنید، حالت recovery نمی‌تواند اطلاعات دستگاه را به درستی بگیرد.</string>
     <string name="setup_msg">راه اندازی محیط نصب…</string>
-    <string name="unsupport_magisk_title">نسخه پشتیبانی نشده Magisk</string>
-    <string name="unsupport_magisk_msg">این نسخه از برنامه از نسخه‌های Magisk پایین‌تر از %1$s پشتیبانی نمی‌کند.\n\nبرنامه طوری رفتار می‌کند که انگار Magisk نصب نشده است. لطفاً هرچه سریع‌تر Magisk را به‌روزرسانی کنید.</string>
+    <string name="unsupport_magisk_title">نسخه پشتیبانی نشده magisk</string>
+    <string name="unsupport_magisk_msg">این نسخه از برنامه از نسخه‌های magisk پایین‌تر از %1$s پشتیبانی نمی‌کند.\n\nبرنامه طوری رفتار می‌کند که انگار magisk نصب نشده است. لطفاً هرچه سریع‌تر magisk را به‌روزرسانی کنید.</string>
     <string name="unsupport_general_title">وضعیت غیرعادی</string>
     <string name="unsupport_system_app_msg">اجرای این برنامه به عنوان برنامه سیستمی پشتیبانی نمی‌شود. لطفاً آن را به برنامه کاربری بازگردانید.</string>
-    <string name="unsupport_other_su_msg">یک باینری "su" غیر از Magisk شناسایی شد. لطفاً هر راهکار روت دیگری را حذف کنید و/یا Magisk را دوباره نصب کنید.</string>
-    <string name="unsupport_external_storage_msg">Magisk روی حافظه خارجی نصب شده است. لطفاً برنامه را به حافظه داخلی منتقل کنید.</string>
+    <string name="unsupport_other_su_msg">یک باینری "su" غیر از magisk شناسایی شد. لطفاً هر راهکار روت دیگری را حذف کنید و/یا magisk را دوباره نصب کنید.</string>
+    <string name="unsupport_external_storage_msg">magisk روی حافظه خارجی نصب شده است. لطفاً برنامه را به حافظه داخلی منتقل کنید.</string>
     <string name="external_rw_permission_denied">برای فعال کردن این قابلیت ، اجازه دسترسی به حافظه بدهید</string>
     <string name="post_notifications_denied">برای فعال‌سازی این قابلیت، مجوز اعلان‌ها را بدهید</string>
     <string name="install_unknown_denied">برای فعال‌سازی این قابلیت، «نصب برنامه‌های ناشناخته» را مجاز کنید</string>

@@ -73,13 +73,6 @@ class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenH
         setContentView()
         showUnsupportedMessage()
 
-        // Ask permission to post notifications for background update check
-        if (Config.checkUpdate) {
-            withPermission(Manifest.permission.POST_NOTIFICATIONS) {
-                Config.checkUpdate = it
-            }
-        }
-
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         navigation.addOnDestinationChangedListener { _, destination, _ ->
@@ -188,8 +181,8 @@ class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenH
 
         if (!Info.isEmulator && Info.env.isActive && System.getenv("PATH")
                 ?.split(':')
-                ?.filterNot { File("$it/magisk").exists() }
-                ?.any { File("$it/su").exists() } == true) {
+                ?.map { File("$it/su") }
+                ?.any { it.exists() && !Info.isTrustedSu(it) } == true) {
             MagiskDialog(this).apply {
                 setTitle(CoreR.string.unsupport_general_title)
                 setMessage(CoreR.string.unsupport_other_su_msg)

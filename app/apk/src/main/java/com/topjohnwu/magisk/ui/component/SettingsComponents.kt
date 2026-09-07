@@ -66,27 +66,20 @@ fun SettingsSwitch(
 @Composable
 fun SettingsSwitchAction(
     title: String,
-    summary: String? = null,
     checked: Boolean,
+    modifier: Modifier = Modifier,
+    summary: String? = null,
     enabled: Boolean = true,
     onClick: () -> Unit,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        ListItem(
-            headlineContent = { Text(title) },
-            supportingContent = summary?.takeIf { it.isNotEmpty() }?.let { { Text(it) } },
-            modifier = Modifier
-                .weight(1f)
-                .clickable(enabled = enabled, onClick = onClick),
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            modifier = Modifier.padding(end = 16.dp),
-        )
-    }
+    ListItem(
+        headlineContent = { Text(title, style = MaterialTheme.typography.bodyLarge) },
+        supportingContent = summary?.takeIf { it.isNotEmpty() }?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = modifier.clickable(enabled = enabled, onClick = onClick)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

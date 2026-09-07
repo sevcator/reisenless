@@ -11,19 +11,14 @@
 
 
     <string name="no_connection">нет подключения к сети</string>
-    <string name="app_changelog">изменения</string>
     <string name="loading">загрузка…</string>
     <string name="update">обновить</string>
     <string name="not_available">не установлен</string>
     <string name="hide">скрыть</string>
     <string name="home_package">имя пакета</string>
-    <string name="home_app_title">reisenless</string>
+    <string name="home_app_title">приложение</string>
 
-    <string name="home_notice_content">скачивайте reisenless только из официального репозитория на github. файлы из других источников могут содержать вредоносный код!</string>
-    <string name="home_support_title">поддержите нас</string>
     <string name="home_follow_title">подпишитесь</string>
-    <string name="home_item_source">исходный код</string>
-    <string name="home_support_content">reisenless был и всегда будет бесплатным и открытым проектом. однако вы всегда можете поддержать нас, отправив небольшое пожертвование.</string>
     <string name="home_installed_version">текущая версия</string>
     <string name="home_latest_version">последняя версия</string>
     <string name="uninstall_magisk_title">удаление reisenless</string>
@@ -37,7 +32,6 @@
     <string name="install_method_title">способ</string>
     <string name="install_next">далее</string>
     <string name="install_start">установить</string>
-    <string name="manager_download_install">нажмите для установки</string>
     <string name="direct_install">автоматическая установка (рекомендуется)</string>
     <string name="install_inactive_slot">установка во второй слот (после ota-обновления)</string>
     <string name="install_inactive_slot_msg">ваше устройство будет принудительно перезагружено в неактивный (противоположный) слот!\nиспользуйте эту опцию только при интеграции reisenless после ota-обновления!\nпродолжить?</string>
@@ -172,7 +166,6 @@
 
 
     <string name="progress_channel">уведомления о прогрессе</string>
-    <string name="updated_channel">обновление завершено</string>
     <string name="download_complete">загрузка завершена</string>
     <string name="download_file_error">ошибка загрузки файла</string>
 
@@ -182,7 +175,6 @@
     <string name="module_update_install_title">установка %1$s %2$s(%3$d)</string>
     <string name="download">скачать</string>
     <string name="reboot">перезагрузка</string>
-    <string name="release_notes">о версии</string>
     <string name="flashing">установка…</string>
     <string name="done">завершено!</string>
     <string name="failure">ошибка!</string>
@@ -244,12 +236,9 @@
     <string name="udonge_keybox_list_title">enable</string>
     <string name="udonge_keybox_list_summary">добавляйте и удаляйте ссылки на keybox</string>
     <string name="udonge_keybox_hint">по одной https-ссылке на строку</string>
-    <string name="udonge_rom_keywords_title">hide something wrong</string>
-    <string name="udonge_rom_keywords_summary">скрыть runtime-сигналы и следы фреймворка кастомных ROM</string>
-    <string name="udonge_rom_keywords_hint">по одному имени ROM на строку (например: lineage, protonaosp)</string>
-    <string name="webui_root_required">Для WebUI требуются root и активная установка Reisenless</string>
-    <string name="webui_webview_required">Требуется Android System WebView</string>
-    <string name="webui_webview_required_summary">На устройстве нет рабочего поставщика Android WebView. Установите или включите Android System WebView и повторите попытку.</string>
-    <string name="webui_install_webview">установить WebView</string>
+    <string name="webui_root_required">для webui требуются root и активная установка reisenless</string>
+    <string name="webui_webview_required">требуется android system webview</string>
+    <string name="webui_webview_required_summary">на устройстве нет рабочего поставщика android webview. установите или включите android system webview и повторите попытку.</string>
+    <string name="webui_install_webview">установить webview</string>
     <string name="module_search_installed">поиск установленных модулей</string>
 </resources>

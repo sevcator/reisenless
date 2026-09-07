@@ -20,6 +20,16 @@ object MediaStoreUtils {
 
     private val cr get() = AppContext.contentResolver
 
+    // Providers can report storage/URI failures as runtime exceptions. Keep the
+    // file API's IOException contract so callers can display a failed operation.
+    internal inline fun <T> storageOperation(block: () -> T): T = try {
+        block()
+    } catch (e: IllegalArgumentException) {
+        throw IOException("Invalid output location", e)
+    } catch (e: SecurityException) {
+        throw IOException("Storage access denied", e)
+    }
+
     private fun downloadRelPath(subFolder: String) =
         if (subFolder.isEmpty()) Environment.DIRECTORY_DOWNLOADS
         else Environment.DIRECTORY_DOWNLOADS + File.separator + subFolder
@@ -80,9 +90,9 @@ object MediaStoreUtils {
     }
 
     @Throws(IOException::class)
-    fun getFile(displayName: String, subFolder: String = ""): UriFile {
+    fun getFile(displayName: String, subFolder: String = ""): UriFile = storageOperation {
         val rp = downloadRelPath(subFolder)
-        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
 
             val parent = File(Environment.getExternalStorageDirectory(), rp)
             parent.mkdirs()
@@ -94,25 +104,21 @@ object MediaStoreUtils {
     }
 
     @Throws(IOException::class)
-    fun getFileAtStorageRoot(displayName: String, subFolder: String): UriFile {
+    fun getPatchOutputFile(displayName: String, subFolder: String): UriFile = storageOperation {
         require(subFolder.matches(Regex("[a-zA-Z]{4,9}")))
         require(displayName.matches(Regex("[a-zA-Z]{4,9}\\.[a-zA-Z]{3}")))
-        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            val parent = File(Environment.getExternalStorageDirectory(), subFolder)
-            if (!parent.exists() && !parent.mkdirs()) {
-                throw IOException("Can't create output directory.")
-            }
-            LegacyUriFile(File(parent, displayName))
-        } else {
-            val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            queryFile(collection, displayName, subFolder)
-                ?: insertFile(collection, displayName, subFolder)
-        }
+        // Scoped storage allows Downloads/Documents, not arbitrary top-level
+        // directories. Keep the neutral names inside Downloads on every API.
+        getFile(displayName, subFolder)
     }
 
-    fun Uri.inputStream() = cr.openInputStream(this) ?: throw FileNotFoundException()
+    fun Uri.inputStream() = storageOperation {
+        cr.openInputStream(this) ?: throw FileNotFoundException()
+    }
 
-    fun Uri.outputStream() = cr.openOutputStream(this, "rwt") ?: throw FileNotFoundException()
+    fun Uri.outputStream() = storageOperation {
+        cr.openOutputStream(this, "rwt") ?: throw FileNotFoundException()
+    }
 
     val Uri.displayName: String get() {
         if (scheme == "file") {

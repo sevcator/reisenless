@@ -22,7 +22,6 @@ class HideAppsRepository(private val context: Context) {
         save(config.copy(
             version = HideAppsConfig.CURRENT_VERSION,
             enabled = enabled,
-            scope = emptyMap(),
         ))
     }
 

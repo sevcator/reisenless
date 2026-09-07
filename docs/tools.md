@@ -256,9 +256,9 @@ Advanced Options (Internal APIs):
    --restorecon              restore selinux context on Magisk files
    --clone-attr SRC DEST     clone permission, owner, and selinux context
    --clone SRC DEST          clone SRC to DEST
-   --sqlite SQL              exec SQL commands to Magisk database
+   --sqlite SQL              exec SQL commands (signed manager only)
    --path                    print Magisk tmpfs mount path
-   --denylist ARGS           denylist config CLI
+   --sulist ARGS             sulist config CLI (signed manager only)
    --preinit-device          resolve a device to store preinit files
 
 Available applets:
@@ -324,3 +324,52 @@ Flags:
    -p      read/write props from/to persistent storage
            (this flag only affects getprop and delprop)
 ```
+# Host-only security tests
+
+Run the manager authorization predicate tests without Android `build-std`:
+
+```console
+python build.py test-native-auth
+```
+
+Verify deterministic identity derivation and seed separation:
+
+```console
+python build.py test-identity
+```
+
+Perform a guarded on-device migration only after a matched release build has
+passed validation. The runner verifies both the local rollback image and active
+boot partition, records the complete installer transcript, leaves source data
+and legacy applications intact, and restores boot if installation fails after
+the partition changes:
+
+```console
+python scripts/device_migrate.py --apk <release.apk> \
+  --rollback-boot <boot-backup.img> --expected-boot-sha256 <sha256> \
+  --legacy-package <old.manager.package> \
+  --remove-private-target <obsolete.target.package>
+```
+
+Repeat `--legacy-package` for each exact migration identity. The values are
+stored only in the root-side migration state; they are not embedded in release
+artifacts. Remove that state file together with the old packages only after the
+second-reboot and application test gates pass.
+
+For a risky identity rotation, set `PATCH_ONLY_OUTPUT` to an exact path below
+`/data/local/tmp` when invoking `update-binary`. The installer will build and
+stage the candidate without writing the boot partition. Pull that image and
+test it with `fastboot boot` before performing the persistent installation.
+The host runner provides this flow directly and verifies that the active boot
+hash did not change:
+
+```console
+python scripts/device_migrate.py --apk <release.apk> \
+  --rollback-boot <boot-backup.img> --expected-boot-sha256 <sha256> \
+  --stage-patched-boot <candidate-boot.img> \
+  --legacy-package <old.manager.package>
+fastboot boot <candidate-boot.img>
+```
+
+Only omit `--stage-patched-boot` after the candidate has reached Android and
+passed the authorization, migration, module, and process-visibility checks.

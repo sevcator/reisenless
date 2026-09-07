@@ -1,11 +1,12 @@
 use crate::bootstages::BootState;
 use crate::consts::{
-    DAEMON_PROC_NAME, MAGISK_FILE_CON, MAGISK_PROC_CON, MAGISK_VER_CODE, MAGISK_VERSION,
-    MAIN_CONFIG, MAIN_SOCKET, ROOTMNT, ROOTOVL,
+    MAGISK_FILE_CON, MAGISK_PROC_CON, MAGISK_VER_CODE, MAGISK_VERSION, MAIN_CONFIG, ROOTMNT,
+    ROOTOVL,
 };
 use crate::db::Sqlite3;
 use crate::ffi::{
-    ModuleInfo, RequestCode, RespondCode, denylist_handler, get_magisk_tmp, scan_deny_apps,
+    ModuleInfo, RequestCode, RespondCode, denylist_handler, get_magisk_tmp,
+    get_runtime_daemon_name, get_runtime_socket, scan_deny_apps,
 };
 use crate::logging::android_logging;
 use crate::module::remove_modules;
@@ -32,12 +33,15 @@ use std::os::fd::{AsFd, AsRawFd, IntoRawFd, RawFd};
 use std::os::unix::net::{UCred, UnixListener, UnixStream};
 use std::process::{Command, exit};
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::nonpoison::Mutex;
 use std::time::{Duration, Instant};
 
-
 pub static MAGISKD: OnceLock<MagiskD> = OnceLock::new();
+pub const CLIENT_ACCESS_DENIED: i32 = 10;
+pub const CLIENT_DAEMON_UNAVAILABLE: i32 = 11;
+pub const CLIENT_PROTOCOL_MISMATCH: i32 = 12;
+pub static CLIENT_FAILURE: AtomicI32 = AtomicI32::new(0);
 
 pub const AID_ROOT: i32 = 0;
 pub const AID_SHELL: i32 = 2000;
@@ -101,14 +105,11 @@ impl MagiskD {
             }
             RequestCode::START_DAEMON => {}
             RequestCode::STOP_DAEMON => {
-
                 denylist_handler(-1);
-
 
                 self.zygisk.lock().restore_prop();
 
                 client.write_pod(&0).log_ok();
-
 
                 exit(0);
             }
@@ -116,13 +117,19 @@ impl MagiskD {
         }
     }
 
-    fn handle_request_async(&self, mut client: UnixStream, code: RequestCode, cred: UCred) {
+    fn handle_request_async(
+        &self,
+        mut client: UnixStream,
+        code: RequestCode,
+        cred: UCred,
+        manager_authenticated: bool,
+    ) {
         match code {
             RequestCode::DENYLIST => {
                 denylist_handler(client.into_raw_fd());
             }
             RequestCode::SUPERUSER => {
-                self.su_daemon_handler(client, cred);
+                self.su_daemon_handler(client, cred, manager_authenticated);
             }
             RequestCode::ZYGOTE_RESTART => {
                 info!("** zygote restarted");
@@ -177,10 +184,8 @@ impl MagiskD {
 
     fn handle_requests(&'static self, mut client: UnixStream) {
         let Ok(cred) = client.peer_cred() else {
-
             return;
         };
-
 
         let mut context = cstr::buf::new::<256>();
         unsafe {
@@ -196,9 +201,14 @@ impl MagiskD {
         context.rebuild().ok();
 
         let is_root = cred.uid == 0;
-        let is_shell = cred.uid == 2000;
         let is_zygote = &context == "u:r:zygote:s0";
-        let is_manager = self.is_manager_uid(to_user_id(cred.uid as i32), cred.uid as i32);
+        let user = to_user_id(cred.uid as i32);
+        let is_privileged_client = self.is_privileged_client(
+            user,
+            cred.uid as i32,
+            cred.pid.unwrap_or(-1),
+            context.as_str(),
+        );
 
         let mut code = -1;
         client.read_pod(&mut code).ok();
@@ -206,17 +216,15 @@ impl MagiskD {
             || code == RequestCode::_SYNC_BARRIER_.repr
             || code == RequestCode::_STAGE_BARRIER_.repr
         {
-
             return;
         }
 
         let code = RequestCode { repr: code };
 
-        let is_authorized_su = code.repr == RequestCode::SUPERUSER.repr
-            && self.uid_granted_root(cred.uid as i32);
-        if !is_root
-            && !is_zygote
-            && !is_manager
+        let is_authorized_su =
+            code.repr == RequestCode::SUPERUSER.repr && self.uid_granted_root(cred.uid as i32);
+        if !is_zygote
+            && !is_privileged_client
             && !self.is_client(cred.pid.unwrap_or(-1))
             && !is_authorized_su
         {
@@ -224,14 +232,17 @@ impl MagiskD {
             return;
         }
 
-
         match code {
+            RequestCode::SQLITE_CMD | RequestCode::DENYLIST => {
+                if !is_privileged_client {
+                    client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
+                    return;
+                }
+            }
             RequestCode::POST_FS_DATA
             | RequestCode::LATE_START
             | RequestCode::BOOT_COMPLETE
             | RequestCode::ZYGOTE_RESTART
-            | RequestCode::SQLITE_CMD
-            | RequestCode::DENYLIST
             | RequestCode::STOP_DAEMON => {
                 if !is_root {
                     client.write_pod(&RespondCode::ROOT_REQUIRED.repr).log_ok();
@@ -239,18 +250,14 @@ impl MagiskD {
                 }
             }
             RequestCode::REMOVE_MODULES => {
-                if !is_root && !is_shell {
-
+                if !is_privileged_client {
                     client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
                     return;
                 }
             }
-            RequestCode::ZYGISK => {
-                if !is_zygote {
-
-                    client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
-                    return;
-                }
+            RequestCode::ZYGISK if !is_zygote => {
+                client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
+                return;
             }
             _ => {}
         }
@@ -263,7 +270,7 @@ impl MagiskD {
             self.handle_request_sync(client, code)
         } else if code.repr < RequestCode::_STAGE_BARRIER_.repr {
             ThreadPool::exec_task(move || {
-                self.handle_request_async(client, code, cred);
+                self.handle_request_async(client, code, cred, is_privileged_client);
             })
         } else {
             ThreadPool::exec_task(move || {
@@ -288,12 +295,10 @@ fn switch_cgroup(cgroup: &str, pid: i32) {
 }
 
 fn daemon_entry() {
-    set_nice_name(cstr!(DAEMON_PROC_NAME));
+    set_nice_name(get_runtime_daemon_name());
     android_logging();
 
-
     SigSet::all().thread_set_mask().log_ok();
-
 
     if let Ok(null) = cstr!("/dev/null").open(OFlag::O_WRONLY).log() {
         dup2_stdout(null.as_fd()).log_ok();
@@ -305,7 +310,6 @@ fn daemon_entry() {
 
     setsid().log_ok();
 
-
     if let Ok(mut current) =
         cstr!("/proc/self/attr/current").open(OFlag::O_WRONLY | OFlag::O_CLOEXEC)
     {
@@ -316,7 +320,6 @@ fn daemon_entry() {
     let is_emulator = get_prop(cstr!("ro.kernel.qemu")) == "1"
         || get_prop(cstr!("ro.boot.qemu")) == "1"
         || get_prop(cstr!("ro.product.device")).contains("vsoc");
-
 
     let magisk_tmp = get_magisk_tmp();
     let mut tmp_path = cstr::buf::new::<64>()
@@ -345,7 +348,6 @@ fn daemon_entry() {
         });
     }
     if sdk_int < 0 {
-
         sdk_int = get_prop(cstr!("ro.build.version.sdk"))
             .parse::<i32>()
             .unwrap_or(-1);
@@ -353,7 +355,6 @@ fn daemon_entry() {
     info!("* Device API level: {sdk_int}");
 
     restore_tmpcon().log_ok();
-
 
     let pid = getpid().as_raw();
     switch_cgroup("/acct", pid);
@@ -363,11 +364,9 @@ fn daemon_entry() {
         switch_cgroup("/dev/memcg/apps", pid);
     }
 
-
     if cstr!("/system_ext/app/mediatek-res/mediatek-res.apk").exists() {
         set_prop(cstr!("ro.vendor.mtk_model"), cstr!("0"));
     }
-
 
     tmp_path.append_path(ROOTMNT);
     if let Ok(mount_list) = tmp_path.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
@@ -380,12 +379,10 @@ fn daemon_entry() {
     }
     tmp_path.truncate(magisk_tmp.len());
 
-
     if std::env::var_os("REMOUNT_ROOT").is_some() {
         cstr!("/").remount_mount_flags(MsFlags::MS_RDONLY).log_ok();
         unsafe { std::env::remove_var("REMOUNT_ROOT") };
     }
-
 
     tmp_path.append_path(ROOTOVL);
     tmp_path.remove_all().ok();
@@ -408,7 +405,7 @@ fn daemon_entry() {
 
     let sock_path = cstr::buf::new::<64>()
         .join_path(get_magisk_tmp())
-        .join_path(MAIN_SOCKET);
+        .join_path(get_runtime_socket());
     sock_path.remove().ok();
 
     let Ok(sock) = UnixListener::bind(&sock_path).log() else {
@@ -417,7 +414,6 @@ fn daemon_entry() {
 
     sock_path.follow_link().chmod(0o666).log_ok();
     sock_path.set_secontext(cstr!(MAGISK_FILE_CON)).log_ok();
-
 
     let daemon = MagiskD::get();
     for client in sock.incoming() {
@@ -432,22 +428,31 @@ fn daemon_entry() {
 pub fn connect_daemon(code: RequestCode, create: bool) -> LoggedResult<UnixStream> {
     let sock_path = cstr::buf::new::<64>()
         .join_path(get_magisk_tmp())
-        .join_path(MAIN_SOCKET);
+        .join_path(get_runtime_socket());
 
     fn send_request(code: RequestCode, mut socket: UnixStream) -> LoggedResult<UnixStream> {
-        socket.write_pod(&code.repr).log_ok();
+        if socket.write_pod(&code.repr).is_err() {
+            CLIENT_FAILURE.store(CLIENT_PROTOCOL_MISMATCH, Ordering::Relaxed);
+            return log_err!("Unable to send daemon request");
+        }
         let mut res = -1;
-        socket.read_pod(&mut res).log_ok();
+        if socket.read_pod(&mut res).is_err() {
+            CLIENT_FAILURE.store(CLIENT_PROTOCOL_MISMATCH, Ordering::Relaxed);
+            return log_err!("Unexpected end of daemon response");
+        }
         let res = RespondCode { repr: res };
         match res {
             RespondCode::OK => Ok(socket),
             RespondCode::ROOT_REQUIRED => {
+                CLIENT_FAILURE.store(CLIENT_ACCESS_DENIED, Ordering::Relaxed);
                 log_err!("Root is required for this operation")
             }
             RespondCode::ACCESS_DENIED => {
-                log_err!("Accessed denied")
+                CLIENT_FAILURE.store(CLIENT_ACCESS_DENIED, Ordering::Relaxed);
+                log_err!("Access denied")
             }
             _ => {
+                CLIENT_FAILURE.store(CLIENT_PROTOCOL_MISMATCH, Ordering::Relaxed);
                 log_err!("Daemon error")
             }
         }
@@ -457,6 +462,7 @@ pub fn connect_daemon(code: RequestCode, create: bool) -> LoggedResult<UnixStrea
         Ok(socket) => send_request(code, socket),
         Err(e) => {
             if !create || !getuid().is_root() {
+                CLIENT_FAILURE.store(CLIENT_DAEMON_UNAVAILABLE, Ordering::Relaxed);
                 return log_err!("Cannot connect to daemon: {e}");
             }
 
@@ -464,17 +470,14 @@ pub fn connect_daemon(code: RequestCode, create: bool) -> LoggedResult<UnixStrea
             if cstr!("/proc/self/exe").read_link(&mut buf).is_err()
                 || !buf.starts_with(get_magisk_tmp().as_str())
             {
+                CLIENT_FAILURE.store(CLIENT_DAEMON_UNAVAILABLE, Ordering::Relaxed);
                 return log_err!("Start daemon on magisk tmpfs");
             }
-
 
             if fork_dont_care() == 0 {
                 daemon_entry();
                 exit(0);
             }
-
-
-
 
             let deadline = Instant::now() + Duration::from_secs(30);
             let mut retry_delay = Duration::from_millis(20);
@@ -483,6 +486,7 @@ pub fn connect_daemon(code: RequestCode, create: bool) -> LoggedResult<UnixStrea
                     return send_request(code, socket);
                 }
                 if Instant::now() >= deadline {
+                    CLIENT_FAILURE.store(CLIENT_DAEMON_UNAVAILABLE, Ordering::Relaxed);
                     return log_err!("Timed out waiting for daemon startup");
                 }
                 std::thread::sleep(retry_delay);
@@ -495,7 +499,13 @@ pub fn connect_daemon(code: RequestCode, create: bool) -> LoggedResult<UnixStrea
 }
 
 pub fn connect_daemon_for_cxx(code: RequestCode, create: bool) -> RawFd {
+    CLIENT_FAILURE.store(0, Ordering::Relaxed);
     connect_daemon(code, create)
         .map(IntoRawFd::into_raw_fd)
         .unwrap_or(-1)
+}
+
+pub fn daemon_client_failure() -> i32 {
+    let failure = CLIENT_FAILURE.load(Ordering::Relaxed);
+    if failure == 0 { CLIENT_PROTOCOL_MISMATCH } else { failure }
 }

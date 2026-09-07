@@ -39,10 +39,10 @@ trampoline() {
     }
 
     ui_print "***********************"
-    ui_print " reisenless addon.d failed"
+    ui_print " component addon.d failed"
     ui_print "***********************"
-    ui_print "! cannot find reisenless binaries - was data wiped or not decrypted?"
-    ui_print "! reflash ota from decrypted recovery or reflash reisenless"
+    ui_print "! cannot find component binaries - was data wiped or not decrypted?"
+    ui_print "! reflash ota from decrypted recovery or reinstall the component"
   fi
   exit 1
 }
@@ -96,7 +96,7 @@ main() {
   else
     PRETTY_VER="$MAGISK_VER($MAGISK_VER_CODE)"
   fi
-  print_title "reisenless $PRETTY_VER addon.d"
+  print_title "system component $PRETTY_VER addon.d"
 
   mount_partitions
   check_data

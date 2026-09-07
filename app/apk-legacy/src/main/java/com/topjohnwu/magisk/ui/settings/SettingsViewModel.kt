@@ -44,7 +44,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         // Manager
         list.addAll(listOf(
             AppSettings,
-            UpdateChannel, UpdateChannelUrl, UpdateChecker, DownloadPath, RandNameToggle
+            DownloadPath, RandNameToggle
         ))
 
         // Magisk
@@ -58,7 +58,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             }
             list.addAll(listOf(
                 UdongeSettings, UdongeEnabled, UdongeBackgroundUpdates,
-                UdongeKeyboxes, UdongeRomHiding, UdongeRomKeywords,
+                UdongeKeyboxes,
             ))
         }
 
@@ -89,7 +89,6 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         when (item) {
             SuList -> toggleSuList()
             DownloadPath -> withExternalRW(doAction)
-            UpdateChecker -> withPostNotificationPermission(doAction)
             Authentication -> AuthEvent(doAction).publish()
             AutomaticResponse -> if (Config.suAuth) AuthEvent(doAction).publish() else doAction()
             else -> doAction()
@@ -136,16 +135,8 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             SystemlessHosts -> createHosts()
             SuListConfig -> SettingsFragmentDirections.actionSettingsFragmentToDenyFragment().navigate()
             HideAppsConfig -> SettingsFragmentDirections.actionSettingsFragmentToHideAppsFragment().navigate()
-            UpdateChannel -> openUrlIfNecessary(view)
             Zygisk -> if (Zygisk.mismatch) SnackbarEvent(R.string.reboot_apply_change).publish()
             else -> Unit
-        }
-    }
-
-    private fun openUrlIfNecessary(view: View) {
-        UpdateChannelUrl.refresh()
-        if (UpdateChannelUrl.isEnabled && UpdateChannelUrl.value.isBlank()) {
-            UpdateChannelUrl.onPressed(view, this)
         }
     }
 

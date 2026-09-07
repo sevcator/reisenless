@@ -6,45 +6,12 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import android.util.Base64
-import com.topjohnwu.magisk.core.udonge.UdongeDeviceSignals
 import com.topjohnwu.superuser.Shell
 
 object Udonge {
 
     private const val UPDATE_INTERVAL_MS = 60L * 60L * 1000L
     private const val UPDATE_FLEX_MS = 15L * 60L * 1000L
-    const val DEFAULT_ROM_KEYWORDS =
-        "lineage\n" +
-        "crdroid\n" +
-        "aospa\n" +
-        "paranoid\n" +
-        "pixelexperience\n" +
-        "evolution\n" +
-        "omnirom\n" +
-        "protonaosp\n" +
-        "havoc\n" +
-        "resurrection\n" +
-        "cyanogenmod\n" +
-        "blissrom\n" +
-        "arrowos\n" +
-        "pixelos\n" +
-        "risingos\n" +
-        "derpfest\n" +
-        "projectelixir\n" +
-        "voltageos\n" +
-        "superioros\n" +
-        "sparkos\n" +
-        "cherishos\n" +
-        "ancientos\n" +
-        "corvus\n" +
-        "calyxos\n" +
-        "grapheneos\n" +
-        "yaap\n" +
-        "aicp\n" +
-        "slimrom\n" +
-        "carbonrom\n" +
-        "liquidremix"
-
     private val root = "${Const.SECURE_DIR}/${Const.UDONGE_DIR}"
     private val state = "$root/state"
     private val runtime = "$root/runtime"
@@ -112,11 +79,6 @@ object Udonge {
         shell.newJob().add(enabledCommand).exec()
         if (enabled) syncKeyboxUrls(shell)
         syncBackgroundUpdates(shell)
-        if (enabled && Config.udongeRomHidingEnabled) {
-            UdongeDeviceSignals.sync(context, shell)
-        } else if (enabled) {
-            setRomKeywords("", shell)
-        }
     }
 
     fun setKeyboxUrls(value: String): Boolean {
@@ -203,32 +165,4 @@ object Udonge {
         ).exec().isSuccess
     }
 
-    fun setRomKeywords(value: String): Boolean = setRomKeywords(value) { command ->
-        Shell.cmd(command).exec().isSuccess
-    }
-
-    fun setRomHidingEnabled(enabled: Boolean): Boolean {
-        val success = setRomKeywords(if (enabled) DEFAULT_ROM_KEYWORDS else "")
-        if (success) Config.udongeRomHidingEnabled = enabled
-        return success
-    }
-
-    fun setRomKeywords(value: String, shell: Shell): Boolean = setRomKeywords(value) { command ->
-        shell.newJob().add(command).exec().isSuccess
-    }
-
-    private fun setRomKeywords(value: String, execute: (String) -> Boolean): Boolean {
-        val normalized = value.lineSequence()
-            .map(String::trim)
-            .filter { it.length >= 3 && it.none { c -> c.isWhitespace() } }
-            .distinct()
-            .take(32)
-            .joinToString("\n")
-        val encoded = Base64.encodeToString(normalized.toByteArray(), Base64.NO_WRAP)
-        val command = "mkdir -p '$state' && printf '%s' '$encoded' | " +
-            "base64 -d > '$state/rom_keywords.conf'"
-        val success = execute(command)
-        if (success) Config.udongeRomKeywords = normalized
-        return success
-    }
 }

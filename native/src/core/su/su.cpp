@@ -209,11 +209,15 @@ int su_client_main(int argc, char *argv[]) {
         optind++;
     }
 
+    set_nice_name(get_runtime_su_name());
 
     owned_fd fd = connect_daemon(RequestCode::SUPERUSER);
-
-
-    req.write_to_fd(fd);
+    if (fd < 0) {
+        return daemon_client_failure();
+    }
+    if (!req.write_to_fd(fd)) {
+        return daemon_client_failure();
+    }
 
 
     if (read_int(fd)) {

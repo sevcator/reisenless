@@ -110,9 +110,10 @@ class FlashFragment : BaseFragment<FragmentFlashMd2Binding>() {
 
 
 
-        fun patch(uri: Uri) = MainDirections.actionFlashFragment(
+        fun patch(uri: Uri, sourceApk: Uri? = null) = MainDirections.actionFlashFragment(
             action = Const.Value.PATCH_FILE,
-            additionalData = uri
+            additionalData = uri,
+            sourceApk = sourceApk
         )
 
         fun download(uri: Uri) = MainDirections.actionFlashFragment(

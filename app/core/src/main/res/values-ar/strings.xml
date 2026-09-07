@@ -11,43 +11,38 @@
 
     <!--Home-->
     <string name="no_connection">لا يوجد اتصال بالإنترنت</string>
-    <string name="app_changelog">سجل التغييرات</string>
     <string name="loading">جارٍ التحميل…</string>
     <string name="update">تحديث</string>
     <string name="not_available">غير متاح</string>
     <string name="hide">إخفاء</string>    <string name="home_package">الحزمة</string>
     <string name="home_app_title">التطبيق</string>    <string name="reinstall">إعادة التثبيت</string>
-    <string name="home_notice_content">قم بتنزيل Magisk من صفحة GitHub الرسمية فقط. الملفات من مصادر مجهولة قد تكون ضارة!</string>
-    <string name="home_support_title">ادعمنا</string>
     <string name="home_follow_title">تابعنا</string>
-    <string name="home_item_source">المصدر</string>
-    <string name="home_support_content">Magisk مجاني ومفتوح المصدر، وسيظل كذلك دائمًا. غير أنك تستطيع التعبير عن اهتمامك بالتبرع.</string>    <string name="home_installed_version">المثبّت</string>
+<string name="home_installed_version">المثبّت</string>
     <string name="home_latest_version">الأحدث</string>
-    <string name="invalid_update_channel">قناة التحديث غير صالحة</string>    <string name="uninstall_magisk_title">إلغاء تثبيت Magisk</string>
-    <string name="uninstall_magisk_msg">سيتم تعطيل/إزالة جميع الإضافات!\nسيتم إزالة الوصول الجذري!\nسيتم إعادة تشفير أي تخزين داخلي تم فك تشفيره باستخدام Magisk!</string>
+<string name="uninstall_magisk_title">إلغاء تثبيت magisk</string>
+    <string name="uninstall_magisk_msg">سيتم تعطيل/إزالة جميع الإضافات!\nسيتم إزالة الوصول الجذري!\nسيتم إعادة تشفير أي تخزين داخلي تم فك تشفيره باستخدام magisk!</string>
 
     <!--Install-->
     <string name="keep_force_encryption">الحفاظ على التشفير الإجباري</string>
-    <string name="keep_dm_verity">الحفاظ على AVB 2.0/dm-verity</string>
+    <string name="keep_dm_verity">الحفاظ على avb 2.0/dm-verity</string>
     <string name="recovery_mode">وضع الاسترداد</string>
     <string name="install_options_title">الخيارات</string>
     <string name="install_method_title">طريقة التثبيت</string>
     <string name="install_next">التالي</string>
     <string name="install_start">هيا بنا</string>
-    <string name="manager_download_install">اضغط للتنزيل والتثبيت</string>
-    <string name="direct_install">التثبيت المباشر (موصى به)</string>    <string name="install_inactive_slot">التثبيت على الفتحة غير النشطة (بعد OTA)</string>    <string name="install_inactive_slot_msg">سيُجبَر جهازك على الإقلاع من الفتحة غير النشطة الحالية بعد إعادة التشغيل!\nاستخدم هذا الخيار فقط بعد اكتمال تحديث OTA.\nهل تريد المتابعة؟</string>
+    <string name="direct_install">التثبيت المباشر (موصى به)</string>    <string name="install_inactive_slot">التثبيت على الفتحة غير النشطة (بعد ota)</string>    <string name="install_inactive_slot_msg">سيُجبَر جهازك على الإقلاع من الفتحة غير النشطة الحالية بعد إعادة التشغيل!\nاستخدم هذا الخيار فقط بعد اكتمال تحديث ota.\nهل تريد المتابعة؟</string>
     <string name="setup_title">إعداد إضافي</string>
     <string name="select_patch_file">تحديد ملف وتصحيحه</string>
-    <string name="patch_file_msg">حدد ملف خام (‎*.img) أو ملف ODIN tar (‎*.tar) أو ملف payload.bin (‎*.bin)</string>
+    <string name="patch_file_msg">حدد ملف خام (‎*.img) أو ملف odin tar (‎*.tar) أو ملف payload.bin (‎*.bin)</string>
     <string name="download_patch_file">تنزيل ملف وتعديله</string>
     <string name="download_dialog_title">أدخل رابط الملف</string>
-    <string name="download_dialog_msg">ملف OTA كاملة أو ملف المصنع</string>
+    <string name="download_dialog_msg">ملف ota كاملة أو ملف المصنع</string>
     <string name="reboot_delay_toast">إعادة التشغيل خلال 5 ثوانٍ…</string>
     <string name="flash_screen_title">التثبيت</string>
 
     <!--Superuser-->
     <string name="su_request_title">يطلب هذا التطبيق صلاحية الروت، يمنح وصولًا كاملًا إلى جهازك. ارفض إن لم تكن متأكدًا!</string>
-    <string name="touch_filtered_warning">يحجب أحد التطبيقات طلب صلاحية الروت، لذا لا يستطيع Magisk التحقق من استجابتك.</string>
+    <string name="touch_filtered_warning">يحجب أحد التطبيقات طلب صلاحية الروت، لذا لا يستطيع magisk التحقق من استجابتك.</string>
     <string name="deny">رفض</string>
     <string name="prompt">اسأل</string>
     <string name="restrict">تقييد</string>
@@ -81,10 +76,10 @@
     <string name="menuSaveLog">حفظ السجل</string>
     <string name="back">رجوع</string>    <string name="enabled">مفعّل</string>
     <string name="disabled">معطّل</string>
-    <string name="pid">PID: %1$d</string>
-    <string name="target_uid">UID المستهدف: %1$d</string>
-    <string name="target_pid">PID المستهدف: %s</string>
-    <string name="selinux_context">سياق SELinux: %s</string>
+    <string name="pid">pid: %1$d</string>
+    <string name="target_uid">uid المستهدف: %1$d</string>
+    <string name="target_pid">pid المستهدف: %s</string>
+    <string name="selinux_context">سياق selinux: %s</string>
     <string name="supp_group">المجموعة الإضافية: %s</string>
     <string name="granted">مسموح</string>
     <string name="denied">مرفوض</string>
@@ -107,17 +102,16 @@
     <string name="reboot_recovery">إعادة التشغيل إلى وضع الاسترداد</string>
     <string name="reboot_bootloader">إعادة التشغيل إلى محمّل الإقلاع</string>
     <string name="reboot_download">إعادة التشغيل إلى وضع التنزيل</string>
-    <string name="reboot_edl">إعادة التشغيل إلى EDL</string>
+    <string name="reboot_edl">إعادة التشغيل إلى edl</string>
     <string name="reboot_safe_mode">الوضع الآمن</string>
     <string name="module_version_author">%1$s بواسطة %2$s</string>
     <string name="module_state_remove">إزالة</string>
     <string name="module_action">إجراء</string>
     <string name="module_state_restore">استعادة</string>
     <string name="module_action_install_external">تثبيت من التخزين</string>
-    <string name="update_available">يتوفر تحديث</string>
     <string name="suspend_text_riru">الإضافة معلّقة لأن %1$s مفعّل</string>
     <string name="suspend_text_zygisk">الإضافة معلّقة لأن %1$s غير مفعّل</string>
-    <string name="zygisk_module_unloaded">لم يتم تحميل إضافة Zygisk بسبب عدم التوافق</string>
+    <string name="zygisk_module_unloaded">لم يتم تحميل إضافة zygisk بسبب عدم التوافق</string>
     <string name="module_empty">لا توجد إضافات مثبّتة</string>
     <string name="confirm_install">تثبيت الإضافة %1$s؟</string>
     <string name="confirm_install_title">تأكيد التثبيت</string>
@@ -132,21 +126,13 @@
     <string name="settings_download_path_message">سيتم حفظ الملفات في %1$s</string>
     <string name="language">اللغة</string>
     <string name="system_default">(افتراضي النظام)</string>
-    <string name="settings_check_update_title">التحقق من التحديثات</string>
-    <string name="settings_check_update_summary">التحقق الدوري من التحديثات في الخلفية</string>
-    <string name="settings_update_channel_title">قناة التحديث</string>
-    <string name="settings_update_stable">مستقر</string>
-    <string name="settings_update_beta">تجريبي</string>
-    <string name="settings_update_debug">تصحيح أخطاء</string>
-    <string name="settings_update_custom">مخصص</string>
-    <string name="settings_update_custom_msg">أدخل رابط قناة مخصصة</string>
-    <string name="settings_zygisk_summary">تشغيل أجزاء من Magisk داخل عملية Zygote</string>
-    <string name="settings_hosts_title">ملفات Hosts بدون نظام</string>
+    <string name="settings_zygisk_summary">تشغيل أجزاء من magisk داخل عملية zygote</string>
+    <string name="settings_hosts_title">ملفات hosts بدون نظام</string>
     <string name="settings_hosts_summary">دعم ملفات hosts بدون نظام لتطبيقات حجب الإعلانات</string>
     <string name="settings_hosts_toast">تمت تثبيت إضافة ملفات hosts بدون نظام</string>
-    <string name="settings_su_app_adb">التطبيقات و ADB</string>
+    <string name="settings_su_app_adb">التطبيقات و adb</string>
     <string name="settings_su_app">التطبيقات فقط</string>
-    <string name="settings_su_adb">ADB فقط</string>
+    <string name="settings_su_adb">adb فقط</string>
     <string name="settings_su_disable">معطّل</string>
     <string name="settings_su_request_10">10 ثوانٍ</string>
     <string name="settings_su_request_15">15 ثانية</string>
@@ -172,9 +158,9 @@
     <string name="color_mode_system">النظام</string>
     <string name="color_mode_light">فاتح</string>
     <string name="color_mode_dark">داكن</string>
-    <string name="color_mode_monet_system">Monet (النظام)</string>
-    <string name="color_mode_monet_light">Monet (فاتح)</string>
-    <string name="color_mode_monet_dark">Monet (داكن)</string>
+    <string name="color_mode_monet_system">monet (النظام)</string>
+    <string name="color_mode_monet_light">monet (فاتح)</string>
+    <string name="color_mode_monet_dark">monet (داكن)</string>
     <string name="settings_random_name_title">جعل اسم الملف الناتج عشوائي</string>
     <string name="settings_random_name_description">جعل اسم ملف الصورة أو ملف tar الناتج عشوائي لتجنب الكشف</string>
     <string name="multiuser_mode">وضع تعدد المستخدمين</string>
@@ -193,14 +179,9 @@
     <string name="isolate_summary">لكل جلسة روت namespace معزول خاص بها</string>
 
     <!--Notifications-->
-    <string name="update_channel">تحديثات Magisk</string>
     <string name="progress_channel">إشعارات التقدم</string>
-    <string name="updated_channel">اكتمل التحديث</string>
     <string name="download_complete">اكتمل التنزيل</string>
     <string name="download_file_error">خطأ في تنزيل الملف</string>
-    <string name="magisk_update_title">يتوفر تحديث لـ Magisk!</string>
-    <string name="updated_title">تم تحديث Magisk</string>
-    <string name="updated_text">انقر لفتح التطبيق</string>
 
     <!--Toasts, Dialogs-->
     <string name="yes">نعم</string>
@@ -209,7 +190,6 @@
     <string name="download">تنزيل</string>
     <string name="reboot">إعادة التشغيل</string>
     <string name="close">إغلاق</string>
-    <string name="release_notes">ملاحظات الإصدار</string>
     <string name="flashing">جارٍ التثبيت…</string>    <string name="done">تم!</string>
     <string name="done_action">اكتمل تنفيذ إجراء %1$s</string>
     <string name="failure">فشل!</string>
@@ -221,15 +201,15 @@
     <string name="restore_fail">لا تتوفر نسخة احتياطية أصلية!</string>
     <string name="setup_fail">فشل الإعداد</string>
     <string name="env_fix_title">يتطلب إعدادًا إضافيًا</string>
-    <string name="env_fix_msg">يحتاج جهازك إلى إعداد إضافي لكي يعمل Magisk بشكل صحيح. هل تريد المتابعة وإعادة التشغيل؟</string>
-    <string name="env_full_fix_msg">يحتاج جهازك إلى إعادة كتابة Magisk لكي يعمل بشكل صحيح. يرجى إعادة تثبيت Magisk من داخل التطبيق، إذ لا يستطيع وضع الاسترداد الحصول على معلومات الجهاز الصحيحة.</string>
+    <string name="env_fix_msg">يحتاج جهازك إلى إعداد إضافي لكي يعمل magisk بشكل صحيح. هل تريد المتابعة وإعادة التشغيل؟</string>
+    <string name="env_full_fix_msg">يحتاج جهازك إلى إعادة كتابة magisk لكي يعمل بشكل صحيح. يرجى إعادة تثبيت magisk من داخل التطبيق، إذ لا يستطيع وضع الاسترداد الحصول على معلومات الجهاز الصحيحة.</string>
     <string name="setup_msg">جارٍ تهيئة البيئة…</string>
-    <string name="unsupport_magisk_title">إصدار Magisk غير مدعوم</string>
-    <string name="unsupport_magisk_msg">هذا الإصدار من التطبيق لا يدعم إصدارات Magisk الأقدم من %1$s.\n\nسيتصرف التطبيق كما لو لم يكن Magisk مثبّتًا. يرجى تحديث Magisk في أقرب وقت.</string>
+    <string name="unsupport_magisk_title">إصدار magisk غير مدعوم</string>
+    <string name="unsupport_magisk_msg">هذا الإصدار من التطبيق لا يدعم إصدارات magisk الأقدم من %1$s.\n\nسيتصرف التطبيق كما لو لم يكن magisk مثبّتًا. يرجى تحديث magisk في أقرب وقت.</string>
     <string name="unsupport_general_title">حالة غير طبيعية</string>
     <string name="unsupport_system_app_msg">تشغيل هذا التطبيق كتطبيق نظام غير مدعوم. يرجى إعادته إلى تطبيق مستخدم عادي.</string>
-    <string name="unsupport_other_su_msg">تم اكتشاف ملف ثنائي «su» لا ينتمي إلى Magisk. يرجى إزالة أي برنامج مدير روت أخر و/أو إعادة تثبيت Magisk.</string>
-    <string name="unsupport_external_storage_msg">تم تثبيت Magisk على تخزين خارجي. يرجى نقل التطبيق إلى التخزين الداخلي.</string>
+    <string name="unsupport_other_su_msg">تم اكتشاف ملف ثنائي «su» لا ينتمي إلى magisk. يرجى إزالة أي برنامج مدير روت أخر و/أو إعادة تثبيت magisk.</string>
+    <string name="unsupport_external_storage_msg">تم تثبيت magisk على تخزين خارجي. يرجى نقل التطبيق إلى التخزين الداخلي.</string>
     <string name="external_rw_permission_denied">امنح إذن التخزين لتفعيل هذه الميزة</string>
     <string name="post_notifications_denied">امنح إذن الإشعارات لتفعيل هذه الميزة</string>
     <string name="install_unknown_denied">اسمح بـ«تثبيت تطبيقات غير معروفة» لتفعيل هذه الميزة</string>

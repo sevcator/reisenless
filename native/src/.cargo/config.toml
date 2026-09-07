@@ -14,7 +14,7 @@ rustflags = [
 target-dir = "../out/rust"
 
 [unstable]
-build-std = ["std", "panic_abort"]
+build-std = ["std"]
 build-std-features = ["optimize_for_size"]
 profile-rustflags = true
 

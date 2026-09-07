@@ -1,6 +1,11 @@
 : SECURE_DIR_STUB
 : BUILD_IDENTITY_STUB
 
+# The app uses a neutral transport variable so DEX identity rewriting cannot
+# rename one half of this interface. Retain the canonical name for scripts and
+# modules, and leave standalone installer environments unchanged.
+[ -n "$ROOT_TMP" ] && export MAGISKTMP="$ROOT_TMP"
+
 
 
 
@@ -32,6 +37,147 @@ merge_missing_tree() {
       cp -af "$item" "$target" || return 1
     fi
   done
+  return 0
+}
+
+migration_hash_tree() {
+  local source="$1" relative name
+  [ -e "$source" ] || return 0
+  if [ -f "$source" ]; then
+    sha256sum "$source" 2>/dev/null
+    return $?
+  fi
+  (
+    cd "$source" || exit 1
+    find . -type f -print 2>/dev/null | sort | while IFS= read -r relative; do
+      case "${relative#./}" in
+        runtime/*|runtime.old/*|runtime.new/*|tee-runtime/*|tee-runtime.old/*|tee-runtime.new/*)
+          continue
+          ;;
+      esac
+      name=${relative##*/}
+      case "$name" in
+        *.pid|.pid|.pid-start|.pid-boot|unloaded|pending-reboot|\
+        .keybox-refresh|.keybox-checked|tee-unavailable|rom_keywords.conf|.rom-catalog-v2)
+          continue
+          ;;
+      esac
+      sha256sum "$relative" 2>/dev/null || exit 1
+    done
+  )
+}
+
+copy_durable_tree() {
+  local source="$1" destination="$2" item name
+  [ -d "$source" ] || return 0
+  mkdir -p "$destination" || return 1
+  for item in "$source"/* "$source"/.[!.]* "$source"/..?*; do
+    [ -e "$item" ] || [ -L "$item" ] || continue
+    name=${item##*/}
+    case "$name" in
+      runtime|runtime.old|runtime.new|tee-runtime|tee-runtime.old|tee-runtime.new|\
+      *.pid|.pid|.pid-start|.pid-boot|unloaded|pending-reboot|\
+      .keybox-refresh|.keybox-checked|tee-unavailable|rom_keywords.conf|.rom-catalog-v2)
+        continue
+        ;;
+    esac
+    if [ -d "$item" ]; then
+      copy_durable_tree "$item" "$destination/$name" || return 1
+    else
+      cp -af "$item" "$destination/$name" || return 1
+    fi
+  done
+}
+
+validate_migration_db() {
+  local database="$1" result
+  [ -f "$database" ] || return 0
+  [ "$(head -c 15 "$database" 2>/dev/null)" = "SQLite format 3" ] || return 1
+  if command -v sqlite3 >/dev/null 2>&1; then
+    result=$(sqlite3 "$database" 'PRAGMA quick_check;' 2>/dev/null) || return 1
+    [ "$result" = "ok" ] || return 1
+  fi
+  return 0
+}
+
+validate_migration_modules() {
+  local root="$1" module module_id
+  [ -d "$root" ] || return 0
+  for module in "$root"/*; do
+    [ -d "$module" ] || continue
+    [ -f "$module/module.prop" ] || return 1
+    module_id=$(sed -n 's/^id=//p' "$module/module.prop" | head -n 1)
+    [ -n "$module_id" ] || return 1
+    [ "$module_id" = "${module##*/}" ] || return 1
+    case "$module_id" in *[!A-Za-z0-9._-]*) return 1;; esac
+  done
+  return 0
+}
+
+transactional_migrate_layout() {
+  local source="$1" source_db="$2" source_udonge="$3" marker_name="$4"
+  local marker="$SECURE_DIR/$marker_name" stage="$SECURE_DIR/.migration-stage.$$"
+  local manifest="$stage/source.sha256" existing="$SECURE_DIR/.migration-source.tmp.$$"
+  local dir
+
+  [ "$source" != "$SECURE_DIR" ] || return 0
+  [ -d "$source" ] || return 0
+  [ -n "$source_db" ] || return 1
+  [ -n "$source_udonge" ] || return 1
+  mkdir -p "$SECURE_DIR" || return 1
+
+  rm -rf "$stage"
+  mkdir -p "$stage" || return 1
+  {
+    migration_hash_tree "$source/$source_db" || exit 1
+    for dir in modules modules_update post-fs-data.d service.d; do
+      migration_hash_tree "$source/$dir" || exit 1
+    done
+    migration_hash_tree "$source/$source_udonge/state" || exit 1
+    migration_hash_tree "$source/$source_udonge/tee-state" || exit 1
+  } > "$manifest" || { rm -rf "$stage"; return 1; }
+
+  if [ -f "$marker" ]; then
+    sed '1d' "$marker" > "$existing" 2>/dev/null || true
+    if cmp -s "$manifest" "$existing"; then
+      rm -f "$existing"
+      rm -rf "$stage"
+      return 0
+    fi
+    rm -f "$existing"
+  fi
+
+  if [ -f "$source/$source_db" ]; then
+    cp -af "$source/$source_db" "$stage/$DB_NAME" || { rm -rf "$stage"; return 1; }
+    validate_migration_db "$stage/$DB_NAME" || { rm -rf "$stage"; return 1; }
+  fi
+  for dir in modules modules_update post-fs-data.d service.d; do
+    [ -d "$source/$dir" ] || continue
+    copy_durable_tree "$source/$dir" "$stage/$dir" || { rm -rf "$stage"; return 1; }
+  done
+  validate_migration_modules "$stage/modules" || { rm -rf "$stage"; return 1; }
+  validate_migration_modules "$stage/modules_update" || { rm -rf "$stage"; return 1; }
+  copy_durable_tree "$source/$source_udonge/state" "$stage/$UDONGE_DIR/state" || {
+    rm -rf "$stage"; return 1;
+  }
+  copy_durable_tree "$source/$source_udonge/tee-state" "$stage/$UDONGE_DIR/tee-state" || {
+    rm -rf "$stage"; return 1;
+  }
+
+  if [ -f "$stage/$DB_NAME" ] && [ ! -f "$SECURE_DIR/$DB_NAME" ]; then
+    mv "$stage/$DB_NAME" "$SECURE_DIR/$DB_NAME" || { rm -rf "$stage"; return 1; }
+  fi
+  for dir in modules modules_update post-fs-data.d service.d "$UDONGE_DIR"; do
+    [ -d "$stage/$dir" ] || continue
+    merge_missing_tree "$stage/$dir" "$SECURE_DIR/$dir" || { rm -rf "$stage"; return 1; }
+  done
+  {
+    printf 'source=%s\n' "$source"
+    cat "$manifest"
+  } > "$marker.new" || { rm -rf "$stage"; return 1; }
+  mv "$marker.new" "$marker" || { rm -rf "$stage"; return 1; }
+  chmod 600 "$marker"
+  rm -rf "$stage"
   return 0
 }
 
@@ -91,47 +237,21 @@ fix_env() {
 
 migrate_legacy_layout() {
   local legacy=/data/a''db
-  local legacy_udonge=${SECURE_DIR}/udonge
-  local current_udonge=${SECURE_DIR}/${UDONGE_DIR}
-
-
-
-
-
-  if [ "$UDONGE_DIR" != "udonge" ] && [ -d "$legacy_udonge" ]; then
-    merge_missing_tree "$legacy_udonge" "$current_udonge" || return 1
-    rm -rf "$legacy_udonge" || return 1
-  fi
-
-  [ "$SECURE_DIR" = "$legacy" ] && return 0
-  [ -d "$legacy" ] || return 0
-
-  mkdir -p "$SECURE_DIR" || return 1
-  if [ -f "$legacy/ms.db" ] && [ ! -f "$SECURE_DIR/$DB_NAME" ]; then
-    cp -af "$legacy/ms.db" "$SECURE_DIR/$DB_NAME" || return 1
-  fi
-  for dir in modules modules_update post-fs-data.d service.d; do
-    if [ -d "$legacy/$dir" ]; then
-      mkdir -p "$SECURE_DIR/$dir" || return 1
-      cp -af "$legacy/$dir/." "$SECURE_DIR/$dir/" || return 1
-    fi
-  done
-  if [ -d "$legacy/udonge" ] && [ ! -d "$SECURE_DIR/$UDONGE_DIR" ]; then
-    cp -af "$legacy/udonge" "$SECURE_DIR/$UDONGE_DIR" || return 1
-  fi
+  transactional_migrate_layout "$legacy" ms.db udonge .migration-canonical.complete || return 1
   rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh"
   rm -f "$SECURE_DIR/post-fs-data.d/$STAGE_SCRIPT" "$SECURE_DIR/service.d/$STAGE_SCRIPT"
-
-  for backup in /data/ms_''backup_*; do
-    [ -d "$backup" ] || continue
-    local suffix=${backup#/data/ms_backup_}
-    [ -d "${BACKUP_PREFIX}${suffix}" ] || mv "$backup" "${BACKUP_PREFIX}${suffix}"
-  done
-
-  rm -rf "$legacy/ms" "$legacy/ms.db" "$legacy/udonge" \
-    "$legacy/modules" "$legacy/modules_update" \
-    "$legacy/post-fs-data.d" "$legacy/service.d"
   return 0
+}
+
+migrate_private_layout() {
+  [ -n "$LEGACY_SECURE_DIR" ] || return 0
+  [ "$LEGACY_SECURE_DIR" != "$SECURE_DIR" ] || return 0
+  [ -d "$LEGACY_SECURE_DIR" ] || return 0
+  [ -n "$LEGACY_DB_NAME" ] || return 1
+  [ -n "$LEGACY_UDONGE_DIR" ] || return 1
+
+  transactional_migrate_layout "$LEGACY_SECURE_DIR" "$LEGACY_DB_NAME" \
+    "$LEGACY_UDONGE_DIR" .migration-private.complete
 }
 
 refresh_udonge_runtime() {
@@ -142,13 +262,24 @@ refresh_udonge_runtime() {
   local archive=$MAGISKBIN/$UDONGE_ARCHIVE
   local version required
 
-  [ -f "$archive" ] || return 0
+  [ -f "$archive" ] || {
+    ui_print "! protection payload is missing"
+    return 1
+  }
+  [ -x "$MAGISKBIN/$BUSYBOX_NAME" ] || {
+    ui_print "! installer utility is missing"
+    return 1
+  }
   version=$(run_busybox "$MAGISKBIN/$BUSYBOX_NAME" unzip -p "$archive" version 2>/dev/null | tr -d '\r\n')
-  [ -n "$version" ] || return 1
+  [ -n "$version" ] || {
+    ui_print "! protection payload has no version"
+    return 1
+  }
 
   rm -rf "$next"
   mkdir -p "$next" || return 1
   run_busybox "$MAGISKBIN/$BUSYBOX_NAME" unzip -oq "$archive" -d "$next" || {
+    ui_print "! protection payload extraction failed"
     rm -rf "$next"
     return 1
   }
@@ -170,11 +301,13 @@ refresh_udonge_runtime() {
   esac
   for file in $required; do
     [ -f "$next/$file" ] || {
+      ui_print "! protection payload is incomplete: $file"
       rm -rf "$next"
       return 1
     }
   done
   [ "$(cat "$next/version" 2>/dev/null)" = "$version" ] || {
+    ui_print "! protection payload version mismatch"
     rm -rf "$next"
     return 1
   }
@@ -214,6 +347,7 @@ direct_install() {
   esac
 
   rm -f $1/new-boot.img
+  migrate_private_layout || return 3
   migrate_legacy_layout || return 3
   fix_env $1
   refresh_udonge_runtime || return 3

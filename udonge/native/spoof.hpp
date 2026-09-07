@@ -14,12 +14,7 @@ void spoof_build(JNIEnv *env, const Config &cfg);
 void spoof_display(JNIEnv *env, const Config &cfg);
 
 // Overwrite Build.TYPE → "user" and Build.TAGS → "release-keys" unconditionally.
-// Called for all cloak targets to fix the Build constant cross-check that Duck
-// Detector performs against the fingerprint tail. The property hook covers the
-// native/reflection path; this covers the static Java constant.
+// Keep Java Build constants consistent with the sanitized native properties.
 void spoof_build_type(JNIEnv *env);
-
-// Clear ROM-added framework constants exposed through Java reflection.
-void spoof_rom_framework(JNIEnv *env, const Config &cfg);
 
 } // namespace cloak

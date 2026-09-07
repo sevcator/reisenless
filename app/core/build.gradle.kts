@@ -27,6 +27,13 @@ android {
         buildConfigField("String", "POLICY_NAME", "\"${Config.policyName}\"")
         buildConfigField("String", "BIN32_NAME", "\"${Config.bin32Name}\"")
         buildConfigField("String", "BUSYBOX_NAME", "\"${Config.busyboxName}\"")
+        buildConfigField("String", "MAIN_LIB_NAME", "\"${Config.mainLibName}\"")
+        buildConfigField("String", "BUSYBOX_LIB_NAME", "\"${Config.busyboxLibName}\"")
+        buildConfigField("String", "POLICY_LIB_NAME", "\"${Config.policyLibName}\"")
+        buildConfigField("String", "INIT_LD_LIB_NAME", "\"${Config.initLdLibName}\"")
+        buildConfigField("String", "BOOT_LIB_NAME", "\"${Config.bootLibName}\"")
+        buildConfigField("String", "INIT_LIB_NAME", "\"${Config.initLibName}\"")
+        buildConfigField("String", "BOOTCTL_LIB_NAME", "\"${Config.bootctlLibName}\"")
         buildConfigField("String", "STUB_NAME", "\"${Config.stubName}\"")
         buildConfigField("String", "INIT_LD_NAME", "\"${Config.initLdName}\"")
         buildConfigField("String", "UDONGE_DIR", "\"${Config.udongeDir}\"")
@@ -47,6 +54,7 @@ android {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     api(project(":shared"))
     coreLibraryDesugaring(libs.jdk.libs)
 

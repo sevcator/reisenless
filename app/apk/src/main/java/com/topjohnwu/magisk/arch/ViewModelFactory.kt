@@ -16,10 +16,10 @@ import com.topjohnwu.magisk.ui.superuser.SuperuserViewModel
 import com.topjohnwu.magisk.ui.surequest.SuRequestViewModel
 
 val VMFactory: ViewModelProvider.Factory = viewModelFactory {
-    initializer { HomeViewModel(ServiceLocator.networkService) }
+    initializer { HomeViewModel() }
     initializer { HideAppsViewModel() }
     initializer { SuperuserViewModel(ServiceLocator.policyDB) }
-    initializer { InstallViewModel(ServiceLocator.networkService) }
+    initializer { InstallViewModel() }
     initializer { SuRequestViewModel(ServiceLocator.policyDB, ServiceLocator.timeoutPrefs) }
     initializer { DenyListViewModel() }
     initializer { FlashViewModel() }

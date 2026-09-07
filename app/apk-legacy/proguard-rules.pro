@@ -1,3 +1,4 @@
 
--flattenpackagehierarchy
+-repackageclasses com.topjohnwu
+-adaptclassstrings
 -allowaccessmodification

@@ -6,12 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Parcelable
-import com.topjohnwu.magisk.core.Info
-import com.topjohnwu.magisk.core.model.UpdateInfo
 import com.topjohnwu.magisk.core.model.module.OnlineModule
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils
 import com.topjohnwu.magisk.view.Notifications
-import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 
 abstract class Subject : Parcelable {
@@ -31,23 +28,6 @@ abstract class Subject : Parcelable {
         final override val file by lazy {
             MediaStoreUtils.getFile(title).uri
         }
-    }
-
-    @Parcelize
-    class App(
-        private val json: UpdateInfo = Info.update,
-        override val notifyId: Int = Notifications.nextId(),
-    ) : Subject() {
-        override val title: String get() = "Reisenless-${json.version}(${json.versionCode})"
-        override val url: String get() = json.link
-
-        @IgnoredOnParcel
-        override val file by lazy { MediaStoreUtils.getFile("$title.apk").uri }
-
-        @IgnoredOnParcel
-        var intent: Intent? = null
-
-        override fun pendingIntent(context: Context) = intent?.toPending(context)
     }
 
     @SuppressLint("InlinedApi")

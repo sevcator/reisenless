@@ -11,19 +11,14 @@
 
 
     <string name="no_connection">インターネット接続なし</string>
-    <string name="app_changelog">アプリの更新履歴</string>
     <string name="loading">読み込み中…</string>
     <string name="update">更新</string>
     <string name="not_available">なし</string>
     <string name="hide">隠す</string>
     <string name="home_package">パッケージ id </string>
-    <string name="home_app_title">reisenless</string>
+    <string name="home_app_title">アプリ</string>
 
-    <string name="home_notice_content">reisenless は必ず公式の github ページからダウンロードしてください。その他の提供元では悪意あるコードを含んでいる可能性があります!</string>
-    <string name="home_support_title">サポートする</string>
     <string name="home_follow_title">フォローする</string>
-    <string name="home_item_source">ソース</string>
-    <string name="home_support_content">reisenless はフリーでオープンソースです。寄付を送ると､ reisenless の開発を支援することができます。</string>
     <string name="home_installed_version">インストール済</string>
     <string name="home_latest_version">最新版</string>
     <string name="uninstall_magisk_title">reisenless のアンインストール</string>
@@ -37,7 +32,6 @@
     <string name="install_method_title">方法</string>
     <string name="install_next">次へ</string>
     <string name="install_start">はじめる</string>
-    <string name="manager_download_install">タップしてダウンロード＆インストールします</string>
     <string name="direct_install">直接インストール (推奨)</string>
     <string name="install_inactive_slot">別のスロットにインストール (ota 後)</string>
     <string name="install_inactive_slot_msg">お使いのデバイスは再起動後に現在とは別のスロットで強制的に起動されます！\nこのオプションは ota の完了後にのみ使用してください。\n続行しますか？</string>
@@ -151,7 +145,6 @@
 
 
     <string name="progress_channel">進捗通知</string>
-    <string name="updated_channel">更新完了</string>
     <string name="download_complete">ダウンロード完了</string>
     <string name="download_file_error">ダウンロード中にエラーが発生しました</string>
 
@@ -161,7 +154,6 @@
     <string name="module_update_install_title">%1$s %2$s(%3$d) をインストール</string>
     <string name="download">ダウンロード</string>
     <string name="reboot">再起動</string>
-    <string name="release_notes">更新履歴</string>
     <string name="flashing">書込中…</string>
     <string name="done">完了！</string>
     <string name="failure">失敗！</string>
@@ -231,13 +223,10 @@
     <string name="udonge_keybox_list_title">keybox リスト</string>
     <string name="udonge_keybox_list_summary">keybox のリンクを追加または削除</string>
     <string name="udonge_keybox_hint">1 行につき 1 つの https リンク</string>
-    <string name="udonge_rom_keywords_title">hide something wrong</string>
-    <string name="udonge_rom_keywords_summary">カスタム ROM のランタイムシグナルとフレームワークの痕跡を隠します</string>
-    <string name="udonge_rom_keywords_hint">1 行につき 1 つの ROM 名（例: lineage、protonaosp）</string>
-    <string name="webui_root_required">WebUI には root と有効な Reisenless のインストールが必要です</string>
-    <string name="webui_webview_required">Android System WebView が必要です</string>
-    <string name="webui_webview_required_summary">このデバイスには使用可能な Android WebView プロバイダーがありません。Android System WebView をインストールまたは有効にして、もう一度お試しください。</string>
-    <string name="webui_install_webview">WebView をインストール</string>
+    <string name="webui_root_required">webui には root と有効な reisenless のインストールが必要です</string>
+    <string name="webui_webview_required">android system webview が必要です</string>
+    <string name="webui_webview_required_summary">このデバイスには使用可能な android webview プロバイダーがありません。android system webview をインストールまたは有効にして、もう一度お試しください。</string>
+    <string name="webui_install_webview">webview をインストール</string>
     <string name="module_search_installed">インストール済みモジュールを検索</string>
 
 </resources>

@@ -183,25 +183,33 @@ class FlashViewModel : BaseViewModel() {
 
     fun saveLog() {
         viewModelScope.launch(Dispatchers.IO) {
-            val name = "magisk_install_log_%s.log".format(
-                System.currentTimeMillis().toTime(timeFormatStandard)
-            )
-            val file = MediaStoreUtils.getFile(name)
-            file.uri.outputStream().bufferedWriter().use { writer ->
-                val transcript = emulator?.screen?.transcriptText
-                if (transcript != null) {
-                    writer.write(transcript)
-                } else {
-                    synchronized(logItems) {
-                        logItems.forEach {
-                            writer.write(it)
-                            writer.newLine()
-                        }
+            try {
+                saveLogFile()
+            } catch (e: IOException) {
+                showSnackbar("Unable to save log: ${e.message.orEmpty()}")
+            }
+        }
+    }
+
+    private fun saveLogFile() {
+        val name = "magisk_install_log_%s.log".format(
+            System.currentTimeMillis().toTime(timeFormatStandard)
+        )
+        val file = MediaStoreUtils.getFile(name)
+        file.uri.outputStream().bufferedWriter().use { writer ->
+            val transcript = emulator?.screen?.transcriptText
+            if (transcript != null) {
+                writer.write(transcript)
+            } else {
+                synchronized(logItems) {
+                    logItems.forEach {
+                        writer.write(it)
+                        writer.newLine()
                     }
                 }
             }
-            showSnackbar(file.toString())
         }
+        showSnackbar(file.toString())
     }
 
     fun restartPressed() = reboot()

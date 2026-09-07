@@ -5,7 +5,7 @@ use crate::ffi::{
 };
 use crate::socket::{IpcRead, IpcWrite};
 use DbArg::{Integer, Text};
-use base::{LoggedResult, ResultExt, Utf8CStr};
+use base::{LoggedResult, ResultExt, Utf8CStr, WriteExt};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::ffi::c_void;
@@ -309,8 +309,9 @@ impl MagiskD {
             }
             writer.write_encodable(&out).log_ok();
         };
-        self.db_exec_with_rows(&sql, &[], &mut output_fn);
-        writer.write_encodable("").log()
+        let status = self.db_exec_with_rows(&sql, &[], &mut output_fn);
+        writer.write_encodable("").log_ok();
+        writer.write_pod(&status).log()
     }
 }
 

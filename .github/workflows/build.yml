@@ -1,4 +1,4 @@
-name: Reisenless Build
+name: Private manager build
 
 on:
   push:
@@ -35,23 +35,41 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build project
-        run: python build.py -vr -c .github/ci.prop all
+        env:
+          REISENLESS_IDENTITY_SEED: ${{ secrets.REISENLESS_IDENTITY_SEED }}
+          REISENLESS_KEYSTORE_BASE64: ${{ secrets.REISENLESS_KEYSTORE_BASE64 }}
+          REISENLESS_KEYSTORE_PASSWORD: ${{ secrets.REISENLESS_KEYSTORE_PASSWORD }}
+          REISENLESS_KEY_ALIAS: ${{ secrets.REISENLESS_KEY_ALIAS }}
+          REISENLESS_KEY_PASSWORD: ${{ secrets.REISENLESS_KEY_PASSWORD }}
+          REISENLESS_CERT_SHA256: ${{ secrets.REISENLESS_CERT_SHA256 }}
+        run: |
+          python build.py test-native-auth
+          python build.py test-identity
+          python build.py -vr all
+
+      - name: Resolve randomized artifact name
+        shell: bash
+        run: |
+          set -euo pipefail
+          manager_apk="$(python -c 'import json; print(json.load(open("native/out/generated/flags.json", encoding="utf-8"))["identity"]["artifactName"])')"
+          [[ "$manager_apk" =~ ^[A-Za-z0-9._-]+\.apk$ ]]
+          echo "MANAGER_APK=$manager_apk" >> "$GITHUB_ENV"
 
       - name: Verify APK outputs
         shell: bash
         run: |
           set -euo pipefail
-          test -s out/app-release.apk
+          test -s "out/$MANAGER_APK"
           test -s out/apk-legacy-release.apk
-          unzip -tq out/app-release.apk
+          unzip -tq "out/$MANAGER_APK"
           unzip -tq out/apk-legacy-release.apk
 
       - name: Upload APKs
         uses: actions/upload-artifact@v6
         with:
-          name: reisenless-${{ github.sha }}
+          name: private-manager-${{ github.sha }}
           path: |
-            out/app-release.apk
+            out/${{ env.MANAGER_APK }}
             out/apk-legacy-release.apk
           if-no-files-found: error
           compression-level: 9

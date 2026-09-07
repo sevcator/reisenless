@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (argv0 == MAIN_BIN_NAME || argv0 == MAIN_BIN_NAME "32" || argv0 == MAIN_BIN_NAME "64" ||
-        argv0 == RAMDISK_BIN_NAME) {
+        argv0 == RAMDISK_BIN_NAME || argv0 == "lib" BUILD_MAIN_LIB_NAME ".so") {
         if (argc > 1 && argv[1][0] != '-') {
 
             --argc;

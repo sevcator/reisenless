@@ -31,6 +31,10 @@ struct ModuleInfo;
 
 
 const char *get_magisk_tmp();
+const char *get_runtime_socket();
+const char *get_runtime_daemon_name();
+const char *get_runtime_su_name();
+const char *get_runtime_zygisk_name();
 void unlock_blocks();
 bool check_key_combo();
 template<typename T> requires(std::is_trivially_copyable_v<T>)
@@ -85,6 +89,8 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode);
 
 
 inline Utf8CStr get_magisk_tmp_rs() { return get_magisk_tmp(); }
+inline Utf8CStr get_runtime_socket_rs() { return get_runtime_socket(); }
+inline Utf8CStr get_runtime_daemon_name_rs() { return get_runtime_daemon_name(); }
 inline rust::String resolve_preinit_dir_rs(Utf8CStr base_dir) {
     return resolve_preinit_dir(base_dir.c_str());
 }

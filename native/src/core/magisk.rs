@@ -1,5 +1,5 @@
 use crate::consts::{APPLET_NAMES, MAGISK_VER_CODE, MAGISK_VERSION, POST_FS_DATA_WAIT_TIME};
-use crate::daemon::connect_daemon;
+use crate::daemon::{CLIENT_FAILURE, CLIENT_PROTOCOL_MISMATCH, connect_daemon};
 use crate::ffi::{RequestCode, denylist_cli, get_magisk_tmp, unlock_blocks};
 use crate::mount::find_preinit_device;
 use crate::selinux::restorecon;
@@ -10,6 +10,9 @@ use nix::poll::{PollFd, PollFlags, PollTimeout};
 use std::ffi::c_char;
 use std::os::fd::AsFd;
 use std::process::exit;
+use std::sync::atomic::Ordering;
+
+const EXIT_DATABASE_FAILURE: i32 = 13;
 
 fn print_usage() {
     eprintln!(
@@ -34,9 +37,9 @@ Advanced Options (Internal APIs):
    --restorecon              restore selinux context on Magisk files
    --clone-attr SRC DEST     clone permission, owner, and selinux context
    --clone SRC DEST          clone SRC to DEST
-   --sqlite SQL              exec SQL commands to Magisk database
+   --sqlite SQL              exec SQL commands (signed manager only)
    --path                    print Magisk tmpfs mount path
-   --sulist ARGS             sulist config CLI
+   --sulist ARGS             sulist config CLI (signed manager only)
    --preinit-device          resolve a device to store preinit files
 
 Available applets:
@@ -244,7 +247,8 @@ impl MagiskAction {
                 loop {
                     let line = String::decode(&mut fd)?;
                     if line.is_empty() {
-                        return Ok(0);
+                        let status = i32::decode(&mut fd)?;
+                        return Ok(if status == 0 { 0 } else { EXIT_DATABASE_FAILURE });
                     }
                     println!("{line}");
                 }
@@ -258,7 +262,13 @@ impl MagiskAction {
                 }
             }
             SuList(self::SuList { mut args }) => {
-                return Ok(denylist_cli(&mut args));
+                let result = denylist_cli(&mut args);
+                return Ok(if result < 0 {
+                    let failure = CLIENT_FAILURE.load(Ordering::Relaxed);
+                    if failure == 0 { CLIENT_PROTOCOL_MISMATCH } else { failure }
+                } else {
+                    result
+                });
             }
             PreInitDevice(_) => {
                 let name = find_preinit_device();
@@ -274,6 +284,7 @@ impl MagiskAction {
 }
 
 pub fn magisk_main(argc: i32, argv: *mut *mut c_char) -> i32 {
+    CLIENT_FAILURE.store(0, Ordering::Relaxed);
     if argc < 2 {
         print_usage();
         exit(1);
@@ -282,5 +293,11 @@ pub fn magisk_main(argc: i32, argv: *mut *mut c_char) -> i32 {
 
     cmds.insert(1, "--");
     let cli = Cli::from_args(&cmds[..1], &cmds[1..]).on_early_exit(print_usage);
-    cli.action.exec().unwrap_or(1)
+    match cli.action.exec() {
+        Ok(code) => code,
+        Err(_) => {
+            let failure = CLIENT_FAILURE.swap(0, Ordering::Relaxed);
+            if failure == 0 { CLIENT_PROTOCOL_MISMATCH } else { failure }
+        }
+    }
 }

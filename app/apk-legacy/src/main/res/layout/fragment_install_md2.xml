@@ -124,6 +124,97 @@
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/install_source_card"
+                style="@style/WidgetFoundation.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/l1"
+                android:layout_marginTop="@dimen/l1"
+                android:layout_marginEnd="@dimen/l1"
+                android:focusable="false">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/install_source_header"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            style="@style/WidgetFoundation.Icon"
+                            isSelected="@{viewModel.sourceChoice == @id/source_launched || viewModel.apkData != null}"
+                            android:layout_marginStart="@dimen/l_25"
+                            android:importantForAccessibility="no"
+                            app:srcCompat="@drawable/ic_check_circle_md2" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_marginStart="@dimen/l1"
+                            android:layout_weight="1"
+                            android:gravity="center_vertical"
+                            android:text="@string/magisk"
+                            android:textAppearance="@style/AppearanceFoundation.Body"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <RadioGroup
+                        android:id="@+id/install_source_choices"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/l1"
+                        android:layout_marginTop="@dimen/l_50"
+                        android:layout_marginEnd="@dimen/l1"
+                        android:layout_marginBottom="@dimen/l_50"
+                        android:paddingStart="3dp"
+                        android:paddingEnd="3dp"
+                        android:contentDescription="@string/install_source_title"
+                        android:checkedButton="@={viewModel.sourceChoice}">
+
+                        <RadioButton
+                            android:id="@+id/source_launched"
+                            style="@style/WidgetFoundation.RadioButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/install_source_launched" />
+
+                        <RadioButton
+                            android:id="@+id/source_selected"
+                            style="@style/WidgetFoundation.RadioButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:onClick="@{() -> viewModel.chooseApk()}"
+                            android:text="@string/install_source_selected" />
+                    </RadioGroup>
+
+                    <TextView
+                        gone="@{viewModel.sourceChoice != @id/source_selected || viewModel.apkData == null}"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/l1"
+                        android:layout_marginEnd="@dimen/l1"
+                        android:layout_marginBottom="@dimen/l_50"
+                        android:text="@{viewModel.apkData.lastPathSegment}"
+                        android:textAppearance="@style/AppearanceFoundation.Caption" />
+
+                    <TextView
+                        gone="@{viewModel.sourceChoice != @id/source_selected}"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/l1"
+                        android:layout_marginEnd="@dimen/l1"
+                        android:layout_marginBottom="@dimen/l1"
+                        android:text="@string/install_source_warning"
+                        android:textAppearance="@style/AppearanceFoundation.Caption" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/install_method_card"
                 style="@style/WidgetFoundation.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -161,7 +252,7 @@
                         <Button
                             style="@style/WidgetFoundation.Button.Text"
                             gone="@{viewModel.step != 1}"
-                            isEnabled="@{(viewModel.method == @id/method_patch || viewModel.method == @id/method_download) ? viewModel.data != null : viewModel.method != -1}"
+                            isEnabled="@{(viewModel.sourceChoice == @id/source_launched || viewModel.apkData != null) &amp;&amp; (viewModel.method == @id/method_patch ? viewModel.data != null : viewModel.method != -1)}"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:onClick="@{() -> viewModel.install()}"
@@ -172,6 +263,7 @@
                     </LinearLayout>
 
                     <RadioGroup
+                        android:id="@+id/install_method_choices"
                         gone="@{viewModel.step != 1}"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -191,16 +283,9 @@
                             android:text="@string/select_patch_file" />
 
                         <RadioButton
-                            android:id="@+id/method_download"
-                            style="@style/WidgetFoundation.RadioButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/download_patch_file" />
-
-                        <RadioButton
                             android:id="@+id/method_direct"
                             style="@style/WidgetFoundation.RadioButton"
-                            gone="@{!viewModel.rooted}"
+                            gone="@{!viewModel.rooted || viewModel.sourceChoice == @id/source_selected}"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/direct_install" />
@@ -208,12 +293,30 @@
                         <RadioButton
                             android:id="@+id/method_inactive_slot"
                             style="@style/WidgetFoundation.RadioButton"
-                            gone="@{viewModel.noSecondSlot}"
+                            gone="@{viewModel.noSecondSlot || viewModel.sourceChoice == @id/source_selected}"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/install_inactive_slot" />
 
                     </RadioGroup>
+
+                    <Button
+                        style="@style/WidgetFoundation.Button.Text"
+                        gone="@{viewModel.method != @id/method_patch || viewModel.data == null}"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/l1"
+                        android:layout_marginEnd="@dimen/l1"
+                        android:text="@string/install_choose_image"
+                        android:onClick="@{() -> viewModel.chooseImage()}" />
+
+                    <TextView
+                        gone="@{viewModel.method != @id/method_patch || viewModel.data == null}"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/l1"
+                        android:text="@{viewModel.data.lastPathSegment}"
+                        android:textAppearance="@style/AppearanceFoundation.Caption" />
 
                 </LinearLayout>
 

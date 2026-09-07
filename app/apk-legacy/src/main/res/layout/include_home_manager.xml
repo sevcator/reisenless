@@ -5,8 +5,6 @@
 
     <data>
 
-        <import type="com.topjohnwu.magisk.ui.home.HomeViewModel.State" />
-
         <variable
             name="viewModel"
             type="com.topjohnwu.magisk.ui.home.HomeViewModel" />
@@ -41,7 +39,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/l1"
-                android:text="@string/home_app_title"
+                android:text="@string/manager_title"
                 android:textAppearance="@style/AppearanceFoundation.Title"
                 android:textColor="?colorPrimary"
                 android:maxLines="1"
@@ -50,37 +48,16 @@
                 app:layout_constraintEnd_toStartOf="@+id/home_manager_button"
                 app:layout_constraintStart_toEndOf="@+id/home_manager_icon"
                 app:layout_constraintTop_toTopOf="parent"
-                tools:text="@string/home_app_title" />
+                tools:text="@string/manager_title" />
 
             <FrameLayout
                 android:id="@+id/home_manager_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintBottom_toBottomOf="@+id/home_manager_title"
                 app:layout_constraintTop_toTopOf="@+id/home_manager_title">
-
-                <Button
-                    style="@style/WidgetFoundation.Button"
-                    gone="@{viewModel.appState != State.OUTDATED}"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:onClick="@{() -> viewModel.onManagerPressed()}"
-                    android:text="@string/update"
-                    android:textAllCaps="false"
-                    android:layout_gravity="end"
-                    app:icon="@drawable/ic_update_md2" />
-
-                <Button
-                    style="@style/WidgetFoundation.Button.Text"
-                    gone="@{viewModel.appState != State.UP_TO_DATE}"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:onClick="@{() -> viewModel.onManagerPressed()}"
-                    android:text="@string/install"
-                    android:textAllCaps="false"
-                    app:icon="@drawable/ic_install"/>
 
             </FrameLayout>
 
@@ -110,44 +87,11 @@
                         android:layout_height="wrap_content">
 
                         <LinearLayout
-                            android:id="@+id/home_manager_latest_version"
-                            style="@style/W.Home.Item.Top"
-                            app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toTopOf="parent">
-
-                            <TextView
-                                style="@style/W.Home.ItemContent"
-                                android:text="@string/home_latest_version" />
-
-                            <TextView
-                                style="@style/W.Home.ItemContent.Right"
-                                android:text="@{viewModel.managerRemoteVersion}"
-                                tools:text="22.0 (22000) (16)" />
-
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/home_manager_installed_version"
-                            style="@style/W.Home.Item"
-                            app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toBottomOf="@+id/home_manager_latest_version">
-
-                            <TextView
-                                style="@style/W.Home.ItemContent"
-                                android:text="@string/home_installed_version" />
-
-                            <TextView
-                                style="@style/W.Home.ItemContent.Right"
-                                android:text="@{viewModel.managerInstalledVersion}"
-                                tools:text="22.0 (22000) (16)" />
-
-                        </LinearLayout>
-
-                        <LinearLayout
                             android:id="@+id/home_manager_internal_connection"
                             style="@style/W.Home.Item.Bottom"
+                            android:paddingTop="@dimen/l_75"
                             app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toBottomOf="@+id/home_manager_installed_version">
+                            app:layout_constraintTop_toTopOf="parent">
 
                             <TextView
                                 style="@style/W.Home.ItemContent"
@@ -162,15 +106,6 @@
                         </LinearLayout>
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
-
-                    <ProgressBar
-                        style="@style/WidgetFoundation.ProgressBar"
-                        gone="@{viewModel.stateManagerProgress == 0 || viewModel.stateManagerProgress == 100}"
-                        android:layout_width="match_parent"
-                        android:layout_gravity="bottom"
-                        android:max="100"
-                        android:progress="@{viewModel.stateManagerProgress}" />
-
                 </LinearLayout>
 
             </HorizontalScrollView>

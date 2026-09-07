@@ -17,6 +17,7 @@ object HideAppsRootClient {
     private val state = "$root/state"
     private val runtime = "$root/runtime"
     private val globalLoaderMarker = "$state/hideapps-global-loader-v2"
+    private val legacyManagers = "$state/legacy-managers.conf"
 
     fun sync(
         config: HideAppsConfig,
@@ -35,6 +36,7 @@ object HideAppsRootClient {
             AppContext.packageName,
             systemPackages,
             installedPackages,
+            privateLegacyPackages(),
             includeCompatibilityMarkers = !hasGlobalLoader,
         )
         val encoded = Base64.encodeToString(text.toByteArray(), Base64.NO_WRAP)
@@ -55,25 +57,6 @@ object HideAppsRootClient {
             packageList(),
             packageList(systemOnly = true),
         )
-    }
-
-    fun syncRomKeywordsHideApps(keywords: String): Boolean {
-        val enabled = keywords.isNotBlank()
-        val kwList = (if (enabled) keywords else Udonge.DEFAULT_ROM_KEYWORDS).lineSequence()
-            .map(String::trim)
-            .filter { it.length >= 3 && it.none(Char::isWhitespace) }
-            .toList()
-        val romPkgs = packageList().filterTo(mutableSetOf()) { packageName ->
-            kwList.any { keyword -> packageName.contains(keyword, ignoreCase = true) }
-        }
-        if (romPkgs.isEmpty()) return true
-        val repository = HideAppsRepository(AppContext)
-        if (enabled) {
-            repository.setHiddenAll(romPkgs)
-        } else {
-            romPkgs.forEach { repository.setHidden(it, false) }
-        }
-        return syncCurrentConfig()
     }
 
     fun status(): HideAppsStatus {
@@ -98,4 +81,11 @@ object HideAppsRootClient {
 
     private fun isPackageName(value: String): Boolean =
         value.matches(Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+"))
+
+    private fun privateLegacyPackages(): Set<String> =
+        Shell.cmd("cat '$legacyManagers' 2>/dev/null").exec().out
+            .asSequence()
+            .map(String::trim)
+            .filter(::isPackageName)
+            .toSet()
 }

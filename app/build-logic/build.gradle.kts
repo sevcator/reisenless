@@ -17,6 +17,7 @@ gradlePlugin {
 }
 
 dependencies {
+    implementation("org.smali:dexlib2:2.5.2")
     compileOnly(libs.android.gradle.plugin)
     compileOnly(libs.android.build.sdk.common)
 }

@@ -41,6 +41,19 @@
                 app:layout_constraintTop_toBottomOf="@+id/home_device_wrapper" />
 
             <Space
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/l1" />
+
+            <include
+                android:id="@+id/home_manager_wrapper"
+                layout="@layout/include_home_manager"
+                viewModel="@{viewModel}"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/l1"
+                android:layout_marginEnd="@dimen/l1" />
+
+            <Space
                 goneUnless="@{Info.env.isActive}"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/l1" />

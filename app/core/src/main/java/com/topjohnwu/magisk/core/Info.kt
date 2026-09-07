@@ -5,8 +5,6 @@ import android.os.Build
 import android.system.Os
 import androidx.lifecycle.MutableLiveData
 import com.topjohnwu.magisk.core.ktx.getProperty
-import com.topjohnwu.magisk.core.model.UpdateInfo
-import com.topjohnwu.magisk.core.repository.NetworkService
 import com.topjohnwu.superuser.CallbackList
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ShellUtils.fastCmd
@@ -14,22 +12,6 @@ import kotlinx.coroutines.Runnable
 import java.io.File
 
 object Info {
-
-    private val EMPTY_UPDATE = UpdateInfo()
-    var update = EMPTY_UPDATE
-        private set
-
-    suspend fun fetchUpdate(svc: NetworkService): UpdateInfo? {
-        return if (update === EMPTY_UPDATE) {
-            svc.fetchUpdate()?.apply { update = this }
-        } else {
-            update
-        }
-    }
-
-    fun resetUpdate() {
-        update = EMPTY_UPDATE
-    }
 
     var isRooted = false
     var noDataExec = false
@@ -60,7 +42,7 @@ object Info {
 
     val isConnected = MutableLiveData(false)
 
-    fun isReisenlessSu(file: File): Boolean = runCatching {
+    fun isTrustedSu(file: File): Boolean = runCatching {
         val main = Os.stat("/debug_ramdisk/${Const.MAIN_BIN}")
         val candidate = Os.stat(file.path)
         main.st_dev == candidate.st_dev && main.st_ino == candidate.st_ino

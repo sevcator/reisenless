@@ -5,11 +5,9 @@ import android.widget.Toast
 import androidx.lifecycle.viewModelScope
 import com.topjohnwu.magisk.arch.BaseViewModel
 import com.topjohnwu.magisk.core.AppContext
-import com.topjohnwu.magisk.core.BuildConfig.APP_VERSION_CODE
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.ktx.toast
-import com.topjohnwu.magisk.core.repository.NetworkService
 import com.topjohnwu.magisk.ui.navigation.Route
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +19,7 @@ import java.io.File
 import java.io.IOException
 import com.topjohnwu.magisk.core.R as CoreR
 
-class InstallViewModel(svc: NetworkService) : BaseViewModel() {
+class InstallViewModel : BaseViewModel() {
 
     enum class Method { NONE, PATCH, DIRECT, INACTIVE_SLOT, DOWNLOAD }
 
@@ -41,25 +39,6 @@ class InstallViewModel(svc: NetworkService) : BaseViewModel() {
 
     private val _uiState = MutableStateFlow(UiState(step = if (skipOptions) 1 else 0))
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-
-    init {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val noteFile = File(AppContext.cacheDir, "${APP_VERSION_CODE}.md")
-                val noteText = when {
-                    noteFile.exists() -> noteFile.readText()
-                    else -> {
-                        val note = svc.fetchUpdate(APP_VERSION_CODE)?.note.orEmpty()
-                        if (note.isEmpty()) return@launch
-                        noteFile.writeText(note)
-                        note
-                    }
-                }
-                _uiState.update { it.copy(notes = noteText) }
-            } catch (e: IOException) {
-            }
-        }
-    }
 
     fun nextStep() {
         _uiState.update { it.copy(step = 1) }

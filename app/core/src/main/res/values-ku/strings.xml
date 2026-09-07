@@ -11,7 +11,6 @@
 
     <!--Home-->
     <string name="no_connection">هێڵ بەردەست نییە</string>
-    <string name="app_changelog">گۆڕانکارییەکان</string>
     <string name="loading">کردنەوە…</string>
     <string name="update">بەرزکردنەوە</string>
     <string name="not_available">نییە</string>
@@ -19,32 +18,26 @@
     <string name="home_package">پاکێج</string>
     <string name="home_app_title">ئەپ</string>
 
-    <string name="home_notice_content">تەنها لە گیتهەبی فەرمی ماجیسک دابگرە، لە شوێنی تر لەوانەیە زیانبەخش بێت</string>
-    <string name="home_support_title">پشتگیریمان بکە</string>
     <string name="home_follow_title">شوێنمان بکەوە</string>
-    <string name="home_item_source">سەرچاوە</string>
-    <string name="home_support_content">ماجیسک بە خۆڕاییە و هەر واش ئەمێنێتەوە، بەهەرحاڵ ئەتوانیت پشتگیرییەکمان بکەی بۆ گرنگی پێدان</string>
     <string name="home_installed_version">داگیراوە</string>
     <string name="home_latest_version">دوایین وەشان</string>
-    <string name="invalid_update_channel">کەناڵێکی نوێکردنەوەی هەڵە</string>
     <string name="uninstall_magisk_title">سڕینەوەی ماجیسک</string>
     <string name="uninstall_magisk_msg">هەموو زیادکراوەکان دەسڕێنەوە، ڕۆت دەسڕێتەوە، و هەر ڕەمزێنراوێک بەهۆی ماجیسک کرابێ لادەچێت!</string>
 
     <!--Install-->
     <string name="keep_force_encryption">ڕەمزاندنی بەزۆر بهێڵەوە</string>
-    <string name="keep_dm_verity">بهێڵەوە AVB 2.0/dm-verity</string>
+    <string name="keep_dm_verity">بهێڵەوە avb 2.0/dm-verity</string>
     <string name="recovery_mode">دۆخی ڕیکەڤەڕی</string>
     <string name="install_options_title">هەڵبژاردنەکان</string>
     <string name="install_method_title">ڕێگای</string>
     <string name="install_next">دواتر</string>
     <string name="install_start">با بیکەین</string>
-    <string name="manager_download_install">بۆ داگرتن و ڕێکخستن کرتە بکە</string>
     <string name="direct_install">داگرتنی ڕاستەوخۆ(پێشنیارکراوە)</string>
-    <string name="install_inactive_slot">دایبگرە بۆ خانەی ناچالاک(پاش OTA)</string>
-    <string name="install_inactive_slot_msg">ئێستا ئامێرەکەت دەچێتە خانە ناچالاکەکە، ئەمە بەکاربهێنە تەنها دوای ئەپدەیت کردن لە ڕێگەی OTA، بەردەوام دەبیت؟</string>
+    <string name="install_inactive_slot">دایبگرە بۆ خانەی ناچالاک(پاش ota)</string>
+    <string name="install_inactive_slot_msg">ئێستا ئامێرەکەت دەچێتە خانە ناچالاکەکە، ئەمە بەکاربهێنە تەنها دوای ئەپدەیت کردن لە ڕێگەی ota، بەردەوام دەبیت؟</string>
     <string name="setup_title">ڕێکخستنی زیاتر</string>
     <string name="select_patch_file">فایلێک هەڵبژێرە و پینەی بکە</string>
-    <string name="patch_file_msg">تکایە فایلێکی Tar یان img یان payload.bin هەڵبژێرە</string>
+    <string name="patch_file_msg">تکایە فایلێکی tar یان img یان payload.bin هەڵبژێرە</string>
     <string name="reboot_delay_toast">ڕێستارت کردنەوە لە ماوەی ٥ چرکە…</string>
     <string name="flash_screen_title">ڕێکخستن</string>
 
@@ -78,11 +71,11 @@
 
     <!--Logs-->
     <string name="menuSaveLog">تۆمارەکان هەڵبگرە</string>
-    <string name="pid">PID: %1$d</string>
-    <string name="target_uid">ئامانج UID: %1$d</string>
-    <string name="target_pid">Mount ns target PID: %s</string>
-    <string name="selinux_context">SELinux context: %s</string>
-    <string name="supp_group">Supplementary group: %s</string>
+    <string name="pid">pid: %1$d</string>
+    <string name="target_uid">ئامانج uid: %1$d</string>
+    <string name="target_pid">mount ns target pid: %s</string>
+    <string name="selinux_context">selinux context: %s</string>
+    <string name="supp_group">supplementary group: %s</string>
 
     <!--SafetyNet-->
 
@@ -98,17 +91,16 @@
     <string name="reboot_recovery">چوونە ناو ڕیکەڤەری</string>
     <string name="reboot_bootloader">چوونە ناو بووتلۆدەر</string>
     <string name="reboot_download">چوونە ناو داونلۆد</string>
-    <string name="reboot_edl">چوونە ناو EDL</string>
+    <string name="reboot_edl">چوونە ناو edl</string>
     <string name="reboot_safe_mode">دۆخی پارێزراو</string>
     <string name="module_version_author">%1$s by %2$s</string>
     <string name="module_state_remove">سڕینەوە</string>
     <string name="module_action">کارا</string>
     <string name="module_state_restore">گەڕاندنەوە</string>
     <string name="module_action_install_external">لە بیرگەکەتەوە ڕێکی بخە</string>
-    <string name="update_available">وەشانی نوێ بەردەستە</string>
     <string name="suspend_text_riru">زیادکراوەکە کار ناکات چونکە %1$s کراوەتەوە</string>
     <string name="suspend_text_zygisk">زیادکراوەکە کارناکات چونکە %1$s نەکراوەتەوە</string>
-    <string name="zygisk_module_unloaded">زیادکراوی Zygisk بەهۆی نەگونجان کارناکات</string>
+    <string name="zygisk_module_unloaded">زیادکراوی zygisk بەهۆی نەگونجان کارناکات</string>
     <string name="module_empty">هیچ زیادکراوێک دانەبەزیوە</string>
     <string name="confirm_install">دابەزاندنی زیادکراو %1$s?</string>
     <string name="confirm_install_title">دڵنیابوونەوە لە دابەزاندن</string>
@@ -123,20 +115,13 @@
     <string name="settings_download_path_message">فایلەکان هەڵدەگیرێن لە %1$s</string>
     <string name="language">زمان</string>
     <string name="system_default">(وەک هی ئامێرەکە)</string>
-    <string name="settings_check_update_title">گەڕان بەدوای نوێکاری</string>
-    <string name="settings_check_update_summary">گەڕان بەدوای نوێکاری خۆکارانە</string>
-    <string name="settings_update_channel_title">کەناڵی نوێکاری</string>
-    <string name="settings_update_stable">جێگیر</string>
-    <string name="settings_update_beta">پێشوەختە(بێتا)</string>
-    <string name="settings_update_custom">تایبەت</string>
-    <string name="settings_update_custom_msg">بەستەرێکی تایبەت دابنێ</string>
     <string name="settings_zygisk_summary">کارپێکردنی بەشێکی ماجیسک لە zygote daemon</string>
     <string name="settings_hosts_title">هۆستی ناسیستەمی</string>
     <string name="settings_hosts_summary"> هۆستی ناسیستەمی بۆ لابردنی ڕیکلامەکان</string>
     <string name="settings_hosts_toast"> هۆستی ناسیستەمی زیادکرا</string>
-    <string name="settings_su_app_adb">ئەپەکان و ADB</string>
+    <string name="settings_su_app_adb">ئەپەکان و adb</string>
     <string name="settings_su_app">تەنها ئەپەکان</string>
-    <string name="settings_su_adb">ADB تەنها</string>
+    <string name="settings_su_adb">adb تەنها</string>
     <string name="settings_su_disable">ناچالاک کراوە</string>
     <string name="settings_su_request_10">10 چرکە</string>
     <string name="settings_su_request_15">15 چرکە</string>
@@ -176,14 +161,9 @@
     <string name="isolate_summary">هەمو ڕۆتەکان ناوی جیا بەکار ئەهێنن</string>
 
     <!--Notifications-->
-    <string name="update_channel">نوێکردنەوەکانی ماجیسک</string>
     <string name="progress_channel">ئاگادارییە کاراکان</string>
-    <string name="updated_channel">نوێکردنەوە سەرکەوتووبوو</string>
     <string name="download_complete">داگرتن سەرکەوتووبوو</string>
     <string name="download_file_error">هەڵەیەک رووی دا لەکاتی داگرتنی فایلەکە</string>
-    <string name="magisk_update_title">وەشانی نوێی ماجیسک ئامادەیە!</string>
-    <string name="updated_title">ماجیسک نوێکراوە!</string>
-    <string name="updated_text">کرتە بکە بۆ کردنەوەی ئەپ</string>
 
     <!--Toasts, Dialogs-->
     <string name="yes">بەڵێ</string>
@@ -192,10 +172,9 @@
     <string name="download">داگرتن</string>
     <string name="reboot">ڕێستارت</string>
     <string name="close">داخستن</string>
-    <string name="release_notes">نێبینییەکان</string>
     <string name="flashing">فلاش کردن</string>    <string name="done">تەواو!</string>
     <string name="done_action">کارکردنی %1$s تەواو بوو</string>
-    <string name="failure">Failed!</string>
+    <string name="failure">failed!</string>
     <string name="open_link_failed_toast">هیچ ئەپێک تییە تا لینکەکەی پێ بکرێتەوە</string>
     <string name="complete_uninstall">سڕینەوەی تەواوی</string>
     <string name="restore_img">هێنانەوەی img</string>

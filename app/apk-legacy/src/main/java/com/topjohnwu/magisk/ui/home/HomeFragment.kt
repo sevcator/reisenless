@@ -52,6 +52,9 @@ class HomeFragment : BaseFragment<FragmentHomeMd2Binding>(), MenuProvider {
         with(binding.homeMagiskWrapper) {
             checkTitle(homeMagiskTitle, homeMagiskIcon)
         }
+        with(binding.homeManagerWrapper) {
+            checkTitle(homeManagerTitle, homeManagerIcon)
+        }
         return binding.root
     }
 

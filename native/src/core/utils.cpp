@@ -44,6 +44,63 @@ const char *get_magisk_tmp() {
     return path;
 }
 
+static string runtime_alias(string_view role, string_view fallback) {
+    char boot_id[64]{};
+    owned_fd fd = open("/proc/sys/kernel/random/boot_id", O_RDONLY | O_CLOEXEC);
+    if (fd < 0)
+        return string(fallback);
+    ssize_t len = read(fd, boot_id, sizeof(boot_id) - 1);
+    if (len <= 0)
+        return string(fallback);
+    while (len > 0 && (boot_id[len - 1] == '\n' || boot_id[len - 1] == '\r'))
+        --len;
+
+    uint64_t hash = 1469598103934665603ULL;
+    auto mix = [&hash](string_view value) {
+        for (unsigned char ch : value) {
+            hash ^= ch;
+            hash *= 1099511628211ULL;
+        }
+    };
+    mix(BUILD_RUNTIME_SEED);
+    mix(string_view(boot_id, len));
+    mix(role);
+
+    string result = ".";
+    constexpr string_view alphabet = "abcdefghijklmnopqrstuvwxyz";
+    for (int i = 0; i < 12; ++i) {
+        hash ^= hash << 13;
+        hash ^= hash >> 7;
+        hash ^= hash << 17;
+        result += alphabet[hash % alphabet.size()];
+    }
+    return result;
+}
+
+const char *get_runtime_socket() {
+    static string value = string(DEVICEDIR) + "/" + runtime_alias("s", BUILD_SOCKET_NAME);
+    return value.c_str();
+}
+
+const char *get_runtime_daemon_name() {
+    static string value = runtime_alias("d", DAEMON_PROC_NAME);
+    return value.c_str();
+}
+
+const char *get_runtime_su_name() {
+    static string value = runtime_alias("u", "su");
+    return value.c_str();
+}
+
+const char *get_runtime_zygisk_name() {
+#if defined(__LP64__)
+    static string value = runtime_alias("z64", ZYGISKD64);
+#else
+    static string value = runtime_alias("z32", ZYGISKD32);
+#endif
+    return value.c_str();
+}
+
 void unlock_blocks() {
     int fd, dev, OFF = 0;
 

@@ -149,7 +149,7 @@ class WebUIActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val WEB_DOMAIN = "mui.kernelsu.org"
+        private const val WEB_DOMAIN = "appassets.androidplatform.net"
         private val MODULE_ID = Regex("[A-Za-z0-9._-]+")
         const val EXTRA_MODULE_ID = "module_id"
         const val EXTRA_MODULE_NAME = "module_name"

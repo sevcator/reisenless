@@ -1,18 +1,10 @@
 package com.topjohnwu.magisk.ui.home
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.widget.Toast
-import androidx.core.net.toUri
 import androidx.lifecycle.viewModelScope
 import com.topjohnwu.magisk.arch.AsyncLoadViewModel
-import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.BuildConfig
-import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.ktx.await
-import com.topjohnwu.magisk.core.ktx.toast
-import com.topjohnwu.magisk.core.repository.NetworkService
 import com.topjohnwu.magisk.utils.asFlow
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,25 +14,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.topjohnwu.magisk.core.R as CoreR
 
-class HomeViewModel(
-    private val svc: NetworkService
-) : AsyncLoadViewModel() {
+class HomeViewModel : AsyncLoadViewModel() {
 
     enum class State {
         LOADING, INVALID, OUTDATED, UP_TO_DATE
     }
 
     data class UiState(
-        val isNoticeVisible: Boolean = Config.safetyNotice,
-        val appState: State = State.LOADING,
-        val managerRemoteVersion: String = "",
-        val managerProgress: Int = 0,
         val showUninstall: Boolean = false,
-        val showManagerInstall: Boolean = false,
         val envFixCode: Int = 0,
         val magiskState: State = computeMagiskState(),
         val magiskInstalledVersion: String = computeMagiskInstalledVersion(),
-        val managerInstalledVersion: String = computeManagerInstalledVersion(),
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -48,7 +32,6 @@ class HomeViewModel(
 
     val magiskState get() = _uiState.value.magiskState
     val magiskInstalledVersion get() = _uiState.value.magiskInstalledVersion
-    val managerInstalledVersion get() = _uiState.value.managerInstalledVersion
 
     companion object {
         private var checkedEnv = false
@@ -66,10 +49,6 @@ class HomeViewModel(
             else
                 ""
         }
-
-        fun computeManagerInstalledVersion() =
-            "${BuildConfig.APP_VERSION_NAME} (${BuildConfig.APP_VERSION_CODE})" +
-                if (BuildConfig.DEBUG) " (D)" else ""
     }
 
     init {
@@ -83,37 +62,11 @@ class HomeViewModel(
     override suspend fun doLoadWork() {
         _uiState.update {
             it.copy(
-                appState = State.LOADING,
                 magiskState = computeMagiskState(),
                 magiskInstalledVersion = computeMagiskInstalledVersion(),
-                managerInstalledVersion = computeManagerInstalledVersion(),
             )
         }
-        Info.fetchUpdate(svc)?.apply {
-            val isDebug = Config.updateChannel == Config.Value.DEBUG_CHANNEL
-            _uiState.update {
-                it.copy(
-                    appState = if (BuildConfig.APP_VERSION_CODE < versionCode) State.OUTDATED else State.UP_TO_DATE,
-                    managerRemoteVersion = "$version ($versionCode)" + if (isDebug) " (D)" else ""
-                )
-            }
-        } ?: run {
-            _uiState.update { it.copy(appState = State.INVALID, managerRemoteVersion = "") }
-        }
         ensureEnv()
-    }
-
-    fun onLinkPressed(link: String) {
-        val viewIntent = Intent(Intent.ACTION_VIEW, link.toUri()).apply {
-            addCategory(Intent.CATEGORY_BROWSABLE)
-        }
-        val intent = Intent.createChooser(viewIntent, null)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
-            AppContext.startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
-            AppContext.toast(CoreR.string.open_link_failed_toast, Toast.LENGTH_SHORT)
-        }
     }
 
     fun onDeletePressed() {
@@ -124,25 +77,8 @@ class HomeViewModel(
         _uiState.update { it.copy(showUninstall = false) }
     }
 
-    fun onManagerPressed() {
-        when (_uiState.value.appState) {
-            State.LOADING -> showSnackbar(CoreR.string.loading)
-            State.INVALID -> showSnackbar(CoreR.string.no_connection)
-            else -> _uiState.update { it.copy(showManagerInstall = true) }
-        }
-    }
-
-    fun onManagerInstallConsumed() {
-        _uiState.update { it.copy(showManagerInstall = false) }
-    }
-
     fun onEnvFixConsumed() {
         _uiState.update { it.copy(envFixCode = 0) }
-    }
-
-    fun hideNotice() {
-        Config.safetyNotice = false
-        _uiState.update { it.copy(isNoticeVisible = false) }
     }
 
     private suspend fun ensureEnv() {

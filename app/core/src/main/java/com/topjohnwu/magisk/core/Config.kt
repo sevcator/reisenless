@@ -10,9 +10,7 @@ import kotlinx.coroutines.GlobalScope
 
 object Config : PreferenceConfig, DBConfig {
 
-    const val DEFAULT_UDONGE_KEYBOX_URLS =
-        "https://git.evolution-x.org/EvoX/keybox/raw/branch/main/keybox.xml\n" +
-        "https://raw.githubusercontent.com/AresOS-AOSP/.github/main/profile/keybox.xml"
+    const val DEFAULT_UDONGE_KEYBOX_URLS = ""
 
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB
@@ -38,9 +36,6 @@ object Config : PreferenceConfig, DBConfig {
         const val SU_REAUTH = "su_reauth"
         const val SU_TAPJACK = "su_tapjack"
         const val SU_RESTRICT = "su_restrict"
-        const val CHECK_UPDATES = "check_update"
-        const val RELEASE_CHANNEL = "release_channel"
-        const val CUSTOM_CHANNEL = "custom_channel"
         const val LOCALE = "locale"
         const val DARK_THEME = "dark_theme_extended"
         const val COLOR_MODE = "color_mode"
@@ -52,27 +47,10 @@ object Config : PreferenceConfig, DBConfig {
         const val UDONGE_ENABLED = "udonge_enabled"
         const val UDONGE_BACKGROUND_UPDATES = "udonge_background_updates"
         const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls_v2"
-        const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
-        const val UDONGE_ROM_HIDING = "udonge_rom_hiding"
 
-    }
-
-    object OldValue {
-        const val DEFAULT_CHANNEL = -1
-        const val STABLE_CHANNEL = 0
-        const val BETA_CHANNEL = 1
-        const val CUSTOM_CHANNEL = 2
-        const val CANARY_CHANNEL = 3
-        const val DEBUG_CHANNEL = 4
     }
 
     object Value {
-
-        const val DEFAULT_CHANNEL = -1
-        const val STABLE_CHANNEL = 0
-        const val BETA_CHANNEL = 1
-        const val DEBUG_CHANNEL = 2
-        const val CUSTOM_CHANNEL = 3
 
         const val ROOT_ACCESS_DISABLED = 0
         const val ROOT_ACCESS_APPS_ONLY = 1
@@ -116,25 +94,9 @@ object Config : PreferenceConfig, DBConfig {
     var themeOrdinal by preference(Key.THEME_ORDINAL, 0)
     var colorMode by preference(Key.COLOR_MODE, ColorMode.MONET_SYSTEM.value)
 
-    private var checkUpdatePrefs by preference(Key.CHECK_UPDATES, false)
     private var localePrefs by preference(Key.LOCALE, "")
-    var updateChannel by preference(Key.RELEASE_CHANNEL, Value.DEFAULT_CHANNEL)
-    val updateChannelIndex get() = when (updateChannel) {
-        Value.DEFAULT_CHANNEL ->
-            if (BuildConfig.DEBUG) Value.DEBUG_CHANNEL else Value.STABLE_CHANNEL
-        else -> updateChannel
-    }
-    var customChannelUrl by preference(Key.CUSTOM_CHANNEL, "")
     var downloadDir by preference(Key.DOWNLOAD_DIR, "")
     var randName by preference(Key.RAND_NAME, true)
-    var checkUpdate
-        get() = checkUpdatePrefs
-        set(value) {
-            if (checkUpdatePrefs != value) {
-                checkUpdatePrefs = value
-                JobService.schedule(AppContext)
-            }
-        }
     var accentColor by preference(Key.ACCENT_COLOR, 0xFFC95BC8.toInt())
     var udongeEnabled by preference(Key.UDONGE_ENABLED, false)
     var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
@@ -145,8 +107,6 @@ object Config : PreferenceConfig, DBConfig {
     var udongeKeyboxUrls
         get() = storedUdongeKeyboxUrls.ifBlank { DEFAULT_UDONGE_KEYBOX_URLS }
         set(value) { storedUdongeKeyboxUrls = value }
-    var udongeRomKeywords by preference(Key.UDONGE_ROM_KEYWORDS, "")
-    var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, false)
     var locale
         get() = localePrefs
         set(value) {
@@ -175,25 +135,11 @@ object Config : PreferenceConfig, DBConfig {
     var suRestrict by preference(Key.SU_RESTRICT, false)
 
     private const val SU_FINGERPRINT = "su_fingerprint"
-    private const val UPDATE_CHANNEL = "update_channel"
-
     fun init() {
         prefs.edit {
             if (prefs.getBoolean(SU_FINGERPRINT, false))
                 suBiometric = true
             remove(SU_FINGERPRINT)
-
-            prefs.getString(UPDATE_CHANNEL, null)?.let {
-                val channel = when (it.toInt()) {
-                    OldValue.STABLE_CHANNEL -> Value.STABLE_CHANNEL
-                    OldValue.CANARY_CHANNEL, OldValue.BETA_CHANNEL -> Value.BETA_CHANNEL
-                    OldValue.DEBUG_CHANNEL -> Value.DEBUG_CHANNEL
-                    OldValue.CUSTOM_CHANNEL -> Value.CUSTOM_CHANNEL
-                    else -> Value.DEFAULT_CHANNEL
-                }
-                putInt(Key.RELEASE_CHANNEL, channel)
-            }
-            remove(UPDATE_CHANNEL)
         }
     }
 }

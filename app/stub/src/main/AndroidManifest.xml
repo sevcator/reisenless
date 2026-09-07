@@ -3,5 +3,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:hasCode="false"
-        android:label="Reisenless trust anchor" />
+        android:label="${appLabel}" />
 </manifest>

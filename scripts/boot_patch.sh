@@ -122,6 +122,13 @@ ui_print "- checking ramdisk status"
 if [ -n "$RAMDISK" ]; then
   ./mboot cpio $RAMDISK test
   STATUS=$?
+  if [ "$STATUS" -eq 0 ] && [ -n "$LEGACY_BACKUP_CONFIG" ] \
+      && [ "$LEGACY_BACKUP_CONFIG" != "$BACKUP_CONFIG" ] \
+      && ./mboot cpio $RAMDISK "exists .backup/$LEGACY_BACKUP_CONFIG" 2>/dev/null; then
+    # A randomized predecessor is invisible to the current cpio test marker.
+    # Treat it as patched so its saved stock init is restored before repatching.
+    STATUS=1
+  fi
   SKIP_BACKUP=""
 else
 
@@ -141,10 +148,15 @@ case $STATUS in
     ;;
   1 )
 
-    ui_print "- reisenless patched boot image detected"
+    ui_print "- patched boot image detected"
 
     if ./mboot cpio $RAMDISK "exists .backup/$BACKUP_CONFIG" 2>/dev/null; then
       ./mboot cpio $RAMDISK "extract .backup/$BACKUP_CONFIG config.orig" "restore"
+    elif [ -n "$LEGACY_BACKUP_CONFIG" ] \
+        && ./mboot cpio $RAMDISK "exists .backup/$LEGACY_BACKUP_CONFIG" 2>/dev/null; then
+      ui_print "- migrating previous randomized boot marker"
+      ./mboot cpio $RAMDISK \
+        "extract .backup/$LEGACY_BACKUP_CONFIG config.orig" "restore"
     else
       ./mboot cpio $RAMDISK "extract .backup/.magisk config.orig" "restore"
     fi

@@ -144,14 +144,27 @@ fun Project.setupCoreLib() {
 
                                 include("magisk")
                             }
-                            rename { if (it.endsWith(".so")) it else "lib$it.so" }
+                            rename {
+                                when (it) {
+                                    "magisk" -> "lib${Config.mainLibName}.so"
+                                    "mpol" -> "lib${Config.policyLibName}.so"
+                                    "libinit-ld.so" -> "lib${Config.initLdLibName}.so"
+                                    "mboot" -> "lib${Config.bootLibName}.so"
+                                    "minit" -> "lib${Config.initLibName}.so"
+                                    else -> if (it.endsWith(".so")) it else "lib$it.so"
+                                }
+                            }
                         }
                     }
                 }
-                from(zipTree(downloadFile(BUSYBOX_DOWNLOAD_URL, BUSYBOX_ZIP_CHECKSUM)))
-                include(toolAbiList.map { "$it/libbusybox.so" })
-                from(zipTree(downloadFile(BOOTCTL_DOWNLOAD_URL, BOOTCTL_ZIP_CHECKSUM)))
-                include(toolAbiList.map { "$it/libbootctl.so" })
+                from(zipTree(downloadFile(BUSYBOX_DOWNLOAD_URL, BUSYBOX_ZIP_CHECKSUM))) {
+                    include(toolAbiList.map { "$it/libbusybox.so" })
+                    rename("libbusybox.so", "lib${Config.busyboxLibName}.so")
+                }
+                from(zipTree(downloadFile(BOOTCTL_DOWNLOAD_URL, BOOTCTL_ZIP_CHECKSUM))) {
+                    include(toolAbiList.map { "$it/libbootctl.so" })
+                    rename("libbootctl.so", "lib${Config.bootctlLibName}.so")
+                }
                 onlyIf {
                     if (inputs.sourceFiles.files.size != abiList.size + toolAbiList.size * 6)
                         throw StopExecutionException("Please build binaries first! (./build.py binary)")
@@ -168,11 +181,23 @@ fun Project.setupCoreLib() {
                 into("META-INF/com/google/android") {
                     from(rootFile("scripts/update_binary.sh")) {
                         rename { "update-binary" }
+                        filter {
+                            it.replace(
+                                ": PACKAGED_LIBS_STUB",
+                                "TMPDIR='${Config.tmpDir}'\n" +
+                                    "PACKAGED_BUSYBOX_LIB='${Config.busyboxLibName}'"
+                            )
+                        }
+                        filter<FixCrLfFilter>(
+                            "eol" to FixCrLfFilter.CrLf.newInstance("lf")
+                        )
                     }
                     from(rootFile("scripts/flash_script.sh")) {
                         rename { "updater-script" }
                     }
                 }
+                inputs.property("packagedBusyboxLib", Config.busyboxLibName)
+                inputs.property("buildTmpDir", Config.tmpDir)
             }
             variant.sources.resources
                 ?.addGeneratedSourceDirectory(syncResources, SyncWithDir::outputFolder)
@@ -211,6 +236,13 @@ fun Project.setupCoreLib() {
                     "POLICY_NAME='${Config.policyName}'",
                     "BIN32_NAME='${Config.bin32Name}'",
                     "BUSYBOX_NAME='${Config.busyboxName}'",
+                    "PACKAGED_MAIN_LIB='${Config.mainLibName}'",
+                    "PACKAGED_BUSYBOX_LIB='${Config.busyboxLibName}'",
+                    "PACKAGED_POLICY_LIB='${Config.policyLibName}'",
+                    "PACKAGED_INIT_LD_LIB='${Config.initLdLibName}'",
+                    "PACKAGED_BOOT_LIB='${Config.bootLibName}'",
+                    "PACKAGED_INIT_LIB='${Config.initLibName}'",
+                    "PACKAGED_BOOTCTL_LIB='${Config.bootctlLibName}'",
                     "RAMDISK_NAME='${Config.ramdiskName}'",
                     "STUB_NAME='${Config.stubName}'",
                     "INIT_LD_NAME='${Config.initLdName}'",
@@ -222,6 +254,10 @@ fun Project.setupCoreLib() {
                     "BUILD_TMPDIR='${Config.tmpDir}'",
                     "BACKUP_PREFIX='${Config.backupPrefix}'",
                     "STAGE_SCRIPT='${Config.stageScript}'",
+                    "LEGACY_SECURE_DIR='${Config.legacySecureDir}'",
+                    "LEGACY_DB_NAME='${Config.legacyDbName}'",
+                    "LEGACY_UDONGE_DIR='${Config.legacyUdongeDir}'",
+                    "LEGACY_BACKUP_CONFIG='${Config.legacyBackupConfig}'",
                 ).joinToString("\n")
                 filesMatching("**/*.sh") {
                     filter {
@@ -258,6 +294,8 @@ fun Project.setupAppCommon() {
 
         defaultConfig {
             targetSdk = 37
+            manifestPlaceholders["appLabel"] = Config.appLabel
+            manifestPlaceholders["providerSuffix"] = Config.providerSuffix
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt")
             )
@@ -284,6 +322,9 @@ fun Project.setupAppCommon() {
 
         packaging {
             jniLibs {
+                // These .so entries include CLI executables launched by path.
+                // They must be extracted by PackageManager; APK-backed library
+                // paths can be dlopen'ed but cannot be passed to execve.
                 useLegacyPackaging = true
             }
         }
@@ -302,6 +343,40 @@ fun Project.setupAppCommon() {
             commentTask.configure {
                 this.transformationRequest = transformationRequest
                 this.signingConfig = signingConfig
+                this.namespaceMappings.set(mapOf(
+                    "com.topjohnwu.magisk.core.BackgroundUpdateJobService" to Config.backgroundUpdateJobServiceClass,
+                    "com.topjohnwu.magisk.ui.surequest.SuRequestActivity" to Config.suRequestActivityClass,
+                    "com.topjohnwu.magisk.ui.webui.WebUIActivity" to Config.webUiActivityClass,
+                    "com.topjohnwu.magisk.ui.MainActivity" to Config.mainActivityClass,
+                    "com.topjohnwu.magisk.core.JobService" to Config.jobServiceClass,
+                    "com.topjohnwu.magisk.core.Receiver" to Config.receiverClass,
+                    "com.topjohnwu.magisk.core.Service" to Config.serviceClass,
+                    "com.topjohnwu.magisk.core.Provider" to Config.providerClass,
+                    "com.topjohnwu.magisk.core.App" to Config.appClass,
+                    "com.topjohnwu.magisk" to Config.classNamespace,
+                    "com.topjohnwu.shared" to Config.sharedNamespace,
+                    "com.topjohnwu.superuser" to Config.superuserNamespace,
+                    "com.topjohnwu.widget" to Config.widgetNamespace,
+                    "com.topjohnwu" to Config.vendorNamespace,
+                ))
+                this.brandingMappings.set(mapOf(
+                    "Magisk" to Config.brandCore.replaceFirstChar { it.uppercase() },
+                    "magisk" to Config.brandCore,
+                    "MAGISK" to Config.brandCore.uppercase(),
+                    "Zygisk" to Config.brandInject.replaceFirstChar { it.uppercase() },
+                    "zygisk" to Config.brandInject,
+                    "ZYGISK" to Config.brandInject.uppercase(),
+                    "Udonge" to Config.brandInject.replaceFirstChar { it.uppercase() },
+                    "udonge" to Config.brandInject,
+                    "UDONGE" to Config.brandInject.uppercase(),
+                ))
+                this.globalBrandingMappings.set(mapOf(
+                    "Reisenless" to Config.brandLong.replaceFirstChar { it.uppercase() },
+                    "reisenless" to Config.brandLong,
+                    "REISENLESS" to Config.brandLong.uppercase(),
+                    "topjohnwu" to Config.brandAuthor,
+                    "TOPJOHNWU" to Config.brandAuthor.uppercase(),
+                ))
                 this.outFolder.set(layout.buildDirectory.dir("outputs/apk/${variant.name}"))
 
                 this.transformations.add {
@@ -324,7 +399,7 @@ fun Project.setupMainApk() {
         defaultConfig {
             applicationId = Config.appPackageName
             vectorDrawables.useSupportLibrary = true
-            versionName = Config.version
+            versionName = Config.appVersionName
             versionCode = Config.versionCode
             ndk {
                 abiFilters += ABI_SUPPORT_LIST

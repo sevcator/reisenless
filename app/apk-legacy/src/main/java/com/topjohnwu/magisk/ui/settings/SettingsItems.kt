@@ -20,7 +20,6 @@ import com.topjohnwu.magisk.core.utils.MediaStoreUtils
 import com.topjohnwu.magisk.core.utils.TextHolder
 import com.topjohnwu.magisk.core.utils.asText
 import com.topjohnwu.magisk.databinding.DialogSettingsDownloadPathBinding
-import com.topjohnwu.magisk.databinding.DialogSettingsUpdateChannelBinding
 import com.topjohnwu.magisk.databinding.set
 import com.topjohnwu.magisk.view.MagiskDialog
 import com.topjohnwu.superuser.Shell
@@ -89,46 +88,6 @@ object DownloadPath : BaseSettingsItem.Input() {
         .inflate(LayoutInflater.from(context)).also { it.data = this }.root
 }
 
-object UpdateChannel : BaseSettingsItem.Selector() {
-    override var value
-        get() = Config.updateChannelIndex
-        set(value) {
-            Config.updateChannel = value
-            Info.resetUpdate()
-        }
-
-    override val title = CoreR.string.settings_update_channel_title.asText()
-    override val entryRes = CoreR.array.update_channel
-}
-
-object UpdateChannelUrl : BaseSettingsItem.Input() {
-    override val title = CoreR.string.settings_update_custom.asText()
-    override val description get() = value.asText()
-    override var value
-        get() = Config.customChannelUrl
-        set(value) {
-            Config.customChannelUrl = value
-            Info.resetUpdate()
-            notifyPropertyChanged(BR.description)
-        }
-
-    override var inputResult: String = value
-        set(value) = set(value, field, { field = it }, BR.inputResult)
-
-    override fun refresh() {
-        isEnabled = UpdateChannel.value == Config.Value.CUSTOM_CHANNEL
-    }
-
-    override fun getView(context: Context) = DialogSettingsUpdateChannelBinding
-        .inflate(LayoutInflater.from(context)).also { it.data = this }.root
-}
-
-object UpdateChecker : BaseSettingsItem.Toggle() {
-    override val title = CoreR.string.settings_check_update_title.asText()
-    override val description = CoreR.string.settings_check_update_summary.asText()
-    override var value by Config::checkUpdate
-}
-
 object SystemlessHosts : BaseSettingsItem.Blank() {
     override val title = CoreR.string.settings_hosts_title.asText()
     override val description = CoreR.string.settings_hosts_summary.asText()
@@ -164,7 +123,8 @@ object SuList : BaseSettingsItem.Toggle() {
     override val title = CoreR.string.settings_sulist_title.asText()
     override val description get() = CoreR.string.settings_sulist_summary.asText()
 
-    override var value = Config.sulist
+    // Filled by the guarded runtime refresh, never query the daemon on class initialization.
+    override var value = false
         set(value) {
             field = value
             notifyPropertyChanged(BR.checked)
@@ -203,14 +163,6 @@ object UdongeBackgroundUpdates : BaseSettingsItem.Toggle() {
     override var value
         get() = Config.udongeBackgroundUpdates
         set(value) { Shell.EXECUTOR.execute { Udonge.setBackgroundUpdates(value) } }
-}
-
-object UdongeRomHiding : BaseSettingsItem.Toggle() {
-    override val title = CoreR.string.udonge_rom_keywords_title.asText()
-    override val description = CoreR.string.udonge_rom_keywords_summary.asText()
-    override var value
-        get() = Config.udongeRomHidingEnabled
-        set(value) { Shell.EXECUTOR.execute { Udonge.setRomHidingEnabled(value) } }
 }
 
 private fun textListDialog(
@@ -252,20 +204,6 @@ object UdongeKeyboxes : BaseSettingsItem.Blank() {
                 if (Udonge.setKeyboxUrls(value)) Udonge.refreshKeyboxes()
             }
         }
-    }
-}
-
-object UdongeRomKeywords : BaseSettingsItem.Blank() {
-    override val title = CoreR.string.udonge_rom_keywords_title.asText()
-    override val description = CoreR.string.udonge_rom_keywords_summary.asText()
-
-    override fun onPressed(view: View, handler: Handler) {
-        textListDialog(
-            view,
-            CoreR.string.udonge_rom_keywords_title,
-            CoreR.string.udonge_rom_keywords_hint,
-            Config.udongeRomKeywords,
-        ) { value -> Shell.EXECUTOR.execute { Udonge.setRomKeywords(value) } }
     }
 }
 

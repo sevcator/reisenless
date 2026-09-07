@@ -1,5 +1,9 @@
 #include "hideapps.hpp"
 
+#ifndef HIDEAPPS_CLASS_NAME
+#define HIDEAPPS_CLASS_NAME "com.topjohnwu.reisenless.hideapps"
+#endif
+
 namespace hideapps {
 namespace {
 
@@ -27,9 +31,19 @@ void exempt_hidden_apis(JNIEnv *env) {
 
     jobject runtime = env->CallStaticObjectMethod(vm_class, get_runtime);
     jclass string_class = env->FindClass("java/lang/String");
-    jobjectArray prefixes = env->NewObjectArray(1, string_class, nullptr);
-    jstring all = env->NewStringUTF("L");
-    env->SetObjectArrayElement(prefixes, 0, all);
+    static constexpr const char *kPrefixes[] = {
+        "Landroid/app/ActivityThread;",
+        "Landroid/app/ApplicationPackageManager;",
+        "Landroid/content/pm/ParceledListSlice;",
+        "Landroid/os/ServiceManager;",
+    };
+    jobjectArray prefixes = env->NewObjectArray(
+            sizeof(kPrefixes) / sizeof(kPrefixes[0]), string_class, nullptr);
+    for (jsize i = 0; i < static_cast<jsize>(sizeof(kPrefixes) / sizeof(kPrefixes[0])); ++i) {
+        jstring prefix = env->NewStringUTF(kPrefixes[i]);
+        env->SetObjectArrayElement(prefixes, i, prefix);
+        env->DeleteLocalRef(prefix);
+    }
     env->CallVoidMethod(runtime, set_exemptions, prefixes);
     clear_exception(env);
 }
@@ -37,9 +51,8 @@ void exempt_hidden_apis(JNIEnv *env) {
 } // namespace
 
 bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
-             const std::string &dex, const std::vector<std::string> &rom_keywords,
-             bool integrity_target) {
-    if (!env || caller.empty() || dex.empty() || (rule.empty() && !integrity_target)) {
+             const std::string &dex) {
+    if (!env || caller.empty() || dex.empty() || rule.empty()) {
         return false;
     }
     exempt_hidden_apis(env);
@@ -98,8 +111,7 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
 
     jmethodID load_class = env->GetMethodID(
             class_loader, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
-    jstring class_name = env->NewStringUTF(
-            "com.topjohnwu.reisenless.hideapps.PackageManagerProxy");
+    jstring class_name = env->NewStringUTF(HIDEAPPS_CLASS_NAME ".PackageManagerProxy");
     auto proxy_class = static_cast<jclass>(
             env->CallObjectMethod(loader, load_class, class_name));
     if (!proxy_class) {
@@ -110,19 +122,12 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
 
     jmethodID wrap_proxy = env->GetStaticMethodID(
             proxy_class, "wrap",
-            "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Ljava/lang/Object;");
+            "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;");
     jstring caller_string = env->NewStringUTF(caller.c_str());
     jstring rule_string = env->NewStringUTF(rule.c_str());
-    std::string joined_keywords;
-    for (const auto &keyword : rom_keywords) {
-        if (!joined_keywords.empty()) joined_keywords.push_back('\n');
-        joined_keywords.append(keyword);
-    }
-    jstring package_keyword_string = env->NewStringUTF(joined_keywords.c_str());
     jobject proxy = wrap_proxy
             ? env->CallStaticObjectMethod(proxy_class, wrap_proxy, original,
-                                          caller_string, rule_string, package_keyword_string,
-                                          integrity_target ? JNI_TRUE : JNI_FALSE)
+                                          caller_string, rule_string)
             : nullptr;
     if (!proxy) {
         clear_exception(env);
@@ -130,45 +135,14 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
     }
     if (clear_exception(env)) return false;
 
-    env->SetStaticObjectField(activity_thread, pm_field, proxy);
-    if (clear_exception(env)) return false;
-
-    if (!rom_keywords.empty() || integrity_target) {
-        jclass service_manager = env->FindClass("android/os/ServiceManager");
-        jfieldID manager_field = service_manager
-                ? env->GetStaticFieldID(service_manager, "sServiceManager",
-                                        "Landroid/os/IServiceManager;")
-                : nullptr;
-        jobject manager = manager_field
-                ? env->GetStaticObjectField(service_manager, manager_field)
-                : nullptr;
-        if (!manager && service_manager) {
-            env->ExceptionClear();
-            jmethodID get_manager = env->GetStaticMethodID(
-                    service_manager, "getIServiceManager", "()Landroid/os/IServiceManager;");
-            if (get_manager) manager = env->CallStaticObjectMethod(service_manager, get_manager);
-        }
-        if (manager && manager_field && !clear_exception(env)) {
-            jmethodID wrap_services = env->GetStaticMethodID(
-                    proxy_class, "wrapServiceManager",
-                    "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Z)Ljava/lang/Object;");
-            jstring service_caller = env->NewStringUTF(caller.c_str());
-            jstring keyword_string = env->NewStringUTF(joined_keywords.c_str());
-            jobject service_proxy = wrap_services
-                    ? env->CallStaticObjectMethod(proxy_class, wrap_services,
-                                                  manager, service_caller, keyword_string,
-                                                  integrity_target ? JNI_TRUE : JNI_FALSE)
-                    : nullptr;
-            if (service_proxy && !clear_exception(env)) {
-                env->SetStaticObjectField(service_manager, manager_field, service_proxy);
-                clear_exception(env);
-            } else {
-                clear_exception(env);
-            }
-        } else {
-            clear_exception(env);
-        }
+    jmethodID install_caches = env->GetStaticMethodID(
+            proxy_class, "installFrameworkCaches", "(Ljava/lang/Object;)V");
+    if (!install_caches) {
+        clear_exception(env);
+        return false;
     }
+    env->CallStaticVoidMethod(proxy_class, install_caches, proxy);
+    if (clear_exception(env)) return false;
     return true;
 }
 

@@ -30,10 +30,9 @@ object VMFactory : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when (modelClass) {
-            HomeViewModel::class.java -> HomeViewModel(ServiceLocator.networkService)
+            HomeViewModel::class.java -> HomeViewModel()
             SuperuserViewModel::class.java -> SuperuserViewModel(ServiceLocator.policyDB)
-            InstallViewModel::class.java ->
-                InstallViewModel(ServiceLocator.networkService, ServiceLocator.markwon)
+            InstallViewModel::class.java -> InstallViewModel()
             SuRequestViewModel::class.java ->
                 SuRequestViewModel(ServiceLocator.policyDB, ServiceLocator.timeoutPrefs)
             else -> modelClass.newInstance()

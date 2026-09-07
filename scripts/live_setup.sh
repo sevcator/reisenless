@@ -61,21 +61,24 @@ unzip -oj magisk.apk "assets/$STUB_NAME" "assets/$UDONGE_ARCHIVE"
 
 api_level_arch_detect
 
-unzip -oj magisk.apk "lib/$ABI/*" -x "lib/$ABI/libbusybox.so"
+unzip -oj magisk.apk "lib/$ABI/*" -x "lib/$ABI/lib$PACKAGED_BUSYBOX_LIB.so"
 for file in lib*.so; do
   chmod 755 $file
   mv "$file" "${file:3:${#file}-6}"
 done
 
 if $IS64BIT && [ -e "/system/bin/linker" ]; then
-  unzip -oj magisk.apk "lib/$ABI32/libmagisk.so"
-  mv libmagisk.so "$BIN32_NAME"
+  unzip -oj magisk.apk "lib/$ABI32/lib$PACKAGED_MAIN_LIB.so"
+  mv "lib$PACKAGED_MAIN_LIB.so" "$BIN32_NAME"
   chmod 755 "$BIN32_NAME"
 fi
 
-[ -f magisk ] && mv magisk "$MAIN_BIN_NAME"
-[ -f mpol ] && mv mpol "$POLICY_NAME"
-[ -f init-ld ] && mv init-ld "$INIT_LD_NAME"
+[ -f "$PACKAGED_MAIN_LIB" ] && mv "$PACKAGED_MAIN_LIB" "$MAIN_BIN_NAME"
+[ -f "$PACKAGED_POLICY_LIB" ] && mv "$PACKAGED_POLICY_LIB" "$POLICY_NAME"
+[ -f "$PACKAGED_INIT_LD_LIB" ] && mv "$PACKAGED_INIT_LD_LIB" "$INIT_LD_NAME"
+[ -f "$PACKAGED_BOOT_LIB" ] && mv "$PACKAGED_BOOT_LIB" mboot
+[ -f "$PACKAGED_INIT_LIB" ] && mv "$PACKAGED_INIT_LIB" minit
+[ -f "$PACKAGED_BOOTCTL_LIB" ] && mv "$PACKAGED_BOOTCTL_LIB" bootctl
 
 
 ./$MAIN_BIN_NAME --stop 2>/dev/null

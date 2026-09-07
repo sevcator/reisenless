@@ -5,7 +5,6 @@ import android.content.Context
 import android.text.method.LinkMovementMethod
 import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.Const
-import com.topjohnwu.magisk.core.data.GithubApiServices
 import com.topjohnwu.magisk.core.data.RawUrl
 import com.topjohnwu.magisk.core.data.magiskdb.PolicyDao
 import com.topjohnwu.magisk.core.data.magiskdb.SettingsDao
@@ -33,7 +32,6 @@ object ServiceLocator {
     val networkService by lazy {
         NetworkService(
             createApiService<RawUrl>(retrofit, Const.Url.INVALID_URL),
-            createApiService<GithubApiServices>(retrofit, Const.Url.GITHUB_API_URL),
         )
     }
 }

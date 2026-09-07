@@ -424,20 +424,33 @@ install_magisk() {
   SOURCEDMODE=true
   . ./boot_patch.sh "$BOOTIMAGE"
 
-  ui_print "- flashing new boot image"
-  flash_image new-boot.img "$BOOTIMAGE"
-  case $? in
-    1)
-      abort "! insufficient partition size"
-      ;;
-    2)
-      abort "! $BOOTIMAGE is read only"
-      ;;
-  esac
+  ui_print "- preparing new boot image"
+  if [ -n "$PATCH_ONLY_OUTPUT" ]; then
+    case "$PATCH_ONLY_OUTPUT" in
+      /data/local/tmp/*) ;;
+      *) abort "! unsafe patch-only output path" ;;
+    esac
+    cp -f new-boot.img "$PATCH_ONLY_OUTPUT" || abort "! unable to stage patched boot image"
+    chmod 600 "$PATCH_ONLY_OUTPUT"
+    sync
+    ui_print "- staged patched image without writing the boot partition"
+  else
+    ui_print "- flashing new boot image"
+    flash_image new-boot.img "$BOOTIMAGE"
+    case $? in
+      1)
+        abort "! insufficient partition size"
+        ;;
+      2)
+        abort "! $BOOTIMAGE is read only"
+        ;;
+    esac
+  fi
 
   ./mboot cleanup
   rm -f new-boot.img
 
+  [ -n "$PATCH_ONLY_OUTPUT" ] && return 0
   run_migrations
 }
 
@@ -518,7 +531,11 @@ check_data() {
   DATA_DE=false
   if grep ' /data ' /proc/mounts | grep -vq 'tmpfs'; then
     touch /data/.rw && rm /data/.rw && DATA=true
-    $DATA && [ -d "${SECURE_DIR}" ] && touch "${SECURE_DIR}/.rw" && rm "${SECURE_DIR}/.rw" && DATA_DE=true
+    # A newly randomized release has no secure root yet. Create it before
+    # selecting MAGISKBIN; otherwise first install incorrectly falls back to a
+    # sibling under /data and the booted daemon looks in a different location.
+    $DATA && mkdir -p "${SECURE_DIR}" 2>/dev/null && \
+      touch "${SECURE_DIR}/.rw" && rm "${SECURE_DIR}/.rw" && DATA_DE=true
     $DATA_DE && { [ -d "${SECURE_DIR}/${DATA_DIR}" ] || mkdir -p "${SECURE_DIR}/${DATA_DIR}"; } || DATA_DE=false
   fi
   MAGISKBIN="/data/${DATA_DIR}"
@@ -624,17 +641,17 @@ set_default_perm() {
 # original inode, permissions, ownership, and SELinux label. Binary files are
 # deliberately left intact because changing string lengths would corrupt most
 # executable and archive formats; they can use NVBASE/MAGISKBIN instead.
-fix_reisenless_module_paths() {
+fix_module_paths() {
   local root="$1"
   local file replacement temp failed
 
   [ "$SECURE_DIR" = /data/adb ] && return 0
   replacement=$(printf '%s\n' "$SECURE_DIR" | sed 's/[&|\\]/\\&/g')
-  temp="$TMPDIR/.reisenless-path-fix.$$"
-  failed="$TMPDIR/.reisenless-path-fix-failed.$$"
+  temp="$TMPDIR/.module-path-fix.$$"
+  failed="$TMPDIR/.module-path-fix-failed.$$"
   rm -f "$temp" "$failed"
 
-  find "$root" -type f ! -name '.reisenless-path-fix.*' 2>/dev/null |
+  find "$root" -type f ! -name '.module-path-fix.*' 2>/dev/null |
   while IFS= read -r file; do
     grep -Fq '/data/adb' "$file" 2>/dev/null || continue
     # NUL bytes identify binary payloads without relying on the optional
@@ -650,7 +667,7 @@ fix_reisenless_module_paths() {
   rm -f "$temp"
   [ ! -f "$failed" ] || {
     rm -f "$failed"
-    abort "! reisenless could not update module paths"
+    abort "! unable to update module paths"
   }
 }
 
@@ -676,7 +693,7 @@ install_module() {
   local MODDIRNAME=modules
   $BOOTMODE && MODDIRNAME=modules_update
   local MODULEROOT=${SECURE_DIR}/$MODDIRNAME
-  # Standard Magisk module variables must point at the randomized Reisenless
+  # Standard module variables must point at the randomized
   # storage root so well-behaved installers do not need hard-coded paths.
   NVBASE=$SECURE_DIR
   export NVBASE MAGISKBIN
@@ -694,7 +711,7 @@ install_module() {
   if is_legacy_script; then
     unzip -oj "$ZIPFILE" module.prop install.sh uninstall.sh 'common/*' -d $TMPDIR >&2
 
-    fix_reisenless_module_paths "$TMPDIR"
+    fix_module_paths "$TMPDIR"
 
     . $TMPDIR/install.sh
 
@@ -712,7 +729,7 @@ install_module() {
     set_permissions
   else
     print_title "$MODNAME" "by $MODAUTH"
-    print_title "powered by reisenless"
+    print_title "module installer"
 
     unzip -o "$ZIPFILE" customize.sh -d $MODPATH >&2
 
@@ -722,13 +739,13 @@ install_module() {
       set_default_perm $MODPATH
     fi
 
-    fix_reisenless_module_paths "$MODPATH"
+    fix_module_paths "$MODPATH"
     [ -f $MODPATH/customize.sh ] && . $MODPATH/customize.sh
   fi
 
   # Install hooks can create additional scripts and configuration after the
   # initial extraction, so perform a final complete text-file pass.
-  fix_reisenless_module_paths "$MODPATH"
+  fix_module_paths "$MODPATH"
 
   for TARGET in $REPLACE; do
     ui_print "- replace target: $TARGET"

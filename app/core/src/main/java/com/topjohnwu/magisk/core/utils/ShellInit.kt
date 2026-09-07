@@ -20,29 +20,33 @@ class ShellInit : Shell.Initializer() {
 
             val localBB = File(
                 context.applicationInfo.nativeLibraryDir,
-                "libbusybox.so",
+                "lib${com.topjohnwu.magisk.core.BuildConfig.BUSYBOX_LIB_NAME}.so",
             ).absolutePath
 
             if (shell.isRoot) {
-                add("export MAGISKTMP=\$(${Const.MAIN_BIN} --path)")
+                // Keep the app-to-script variable neutral: DEX branding is not
+                // applied to the scripts' canonical module environment names.
+                add("export ROOT_TMP=\$(${Const.MAIN_BIN} --path)")
 
                 Info.noDataExec = !shell.newJob()
-                    .add("$localBB sh -c '$localBB true'").exec().isSuccess
+                    .add("(exec -a busybox '$localBB' true)").exec().isSuccess
             }
 
             if (Info.noDataExec) {
 
                 add(
-                    "if [ -x \$MAGISKTMP/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME} ]; then",
-                    "  cp -af $localBB \$MAGISKTMP/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME}",
-                    "  exec \$MAGISKTMP/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME} sh",
+                    "if [ -x \$ROOT_TMP/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME} ]; then",
+                    "  cp -af $localBB \$ROOT_TMP/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME}",
+                    "  exec -a busybox \$ROOT_TMP/${Const.INTERNAL_DIR}/${Const.BUSYBOX_NAME}/${Const.BUSYBOX_NAME} sh",
                     "else",
                     "  cp -af $localBB /dev/busybox",
-                    "  exec /dev/busybox sh",
+                    "  exec -a busybox /dev/busybox sh",
                     "fi"
                 )
             } else {
-                add("exec $localBB sh")
+                // BusyBox dispatches on argv[0]; a randomized .so filename is
+                // not an applet. Preserve its internal dispatcher name.
+                add("exec -a busybox '$localBB' sh")
             }
 
             add(context.assets.open("app_functions.sh"))
@@ -56,13 +60,7 @@ class ShellInit : Shell.Initializer() {
 
 
         if (shell.isRoot) {
-            val myUid = android.os.Process.myUid()
-            shell.newJob().add(
-                "\$MAGISKTMP/${Const.MAIN_BIN} --sqlite " +
-                "'INSERT OR IGNORE INTO policies (uid, policy, until, logging, notification) " +
-                "VALUES ($myUid, 2, 0, 0, 0)'"
-            ).exec()
-            runCatching { SulistController.importExistingRootGrants(context, shell) }
+            runCatching { SulistController.importExistingRootGrants(context) }
             Udonge.syncState(context, shell)
         }
 

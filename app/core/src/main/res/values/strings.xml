@@ -1,22 +1,16 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
 
-    <string name="not_installed">Not Installed</string>
-    <string name="invalid_update_channel">Invalid update channel</string>
+    <string name="not_installed">not installed</string>
 
 
     <string name="no_connection">no connection available</string>
-    <string name="app_changelog">changelog</string>
     <string name="loading">loading…</string>
     <string name="update">update</string>
     <string name="not_available">n/a</string>
     <string name="hide">hide</string>
     <string name="home_package">package</string>
-    <string name="home_app_title">reisenless</string>
-    <string name="home_notice_content">download reisenless only from the official github page. files from unknown sources can be malicious!</string>
-    <string name="home_support_title">support us</string>
+    <string name="home_app_title">app</string>
     <string name="home_follow_title">follow us</string>
-    <string name="home_item_source">source</string>
-    <string name="home_support_content">reisenless is, and always will be, free, and open source. however, you can show us that you care by making a donation.</string>
     <string name="home_installed_version">installed</string>
     <string name="home_latest_version">latest</string>
     <string name="uninstall_magisk_title">uninstall reisenless</string>
@@ -28,9 +22,14 @@
     <string name="recovery_mode">recovery mode</string>
     <string name="install_options_title">options</string>
     <string name="install_method_title">method</string>
+    <string name="install_source_title">payload source</string>
+    <string name="install_source_launched">from launched apk</string>
+    <string name="install_source_selected">from selected apk</string>
+    <string name="install_choose_apk">choose apk file</string>
+    <string name="install_choose_image">choose image file</string>
+    <string name="install_source_warning">only select an apk you trust. its matching manager must be installed so android can run its tools. this mode patches a raw boot image without flashing. use the selected apk’s manager afterward; this manager may not be authorized by its build.</string>
     <string name="install_next">next</string>
     <string name="install_start">let\'s go</string>
-    <string name="manager_download_install">press to download and install</string>
     <string name="direct_install">direct install (recommended)</string>
     <string name="install_inactive_slot">install to inactive slot (after ota)</string>
     <string name="install_inactive_slot_msg">your device will be forced to boot to the current inactive slot after a reboot!\nonly use this option after ota is done.\ncontinue?</string>
@@ -114,9 +113,6 @@
     <string name="udonge_keybox_list_title">keybox sources</string>
     <string name="udonge_keybox_list_summary">add or remove links for keyboxes</string>
     <string name="udonge_keybox_hint">one https link per line</string>
-    <string name="udonge_rom_keywords_title">hide something wrong</string>
-    <string name="udonge_rom_keywords_summary">hide custom ROM paths, packages, properties, and framework traces</string>
-    <string name="udonge_rom_keywords_hint">one ROM name per line (e.g. lineage, protonaosp)</string>
     <string name="color_preview">color preview</string>
     <string name="color_white">white</string>
     <string name="color_blue">blue</string>
@@ -127,7 +123,7 @@
     <string name="color_purple">purple</string>
     <string name="color_teal">teal</string>
     <string name="color_gray">gray</string>
-    <string name="module_search_installed">Search installed modules</string>
+    <string name="module_search_installed">search installed modules</string>
     <string name="language">language</string>
     <string name="system_default">(system default)</string>
     <string name="settings_zygisk_summary">run parts of reisenless in the zygote daemon</string>
@@ -177,33 +173,32 @@
 
 
     <!--Toasts, Dialogs-->
-    <string name="yes">Yes</string>
-    <string name="no">No</string>
-    <string name="repo_install_title">Install %1$s %2$s(%3$d)</string>
-    <string name="download">Download</string>
-    <string name="reboot">Reboot</string>
-    <string name="close">Close</string>
-    <string name="release_notes">Release notes</string>
-    <string name="flashing">Flashing…</string>    <string name="done">Done!</string>
-    <string name="done_action">Done running action of %1$s</string>
-    <string name="failure">Failed!</string>
-    <string name="open_link_failed_toast">No app found to open the link</string>
-    <string name="complete_uninstall">Complete uninstall</string>
-    <string name="restore_img">Restore images</string>
-    <string name="restore_img_msg">Restoring…</string>
-    <string name="restore_done">Restoration done!</string>
-    <string name="restore_fail">Stock backup doesn\'t exist!</string>
-    <string name="setup_fail">Setup failed</string>
-    <string name="env_fix_title">Requires additional setup</string>
-    <string name="env_fix_msg">Your device needs additional setup for Magisk to work properly. Do you want to proceed and reboot?</string>
-    <string name="env_full_fix_msg">Your device needs reflash Magisk to work properly. Please reinstall Magisk within app, Recovery mode cannot get correct device info.</string>
-    <string name="setup_msg">Running environment setup…</string>
-    <string name="unsupport_magisk_title">Unsupported Magisk version</string>
-    <string name="unsupport_magisk_msg">This version of the app doesn\'t support Magisk versions lower than %1$s.\n\nThe app will behave as if no Magisk is installed. Please update Magisk as soon as possible.</string>
-    <string name="unsupport_general_title">Abnormal state</string>
-    <string name="unsupport_system_app_msg">Running this app as a system app isn\'t supported. Please revert the app to a user app.</string>
-    <string name="unsupport_other_su_msg">A \"su\" binary not from Magisk has been detected. Please remove any competing root solution and/or reinstall Magisk.</string>
-    <string name="unsupport_external_storage_msg">Magisk is installed to external storage. Please move the app to internal storage.</string>
+    <string name="yes">yes</string>
+    <string name="no">no</string>
+    <string name="repo_install_title">install %1$s %2$s(%3$d)</string>
+    <string name="download">download</string>
+    <string name="reboot">reboot</string>
+    <string name="close">close</string>
+    <string name="flashing">flashing…</string>    <string name="done">done!</string>
+    <string name="done_action">done running action of %1$s</string>
+    <string name="failure">failed!</string>
+    <string name="open_link_failed_toast">no app found to open the link</string>
+    <string name="complete_uninstall">complete uninstall</string>
+    <string name="restore_img">restore images</string>
+    <string name="restore_img_msg">restoring…</string>
+    <string name="restore_done">restoration done!</string>
+    <string name="restore_fail">stock backup doesn\'t exist!</string>
+    <string name="setup_fail">setup failed</string>
+    <string name="env_fix_title">requires additional setup</string>
+    <string name="env_fix_msg">your device needs additional setup for magisk to work properly. do you want to proceed and reboot?</string>
+    <string name="env_full_fix_msg">your device needs reflash magisk to work properly. please reinstall magisk within app, recovery mode cannot get correct device info.</string>
+    <string name="setup_msg">running environment setup…</string>
+    <string name="unsupport_magisk_title">unsupported magisk version</string>
+    <string name="unsupport_magisk_msg">this version of the app doesn\'t support magisk versions lower than %1$s.\n\nthe app will behave as if no magisk is installed. please update magisk as soon as possible.</string>
+    <string name="unsupport_general_title">abnormal state</string>
+    <string name="unsupport_system_app_msg">running this app as a system app isn\'t supported. please revert the app to a user app.</string>
+    <string name="unsupport_other_su_msg">a \"su\" binary not from magisk has been detected. please remove any competing root solution and/or reinstall magisk.</string>
+    <string name="unsupport_external_storage_msg">magisk is installed to external storage. please move the app to internal storage.</string>
     <string name="external_rw_permission_denied">grant storage permission to enable this functionality</string>
     <string name="post_notifications_denied">grant notifications permission to enable this functionality</string>
     <string name="install_unknown_denied">allow \"install unknown apps\" to enable this functionality</string>
@@ -238,13 +233,12 @@
     <string name="enabled" tools:ignore="MissingTranslation">enabled</string>
     <string name="disabled" tools:ignore="MissingTranslation">disabled</string>
     <string name="ramdisk" tools:ignore="MissingTranslation">ramdisk</string>
-    <string name="sponsor" tools:ignore="MissingTranslation">sponsor</string>
     <string name="shared_uid" tools:ignore="MissingTranslation">shared uid</string>
     <string name="webui">webui</string>
-    <string name="webui_root_required">root and an active Reisenless installation are required for WebUI</string>
-    <string name="webui_webview_required">Android System WebView required</string>
-    <string name="webui_webview_required_summary">This device does not have a usable Android WebView provider. Install or enable Android System WebView, then try again.</string>
-    <string name="webui_install_webview">install WebView</string>
+    <string name="webui_root_required">root and an active reisenless installation are required for webui</string>
+    <string name="webui_webview_required">android system webview required</string>
+    <string name="webui_webview_required_summary">this device does not have a usable android webview provider. install or enable android system webview, then try again.</string>
+    <string name="webui_install_webview">install webview</string>
 
     <!-- Upstream application compatibility -->
     <string name="modules">modules</string>
@@ -260,7 +254,6 @@
     <string name="back">back</string>
     <string name="granted">granted</string>
     <string name="denied">denied</string>
-    <string name="update_available">update available</string>
     <string name="settings_dark_mode_title">theme mode</string>
     <string name="settings_dark_mode_message">select the mode that best suits your style</string>
     <string name="settings_dark_mode_light">always light</string>
@@ -268,14 +261,6 @@
     <string name="settings_dark_mode_dark">always dark</string>
     <string name="settings_download_path_title">download path</string>
     <string name="settings_download_path_message">files will be saved to %1$s</string>
-    <string name="settings_check_update_title">check for updates</string>
-    <string name="settings_check_update_summary">periodically check for updates in the background</string>
-    <string name="settings_update_channel_title">update channel</string>
-    <string name="settings_update_stable">stable</string>
-    <string name="settings_update_beta">beta</string>
-    <string name="settings_update_debug">debug</string>
-    <string name="settings_update_custom">custom</string>
-    <string name="settings_update_custom_msg">insert a custom channel url</string>
     <string name="settings_color_mode">color mode</string>
     <string name="color_mode_system">system</string>
     <string name="color_mode_light">light</string>
@@ -283,19 +268,14 @@
     <string name="color_mode_monet_system">monet (system)</string>
     <string name="color_mode_monet_light">monet (light)</string>
     <string name="color_mode_monet_dark">monet (dark)</string>
-    <string name="update_channel">Reisenless updates</string>
     <string name="progress_channel">progress notifications</string>
-    <string name="updated_channel">update complete</string>
     <string name="su_notification_channel">superuser notifications</string>
     <string name="download_complete">download complete</string>
     <string name="download_file_error">error downloading file</string>
-    <string name="magisk_update_title">Reisenless update available</string>
-    <string name="updated_title">Reisenless updated</string>
-    <string name="updated_text">tap to open app</string>
     <string name="su_notification_granted_title">superuser granted</string>
     <string name="su_notification_denied_title">superuser denied</string>
     <string name="menuSaveLog">save output</string>
-    <string name="module_update_install_title">Install %1$s %2$s (%3$d)</string>
+    <string name="module_update_install_title">install %1$s %2$s (%3$d)</string>
     <string name="method_download">download image</string>
 
 </resources>

@@ -13,7 +13,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "${Config.appPackageName}.anchor"
+        applicationId = "${Config.appPackageName}.${Config.anchorSuffix}"
         versionCode = 1
         versionName = "1.0"
     }

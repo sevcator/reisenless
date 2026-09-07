@@ -11,19 +11,14 @@
 
 
     <string name="no_connection">無法連線</string>
-    <string name="app_changelog">變更紀錄</string>
     <string name="loading">載入中……</string>
     <string name="update">更新</string>
     <string name="not_available">無</string>
     <string name="hide">隱藏</string>
     <string name="home_package">套件</string>
-    <string name="home_app_title">reisenless</string>
+    <string name="home_app_title">應用程式</string>
 
-    <string name="home_notice_content">請從官方的 github 網頁下載 reisenless。從未知來源下載的檔案可能懷有惡意！</string>
-    <string name="home_support_title">支持開發</string>
     <string name="home_follow_title">追蹤我們</string>
-    <string name="home_item_source">原始碼</string>
-    <string name="home_support_content">reisenless 無論現在和未來永遠是免費且開源。但您可以透過發送小額的抖內來彰顯您對我們的支持。</string>
     <string name="home_installed_version">已安裝</string>
     <string name="home_latest_version">最新</string>
     <string name="uninstall_magisk_title">解除安裝 reisenless</string>
@@ -37,7 +32,6 @@
     <string name="install_method_title">安裝方式</string>
     <string name="install_next">下一步</string>
     <string name="install_start">開始執行</string>
-    <string name="manager_download_install">點選以下載並安裝</string>
     <string name="direct_install">直接安裝（建議）</string>
     <string name="install_inactive_slot">安裝到非使用中的槽位（在 ota 更新後）</string>
     <string name="install_inactive_slot_msg">您的裝置將在下次重新啟動後強制切換到非使用中的槽位！\n這個選項僅在 ota 更新完畢後使用。\n請問是否繼續？</string>
@@ -164,7 +158,6 @@
 
 
     <string name="progress_channel">進度通知</string>
-    <string name="updated_channel">更新完成</string>
     <string name="download_complete">下載完成</string>
     <string name="download_file_error">下載錯誤</string>
 
@@ -174,7 +167,6 @@
     <string name="module_update_install_title">安裝 %1$s %2$s(%3$d)</string>
     <string name="download">下載</string>
     <string name="reboot">重新啟動</string>
-    <string name="release_notes">版本資訊</string>
     <string name="flashing">正在刷入……</string>
     <string name="done">完成！</string>
     <string name="failure">失敗！</string>
@@ -222,12 +214,9 @@
     <string name="udonge_keybox_list_title">keybox 清單</string>
     <string name="udonge_keybox_list_summary">新增或移除 keybox 連結</string>
     <string name="udonge_keybox_hint">每行一個 https 連結</string>
-    <string name="udonge_rom_keywords_title">hide something wrong</string>
-    <string name="udonge_rom_keywords_summary">隱藏自訂 ROM 的執行階段訊號和框架痕跡</string>
-    <string name="udonge_rom_keywords_hint">每行一個 ROM 名稱（例如 lineage、protonaosp）</string>
-    <string name="webui_root_required">WebUI 需要 root 權限和有效的 Reisenless 安裝</string>
-    <string name="webui_webview_required">需要 Android System WebView</string>
-    <string name="webui_webview_required_summary">此裝置沒有可用的 Android WebView 提供者。請安裝或啟用 Android System WebView，然後再試一次。</string>
-    <string name="webui_install_webview">安裝 WebView</string>
+    <string name="webui_root_required">webui 需要 root 權限和有效的 reisenless 安裝</string>
+    <string name="webui_webview_required">需要 android system webview</string>
+    <string name="webui_webview_required_summary">此裝置沒有可用的 android webview 提供者。請安裝或啟用 android system webview，然後再試一次。</string>
+    <string name="webui_install_webview">安裝 webview</string>
     <string name="module_search_installed">搜尋已安裝模組</string>
 </resources>

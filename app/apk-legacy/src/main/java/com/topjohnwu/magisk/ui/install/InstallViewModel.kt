@@ -10,32 +10,22 @@ import androidx.databinding.Bindable
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
-import androidx.lifecycle.viewModelScope
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.arch.BaseViewModel
 import com.topjohnwu.magisk.core.AppContext
-import com.topjohnwu.magisk.core.BuildConfig.APP_VERSION_CODE
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.base.ContentResultCallback
 import com.topjohnwu.magisk.core.ktx.toast
-import com.topjohnwu.magisk.core.repository.NetworkService
 import com.topjohnwu.magisk.databinding.set
-import com.topjohnwu.magisk.dialog.DownloadDialog
 import com.topjohnwu.magisk.dialog.SecondSlotWarningDialog
 import com.topjohnwu.magisk.events.GetContentEvent
 import com.topjohnwu.magisk.ui.flash.FlashFragment
-import io.noties.markwon.Markwon
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
-import java.io.File
-import java.io.IOException
 import com.topjohnwu.magisk.core.R as CoreR
 
-class InstallViewModel(svc: NetworkService, markwon: Markwon) : BaseViewModel() {
+class InstallViewModel : BaseViewModel() {
 
     val isRooted get() = Info.isRooted
     val skipOptions = Info.isEmulator || (Info.isSAR && !Info.isFDE && Info.ramdisk)
@@ -46,25 +36,14 @@ class InstallViewModel(svc: NetworkService, markwon: Markwon) : BaseViewModel() 
         set(value) = set(value, field, { field = it }, BR.step)
 
     private var methodId = -1
-    private var spuriousMethodId = -1
 
     @get:Bindable
     var method
         get() = methodId
         set(value) = set(value, methodId, { methodId = it }, BR.method) {
-            if (it == spuriousMethodId) {
-                spuriousMethodId = -1
-                return@set
-            }
             when (it) {
                 R.id.method_patch -> {
                     GetContentEvent("*/*", UriCallback()).publish()
-                }
-                R.id.method_download -> {
-                    DownloadDialog(
-                        callback = { url -> _uri.value = url },
-                        onCancel = { resetMethod() },
-                    ).show()
                 }
                 R.id.method_inactive_slot -> {
                     SecondSlotWarningDialog().show()
@@ -73,17 +52,38 @@ class InstallViewModel(svc: NetworkService, markwon: Markwon) : BaseViewModel() 
         }
 
     private fun resetMethod() {
-        spuriousMethodId = methodId
         method = -1
     }
 
     private val _uri = MutableLiveData<Uri?>()
     val data: LiveData<Uri?> get() = _uri
 
+    private val _apkUri = MutableLiveData<Uri?>()
+    val apkData: LiveData<Uri?> get() = _apkUri
+
+    @get:Bindable
+    var sourceChoice = R.id.source_launched
+        set(value) = set(value, field, { field = it }, BR.sourceChoice) {
+            if (it == R.id.source_selected && method != R.id.method_patch) resetMethod()
+        }
+
+    fun chooseApk() {
+        // Launch only from a user click, not from binding/state restoration.
+        // Clicking the already-selected row also lets the user replace the file.
+        sourceChoice = R.id.source_selected
+        GetContentEvent("application/vnd.android.package-archive", UriCallback(true)).publish()
+    }
+
+    fun chooseImage() = GetContentEvent("*/*", UriCallback()).publish()
+
     private val sourceObserver = Observer<PatchSource?> { source ->
         when (source) {
-            is PatchSource.File -> _uri.value = source.uri
-            PatchSource.Cancelled -> resetMethod()
+            is PatchSource.File -> if (source.apk) _apkUri.value = source.uri else {
+                _uri.value = source.uri
+            }
+            is PatchSource.Cancelled -> if (source.apk) {
+                if (_apkUri.value == null) sourceChoice = R.id.source_launched
+            } else if (_uri.value == null) resetMethod()
             null -> return@Observer
         }
         patchSource.value = null
@@ -95,31 +95,14 @@ class InstallViewModel(svc: NetworkService, markwon: Markwon) : BaseViewModel() 
 
     init {
         patchSource.observeForever(sourceObserver)
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val noteFile = File(AppContext.cacheDir, "${APP_VERSION_CODE}.md")
-                val noteText = when {
-                    noteFile.exists() -> noteFile.readText()
-                    else -> {
-                        val note = svc.fetchUpdate(APP_VERSION_CODE)?.note.orEmpty()
-                        if (note.isEmpty()) return@launch
-                        noteFile.writeText(note)
-                        note
-                    }
-                }
-                val spanned = markwon.toMarkdown(noteText)
-                withContext(Dispatchers.Main) {
-                    notes = spanned
-                }
-            } catch (e: IOException) {
-            }
-        }
     }
 
     fun install() {
+        val source = if (sourceChoice == R.id.source_selected) _apkUri.value ?: return else null
+        // A foreign build must never use this manager's direct-install helpers.
+        if (source != null && method != R.id.method_patch) return
         when (method) {
-            R.id.method_patch -> FlashFragment.patch(data.value!!).navigate(true)
-            R.id.method_download -> FlashFragment.download(data.value!!).navigate(true)
+            R.id.method_patch -> FlashFragment.patch(data.value ?: return, source).navigate(true)
             R.id.method_direct -> FlashFragment.flash(false).navigate(true)
             R.id.method_inactive_slot -> FlashFragment.flash(true).navigate(true)
             else -> error("Unknown value")
@@ -133,7 +116,10 @@ class InstallViewModel(svc: NetworkService, markwon: Markwon) : BaseViewModel() 
                 step,
                 Config.keepVerity,
                 Config.keepEnc,
-                Config.recovery
+                Config.recovery,
+                sourceChoice,
+                _uri.value,
+                _apkUri.value
             )
         )
     }
@@ -145,6 +131,9 @@ class InstallViewModel(svc: NetworkService, markwon: Markwon) : BaseViewModel() 
             Config.keepVerity = it.keepVerity
             Config.keepEnc = it.keepEnc
             Config.recovery = it.recovery
+            sourceChoice = it.sourceChoice
+            _uri.value = it.image
+            _apkUri.value = it.apk
         }
     }
 
@@ -154,22 +143,22 @@ class InstallViewModel(svc: NetworkService, markwon: Markwon) : BaseViewModel() 
     }
 
     private sealed interface PatchSource {
-        data class File(val uri: Uri) : PatchSource
-        data object Cancelled : PatchSource
+        data class File(val uri: Uri, val apk: Boolean) : PatchSource
+        data class Cancelled(val apk: Boolean) : PatchSource
     }
 
     @Parcelize
-    class UriCallback : ContentResultCallback {
+    class UriCallback(private val apk: Boolean = false) : ContentResultCallback {
         override fun onActivityLaunch() {
-            AppContext.toast(CoreR.string.patch_file_msg, Toast.LENGTH_LONG)
+            AppContext.toast(if (apk) CoreR.string.install_choose_apk else CoreR.string.patch_file_msg, Toast.LENGTH_LONG)
         }
 
         override fun onActivityResult(result: Uri) {
-            patchSource.value = PatchSource.File(result)
+            patchSource.value = PatchSource.File(result, apk)
         }
 
         override fun onActivityCancel() {
-            patchSource.value = PatchSource.Cancelled
+            patchSource.value = PatchSource.Cancelled(apk)
         }
     }
 
@@ -180,6 +169,9 @@ class InstallViewModel(svc: NetworkService, markwon: Markwon) : BaseViewModel() 
         val keepVerity: Boolean,
         val keepEnc: Boolean,
         val recovery: Boolean,
+        val sourceChoice: Int,
+        val image: Uri?,
+        val apk: Uri?,
     ) : Parcelable
 
     companion object {

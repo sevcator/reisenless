@@ -97,7 +97,10 @@ int denylist_cli(rust::Vec<rust::String> &args) {
     }
 
 
-    int fd = connect_daemon(RequestCode::DENYLIST);
+    owned_fd fd = connect_daemon(RequestCode::DENYLIST);
+    if (fd < 0) {
+        return daemon_client_failure();
+    }
     write_int(fd, req);
     if (req == DenyRequest::ADD || req == DenyRequest::REMOVE) {
         write_string(fd, argv[1]);
@@ -110,9 +113,17 @@ int denylist_cli(rust::Vec<rust::String> &args) {
         res = DenyResponse::ERROR;
     switch (res) {
     case DenyResponse::NOT_ENFORCED:
+        if (req == DenyRequest::STATUS) {
+            printf("enabled=0\n");
+            return 0;
+        }
         fprintf(stderr, "sulist is not enforced\n");
         goto return_code;
     case DenyResponse::ENFORCED:
+        if (req == DenyRequest::STATUS) {
+            printf("enabled=1\n");
+            return 0;
+        }
         fprintf(stderr, "sulist is enforced\n");
         goto return_code;
     case DenyResponse::ITEM_EXIST:
@@ -147,5 +158,5 @@ int denylist_cli(rust::Vec<rust::String> &args) {
     }
 
 return_code:
-    return req == DenyRequest::STATUS ? res != DenyResponse::ENFORCED : res != DenyResponse::OK;
+    return res != DenyResponse::OK;
 }

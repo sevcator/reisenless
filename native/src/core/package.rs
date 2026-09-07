@@ -1,154 +1,31 @@
+use crate::apk_cert::read_certificate as read_apk_certificate;
 use crate::consts::{
     APP_PACKAGE_NAME, BUILD_STUB_NAME, BUILD_SU_CACHE, MAGISK_VER_CODE, SECURE_DIR,
 };
 use crate::daemon::{AID_APP_END, AID_APP_START, MagiskD, to_app_id};
 use crate::ffi::get_magisk_tmp;
+use crate::manager_auth::{privileged_client_authorized, uid_owners_are_exclusive};
 use base::WalkResult::{Continue, Skip};
 use base::const_format::concatcp;
 use base::{
-    BufReadExt, Directory, FsPathBuilder, LoggedResult, ReadExt, ResultExt, Utf8CStrBuf,
-    Utf8CString, cstr, error,
+    Directory, FsPathBuilder, LoggedResult, ResultExt, Utf8CStrBuf, Utf8CString, cstr, error,
 };
 use bit_set::BitSet;
 use nix::fcntl::OFlag;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
 
-const EOCD_MAGIC: u32 = 0x06054B50;
-const APK_SIGNING_BLOCK_MAGIC: [u8; 16] = *b"APK Sig Block 42";
-const SIGNATURE_SCHEME_V2_MAGIC: u32 = 0x7109871A;
 const PACKAGES_XML: &str = "/data/system/packages.xml";
 
-macro_rules! bad_apk {
-    ($msg:literal) => {
-        io::Error::new(io::ErrorKind::InvalidData, concat!("cert: ", $msg))
-    };
+fn process_uid(pid: i32) -> Option<i32> {
+    let status = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
+    crate::manager_auth::parse_status_id(&status, "Uid")
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 fn read_certificate(apk: &mut File, version: i32) -> Vec<u8> {
-    let res = || -> io::Result<Vec<u8>> {
-        let mut u32_val = 0u32;
-        let mut u64_val = 0u64;
-
-
-        for i in 0u16.. {
-            let mut comment_sz = 0u16;
-            apk.seek(SeekFrom::End(-(size_of_val(&comment_sz) as i64) - i as i64))?;
-            apk.read_pod(&mut comment_sz)?;
-
-            if comment_sz == i {
-                apk.seek(SeekFrom::Current(-22))?;
-                let mut magic = 0u32;
-                apk.read_pod(&mut magic)?;
-                if magic == EOCD_MAGIC {
-                    break;
-                }
-            }
-            if i == 0xffff {
-                Err(bad_apk!("invalid APK format"))?;
-            }
-        }
-
-
-
-        let mut central_dir_off = 0u32;
-        apk.seek(SeekFrom::Current(12))?;
-        apk.read_pod(&mut central_dir_off)?;
-
-
-        if version >= 0 {
-            let mut comment_sz = 0u16;
-            apk.read_pod(&mut comment_sz)?;
-            let mut comment = vec![0u8; comment_sz as usize];
-            apk.read_exact(&mut comment)?;
-            let mut comment = Cursor::new(&comment);
-            let mut apk_ver = 0;
-            comment.for_each_prop(|k, v| {
-                if k == "versionCode" {
-                    apk_ver = v.parse::<i32>().unwrap_or(0);
-                    false
-                } else {
-                    true
-                }
-            });
-            if version > apk_ver {
-                Err(bad_apk!("APK version too low"))?;
-            }
-        }
-
-
-        apk.seek(SeekFrom::Start((central_dir_off - 24) as u64))?;
-        apk.read_pod(&mut u64_val)?;
-        let mut magic = [0u8; 16];
-        apk.read_exact(&mut magic)?;
-        if magic != APK_SIGNING_BLOCK_MAGIC {
-            Err(bad_apk!("invalid signing block magic"))?;
-        }
-        let mut signing_blk_sz = 0u64;
-        apk.seek(SeekFrom::Current(
-            -(u64_val as i64) - (size_of_val(&signing_blk_sz) as i64),
-        ))?;
-        apk.read_pod(&mut signing_blk_sz)?;
-        if signing_blk_sz != u64_val {
-            Err(bad_apk!("invalid signing block size"))?;
-        }
-
-
-        loop {
-            apk.read_pod(&mut u64_val)?;
-            if u64_val == signing_blk_sz {
-                Err(bad_apk!("cannot find certificate"))?;
-            }
-
-            let mut id = 0u32;
-            apk.read_pod(&mut id)?;
-            if id == SIGNATURE_SCHEME_V2_MAGIC {
-
-                apk.seek(SeekFrom::Current((size_of_val(&u32_val) * 3) as i64))?;
-
-                apk.read_pod(&mut u32_val)?;
-                apk.seek(SeekFrom::Current(u32_val as i64))?;
-
-                apk.seek(SeekFrom::Current(size_of_val(&u32_val) as i64))?;
-                apk.read_pod(&mut u32_val)?;
-
-                let mut cert = vec![0; u32_val as usize];
-                apk.read_exact(cert.as_mut())?;
-                break Ok(cert);
-            } else {
-
-                apk.seek(SeekFrom::Current(
-                    u64_val as i64 - (size_of_val(&id) as i64),
-                ))?;
-            }
-        }
-    }();
-    res.log().unwrap_or(vec![])
+    read_apk_certificate(apk, version).log().unwrap_or_default()
 }
 
 fn find_apk_path(pkg: &str) -> LoggedResult<Utf8CString> {
@@ -159,7 +36,10 @@ fn find_apk_path(pkg: &str) -> LoggedResult<Utf8CString> {
             return Ok(Skip);
         }
         let name_bytes = e.name().as_bytes();
-        if name_bytes.starts_with(pkg.as_bytes()) && name_bytes[pkg.len()] == b'-' {
+        if name_bytes.len() > pkg.len()
+            && name_bytes.starts_with(pkg.as_bytes())
+            && name_bytes[pkg.len()] == b'-'
+        {
             let mut candidate = cstr::buf::default();
             e.resolve_path(&mut candidate)?;
             candidate.push_str("/base.apk");
@@ -181,11 +61,9 @@ fn find_apk_path(pkg: &str) -> LoggedResult<Utf8CString> {
     Ok(buf.to_owned())
 }
 
-
 const APK_CACHE_FILE: &str = concatcp!(SECURE_DIR, "/", BUILD_SU_CACHE);
 
 fn find_orig_apk_path() -> LoggedResult<Utf8CString> {
-
     if let Ok(cached) = std::fs::read_to_string(APK_CACHE_FILE) {
         let cached = cached.trim();
         if !cached.is_empty() && std::path::Path::new(cached).exists() {
@@ -197,11 +75,8 @@ fn find_orig_apk_path() -> LoggedResult<Utf8CString> {
         let _ = std::fs::remove_file(APK_CACHE_FILE);
     }
 
-
-
     let apk = find_apk_path(APP_PACKAGE_NAME)?;
     if !apk.is_empty() {
-
         let _ = std::fs::write(APK_CACHE_FILE, apk.to_string().as_bytes());
     }
     Ok(apk)
@@ -324,6 +199,27 @@ impl ManagerInfo {
 }
 
 impl MagiskD {
+    fn package_has_exclusive_uid(&self, user: i32, package: &str, uid: i32) -> bool {
+        let root = format!("{}/{user}", self.app_data_dir());
+        let Ok(entries) = std::fs::read_dir(root) else {
+            return false;
+        };
+        let mut owners = Vec::new();
+        for entry in entries {
+            let Ok(entry) = entry else {
+                return false;
+            };
+            let Ok(name) = entry.file_name().into_string() else {
+                return false;
+            };
+            let Ok(metadata) = entry.metadata() else {
+                return false;
+            };
+            owners.push((name, metadata.uid() as i32));
+        }
+        uid_owners_are_exclusive(&owners, package, uid)
+    }
+
     fn get_package_uid(&self, user: i32, pkg: &str) -> i32 {
         let path = cstr::buf::default()
             .join_path(self.app_data_dir())
@@ -363,6 +259,38 @@ impl MagiskD {
         manager_uid == uid || info.check_orig_uid(self, user, uid)
     }
 
+    /// Authenticate a direct manager client with Android's package identity.
+    ///
+    /// The embedded APK certificate establishes the trusted installed package,
+    /// the kernel-provided UID binds the socket peer to that package, and the
+    /// SELinux MLS/MCS level binds the process to the package data domain.
+    pub fn is_privileged_client(&self, user: i32, uid: i32, pid: i32, peer_context: &str) -> bool {
+        if uid == 0 {
+            return true;
+        }
+        let package_identity_matches = self.is_manager_uid(user, uid);
+        if !package_identity_matches || !self.package_has_exclusive_uid(user, APP_PACKAGE_NAME, uid)
+        {
+            return false;
+        }
+
+        let data_path = cstr::buf::default()
+            .join_path(self.app_data_dir())
+            .join_path_fmt(user)
+            .join_path(APP_PACKAGE_NAME);
+        let Ok(data_attr) = data_path.get_attr() else {
+            return false;
+        };
+        privileged_client_authorized(
+            uid,
+            Some(data_attr.st.st_uid as i32),
+            package_identity_matches,
+            peer_context,
+            data_attr.con.as_str(),
+            process_uid(pid),
+        )
+    }
+
     pub fn get_manager(&self, user: i32) -> (i32, String) {
         let mut info = self.manager_info.lock();
         let (uid, pkg) = info.get_manager(self, user);
@@ -373,8 +301,6 @@ impl MagiskD {
         let mut info = self.manager_info.lock();
         let _ = info.get_manager(self, 0);
     }
-
-
 
     pub fn get_app_no_list(&self) -> BitSet {
         let mut list = BitSet::new();

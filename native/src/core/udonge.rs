@@ -52,17 +52,38 @@ fn ensure_core_hide_config() {
     );
     let state = format!("{UDONGE_ROOT}/state");
     let target = format!("{state}/hideapps.conf");
-    if std::fs::read_to_string(&target)
-        .map(|config| config.lines().any(|line| line.starts_with("G\t")))
-        .unwrap_or(false)
-    {
-        return;
-    }
     let temp = format!("{state}/.hideapps.core");
-    let config = format!(
-        "V\t2\nG\t{0}\t{0},{0}.test\t{1},{0}\n",
-        APP_PACKAGE_NAME, EXEMPT
-    );
+    let valid_package = |value: &str| {
+        value.contains('.')
+            && value.split('.').all(|part| {
+                !part.is_empty()
+                    && part
+                        .bytes()
+                        .all(|ch| ch.is_ascii_alphanumeric() || ch == b'_')
+            })
+    };
+    let legacy = std::fs::read_to_string(format!("{state}/legacy-managers.conf"))
+        .unwrap_or_default();
+    let hidden = std::iter::once(APP_PACKAGE_NAME.to_string())
+        .chain(std::iter::once(concatcp!(APP_PACKAGE_NAME, ".test").to_string()))
+        .chain(
+            legacy
+                .lines()
+                .map(str::trim)
+                .filter(|value| valid_package(value))
+                .map(str::to_string),
+        )
+        .collect::<Vec<_>>()
+        .join(",");
+    let mut config = format!("V\t2\nG\t{APP_PACKAGE_NAME}\t{hidden}\t{EXEMPT},{APP_PACKAGE_NAME}\n");
+    if let Ok(existing) = std::fs::read_to_string(&target) {
+        for line in existing.lines() {
+            if line.starts_with("R\t") {
+                config.push_str(line);
+                config.push('\n');
+            }
+        }
+    }
     if std::fs::create_dir_all(&state).is_ok() && std::fs::write(&temp, config).is_ok() {
         cstr::buf::default()
             .join_path(&temp)

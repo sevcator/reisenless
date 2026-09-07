@@ -138,14 +138,16 @@ public:
         hide_apps_ = false;
         is_gms_unstable_ = false;
         keep_loaded_ = false;
-        child_integrity_ = false;
-        integrity_target_ = false;
         hide_rule_.clear();
         hide_dex_.clear();
 
         const bool child_zygote = args->is_child_zygote && *args->is_child_zygote;
         std::string process_name = jstr(args->nice_name);
         if (process_name.empty()) return;
+        // Every ordinary application process that receives this module must
+        // inherit the same sanitized namespace. The authenticated manager is
+        // excluded by the daemon before module descriptors are sent.
+        api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
         // Android names a dedicated app zygote after its owner with this
         // suffix. Resolve the configured Udonge target before asking the
         // companion for its policy.
@@ -163,53 +165,46 @@ public:
         is_gms_unstable_ = package == "com.google.android.gms"
                 && process_name == "com.google.android.gms.unstable";
         if (!fetch_config(process_name, package)) return;
-        if ((args->uid % 100000) < 10000) cfg_.rom_keywords.clear();
+        hide_apps_ = !hide_dex_.empty() && !hide_rule_.empty();
 
-        // Child zygotes (notably WebView's sandbox zygote) must otherwise stay
-        // pristine. A configured integrity target gets only the narrow SELinux
-        // query hook needed by its preload carrier; no PLT or package hooks are
-        // installed here.
+        // Child zygotes inherit the mount decision, but must not initialize
+        // Binder or app-only Java services before their later forks.
         if (child_zygote) {
-            if (integrity_target_) {
-                cloak::hook_selinux_access(api_, env_);
-                child_integrity_ = true;
-                keep_loaded_ = true;
-            }
             return;
         }
-        hide_apps_ = !hide_dex_.empty() && (!hide_rule_.empty() || integrity_target_);
 
         if (is_gms_unstable_) return;
         // Cloak/stealth candidacy comes from the live targets configuration.
         if (cfg_.shouldStealth(package)) {
-            api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
             return;
         }
         if (cfg_.shouldCloak(package)) {
             cloak_ = true;
             keep_loaded_ = true;
             cloak::hook_native_load(api_, env_);
-            cloak::hook_selinux_access(api_, env_);
-            api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
         }
     }
 
-    void postAppSpecialize(const AppSpecializeArgs *) override {
-        if (child_integrity_) {
+    void postAppSpecialize(const AppSpecializeArgs *args) override {
+        if (args->is_child_zygote && *args->is_child_zygote) {
+            // ActivityThread.getPackageManager opens /dev/binder. Android's
+            // child-zygote FD audit rejects that descriptor on the next fork,
+            // breaking app-zygote helpers and WebView renderers. Do not bypass
+            // the audit or inherit a Binder connection across a zygote fork.
+            // Descendant package filtering needs a separate post-fork hook.
+            api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
             return;
         }
         if (is_gms_unstable_) {
             if (!cfg_.gms_build.empty()) cloak::spoof_build(env_, cfg_);
             if (hide_apps_) {
-                hideapps::install(env_, package_, hide_rule_, hide_dex_, cfg_.rom_keywords,
-                                  false);
+                hideapps::install(env_, package_, hide_rule_, hide_dex_);
             }
             api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
             return;
         }
         if (hide_apps_) {
-            hideapps::install(env_, package_, hide_rule_, hide_dex_, cfg_.rom_keywords,
-                              integrity_target_);
+            hideapps::install(env_, package_, hide_rule_, hide_dex_);
         }
         if (cloak_) {
             cloak::install_hooks(api_, &cfg_);
@@ -217,7 +212,6 @@ public:
             // Patch Build.TYPE and Build.TAGS static constants so Java-level
             // cross-checks (Build.TYPE vs fingerprint tail) see clean values.
             cloak::spoof_build_type(env_);
-            cloak::spoof_rom_framework(env_, cfg_);
         }
         if (!keep_loaded_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
     }
@@ -233,8 +227,6 @@ private:
     bool hide_apps_ = false;
     bool is_gms_unstable_ = false;
     bool keep_loaded_ = false;
-    bool child_integrity_ = false;
-    bool integrity_target_ = false;
 
     std::string jstr(jstring value) {
         if (!value) return {};
@@ -250,7 +242,6 @@ private:
         std::string targets;
         std::string props;
         std::string pif;
-        std::string rom_keywords;
         bool from_companion = false;
         if (fd >= 0) {
             uint8_t request = 1;
@@ -261,8 +252,7 @@ private:
                 && read_str(fd, props)
                 && read_str(fd, pif)
                 && read_str(fd, hide_rule_)
-                && read_str(fd, hide_dex_)
-                && read_str(fd, rom_keywords);
+                && read_str(fd, hide_dex_);
             close(fd);
             if (!ok) {
                 targets.clear();
@@ -270,7 +260,6 @@ private:
                 pif.clear();
                 hide_rule_.clear();
                 hide_dex_.clear();
-                rom_keywords.clear();
             } else {
                 from_companion = true;
             }
@@ -280,14 +269,12 @@ private:
                 targets = cloak::read_file(std::string(CONF_DIR) + "/targets.conf");
                 props = cloak::read_file(std::string(CONF_DIR) + "/props.conf");
                 pif = cloak::read_file(std::string(CONF_DIR) + "/pif.conf");
-                rom_keywords = cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf");
             }
         }
-        cfg_ = cloak::parse_config(targets, props, pif, rom_keywords);
-        integrity_target_ = cfg_.shouldCloak(package_);
+        cfg_ = cloak::parse_config(targets, props, pif);
         if (is_gms_unstable_) return !cfg_.gms_build.empty() || !hide_rule_.empty();
         // Loading the built-in module is not authorization to apply Udonge's
-        // detector/integrity profile. Non-target processes may still have a
+        // privileged protection profile. Non-target processes may still have a
         // package-hiding rule; they must otherwise remain untouched and let
         // postAppSpecialize unload this library.
         return true;
@@ -305,7 +292,7 @@ static void companion_handler(int client) {
     const bool full_enabled = full_udonge_enabled();
     std::string targets = full_enabled
             ? cloak::read_file(std::string(CONF_DIR) + "/targets.conf") : std::string();
-    const cloak::Config target_config = cloak::parse_config(targets, {}, {}, {});
+    const cloak::Config target_config = cloak::parse_config(targets, {}, {});
     const bool gms_unstable = package == "com.google.android.gms"
             && process_name == "com.google.android.gms.unstable";
     const bool needs_props = full_enabled
@@ -323,14 +310,11 @@ static void companion_handler(int client) {
     if (!hide_rule.empty() || target_config.shouldCloak(package)) {
         hide_dex = cloak::read_file(UDONGE_ROOT "/runtime/hideapps.dex");
     }
-    std::string rom_keywords = full_enabled
-            ? cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf") : std::string();
     write_str(client, targets);
     write_str(client, props);
     write_str(client, pif);
     write_str(client, hide_rule);
     write_str(client, hide_dex);
-    write_str(client, rom_keywords);
 }
 
 REGISTER_ZYGISK_MODULE(UdongeModule)

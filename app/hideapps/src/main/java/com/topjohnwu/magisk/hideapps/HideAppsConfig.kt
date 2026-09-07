@@ -51,6 +51,7 @@ data class HideAppsConfig(
         managerPackage: String,
         systemPackages: Set<String>,
         installedPackages: Set<String> = scope.keys,
+        mandatoryHiddenPackages: Set<String> = emptySet(),
         includeCompatibilityMarkers: Boolean = true,
     ): String {
         val safeManager = managerPackage.takeIf(::isPackageName).orEmpty()
@@ -65,7 +66,7 @@ data class HideAppsConfig(
                 val hidden = (hiddenPackages.asSequence() + sequenceOf(
                     safeManager,
                     "$safeManager.test",
-                ))
+                ) + mandatoryHiddenPackages.asSequence())
                     .filter(::isPackageName)
                     .distinct()
                     .sorted()
@@ -103,7 +104,10 @@ data class HideAppsConfig(
                 }
                 return@buildString
             }
-            val coreHidden = sequenceOf(safeManager, "$safeManager.test")
+            val coreHidden = (
+                sequenceOf(safeManager, "$safeManager.test") +
+                    mandatoryHiddenPackages.asSequence()
+                )
                 .filter(::isPackageName)
                 .distinct()
                 .sorted()

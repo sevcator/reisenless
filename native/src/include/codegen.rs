@@ -26,11 +26,10 @@ impl<T, E: Display> ResultExt<T> for Result<T, E> {
 
 fn write_if_diff<P: AsRef<Path>>(path: P, bytes: &[u8]) -> io::Result<()> {
     let path = path.as_ref();
-    if let Ok(orig) = fs::read(path) {
-
-        if orig.as_slice() == bytes {
-            return Ok(());
-        }
+    if let Ok(orig) = fs::read(path)
+        && orig.as_slice() == bytes
+    {
+        return Ok(());
     }
     let mut f = File::create(path)?;
     f.write_all(bytes)

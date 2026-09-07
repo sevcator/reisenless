@@ -17,7 +17,7 @@ ui_print() { echo "$1"; }
 
 require_new_magisk() {
   ui_print "*******************************"
-  ui_print " please install reisenless v20.4+! "
+  ui_print " please install a compatible manager v20.4+! "
   ui_print "*******************************"
   exit 1
 }

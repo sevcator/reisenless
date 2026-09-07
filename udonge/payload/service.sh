@@ -241,9 +241,7 @@ start_tee() {
     fi
     target="$tee_state/target.txt"
     if [ ! -f "$target" ]; then
-        printf 'com.android.vending\ncom.google.android.gms\ncom.eltavine.duckdetector\n' > "$target"
-    elif ! grep -qxF com.eltavine.duckdetector "$target"; then
-        printf 'com.eltavine.duckdetector\n' >> "$target"
+        printf 'com.android.vending\ncom.google.android.gms\n' > "$target"
     fi
     if [ ! -f "$tee_state/security_patch.txt" ] || {
         grep -q '^system=' "$tee_state/security_patch.txt" &&

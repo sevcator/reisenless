@@ -45,15 +45,12 @@ import com.topjohnwu.magisk.core.model.ColorMode
 import com.topjohnwu.magisk.core.utils.LocaleSetting
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils
 import com.topjohnwu.magisk.ui.ThemeState
-import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
 import com.topjohnwu.magisk.ui.component.SettingsArrow
 import com.topjohnwu.magisk.ui.component.SettingsDropdown
 import com.topjohnwu.magisk.ui.component.SettingsSwitch
+import com.topjohnwu.magisk.ui.component.SettingsSwitchAction
 import com.topjohnwu.magisk.ui.component.SmallTitle
 import com.topjohnwu.magisk.ui.component.verticalScrollbar
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import com.topjohnwu.magisk.core.R as CoreR
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,9 +85,7 @@ fun SettingsScreen(
             AppSettingsSection()
             if (Info.env.isActive) {
                 Spacer(Modifier.height(12.dp))
-                MagiskSection(viewModel = viewModel)
-                Spacer(Modifier.height(12.dp))
-                UdongeSection()
+                ReisenlessSection(viewModel = viewModel)
             }
             if (Info.showSuperUser) {
                 Spacer(Modifier.height(12.dp))
@@ -179,63 +174,12 @@ private fun CustomizationSection(
 private fun AppSettingsSection(
     modifier: Modifier = Modifier
 ) {
-    val resources = LocalResources.current
-
     SmallTitle(text = stringResource(CoreR.string.home_app_title))
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
-        // Update Channel
-        val updateChannelEntries = remember {
-            resources.getStringArray(CoreR.array.update_channel).toList()
-        }
-        var updateChannel by remember {
-            mutableIntStateOf(Config.updateChannelIndex)
-        }
-        var showUrlDialog by remember { mutableStateOf(false) }
-
-        SettingsDropdown(
-            title = stringResource(CoreR.string.settings_update_channel_title),
-            items = updateChannelEntries,
-            selectedIndex = updateChannel,
-            onSelectedIndexChange = { index ->
-                updateChannel = index
-                Config.updateChannel = index
-                Info.resetUpdate()
-                if (index == Config.Value.CUSTOM_CHANNEL && Config.customChannelUrl.isBlank()) {
-                    showUrlDialog = true
-                }
-            }
-        )
-
-        // Update Channel URL (for custom channel)
-        if (updateChannel == Config.Value.CUSTOM_CHANNEL) {
-            if (showUrlDialog) {
-                UpdateChannelUrlDialog(
-                    onDismiss = { showUrlDialog = false }
-                )
-            }
-            SettingsArrow(
-                title = stringResource(CoreR.string.settings_update_custom),
-                summary = Config.customChannelUrl.ifBlank { null },
-                onClick = { showUrlDialog = true }
-            )
-        }
-
-        // Update Checker
-        var checkUpdate by remember { mutableStateOf(Config.checkUpdate) }
-        SettingsSwitch(
-            title = stringResource(CoreR.string.settings_check_update_title),
-            summary = stringResource(CoreR.string.settings_check_update_summary),
-            checked = checkUpdate,
-            onCheckedChange = { newValue ->
-                checkUpdate = newValue
-                Config.checkUpdate = newValue
-            }
-        )
-
         // Download Path
         var showDownloadDialog by remember { mutableStateOf(false) }
         if (showDownloadDialog) {
@@ -265,10 +209,10 @@ private fun AppSettingsSection(
     }
 }
 
-// --- Magisk ---
+// --- Reisenless ---
 
 @Composable
-private fun MagiskSection(
+private fun ReisenlessSection(
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -278,7 +222,7 @@ private fun MagiskSection(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
-        // Systemless Hosts
+        // 1. Systemless Hosts (Button)
         SettingsArrow(
             title = stringResource(CoreR.string.settings_hosts_title),
             summary = stringResource(CoreR.string.settings_hosts_summary),
@@ -286,7 +230,7 @@ private fun MagiskSection(
         )
 
         if (Const.Version.atLeast_24_0()) {
-            // Zygisk
+            // 2. Zygisk (Switch)
             var zygisk by remember { mutableStateOf(Config.zygisk) }
             SettingsSwitch(
                 title = stringResource(CoreR.string.zygisk),
@@ -302,6 +246,7 @@ private fun MagiskSection(
                 }
             )
 
+            // 3. SuList (Switch)
             val suListEnabled by viewModel.suListEnabled.collectAsStateWithLifecycle()
             val suListBusy by viewModel.suListBusy.collectAsStateWithLifecycle()
             SettingsSwitch(
@@ -312,163 +257,33 @@ private fun MagiskSection(
                 onCheckedChange = { viewModel.toggleSuList(it) }
             )
 
+            // 4. Configure SuList (Button)
             SettingsArrow(
                 title = stringResource(CoreR.string.settings_sulist_config_title),
                 summary = stringResource(CoreR.string.settings_sulist_config_summary),
                 onClick = { viewModel.navigateToSuList() }
             )
 
-            SettingsArrow(
+            // 5. Hide Apps (Switch)
+            val hideAppsEnabled by viewModel.hideAppsEnabled.collectAsStateWithLifecycle()
+            SettingsSwitchAction(
                 title = stringResource(CoreR.string.hide_apps_title),
                 summary = stringResource(CoreR.string.hide_apps_summary),
+                checked = hideAppsEnabled,
                 onClick = viewModel::navigateToHideApps,
+                onCheckedChange = viewModel::toggleHideApps,
+            )
+
+            // 6. Pass Strong Integrity (Switch)
+            val udongeEnabled by viewModel.udongeEnabled.collectAsStateWithLifecycle()
+            SettingsSwitch(
+                title = stringResource(CoreR.string.udonge_integrity_title),
+                summary = stringResource(CoreR.string.udonge_integrity_summary),
+                checked = udongeEnabled,
+                onCheckedChange = viewModel::toggleUdonge,
             )
         }
     }
-}
-
-@Composable
-private fun UdongeSection(modifier: Modifier = Modifier) {
-    val scope = rememberCoroutineScope()
-    var enabled by remember { mutableStateOf(Config.udongeEnabled) }
-    var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
-    var romHiding by remember { mutableStateOf(Config.udongeRomHidingEnabled) }
-    var showKeyboxes by rememberSaveable { mutableStateOf(false) }
-    var showRomKeywords by rememberSaveable { mutableStateOf(false) }
-    var keyboxUrls by rememberSaveable { mutableStateOf(Config.udongeKeyboxUrls) }
-    var romKeywords by rememberSaveable { mutableStateOf(Config.udongeRomKeywords) }
-
-    fun applyAsync(action: () -> Boolean, rollback: () -> Unit = {}) {
-        scope.launch {
-            if (!withContext(Dispatchers.IO) { action() }) rollback()
-        }
-    }
-
-    if (showKeyboxes) {
-        TextListDialog(
-            title = stringResource(CoreR.string.udonge_keybox_list_title),
-            hint = stringResource(CoreR.string.udonge_keybox_hint),
-            value = keyboxUrls,
-            onValueChange = { keyboxUrls = it },
-            onDismiss = { showKeyboxes = false },
-            onConfirm = {
-                showKeyboxes = false
-                applyAsync({
-                    Udonge.setKeyboxUrls(keyboxUrls) && Udonge.refreshKeyboxes()
-                })
-            },
-        )
-    }
-
-    if (showRomKeywords) {
-        TextListDialog(
-            title = stringResource(CoreR.string.udonge_rom_keywords_title),
-            hint = stringResource(CoreR.string.udonge_rom_keywords_hint),
-            value = romKeywords,
-            onValueChange = { romKeywords = it },
-            onDismiss = { showRomKeywords = false },
-            onConfirm = {
-                showRomKeywords = false
-                applyAsync({
-                    Udonge.setRomKeywords(romKeywords).also { success ->
-                        if (success) syncRomKeywordsHideApps(romKeywords)
-                    }
-                })
-            },
-        )
-    }
-
-    SmallTitle(text = stringResource(CoreR.string.udonge))
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        SettingsSwitch(
-            title = stringResource(CoreR.string.udonge_integrity_title),
-            summary = stringResource(CoreR.string.udonge_integrity_summary),
-            checked = enabled,
-            onCheckedChange = { next ->
-                enabled = next
-                applyAsync({ Udonge.setEnabled(next) }) { enabled = !next }
-            },
-        )
-        SettingsSwitch(
-            title = stringResource(CoreR.string.udonge_background_updates_title),
-            summary = stringResource(CoreR.string.udonge_background_updates_summary),
-            checked = backgroundUpdates,
-            enabled = enabled,
-            onCheckedChange = { next ->
-                backgroundUpdates = next
-                applyAsync({ Udonge.setBackgroundUpdates(next) }) {
-                    backgroundUpdates = !next
-                }
-            },
-        )
-        SettingsArrow(
-            title = stringResource(CoreR.string.udonge_keybox_list_title),
-            summary = stringResource(CoreR.string.udonge_keybox_list_summary),
-            onClick = { showKeyboxes = true },
-        )
-        SettingsSwitch(
-            title = stringResource(CoreR.string.udonge_rom_keywords_title),
-            summary = stringResource(CoreR.string.udonge_rom_keywords_summary),
-            checked = romHiding,
-            enabled = enabled,
-            onCheckedChange = { next ->
-                romHiding = next
-                applyAsync({
-                    Udonge.setRomHidingEnabled(next).also { success ->
-                        if (success) {
-                            syncRomKeywordsHideApps(
-                                if (next) Config.udongeRomKeywords else "",
-                            )
-                        }
-                    }
-                }) { romHiding = !next }
-            },
-        )
-        SettingsArrow(
-            title = stringResource(CoreR.string.udonge_rom_keywords_title),
-            summary = stringResource(CoreR.string.udonge_rom_keywords_summary),
-            onClick = { showRomKeywords = true },
-        )
-    }
-}
-
-@Composable
-private fun TextListDialog(
-    title: String,
-    hint: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                maxLines = 10,
-                label = { Text(hint) },
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text(stringResource(android.R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
-        },
-    )
-}
-
-private fun syncRomKeywordsHideApps(keywords: String) {
-    HideAppsRootClient.syncRomKeywordsHideApps(keywords)
 }
 
 // --- Superuser ---
@@ -654,38 +469,6 @@ private fun SuperuserSection(
 }
 
 // --- Dialogs ---
-
-@Composable
-private fun UpdateChannelUrlDialog(
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var url by rememberSaveable { mutableStateOf(Config.customChannelUrl) }
-
-    AlertDialog(
-        modifier = modifier,
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(CoreR.string.settings_update_custom_msg)) },
-        text = {
-            OutlinedTextField(
-                value = url,
-                onValueChange = { url = it },
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    Config.customChannelUrl = url
-                    Info.resetUpdate()
-                    onDismiss()
-                }
-            ) {
-                Text(stringResource(android.R.string.ok))
-            }
-        }
-    )
-}
 
 @Composable
 private fun DownloadPathDialog(

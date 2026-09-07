@@ -19,6 +19,7 @@ import com.topjohnwu.magisk.core.ktx.timeFormatStandard
 import com.topjohnwu.magisk.core.ktx.toTime
 import com.topjohnwu.magisk.core.tasks.FlashZip
 import com.topjohnwu.magisk.core.tasks.MagiskInstaller
+import com.topjohnwu.magisk.core.tasks.SelectedApkPatcher
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils.outputStream
 import com.topjohnwu.magisk.databinding.set
@@ -26,6 +27,7 @@ import com.topjohnwu.magisk.events.SnackbarEvent
 import com.topjohnwu.superuser.CallbackList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.IOException
 
 class FlashViewModel : BaseViewModel() {
 
@@ -79,7 +81,9 @@ class FlashViewModel : BaseViewModel() {
                 Const.Value.PATCH_FILE -> {
                     uri ?: return@launch
                     showReboot = false
-                    MagiskInstaller.Patch(uri, outItems, logItems).exec()
+                    args.sourceApk?.let {
+                        SelectedApkPatcher(it, uri, outItems).exec()
+                    } ?: MagiskInstaller.Patch(uri, outItems, logItems).exec()
                 }
                 Const.Value.DOWNLOAD -> {
                     uri ?: return@launch
@@ -108,19 +112,23 @@ class FlashViewModel : BaseViewModel() {
 
     private fun savePressed() = withExternalRW {
         viewModelScope.launch(Dispatchers.IO) {
-            val name = "magisk_install_log_%s.log".format(
-                System.currentTimeMillis().toTime(timeFormatStandard)
-            )
-            val file = MediaStoreUtils.getFile(name)
-            file.uri.outputStream().bufferedWriter().use { writer ->
-                synchronized(logItems) {
-                    logItems.forEach {
-                        writer.write(it)
-                        writer.newLine()
+            try {
+                val name = "magisk_install_log_%s.log".format(
+                    System.currentTimeMillis().toTime(timeFormatStandard)
+                )
+                val file = MediaStoreUtils.getFile(name)
+                file.uri.outputStream().bufferedWriter().use { writer ->
+                    synchronized(logItems) {
+                        logItems.forEach {
+                            writer.write(it)
+                            writer.newLine()
+                        }
                     }
                 }
+                SnackbarEvent(file.toString()).publish()
+            } catch (e: IOException) {
+                SnackbarEvent("unable to save log: ${e.message.orEmpty()}").publish()
             }
-            SnackbarEvent(file.toString()).publish()
         }
     }
 

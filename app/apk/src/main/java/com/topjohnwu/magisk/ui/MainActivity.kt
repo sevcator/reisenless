@@ -95,12 +95,6 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
 
         showUnsupportedMessage()
 
-        if (Config.checkUpdate) {
-            extension.withPermission(Manifest.permission.POST_NOTIFICATIONS) {
-                Config.checkUpdate = it
-            }
-        }
-
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         val initialTab = getInitialTab(intent)
@@ -237,8 +231,8 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
         }
         if (!Info.isEmulator && Info.env.isActive && System.getenv("PATH")
                 ?.split(':')
-                ?.filterNot { File("$it/magisk").exists() }
-                ?.any { File("$it/su").exists() } == true) {
+                ?.map { File("$it/su") }
+                ?.any { it.exists() && !Info.isTrustedSu(it) } == true) {
             messages.add(CoreR.string.unsupport_general_title to CoreR.string.unsupport_other_su_msg)
         }
         if (applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0) {

@@ -52,7 +52,7 @@
 
         <provider
             android:name=".Provider"
-            android:authorities="${applicationId}.provider"
+            android:authorities="${applicationId}.${providerSuffix}"
             android:directBootAware="true"
             android:exported="false"
             android:grantUriPermissions="true" />

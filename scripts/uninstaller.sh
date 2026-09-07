@@ -33,7 +33,7 @@ if echo $MAGISK_VER | grep -q '\.'; then
 else
   PRETTY_VER="$MAGISK_VER($MAGISK_VER_CODE)"
 fi
-print_title "reisenless $PRETTY_VER uninstaller"
+print_title "system component $PRETTY_VER uninstaller"
 
 is_mounted /data || mount /data || abort "! unable to mount /data, please uninstall with the magisk app"
 mount_partitions
@@ -102,7 +102,7 @@ case $((STATUS & 3)) in
     ui_print "- stock boot image detected"
     ;;
   1 )
-    ui_print "- reisenless patched image detected"
+    ui_print "- patched image detected"
 
       ./mboot cpio ramdisk.cpio "extract .backup/$BACKUP_CONFIG config.orig" 2>/dev/null || \
       ./mboot cpio ramdisk.cpio "extract .backup/.magisk config.orig" 2>/dev/null
@@ -169,13 +169,13 @@ cd /
 
 if $BOOTMODE; then
   ui_print "********************************************"
-  ui_print " the reisenless app will uninstall itself, and"
+  ui_print " the manager app will uninstall itself, and"
   ui_print " the device will reboot after a few seconds"
   ui_print "********************************************"
   (sleep 8; /system/bin/reboot)&
 else
   ui_print "********************************************"
-  ui_print " the reisenless app will not be uninstalled"
+  ui_print " the manager app will not be uninstalled"
   ui_print " please uninstall it manually after reboot"
   ui_print "********************************************"
   recovery_cleanup

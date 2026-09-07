@@ -11,20 +11,15 @@
 
 
     <string name="no_connection">无法连接</string>
-    <string name="app_changelog">更新日志</string>
     <string name="loading">正在加载</string>
     <string name="update">更新</string>
     <string name="not_available">无法获取</string>
     <string name="not_installed">未安装</string>
     <string name="hide">不再显示</string>
     <string name="home_package">包名</string>
-    <string name="home_app_title">App</string>
+    <string name="home_app_title">app</string>
     <string name="reinstall">重新安装</string>
-    <string name="home_notice_content">仅从官方 GitHub 页面下载 Magisk。未知来源的文件可能具有恶意行为！</string>
-    <string name="home_support_title">支持开发</string>
     <string name="home_follow_title">关注我们</string>
-    <string name="home_item_source">源代码</string>
-    <string name="home_support_content">reisenless 将一直保持免费且开源，向开发者捐赠以表示支持。</string>
     <string name="home_installed_version">当前</string>
     <string name="home_latest_version">最新</string>
     <string name="uninstall_magisk_title">卸载 reisenless</string>
@@ -38,7 +33,6 @@
     <string name="install_method_title">方式</string>
     <string name="install_next">下一步</string>
     <string name="install_start">开始</string>
-    <string name="manager_download_install">立即安装</string>
     <string name="direct_install">直接安装（推荐）</string>
     <string name="install_inactive_slot">安装到未使用的槽位（ota 后）</string>
     <string name="install_inactive_slot_msg">将在重启后强制切换到另一个槽位！注意只能在 ota 更新完成后的重启之前使用。</string>
@@ -194,13 +188,9 @@
 
 
     <string name="progress_channel">下载进度</string>
-    <string name="updated_channel">更新完成</string>
     <string name="su_notification_channel">授权通知</string>
     <string name="download_complete">下载完成</string>
     <string name="download_file_error">下载失败</string>
-    <string name="magisk_update_title">Magisk 已发布新版本！</string>
-    <string name="updated_title">Magisk 已完成更新</string>
-    <string name="updated_text">点按即可打开应用</string>
     <string name="su_notification_granted_title">已授权超级用户</string>
     <string name="su_notification_denied_title">已拒绝超级用户</string>
 
@@ -213,7 +203,6 @@
     <string name="download">下载</string>
     <string name="reboot">重启</string>
     <string name="close">关闭</string>
-    <string name="release_notes">发布说明</string>
     <string name="flashing">正在刷入</string>    <string name="done">完成！</string>
     <string name="done_action">%1$s 操作运行完成</string>
     <string name="failure">失败</string>

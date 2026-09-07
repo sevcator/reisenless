@@ -112,7 +112,12 @@ impl AccessInfo {
 }
 
 impl MagiskD {
-    pub fn su_daemon_handler(&self, mut client: UnixStream, cred: UCred) {
+    pub fn su_daemon_handler(
+        &self,
+        mut client: UnixStream,
+        cred: UCred,
+        manager_authenticated: bool,
+    ) {
         debug!(
             "su: request from uid=[{}], pid=[{}], client=[{}]",
             cred.uid,
@@ -129,10 +134,13 @@ impl MagiskD {
             }
         };
 
-        let info = self.get_su_info(cred.uid as i32);
+        let info = if manager_authenticated {
+            Arc::new(SuInfo::allow(cred.uid as i32))
+        } else {
+            self.get_su_info(cred.uid as i32)
+        };
         {
             let mut access = info.access.lock();
-
 
             let mut app = SuAppContext {
                 cred,
@@ -141,7 +149,6 @@ impl MagiskD {
                 sdk_int: self.sdk_int(),
             };
             app.connect_app();
-
 
             access.refresh();
 
@@ -156,15 +163,11 @@ impl MagiskD {
             }
         }
 
-
-
         let child = unsafe { libc::fork() };
         if child == 0 {
             debug!("su: fork handler");
 
-
             exit_on_error(true);
-
 
             client.write_pod(&0).ok();
 
@@ -180,7 +183,6 @@ impl MagiskD {
             error!("su: fork failed, abort");
             return;
         }
-
 
         debug!("su: waiting child pid=[{}]", child);
         let mut status = 0;
@@ -215,7 +217,6 @@ impl MagiskD {
         let result = || -> LoggedResult<Arc<SuInfo>> {
             let cfg = self.get_db_settings()?;
 
-
             let eval_uid = match cfg.multiuser_mode {
                 MultiuserMode::OwnerOnly => {
                     if to_user_id(uid) != 0 {
@@ -230,7 +231,6 @@ impl MagiskD {
             let mut access = RootSettings::default();
             self.get_root_settings(eval_uid, &mut access)?;
 
-
             let (mgr_uid, mgr_pkg) =
                 if cfg.sulist || access.policy == SuPolicy::Query || access.notify {
                     self.get_manager(to_user_id(eval_uid))
@@ -238,16 +238,10 @@ impl MagiskD {
                     (-1, String::new())
                 };
 
-
-            if to_app_id(uid) == to_app_id(mgr_uid) {
-                return Ok(Arc::new(SuInfo::allow(uid)));
-            }
-
             if cfg.sulist && uid != AID_SHELL && !is_uid_on_sulist(uid) {
                 warn!("root access is limited by sulist");
                 return Ok(Arc::new(SuInfo::deny(uid)));
             }
-
 
             match cfg.root_access {
                 RootAccess::Disabled => {
@@ -260,20 +254,16 @@ impl MagiskD {
                         return Ok(Arc::new(SuInfo::deny(uid)));
                     }
                 }
-                RootAccess::AppsOnly => {
-                    if uid == AID_SHELL {
-                        warn!("Root access is disabled for ADB!");
-                        return Ok(Arc::new(SuInfo::deny(uid)));
-                    }
+                RootAccess::AppsOnly if uid == AID_SHELL => {
+                    warn!("Root access is disabled for ADB!");
+                    return Ok(Arc::new(SuInfo::deny(uid)));
                 }
                 _ => {}
             };
 
-
             if access.policy == SuPolicy::Query && mgr_uid < 0 {
                 return Ok(Arc::new(SuInfo::deny(uid)));
             }
-
 
             Ok(Arc::new(SuInfo {
                 uid,
