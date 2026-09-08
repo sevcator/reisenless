@@ -1915,7 +1915,7 @@ def build_app():
     )
     build_udonge()
     header("* Building the manager app")
-    manager_ui = config.get("managerUi", "classic")
+    manager_ui = config.get("managerUi", "compose")
     if manager_ui not in {"classic", "compose"}:
         error("managerUi must be classic or compose")
     apk = build_apk(":apk-legacy" if manager_ui == "classic" else ":apk")

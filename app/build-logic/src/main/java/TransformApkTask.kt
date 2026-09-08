@@ -158,6 +158,9 @@ private fun ZFile.rewriteVisibleBranding(
         val name = entry.centralDirectoryHeader.name
         val mayCompress = entry.centralDirectoryHeader.compressionInfoWithWait.method !=
             CompressionMethod.STORE
+        val rewrittenName = ordered.fold(name) { value, (source, target) ->
+            value.replace(source, target)
+        }
         val appVisible = name == "resources.arsc" ||
             name.matches(Regex("classes(?:\\d+)?\\.dex")) ||
             // Data Binding layout tags must match their rewritten DEX strings.
@@ -199,9 +202,12 @@ private fun ZFile.rewriteVisibleBranding(
         }
         val changed = replacements.sumOf { (from, to) -> contents.replaceAll(from, to) }
         protectedLabels.forEach { (label, placeholder) -> contents.replaceAll(placeholder, label) }
-        if (changed > 0) {
+        if (changed > 0 || rewrittenName != name) {
             if (name.matches(Regex("classes(?:\\d+)?\\.dex"))) contents = rebuildDex(contents)
-            add(name, ByteArrayInputStream(contents), mayCompress)
+            if (rewrittenName != name) {
+                entry.delete()
+            }
+            add(rewrittenName, ByteArrayInputStream(contents), mayCompress)
         }
     }
 }
