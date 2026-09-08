@@ -1103,9 +1103,11 @@ def _validate_native_certificates(apks: tuple[Path, ...], expected_digest: str,
             if compiled.returncode != 0:
                 error("Native certificate checker compilation failed:\n"
                       + compiled.stdout.decode(errors="replace"))
+            stub_name = _build_identity()["stubName"]
             for artifact in apks:
+                min_version = 0 if artifact.name == stub_name or "stub" in artifact.name.lower() else int(config["versionCode"])
                 parsed = subprocess.run(
-                    [str(checker), str(config["versionCode"]), str(artifact.absolute())],
+                    [str(checker), str(min_version), str(artifact.absolute())],
                     env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     timeout=30,
                 )

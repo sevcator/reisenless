@@ -178,6 +178,12 @@ fun HomeScreen(
                 title = { Text(stringResource(CoreR.string.section_home)) },
                 scrollBehavior = scrollBehavior,
                 actions = {
+                    IconButton(onClick = { showInstallSheet = true }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_download),
+                            contentDescription = stringResource(CoreR.string.install),
+                        )
+                    }
                     if (Info.env.isActive) {
                         IconButton(onClick = { viewModel.onDeletePressed() }) {
                             Icon(
@@ -204,15 +210,7 @@ fun HomeScreen(
                 .padding(top = 12.dp, bottom = 88.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            CoreCard(
-                modifier = Modifier.fillMaxWidth(),
-                state = uiState.magiskState,
-                version = uiState.magiskInstalledVersion,
-                onInstallClicked = { showInstallSheet = true }
-            )
-
             StatusCard()
-
         }
     }
 
@@ -286,116 +284,7 @@ private fun RebootButton(
 
 private class RebootOption(val labelRes: Int, val action: () -> Unit)
 
-@Composable
-private fun InstallButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isPrimary: Boolean = false,
-) {
-    val buttonContent = @Composable {
-        Icon(
-            painter = painterResource(R.drawable.ic_download),
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-        )
-    }
 
-    if (isPrimary) {
-        Button(
-            onClick = onClick,
-            shape = RoundedCornerShape(20.dp),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-            modifier = modifier,
-        ) {
-            buttonContent()
-        }
-    } else {
-        FilledTonalButton(
-            onClick = onClick,
-            shape = RoundedCornerShape(20.dp),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-            modifier = modifier,
-        ) {
-            buttonContent()
-        }
-    }
-}
-
-@Composable
-private fun CoreCard(
-    state: HomeViewModel.State,
-    version: String,
-    onInstallClicked: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val isInstalled = state != HomeViewModel.State.INVALID
-    val actionLabel = when (state) {
-        HomeViewModel.State.OUTDATED -> stringResource(CoreR.string.update)
-        HomeViewModel.State.INVALID -> stringResource(CoreR.string.install)
-        HomeViewModel.State.UP_TO_DATE -> stringResource(CoreR.string.reinstall)
-        HomeViewModel.State.LOADING -> null
-    }
-
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                painter = painterResource(R.drawable.ic_manager),
-                    contentDescription = null,
-                    tint = if (isInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = stringResource(CoreR.string.magisk),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Text(
-                        text = if (isInstalled) {
-                            version.ifEmpty { stringResource(CoreR.string.not_available) }
-                        } else {
-                            stringResource(CoreR.string.not_installed)
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (isInstalled) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
-                    )
-                }
-            }
-
-            if (actionLabel != null) {
-                InstallButton(
-                    label = actionLabel,
-                    onClick = onInstallClicked,
-                    isPrimary = !isInstalled,
-                )
-            }
-        }
-    }
-}
 
 
 private data class StatusInfo(val label: String, val status: String)
