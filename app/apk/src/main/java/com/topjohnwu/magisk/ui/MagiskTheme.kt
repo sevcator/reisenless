@@ -1,6 +1,8 @@
 package com.topjohnwu.magisk.ui
 
+import android.app.Activity
 import android.os.Build
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -13,9 +15,11 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -185,6 +189,16 @@ fun MagiskTheme(
 
     val isDarkTheme = mode.isDark(isDark)
     val useDynamicColor = mode.isMonet && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val view = LocalView.current
+
+    SideEffect {
+        val controller = WindowCompat.getInsetsController(
+            (view.context as Activity).window,
+            view,
+        )
+        controller.isAppearanceLightStatusBars = !isDarkTheme
+        controller.isAppearanceLightNavigationBars = !isDarkTheme
+    }
 
     val colorScheme = when {
         useDynamicColor && isDarkTheme -> dynamicDarkColorScheme(context)

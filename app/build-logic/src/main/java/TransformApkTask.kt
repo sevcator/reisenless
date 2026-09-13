@@ -181,7 +181,18 @@ private fun ZFile.rewriteVisibleBranding(
         // All product and component names are internal identities in a
         // release build. Let the branding map rewrite their visible strings
         // too; only the app label remains intentionally user-facing.
-        val displayLabels = emptyList<Pair<ByteArray, ByteArray>>()
+        // Keep feature names readable in the UI while still rewriting the
+        // same identifiers everywhere else in the packaged application.
+        // Placeholders preserve the byte length required by in-place pool
+        // replacement and are restored after branding has been applied.
+        val displayLabels = listOf(
+            "zygisk" to "zYgIsK",
+            "Zygisk" to "ZyGiSk",
+            "udonge" to "uDoNgE",
+            "Udonge" to "UdOnGe",
+        ).map { (label, placeholder) ->
+            label.toByteArray() to placeholder.toByteArray()
+        }
         val protectedLabels = displayLabels.filter { (label, placeholder) ->
             require(contents.replaceAll(placeholder, placeholder) == 0) {
                 "Reserved display-label placeholder in resource table"
