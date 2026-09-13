@@ -548,7 +548,9 @@ def _build_identity() -> dict[str, str]:
         "widgetNamespace": "com." + token("widget-owner", 9, 9)
             + "." + token("widget-package", 6, 6),
         "vendorNamespace": "com." + token("vendor-namespace", 9, 9),
-        "appLabel": token("app-label", 8, 12).capitalize(),
+        # Keep the product name stable in user-facing Android surfaces. The
+        # package, classes, binaries, and runtime paths remain randomized.
+        "appLabel": "Reisenless",
         "appVersionName": token("app-version", 8, 12),
         "artifactName": token("release-artifact", 10, 16) + ".apk",
         "brandLong": token("visible-brand-long", 10, 10),

@@ -4,6 +4,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.system.Os
 import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
@@ -118,7 +119,12 @@ class SelectedApkPatcher(
             val busybox = File(context.applicationInfo.nativeLibraryDir, "lib${BuildConfig.BUSYBOX_LIB_NAME}.so")
             console.add("- patching with the selected apk (file only)")
             // The launched APK supplies only the generic shell interpreter, not root payload/tools.
-            val command = "exec -a busybox ${quote(busybox.path)} timeout -s KILL 120 sh ${quote(bootstrap.path)}"
+            // Android may preserve the ELF path as argv[0] despite `exec -a`.
+            // BusyBox dispatches from argv[0], so execute a link whose basename
+            // is actually `busybox`.
+            val dispatcher = File(stage, "busybox")
+            if (!dispatcher.exists()) Os.symlink(busybox.path, dispatcher.path)
+            val command = "${quote(dispatcher.path)} timeout -s KILL 120 sh ${quote(bootstrap.path)}"
             val process = ProcessBuilder("/system/bin/sh", "-c", command)
                 .redirectErrorStream(true).apply { environment()["ASH_STANDALONE"] = "1" }.start()
             val result = BoundedProcess.capture(process, 130_000, 2 * 1024 * 1024)
