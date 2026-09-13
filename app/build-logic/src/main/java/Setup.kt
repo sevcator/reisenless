@@ -371,9 +371,6 @@ fun Project.setupAppCommon() {
                     "UDONGE" to Config.brandInject.uppercase(),
                 ))
                 this.globalBrandingMappings.set(mapOf(
-                    "Reisenless" to Config.brandLong.replaceFirstChar { it.uppercase() },
-                    "reisenless" to Config.brandLong,
-                    "REISENLESS" to Config.brandLong.uppercase(),
                     "topjohnwu" to Config.brandAuthor,
                     "TOPJOHNWU" to Config.brandAuthor.uppercase(),
                 ))

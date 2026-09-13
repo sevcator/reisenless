@@ -1669,8 +1669,10 @@ def _without_ui_display_labels(contents: bytes) -> bytes:
 
 def _validate_release_artifact(apk: Path):
     """Reject public identities and malformed/alignment-unsafe release APKs."""
-    public_tokens = ("reisenless", "topjohnwu", "magisk", "zygisk", "udonge")
-    global_tokens = ("reisenless", "topjohnwu")
+    # Reisenless is the intentional user-facing product label. Other legacy
+    # identities remain forbidden throughout release APK contents.
+    public_tokens = ("topjohnwu", "magisk", "zygisk", "udonge")
+    global_tokens = ("topjohnwu",)
     forbidden_identifiers = (
         "io.sevcator.reisenless",
         "com.usjrbnga.hvsavzoq",
