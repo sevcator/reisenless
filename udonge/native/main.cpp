@@ -165,6 +165,7 @@ public:
         is_gms_unstable_ = package == "com.google.android.gms"
                 && process_name == "com.google.android.gms.unstable";
         if (!fetch_config(process_name, package)) return;
+        if ((args->uid % 100000) < 10000) cfg_.rom_keywords.clear();
         hide_apps_ = !hide_dex_.empty() && !hide_rule_.empty();
 
         // Child zygotes inherit the mount decision, but must not initialize
@@ -242,6 +243,7 @@ private:
         std::string targets;
         std::string props;
         std::string pif;
+        std::string rom_keywords;
         bool from_companion = false;
         if (fd >= 0) {
             uint8_t request = 1;
@@ -252,7 +254,8 @@ private:
                 && read_str(fd, props)
                 && read_str(fd, pif)
                 && read_str(fd, hide_rule_)
-                && read_str(fd, hide_dex_);
+                && read_str(fd, hide_dex_)
+                && read_str(fd, rom_keywords);
             close(fd);
             if (!ok) {
                 targets.clear();
@@ -260,6 +263,7 @@ private:
                 pif.clear();
                 hide_rule_.clear();
                 hide_dex_.clear();
+                rom_keywords.clear();
             } else {
                 from_companion = true;
             }
@@ -269,9 +273,10 @@ private:
                 targets = cloak::read_file(std::string(CONF_DIR) + "/targets.conf");
                 props = cloak::read_file(std::string(CONF_DIR) + "/props.conf");
                 pif = cloak::read_file(std::string(CONF_DIR) + "/pif.conf");
+                rom_keywords = cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf");
             }
         }
-        cfg_ = cloak::parse_config(targets, props, pif);
+        cfg_ = cloak::parse_config(targets, props, pif, rom_keywords);
         if (is_gms_unstable_) return !cfg_.gms_build.empty() || !hide_rule_.empty();
         // Loading the built-in module is not authorization to apply Udonge's
         // privileged protection profile. Non-target processes may still have a
@@ -292,7 +297,7 @@ static void companion_handler(int client) {
     const bool full_enabled = full_udonge_enabled();
     std::string targets = full_enabled
             ? cloak::read_file(std::string(CONF_DIR) + "/targets.conf") : std::string();
-    const cloak::Config target_config = cloak::parse_config(targets, {}, {});
+    const cloak::Config target_config = cloak::parse_config(targets, {}, {}, {});
     const bool gms_unstable = package == "com.google.android.gms"
             && process_name == "com.google.android.gms.unstable";
     const bool needs_props = full_enabled
@@ -303,6 +308,8 @@ static void companion_handler(int client) {
         props = cloak::read_file(std::string(CONF_DIR) + "/props.conf");
         pif = cloak::read_file(std::string(CONF_DIR) + "/pif.conf");
     }
+    std::string rom_keywords = full_enabled
+            ? cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf") : std::string();
     std::string hide_config = cloak::read_file(std::string(CONF_DIR) + "/hideapps.conf");
     std::string hide_rule;
     hide_rule = find_hide_rule(hide_config, package);
@@ -315,6 +322,7 @@ static void companion_handler(int client) {
     write_str(client, pif);
     write_str(client, hide_rule);
     write_str(client, hide_dex);
+    write_str(client, rom_keywords);
 }
 
 REGISTER_ZYGISK_MODULE(UdongeModule)

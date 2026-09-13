@@ -2,12 +2,13 @@ package com.topjohnwu.magisk.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -204,8 +205,12 @@ private fun FloatingNavItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val active = selected || pressed
+
     val indicatorColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+        targetValue = if (active) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
         animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
         label = "navIndicatorColor"
     )
@@ -213,7 +218,7 @@ private fun FloatingNavItem(
     val iconTint by animateColorAsState(
         targetValue = when {
             !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            selected -> MaterialTheme.colorScheme.onSecondaryContainer
+            active -> MaterialTheme.colorScheme.onSecondaryContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         animationSpec = tween(150),
@@ -223,7 +228,7 @@ private fun FloatingNavItem(
     val labelColor by animateColorAsState(
         targetValue = when {
             !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            selected -> MaterialTheme.colorScheme.onSurface
+            active -> MaterialTheme.colorScheme.onSecondaryContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         animationSpec = tween(150),
@@ -236,48 +241,36 @@ private fun FloatingNavItem(
         label = "navIconScale"
     )
 
-    val indicatorWidth by animateDpAsState(
-        targetValue = if (selected) 48.dp else 24.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
-        label = "navIndicatorWidth"
-    )
-
     Column(
         modifier = modifier
             .clip(CircleShape)
+            .background(indicatorColor)
             .clickable(
+                interactionSource = interactionSource,
+                indication = null,
                 enabled = enabled,
                 role = Role.Tab,
                 onClick = onClick,
-            )
-            .padding(vertical = 2.dp),
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
             modifier = Modifier
-                .width(indicatorWidth)
-                .height(28.dp)
-                .clip(CircleShape)
-                .background(indicatorColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier
-                    .size(22.dp)
-                    .scale(iconScale),
-                tint = iconTint,
-            )
-        }
-        Spacer(Modifier.height(2.dp))
+                .padding(top = 6.dp)
+                .size(22.dp)
+                .scale(iconScale),
+            tint = iconTint,
+        )
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             color = labelColor,
             maxLines = 1,
+            modifier = Modifier.padding(bottom = 6.dp),
         )
     }
 }

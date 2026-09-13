@@ -223,6 +223,11 @@
     <string name="udonge_keybox_list_title">keybox リスト</string>
     <string name="udonge_keybox_list_summary">keybox のリンクを追加または削除</string>
     <string name="udonge_keybox_hint">1 行につき 1 つの https リンク</string>
+    <string name="udonge_rom_keywords_title">何かおかしいものを隠す</string>
+    <string name="udonge_rom_keywords_summary">カスタムROMのパス、パッケージ、プロパティ、フレームワークの痕跡を隠します</string>
+    <string name="udonge_rom_keywords_config_title">隠すシステム項目の設定</string>
+    <string name="udonge_rom_keywords_config_summary">1行に1つのROM名 (例: lineage, protonaosp)</string>
+    <string name="udonge_rom_keywords_hint">1行に1つのROM名 (例: lineage, protonaosp)</string>
     <string name="webui_root_required">webui には root と有効な reisenless のインストールが必要です</string>
     <string name="webui_webview_required">android system webview が必要です</string>
     <string name="webui_webview_required_summary">このデバイスには使用可能な android webview プロバイダーがありません。android system webview をインストールまたは有効にして、もう一度お試しください。</string>

@@ -41,11 +41,6 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             Customization,
             Theme, if (LocaleSetting.useLocaleManager) LanguageSystem else Language
         )
-        // Manager
-        list.addAll(listOf(
-            AppSettings,
-            DownloadPath, RandNameToggle
-        ))
 
         // Magisk
         if (Info.env.isActive) {
@@ -58,7 +53,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             }
             list.addAll(listOf(
                 UdongeSettings, UdongeEnabled, UdongeBackgroundUpdates,
-                UdongeKeyboxes,
+                UdongeKeyboxes, UdongeRomHiding, UdongeRomKeywords,
             ))
         }
 
@@ -88,7 +83,6 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
     override fun onItemPressed(view: View, item: BaseSettingsItem, doAction: () -> Unit) {
         when (item) {
             SuList -> toggleSuList()
-            DownloadPath -> withExternalRW(doAction)
             Authentication -> AuthEvent(doAction).publish()
             AutomaticResponse -> if (Config.suAuth) AuthEvent(doAction).publish() else doAction()
             else -> doAction()

@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -32,6 +33,7 @@ fun SettingsArrow(
     title: String,
     modifier: Modifier = Modifier,
     summary: String? = null,
+    enabled: Boolean = true,
     leadingContent: @Composable (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
@@ -40,8 +42,11 @@ fun SettingsArrow(
         supportingContent = summary?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
         leadingContent = leadingContent,
         trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = modifier.clickable(onClick = onClick)
+        colors = ListItemDefaults.colors(
+            containerColor = Color.Transparent,
+            disabledHeadlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        ),
+        modifier = modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
     )
 }
 
@@ -59,7 +64,11 @@ fun SettingsSwitch(
         supportingContent = summary?.takeIf { it.isNotEmpty() }?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = modifier.clickable(enabled = enabled, onClick = { onCheckedChange(!checked) })
+        modifier = modifier.clickable(
+            enabled = enabled,
+            role = Role.Switch,
+            onClick = { onCheckedChange(!checked) }
+        )
     )
 }
 
@@ -78,7 +87,7 @@ fun SettingsSwitchAction(
         supportingContent = summary?.takeIf { it.isNotEmpty() }?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = modifier.clickable(enabled = enabled, onClick = onClick)
+        modifier = modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
     )
 }
 
@@ -103,7 +112,7 @@ fun SettingsDropdown(
             },
             trailingContent = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable(enabled = enabled, onClick = { expanded = true })
+            modifier = Modifier.clickable(enabled = enabled, role = Role.DropdownList, onClick = { expanded = true })
         )
         DropdownMenu(
             expanded = expanded,

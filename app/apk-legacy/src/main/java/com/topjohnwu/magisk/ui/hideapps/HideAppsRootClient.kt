@@ -70,6 +70,28 @@ object HideAppsRootClient {
         return HideAppsStatus(active, HideAppsConstants.RUNTIME_VERSION, count)
     }
 
+    fun syncRomKeywordsHideApps(keywords: String): Boolean {
+        val enabled = keywords.isNotBlank()
+        val matches = (if (enabled) keywords else Udonge.DEFAULT_ROM_KEYWORDS).lineSequence()
+            .map(String::trim)
+            .filter { it.length >= 3 && it.none(Char::isWhitespace) }
+            .toList()
+
+        val installedPackages = packageList()
+        val romPackages = installedPackages.filterTo(mutableSetOf()) { packageName ->
+            matches.any { keyword -> packageName.contains(keyword, ignoreCase = true) }
+        }
+        if (romPackages.isEmpty()) return true
+
+        val repository = HideAppsRepository(AppContext)
+        if (enabled) {
+            repository.setHiddenAll(romPackages)
+        } else {
+            romPackages.forEach { repository.setHidden(it, false) }
+        }
+        return sync(repository.config, packageList(), packageList(systemOnly = true))
+    }
+
     private fun packageList(systemOnly: Boolean = false): Set<String> {
         val option = if (systemOnly) " -s" else ""
         return Shell.cmd("cmd package list packages$option").exec().out

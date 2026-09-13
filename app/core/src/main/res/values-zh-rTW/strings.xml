@@ -214,6 +214,11 @@
     <string name="udonge_keybox_list_title">keybox 清單</string>
     <string name="udonge_keybox_list_summary">新增或移除 keybox 連結</string>
     <string name="udonge_keybox_hint">每行一個 https 連結</string>
+    <string name="udonge_rom_keywords_title">隱藏不對勁的東西</string>
+    <string name="udonge_rom_keywords_summary">隱藏自訂ROM的路徑、套件、屬性和框架痕跡</string>
+    <string name="udonge_rom_keywords_config_title">設定隱藏的系統項目</string>
+    <string name="udonge_rom_keywords_config_summary">每行一個ROM名稱（例如: lineage, protonaosp）</string>
+    <string name="udonge_rom_keywords_hint">每行一個ROM名稱（例如: lineage, protonaosp）</string>
     <string name="webui_root_required">webui 需要 root 權限和有效的 reisenless 安裝</string>
     <string name="webui_webview_required">需要 android system webview</string>
     <string name="webui_webview_required_summary">此裝置沒有可用的 android webview 提供者。請安裝或啟用 android system webview，然後再試一次。</string>

@@ -236,6 +236,11 @@
     <string name="udonge_keybox_list_title">enable</string>
     <string name="udonge_keybox_list_summary">добавляйте и удаляйте ссылки на keybox</string>
     <string name="udonge_keybox_hint">по одной https-ссылке на строку</string>
+    <string name="udonge_rom_keywords_title">hide something wrong</string>
+    <string name="udonge_rom_keywords_summary">скрыть runtime-сигналы и следы фреймворка кастомных ROM</string>
+    <string name="udonge_rom_keywords_config_title">настройка скрытых следов системы</string>
+    <string name="udonge_rom_keywords_config_summary">по одному имени ROM на строку (например: lineage, protonaosp)</string>
+    <string name="udonge_rom_keywords_hint">по одному имени ROM на строку (например: lineage, protonaosp)</string>
     <string name="webui_root_required">для webui требуются root и активная установка reisenless</string>
     <string name="webui_webview_required">требуется android system webview</string>
     <string name="webui_webview_required_summary">на устройстве нет рабочего поставщика android webview. установите или включите android system webview и повторите попытку.</string>

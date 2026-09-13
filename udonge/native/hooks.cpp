@@ -96,11 +96,49 @@ static bool basename_is_su(const char *path) {
            strcmp(b, "magiskpolicy") == 0 || strcmp(b, "resetprop") == 0;
 }
 
+// Return true if the path contains any user-configured ROM keyword.
+// Called from is_blocked(), which is already guarded by a !path check.
+static bool is_rom_path(const char *path) {
+    if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
+    for (const auto &kw : g_cfg->rom_keywords)
+        if (contains_ci(path, kw)) return true;
+
+    // Duck Detector's ROM framework/recovery catalog also contains neutral
+    // path names that cannot be matched by a ROM keyword.
+    static const char *const exact_paths[] = {
+        "/system/addon.d",
+        "/system/bin/install-recovery.sh",
+        "/system/etc/install-recovery.sh",
+        "/vendor/bin/install-recovery.sh",
+        "/system/framework/org.lineageos.platform-res.apk",
+        "/system/framework/oat/arm64/org.lineageos.platform.vdex",
+        "/system/framework/oat/arm64/org.lineageos.platform.odex",
+        "/system/framework/oat/arm/org.lineageos.platform.vdex",
+        "/system/framework/oat/arm/org.lineageos.platform.odex",
+        "/system_ext/framework/org.lineageos.platform.jar",
+        "/system/framework/crdroid-res.apk",
+        "/system/framework/org.pixelexperience.platform-res.apk",
+        "/system/framework/org.evolution.framework-res.apk",
+        "/system/framework/co.aospa.framework-res.apk",
+        "/system/framework/org.protonaosp.framework-res.apk",
+        "/system/framework/org.omnirom.platform-res.apk",
+        "/product/framework/org.lineageos.platform-res.apk",
+        "/product/overlay/LineageSettingsProvider.apk",
+    };
+    for (const char *blocked : exact_paths) {
+        const size_t length = strlen(blocked);
+        if (strncmp(path, blocked, length) == 0 &&
+            (path[length] == '\0' || path[length] == '/')) return true;
+    }
+    return false;
+}
+
 static bool is_blocked(const char *path) {
     if (!path) return false;
     for (const char *s : kBlockedSubstr)
         if (strstr(path, s)) return true;
     if (basename_is_su(path)) return true;
+    if (is_rom_path(path)) return true;
     return false;
 }
 
@@ -264,6 +302,12 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
             for (const char *s : kMountsExtra)
                 if (memmem(p, len, s, strlen(s))) { keep = false; break; }
         }
+        // Also filter lines containing ROM keywords (e.g. lineage framework files in maps)
+        if (keep && g_cfg) {
+            for (const auto &kw : g_cfg->rom_keywords) {
+                if (contains_ci(p, len, kw.data(), kw.size())) { keep = false; break; }
+            }
+        }
         if (keep) out.insert(out.end(), p, p + len);
         p += len;
     }
@@ -296,6 +340,14 @@ static std::vector<char> filter_smaps(const std::vector<char> &raw) {
                 if (line.find(blocked) != std::string::npos) {
                     keep_block = false;
                     break;
+                }
+            }
+            if (keep_block && g_cfg) {
+                for (const auto &keyword : g_cfg->rom_keywords) {
+                    if (contains_ci(line.data(), line.size(), keyword.data(), keyword.size())) {
+                        keep_block = false;
+                        break;
+                    }
                 }
             }
             webview_executable = strchr(perms, 'x') != nullptr &&
@@ -459,6 +511,10 @@ static ssize_t h_readlink(const char *p, char *b, size_t n) {
     if (ret > 0) {
         for (const char *s : kBlockedSubstr)
             if (memmem(b, (size_t)ret, s, strlen(s))) { errno = ENOENT; return -1; }
+        if (g_cfg) for (const auto &kw : g_cfg->rom_keywords)
+            if (contains_ci(b, static_cast<size_t>(ret), kw.data(), kw.size())) {
+                errno = ENOENT; return -1;
+            }
     }
     return ret;
 }
@@ -468,6 +524,10 @@ static ssize_t h_readlinkat(int d, const char *p, char *b, size_t n) {
     if (ret > 0) {
         for (const char *s : kBlockedSubstr)
             if (memmem(b, (size_t)ret, s, strlen(s))) { errno = ENOENT; return -1; }
+        if (g_cfg) for (const auto &kw : g_cfg->rom_keywords)
+            if (contains_ci(b, static_cast<size_t>(ret), kw.data(), kw.size())) {
+                errno = ENOENT; return -1;
+            }
     }
     return ret;
 }
@@ -636,9 +696,48 @@ static bool is_debug_replace_prop(const char *name) {
         if (strcmp(name, p) == 0) return true;
     return false;
 }
+
+static const char *const kRomDeletedProps[] = {
+    // Exact property signatures in Duck Detector's current ROM catalog.
+    "ro.lineage.build.version", "ro.lineage.build.date", "ro.lineage.build.date.utc",
+    "ro.lineage.releasetype",   "ro.lineage.device",     "ro.lineage.version",
+    "ro.lineageos.version",     "ro.cm.version",          "ro.cm.build.date.utc",
+    "ro.modversion",            "ro.lineage.gapps_version",
+    "ro.resurrection.version",  "ro.pa.version",          "ro.aospa.version",
+    "ro.crdroid.version",       "ro.pixelexperience.version",
+    "ro.evolution.version",     "ro.havoc.version",
+};
+
+// Props whose VALUE is checked against ROM keywords and suppressed if it matches.
+// Used for props that carry the ROM name in their value rather than their key.
+static const char *const kRomValueCheckProps[] = {
+    "ro.build.flavor",
+    "ro.build.display.id",
+};
+
+static bool is_rom_value_check_prop(const char *name) {
+    for (const char *p : kRomValueCheckProps)
+        if (strcmp(name, p) == 0) return true;
+    return false;
+}
+
+// Returns true if value contains a user-configured ROM keyword.
+static bool value_has_rom_keyword(const char *value) {
+    if (!value || !g_cfg) return false;
+    for (const auto &kw : g_cfg->rom_keywords)
+        if (contains_ci(value, kw)) return true;
+    return false;
+}
+
 static bool is_deleted_prop(const char *name) {
     for (const char *p : kDeletedProps)
         if (strcmp(name, p) == 0) return true;
+    if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
+    for (const char *p : kRomDeletedProps)
+        if (strcmp(name, p) == 0) return true;
+    // Dynamic: any prop whose NAME contains a ROM keyword is suppressed
+    for (const auto &kw : g_cfg->rom_keywords)
+        if (contains_ci(name, kw)) return true;
     return false;
 }
 
@@ -707,6 +806,15 @@ static int h_prop_get(const char *name, char *value) {
             if (len > 0) return normalize_build_variant(value, len);
             return len;
         }
+        // Suppress props whose value exposes a configured ROM keyword.
+        if (is_rom_value_check_prop(name)) {
+            int len = o_prop_get(name, value);
+            if (len > 0 && value_has_rom_keyword(value)) {
+                value[0] = '\0';
+                return 0;
+            }
+            return len;
+        }
         if (g_cfg) {
             auto it = g_cfg->props.find(name);
             if (it != g_cfg->props.end()) {
@@ -742,6 +850,9 @@ static void cb_trampoline(void *cookie, const char *name, const char *value, uin
                         const char *rp = find_recovery_prop(name);
                         if (rp && value && strstr(value, "recovery")) {
                             value = rp;
+                        } else if (is_rom_value_check_prop(name) &&
+                                   value_has_rom_keyword(value)) {
+                            value = "";
                         } else if (is_debug_replace_prop(name) && value &&
                                    (strstr(value, "userdebug") ||
                                     strcmp(value, "eng") == 0 ||

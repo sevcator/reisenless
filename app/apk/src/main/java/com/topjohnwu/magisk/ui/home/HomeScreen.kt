@@ -293,10 +293,15 @@ private data class StatusInfo(val label: String, val status: String)
 private fun StatusCard(
     modifier: Modifier = Modifier
 ) {
+    val zygiskMismatch = Config.zygisk != Info.isZygiskEnabled
     val statuses = listOf(
         StatusInfo(
             label = stringResource(CoreR.string.zygisk),
-            status = stringResource(if (Info.isZygiskEnabled) CoreR.string.enabled else CoreR.string.disabled)
+            status = stringResource(
+                if (zygiskMismatch) CoreR.string.reboot_apply_change
+                else if (Config.zygisk) CoreR.string.enabled
+                else CoreR.string.disabled
+            )
         ),
         StatusInfo(
             label = stringResource(CoreR.string.ramdisk),

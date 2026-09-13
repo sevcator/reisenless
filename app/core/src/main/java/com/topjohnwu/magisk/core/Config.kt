@@ -39,14 +39,14 @@ object Config : PreferenceConfig, DBConfig {
         const val LOCALE = "locale"
         const val DARK_THEME = "dark_theme_extended"
         const val COLOR_MODE = "color_mode"
-        const val DOWNLOAD_DIR = "download_dir"
         const val ACCENT_COLOR = "accent_color"
         const val SAFETY = "safety_notice"
         const val THEME_ORDINAL = "theme_ordinal"
-        const val RAND_NAME = "rand_name"
         const val UDONGE_ENABLED = "udonge_enabled"
         const val UDONGE_BACKGROUND_UPDATES = "udonge_background_updates"
         const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls_v2"
+        const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
+        const val UDONGE_ROM_HIDING = "udonge_rom_hiding"
 
     }
 
@@ -95,8 +95,6 @@ object Config : PreferenceConfig, DBConfig {
     var colorMode by preference(Key.COLOR_MODE, ColorMode.MONET_SYSTEM.value)
 
     private var localePrefs by preference(Key.LOCALE, "")
-    var downloadDir by preference(Key.DOWNLOAD_DIR, "")
-    var randName by preference(Key.RAND_NAME, true)
     var accentColor by preference(Key.ACCENT_COLOR, 0xFFC95BC8.toInt())
     var udongeEnabled by preference(Key.UDONGE_ENABLED, false)
     var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
@@ -107,6 +105,8 @@ object Config : PreferenceConfig, DBConfig {
     var udongeKeyboxUrls
         get() = storedUdongeKeyboxUrls.ifBlank { DEFAULT_UDONGE_KEYBOX_URLS }
         set(value) { storedUdongeKeyboxUrls = value }
+    var udongeRomKeywords by preference(Key.UDONGE_ROM_KEYWORDS, "")
+    var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, false)
     var locale
         get() = localePrefs
         set(value) {

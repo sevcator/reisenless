@@ -7,7 +7,6 @@ import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.EditText
-import androidx.databinding.Bindable
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.core.Config
@@ -16,11 +15,9 @@ import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.core.ktx.activity
 import com.topjohnwu.magisk.core.utils.LocaleSetting
-import com.topjohnwu.magisk.core.utils.MediaStoreUtils
 import com.topjohnwu.magisk.core.utils.TextHolder
 import com.topjohnwu.magisk.core.utils.asText
-import com.topjohnwu.magisk.databinding.DialogSettingsDownloadPathBinding
-import com.topjohnwu.magisk.databinding.set
+import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
 import com.topjohnwu.magisk.view.MagiskDialog
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.magisk.core.R as CoreR
@@ -61,48 +58,15 @@ object Theme : BaseSettingsItem.Blank() {
     override val title = CoreR.string.section_theme.asText()
 }
 
-// --- App
+// --- Magisk
 
-object AppSettings : BaseSettingsItem.Section() {
-    override val title = CoreR.string.home_app_title.asText()
-}
-
-object DownloadPath : BaseSettingsItem.Input() {
-    override var value
-        get() = Config.downloadDir
-        set(value) {
-            Config.downloadDir = value
-            notifyPropertyChanged(BR.description)
-        }
-
-    override val title = CoreR.string.settings_download_path_title.asText()
-    override val description get() = MediaStoreUtils.fullPath(value).asText()
-
-    override var inputResult: String = value
-        set(value) = set(value, field, { field = it }, BR.inputResult, BR.path)
-
-    @get:Bindable
-    val path get() = MediaStoreUtils.fullPath(inputResult)
-
-    override fun getView(context: Context) = DialogSettingsDownloadPathBinding
-        .inflate(LayoutInflater.from(context)).also { it.data = this }.root
+object Magisk : BaseSettingsItem.Section() {
+    override val title = CoreR.string.magisk.asText()
 }
 
 object SystemlessHosts : BaseSettingsItem.Blank() {
     override val title = CoreR.string.settings_hosts_title.asText()
     override val description = CoreR.string.settings_hosts_summary.asText()
-}
-
-object RandNameToggle : BaseSettingsItem.Toggle() {
-    override val title = CoreR.string.settings_random_name_title.asText()
-    override val description = CoreR.string.settings_random_name_description.asText()
-    override var value by Config::randName
-}
-
-// --- Magisk
-
-object Magisk : BaseSettingsItem.Section() {
-    override val title = CoreR.string.magisk.asText()
 }
 
 object Zygisk : BaseSettingsItem.Toggle() {
@@ -202,6 +166,42 @@ object UdongeKeyboxes : BaseSettingsItem.Blank() {
         ) { value ->
             Shell.EXECUTOR.execute {
                 if (Udonge.setKeyboxUrls(value)) Udonge.refreshKeyboxes()
+            }
+        }
+    }
+}
+
+object UdongeRomHiding : BaseSettingsItem.Toggle() {
+    override val title = CoreR.string.udonge_rom_keywords_title.asText()
+    override val description = CoreR.string.udonge_rom_keywords_summary.asText()
+    override var value
+        get() = Config.udongeRomHidingEnabled
+        set(value) {
+            Shell.EXECUTOR.execute {
+                if (Udonge.setRomHidingEnabled(value)) {
+                    HideAppsRootClient.syncRomKeywordsHideApps(
+                        if (value) Config.udongeRomKeywords else "",
+                    )
+                }
+            }
+        }
+}
+
+object UdongeRomKeywords : BaseSettingsItem.Blank() {
+    override val title = CoreR.string.udonge_rom_keywords_config_title.asText()
+    override val description = CoreR.string.udonge_rom_keywords_config_summary.asText()
+
+    override fun onPressed(view: View, handler: Handler) {
+        textListDialog(
+            view,
+            CoreR.string.udonge_rom_keywords_config_title,
+            CoreR.string.udonge_rom_keywords_hint,
+            Config.udongeRomKeywords,
+        ) { value ->
+            Shell.EXECUTOR.execute {
+                if (Udonge.setRomKeywords(value)) {
+                    HideAppsRootClient.syncRomKeywordsHideApps(value)
+                }
             }
         }
     }
