@@ -46,8 +46,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // The installer and shell helpers execute the multi-call binary through
+    // the conventional `busybox` argv[0]. Accept that alias as well as the
+    // packaged library basename so randomized filenames do not break applets.
     if (argv0 == MAIN_BIN_NAME || argv0 == MAIN_BIN_NAME "32" || argv0 == MAIN_BIN_NAME "64" ||
-        argv0 == RAMDISK_BIN_NAME || argv0 == "lib" BUILD_MAIN_LIB_NAME ".so") {
+        argv0 == RAMDISK_BIN_NAME || argv0 == "busybox" ||
+        argv0 == "lib" BUILD_MAIN_LIB_NAME ".so" ||
+        argv0 == "lib" BUILD_BUSYBOX_LIB_NAME ".so") {
         if (argc > 1 && argv[1][0] != '-') {
 
             --argc;

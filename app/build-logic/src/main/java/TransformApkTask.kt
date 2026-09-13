@@ -178,22 +178,10 @@ private fun ZFile.rewriteVisibleBranding(
         // The user-facing product/status names are not internal identities.
         // Protect only complete Android string-pool values, not substrings in
         // resource keys, class names, paths, scripts, or other text.
-        val displayLabels = if (name == "resources.arsc") listOf(
-            "reisenless" to "UIROOTNAME",
-            "zygisk" to "UIINJT",
-            "udonge" to "UIUDNG",
-        ).flatMap { (label, placeholder) ->
-            listOf(false, true).map { utf16 ->
-                fun encoded(value: String): ByteArray = if (utf16) {
-                    byteArrayOf(value.length.toByte(), 0) +
-                        value.toByteArray(Charsets.UTF_16LE) + byteArrayOf(0, 0)
-                } else {
-                    byteArrayOf(value.length.toByte(), value.length.toByte()) +
-                        value.toByteArray(Charsets.UTF_8) + byteArrayOf(0)
-                }
-                encoded(label) to encoded(placeholder)
-            }
-        } else emptyList()
+        // All product and component names are internal identities in a
+        // release build. Let the branding map rewrite their visible strings
+        // too; only the app label remains intentionally user-facing.
+        val displayLabels = emptyList<Pair<ByteArray, ByteArray>>()
         val protectedLabels = displayLabels.filter { (label, placeholder) ->
             require(contents.replaceAll(placeholder, placeholder) == 0) {
                 "Reserved display-label placeholder in resource table"

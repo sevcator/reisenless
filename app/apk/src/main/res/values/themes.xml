@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Main">
+    <style name="Main" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
         <item name="postSplashScreenTheme">@android:style/Theme.DeviceDefault.NoActionBar</item>
     </style>
 
