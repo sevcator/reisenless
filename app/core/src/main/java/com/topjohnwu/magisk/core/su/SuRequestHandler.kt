@@ -14,6 +14,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class SuRequestHandler(
     val pm: PackageManager,
@@ -25,10 +26,23 @@ class SuRequestHandler(
     lateinit var pkgInfo: PackageInfo
         private set
 
+    private val responseSent = AtomicBoolean(false)
+
 
     suspend fun start(intent: Intent): Boolean {
-        if (!init(intent))
+        return try {
+            startInternal(intent)
+        } catch (_: Exception) {
+            reject()
+            false
+        }
+    }
+
+    private suspend fun startInternal(intent: Intent): Boolean {
+        if (!init(intent)) {
+            reject()
             return false
+        }
 
         when (Config.suAutoResponse) {
             Config.Value.SU_AUTO_DENY -> {
@@ -52,7 +66,14 @@ class SuRequestHandler(
             return false
         }
         output = File(fifo)
-        policy = policyDB.fetch(uid) ?: SuPolicy(uid)
+        policy = try {
+            policyDB.fetch(uid) ?: SuPolicy(uid)
+        } catch (_: Exception) {
+            // A stale or unavailable daemon must not prevent the request UI
+            // from answering the native FIFO. Start with a query policy and
+            // let the user make the decision.
+            SuPolicy(uid)
+        }
         try {
             pkgInfo = pm.getPackageInfo(uid, pid) ?: PackageInfo().apply {
                 val name = pm.getNameForUid(uid) ?: throw PackageManager.NameNotFoundException()
@@ -60,7 +81,6 @@ class SuRequestHandler(
                 sharedUserId = name.split(":")[0]
             }
         } catch (e: PackageManager.NameNotFoundException) {
-            respond(SuPolicy.DENY, -1)
             return false
         }
         if (!output.canWrite()) {
@@ -70,6 +90,10 @@ class SuRequestHandler(
     }
 
     suspend fun respond(action: Int, time: Long) {
+        if (!::output.isInitialized || !::policy.isInitialized ||
+            !responseSent.compareAndSet(false, true)
+        ) return
+
         policy.policy = action
         if (time >= 0) {
             policy.remain = TimeUnit.MINUTES.toSeconds(time)
@@ -86,8 +110,14 @@ class SuRequestHandler(
             } catch (e: IOException) {
             }
             if (time >= 0) {
-                policyDB.update(policy)
+                runCatching { policyDB.update(policy) }
             }
+        }
+    }
+
+    private suspend fun reject() {
+        if (::output.isInitialized && ::policy.isInitialized) {
+            respond(SuPolicy.DENY, -1)
         }
     }
 }

@@ -6,7 +6,8 @@ use crate::ffi::{SuPolicy, get_magisk_tmp};
 use crate::socket::IpcRead;
 use ExtraVal::{Int, Str};
 use base::{
-    BytesExt, FileAttr, LibcReturn, LoggedResult, ResultExt, Utf8CStrBuf, cstr, fork_dont_care,
+    BytesExt, FileAttr, LibcReturn, LoggedError, LoggedResult, ResultExt, Utf8CStrBuf, cstr,
+    fork_dont_care, warn,
 };
 use nix::fcntl::OFlag;
 use nix::poll::{PollFd, PollFlags, PollTimeout};
@@ -69,7 +70,7 @@ pub(super) struct SuAppContext<'a> {
 }
 
 impl SuAppContext<'_> {
-    fn exec_cmd(&self, action: &'static str, extras: &[Extra], use_provider: bool) {
+    fn exec_cmd(&self, action: &'static str, extras: &[Extra], use_provider: bool) -> bool {
         let user = to_user_id(self.info.eval_uid);
         let user = user.to_string();
 
@@ -95,11 +96,12 @@ impl SuAppContext<'_> {
             cmd.env("CLASSPATH", "/system/framework/content.jar");
 
             if let Ok(output) = cmd.output()
+                && output.status.success()
                 && !output.stderr.contains(b"Error")
                 && !output.stdout.contains(b"Error")
             {
 
-                return;
+                return true;
             }
         }
 
@@ -125,7 +127,14 @@ impl SuAppContext<'_> {
         extras.iter().for_each(|e| e.add_intent(&mut cmd));
         cmd.env("CLASSPATH", "/system/framework/am.jar");
 
-        let _ = cmd.status();
+        match cmd.output() {
+            Ok(output) => {
+                output.status.success()
+                    && !output.stderr.contains(b"Error")
+                    && !output.stdout.contains(b"Error")
+            }
+            Err(_) => false,
+        }
     }
 
     fn app_request(&mut self) {
@@ -162,7 +171,11 @@ impl SuAppContext<'_> {
                     value: Int(self.cred.pid.unwrap_or(-1)),
                 },
             ];
-            self.exec_cmd("request", &extras, false);
+            if !self.exec_cmd("request", &extras, false) {
+                warn!("su: unable to dispatch request to manager");
+                self.settings.policy = SuPolicy::Deny;
+                return Err(LoggedError::default());
+            }
 
 
             let fd = fifo.open(OFlag::O_RDWR | OFlag::O_CLOEXEC)?;
@@ -171,7 +184,7 @@ impl SuAppContext<'_> {
 
             nix::poll::poll(
                 &mut pfd,
-                PollTimeout::try_from(70 * 1000).unwrap_or(PollTimeout::NONE),
+                PollTimeout::try_from(15 * 1000).unwrap_or(PollTimeout::NONE),
             )
             .check_os_err("poll", None, None)?;
             Ok(fd)
@@ -207,7 +220,9 @@ impl SuAppContext<'_> {
                 value: Int(self.settings.policy.repr),
             },
         ];
-        self.exec_cmd("notify", &extras, true);
+        if !self.exec_cmd("notify", &extras, true) {
+            warn!("su: unable to dispatch notification to manager");
+        }
     }
 
     pub(super) fn connect_app(&mut self) {

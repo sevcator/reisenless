@@ -262,6 +262,7 @@ impl MagiskD {
             };
 
             if access.policy == SuPolicy::Query && mgr_uid < 0 {
+                warn!("su: manager authentication failed; reinstall the current manager APK");
                 return Ok(Arc::new(SuInfo::deny(uid)));
             }
 

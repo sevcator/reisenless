@@ -210,6 +210,9 @@ fun HomeScreen(
                 .padding(top = 12.dp, bottom = 88.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (uiState.magiskState == HomeViewModel.State.OUTDATED) {
+                OutdatedRootCard(onReinstall = { showInstallSheet = true })
+            }
             StatusCard()
         }
     }
@@ -219,6 +222,38 @@ fun HomeScreen(
         onDismiss = { showInstallSheet = false },
         installVm = installVm,
     )
+}
+
+@Composable
+private fun OutdatedRootCard(
+    onReinstall: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(CoreR.string.root_outdated_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(CoreR.string.root_outdated_msg),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Spacer(Modifier.height(8.dp))
+            FilledTonalButton(onClick = onReinstall) {
+                Text(stringResource(CoreR.string.root_reinstall))
+            }
+        }
+    }
 }
 
 @Composable

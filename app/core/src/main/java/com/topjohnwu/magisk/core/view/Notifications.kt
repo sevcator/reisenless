@@ -7,10 +7,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
+import android.widget.Toast
 import androidx.core.content.getSystemService
+import androidx.core.app.NotificationManagerCompat
 import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.R
 import com.topjohnwu.magisk.core.ktx.selfLaunchIntent
+import com.topjohnwu.magisk.core.ktx.toast
 import java.util.concurrent.atomic.AtomicInteger
 
 @Suppress("DEPRECATION")
@@ -33,6 +36,16 @@ object Notifications {
                 mgr.createNotificationChannels(listOf(channel, su))
             }
         }
+    }
+
+    fun suNotificationOrToast(context: android.content.Context, granted: Boolean, appName: String) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            val resId = if (granted) R.string.su_allow_toast else R.string.su_deny_toast
+            context.toast(context.getString(resId, appName), Toast.LENGTH_SHORT)
+            return
+        }
+        setup()
+        suNotification(granted, appName)
     }
 
     fun startProgress(title: CharSequence): Notification.Builder {

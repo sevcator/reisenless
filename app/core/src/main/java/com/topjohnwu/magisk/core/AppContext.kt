@@ -16,6 +16,7 @@ import com.topjohnwu.magisk.core.utils.LocaleSetting
 import com.topjohnwu.magisk.core.utils.NetworkObserver
 import com.topjohnwu.magisk.core.utils.RootUtils
 import com.topjohnwu.magisk.core.utils.ShellInit
+import com.topjohnwu.magisk.view.Notifications
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.internal.UiThreadHandler
 import com.topjohnwu.superuser.ipc.RootService
@@ -99,6 +100,10 @@ object AppContext : ContextWrapper(null),
         AppApkPath = base.packageResourcePath
         AppBinaryPath = preparePackagedSu(base).orEmpty()
         resources.patch()
+        // Request callbacks can start the provider/activity directly without
+        // ever opening MainActivity. Create channels during application setup
+        // so status-bar notifications are always deliverable.
+        Notifications.setup()
 
 
 

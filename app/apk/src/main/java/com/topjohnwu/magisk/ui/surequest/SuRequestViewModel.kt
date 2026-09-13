@@ -75,7 +75,10 @@ class SuRequestViewModel(
 
     fun handleRequest(intent: Intent) {
         viewModelScope.launch(Dispatchers.Default) {
-            if (handler.start(intent))
+            val showRequest = runCatching { handler.start(intent) }.getOrElse {
+                false
+            }
+            if (showRequest)
                 showDialog()
             else
                 finishActivity()

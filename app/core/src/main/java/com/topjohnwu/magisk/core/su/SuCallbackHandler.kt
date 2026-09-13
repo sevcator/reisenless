@@ -55,7 +55,7 @@ object SuCallbackHandler {
                 context.toast(context.getString(resId, appName), Toast.LENGTH_SHORT)
             }
             Config.Value.NOTIFICATION_STATUS_BAR -> {
-                Notifications.suNotification(granted, appName)
+                Notifications.suNotificationOrToast(context, granted, appName)
             }
         }
     }

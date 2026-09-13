@@ -13,6 +13,9 @@
     <string name="home_follow_title">follow us</string>
     <string name="home_installed_version">installed</string>
     <string name="home_latest_version">latest</string>
+    <string name="root_outdated_title" tools:ignore="MissingTranslation">root installation needs updating</string>
+    <string name="root_outdated_msg" tools:ignore="MissingTranslation">the installed root daemon is older than this Reisenless app. reinstall the current boot payload to enable superuser requests.</string>
+    <string name="root_reinstall" tools:ignore="MissingTranslation">reinstall root</string>
     <string name="uninstall_magisk_title">uninstall reisenless</string>
     <string name="uninstall_magisk_msg">all modules will be disabled/removed!\nroot will be removed!\nany internal storage unencrypted through the use of reisenless will be re-encrypted!</string>
 
