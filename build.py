@@ -2058,6 +2058,7 @@ def test_native_auth():
 
 def test_identity_generation():
     """Prove private identity derivation is deterministic and seed-separated."""
+    saved_env_seed = os.environ.pop("REISENLESS_IDENTITY_SEED", None)
     saved_seed = config.get("identitySeed")
     saved_randomize = config.get("randomizeBuild")
     saved_secure = config.get("randomizeSecureDir")
@@ -2078,6 +2079,8 @@ def test_identity_generation():
             error("Different private identity seeds did not separate critical identities")
         print("Identity generation tests passed")
     finally:
+        if saved_env_seed is not None:
+            os.environ["REISENLESS_IDENTITY_SEED"] = saved_env_seed
         args.release = saved_release
         if saved_seed is None:
             config.pop("identitySeed", None)
