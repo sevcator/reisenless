@@ -40,8 +40,11 @@ class IntDBProperty(
 
     @Synchronized
     override fun getValue(thisRef: DBConfig, property: KProperty<*>): Int {
-        if (value == null)
-            value = runBlocking { thisRef.settingsDB.fetch(name, default) }
+        if (value == null) {
+            value = runCatching {
+                runBlocking { thisRef.settingsDB.fetch(name, default) }
+            }.getOrDefault(default)
+        }
         return value as Int
     }
 
@@ -79,11 +82,12 @@ class StringDBProperty(
 
     @Synchronized
     override fun getValue(thisRef: DBConfig, property: KProperty<*>): String {
-        if (value == null)
-            value = runBlocking {
-                thisRef.stringDB.fetch(name, default)
-            }
-        return value!!
+        if (value == null) {
+            value = runCatching {
+                runBlocking { thisRef.stringDB.fetch(name, default) }
+            }.getOrDefault(default)
+        }
+        return value.orEmpty()
     }
 
     override fun setValue(thisRef: DBConfig, property: KProperty<*>, value: String) {
