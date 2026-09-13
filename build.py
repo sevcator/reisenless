@@ -720,6 +720,7 @@ def dump_flag_header():
     flag_txt += f'#define BUILD_SECURE_DIR    "{secure_dir}"\n'
     identity_flags = {
         "appPackageName": "BUILD_APP_PACKAGE_NAME",
+        "providerSuffix": "BUILD_PROVIDER_SUFFIX",
         "dataDir": "BUILD_DATA_DIR", "dbName": "BUILD_DB_NAME",
         "internalDir": "BUILD_INTERNAL_DIR", "socketName": "BUILD_SOCKET_NAME",
         "runtimeSeed": "BUILD_RUNTIME_SEED",

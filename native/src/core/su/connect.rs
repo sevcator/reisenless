@@ -1,6 +1,6 @@
 use super::SuInfo;
 use super::db::RootSettings;
-use crate::consts::{INTERNAL_DIR, MAGISK_FILE_CON};
+use crate::consts::{INTERNAL_DIR, MAGISK_FILE_CON, PROVIDER_SUFFIX};
 use crate::daemon::to_user_id;
 use crate::ffi::{SuPolicy, get_magisk_tmp};
 use crate::socket::IpcRead;
@@ -75,7 +75,7 @@ impl SuAppContext<'_> {
         let user = user.to_string();
 
         if use_provider {
-            let provider = format!("content://{}.provider", self.info.mgr_pkg);
+            let provider = format!("content://{}.{}", self.info.mgr_pkg, PROVIDER_SUFFIX);
             let mut cmd = Command::new("/system/bin/app_process");
             cmd.args([
                 "/system/bin",
