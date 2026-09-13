@@ -1657,13 +1657,10 @@ def _without_ui_display_labels(contents: bytes) -> bytes:
     Internal identifiers and embedded occurrences remain subject to scanning.
     Keep these names synchronized with TransformApkTask's display labels.
     """
-    for label in ():
-        for encoding in ("utf-8", "utf-16le"):
-            prefix = bytes((len(label), len(label))) if encoding == "utf-8" else bytes((len(label), 0))
-            suffix = b"\0" if encoding == "utf-8" else b"\0\0"
-            value = prefix + label.encode(encoding) + suffix
-            masked = prefix + ("_" * len(label)).encode(encoding) + suffix
-            contents = contents.replace(value, masked)
+    for label in ("zygisk", "Zygisk", "udonge", "Udonge"):
+        for encoding in ("utf-8", "utf-16le", "utf-16be"):
+            value = label.encode(encoding)
+            contents = contents.replace(value, ("_" * len(label)).encode(encoding))
     return contents
 
 
