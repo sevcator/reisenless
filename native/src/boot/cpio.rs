@@ -560,6 +560,22 @@ impl Cpio {
                 return MAGISK_PATCHED;
             }
         }
+        // Randomized builds use a generated backup marker. Older installs may
+        // have been created with a different marker that is no longer present
+        // in the current build configuration. Any hidden marker in the
+        // backup directory still identifies a Magisk-style patched ramdisk;
+        // report it as patched so the patch script can restore it before
+        // installing the current payload.
+        if self.entries.keys().any(|name| {
+            name.strip_prefix(".backup/.").is_some_and(|marker| {
+                !marker.is_empty()
+                    && marker != "magisk"
+                    && marker != "cfg"
+                    && marker != "rmlist"
+            })
+        }) {
+            return MAGISK_PATCHED;
+        }
         0
     }
 

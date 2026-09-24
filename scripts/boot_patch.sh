@@ -122,6 +122,19 @@ ui_print "- checking ramdisk status"
 if [ -n "$RAMDISK" ]; then
   ./mboot cpio $RAMDISK test
   STATUS=$?
+  # A randomized predecessor may use a backup marker that is not listed in
+  # this build's configuration. Locate that marker so the restore path below
+  # can remove the old payload before installing the current one.
+  if [ -n "$LEGACY_BACKUP_CONFIG" ] \
+      && ! ./mboot cpio $RAMDISK "exists .backup/$LEGACY_BACKUP_CONFIG" 2>/dev/null; then
+    LEGACY_BACKUP_CONFIG=
+  fi
+  if [ -z "$LEGACY_BACKUP_CONFIG" ]; then
+    LEGACY_BACKUP_CONFIG=$(./mboot cpio $RAMDISK "ls .backup" 2>/dev/null \
+      | sed -n 's#.* \\.backup/\\.\\([[:alnum:]_-]*\\)$#\\1#p' \
+      | grep -v -E '^(magisk|cfg|rmlist)$' | head -n 1)
+    [ -n "$LEGACY_BACKUP_CONFIG" ] && STATUS=1
+  fi
   if [ "$STATUS" -eq 0 ] && [ -n "$LEGACY_BACKUP_CONFIG" ] \
       && [ "$LEGACY_BACKUP_CONFIG" != "$BACKUP_CONFIG" ] \
       && ./mboot cpio $RAMDISK "exists .backup/$LEGACY_BACKUP_CONFIG" 2>/dev/null; then
