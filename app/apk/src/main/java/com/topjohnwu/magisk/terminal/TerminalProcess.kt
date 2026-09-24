@@ -3,12 +3,8 @@ package com.topjohnwu.magisk.terminal
 import android.os.Handler
 import android.os.Looper
 import com.topjohnwu.magisk.core.Const
-import com.topjohnwu.superuser.Shell
 
-private val busyboxPath: String by lazy {
-    Shell.cmd("readlink /proc/self/exe").exec().out.firstOrNull()
-        ?: "${Const.DATABIN}/${Const.BUSYBOX_NAME}"
-}
+private val busyboxPath = "${Const.DATABIN}/${Const.BUSYBOX_NAME}"
 
 private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -36,10 +32,17 @@ fun runSuCommand(emulator: TerminalEmulator, command: String): Boolean {
         val rows = emulator.mRows
         val wrappedCmd = "export TERM=xterm-256color; stty cols $cols rows $rows 2>/dev/null; $command"
         val escapedCmd = wrappedCmd.replace("'", "'\\''")
+        val busyboxDir = "${Const.TMPDIR}/terminal-${android.os.Process.myPid()}"
+        val busyboxAlias = "$busyboxDir/busybox"
+        val shellCommand = "mkdir -p '${busyboxDir.replace("'", "'\\''")}' && " +
+            "ln -sf '${busyboxPath.replace("'", "'\\''")}' '${busyboxAlias.replace("'", "'\\''")}' && " +
+            "'${busyboxAlias.replace("'", "'\\''")}' script -q -c '$escapedCmd' /dev/null; " +
+            "result=\$?; rm -f '${busyboxAlias.replace("'", "'\\''")}' && " +
+            "rmdir '${busyboxDir.replace("'", "'\\''")}' 2>/dev/null; exit \$result"
 
         val process = ProcessBuilder(
             "su", "-c",
-            "$busyboxPath script -q -c '$escapedCmd' /dev/null"
+            shellCommand
         ).redirectErrorStream(true).start()
 
         process.outputStream.close()
