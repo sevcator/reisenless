@@ -1089,6 +1089,9 @@ def _validate_native_certificates(apks: tuple[Path, ...], expected_digest: str,
     This supplements, never replaces, apksigner cryptographic verification.
     Synthetic parser tests alone missed an apksig signed-data format change.
     """
+    package_source = Path("native", "src", "core", "package.rs").read_text(encoding="utf-8")
+    if "info.trusted_cert = read_certificate(&mut fd, -1);" not in package_source:
+        error("Daemon must parse the embedded stub trust anchor independently of manager versionCode")
     ensure_paths()
     env = env.copy()
     # The host MinGW linker also needs the bundled Rust runtime DLLs on Windows.
@@ -1413,7 +1416,9 @@ def _validate_packaged_udonge(apk: Path):
             if legacy_marker:
                 boot_patch = zf.read("assets/boot_patch.sh").decode("utf-8")
                 if f"LEGACY_BACKUP_CONFIG='{legacy_marker}'" not in utilities \
-                        or 'exists .backup/$LEGACY_BACKUP_CONFIG' not in boot_patch:
+                        or 'exists .backup/$LEGACY_BACKUP_CONFIG' not in boot_patch \
+                        or '[[:space:]]\\.backup/\\(\\.[[:alnum:]_-]*\\)' not in boot_patch \
+                        or '"rm .backup/$LEGACY_BACKUP_CONFIG" "restore"' not in boot_patch:
                     error("Legacy randomized boot marker is missing from the installer")
     except (BadZipFile, KeyError, OSError, UnicodeDecodeError) as exc:
         error(f"Invalid packaged Udonge payload in {apk}: {exc}")

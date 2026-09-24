@@ -16,7 +16,9 @@ import com.topjohnwu.superuser.nio.FileSystemManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
+import java.util.concurrent.TimeUnit
 
 class RootUtils(stub: Any?) : RootService() {
 
@@ -117,11 +119,13 @@ class RootUtils(stub: Any?) : RootService() {
             }
         }
 
-        fun await() {
+        fun await(timeoutSeconds: Long = 15) {
             if (!Info.isRooted)
                 return
             if (!ShellUtils.onMainThread()) {
-                acquireSharedInterruptibly(1)
+                if (!tryAcquireSharedNanos(1, TimeUnit.SECONDS.toNanos(timeoutSeconds))) {
+                    throw IOException("Timed out waiting for the root filesystem service")
+                }
             } else if (state != 0) {
                 throw IllegalStateException("Cannot await on the main thread")
             }

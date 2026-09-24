@@ -77,19 +77,41 @@ abstract class MagiskInstallImpl protected constructor(
     private val destExt: String by lazy { randStr(3, 3) }
 
     private fun findImage(slot: String): Boolean {
+        console.add("- locating target image")
+        val fileSystem = rootFS
         val cmd =
             "RECOVERYMODE=${Config.recovery} " +
             "VENDORBOOT=${Info.isVendorBoot} " +
             "SLOT=$slot " +
             "find_boot_image; echo \$BOOTIMAGE"
-        val bootPath = ("($cmd)").fsh()
+        val namedCandidates = when {
+            Info.isVendorBoot -> listOf("/dev/block/by-name/vendor_boot$slot")
+            Config.recovery -> listOf(
+                "/dev/block/by-name/recovery$slot",
+                "/dev/block/by-name/sos",
+            )
+            isGtGki13Kernel() -> listOf(
+                "/dev/block/by-name/init_boot$slot",
+                "/dev/block/by-name/boot$slot",
+            )
+            else -> listOf("/dev/block/by-name/boot$slot")
+        }
+        val bootPath = namedCandidates.firstOrNull { fileSystem.getFile(it).exists() }
+            ?: ("($cmd)").fsh()
         if (bootPath.isEmpty()) {
             console.add("! unable to detect target image")
             return false
         }
-        srcBoot = rootFS.getFile(bootPath)
+        console.add("- opening target image")
+        srcBoot = fileSystem.getFile(bootPath)
         console.add("- target image: $bootPath")
         return true
+    }
+
+    private fun isGtGki13Kernel(): Boolean {
+        val release = System.getProperty("os.version").orEmpty()
+        val major = release.substringBefore('.').toIntOrNull() ?: return false
+        return major >= 5 && !release.contains("android12-") && !release.startsWith("5.4")
     }
 
     private fun findImage(): Boolean {

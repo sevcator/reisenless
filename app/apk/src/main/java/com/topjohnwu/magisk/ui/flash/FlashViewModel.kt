@@ -1,6 +1,8 @@
 package com.topjohnwu.magisk.ui.flash
 
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.mutableStateListOf
 import androidx.core.net.toFile
 import androidx.lifecycle.viewModelScope
@@ -63,11 +65,12 @@ class FlashViewModel : BaseViewModel() {
 
     val consoleItems = mutableStateListOf<String>()
     private val logItems = mutableListOf<String>().synchronized()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val outItems = object : CallbackList<String>() {
         override fun onAddElement(e: String?) {
             e ?: return
-            consoleItems.add(e)
             logItems.add(e)
+            mainHandler.post { consoleItems.add(e) }
         }
     }
 
@@ -78,44 +81,49 @@ class FlashViewModel : BaseViewModel() {
         val uri = flashUri
 
         viewModelScope.launch {
-            when (action) {
-                Const.Value.FLASH_ZIP -> {
+            when {
+                action == Const.Value.FLASH_ZIP -> {
                     uri ?: return@launch
                     flashZip(uri)
                 }
-                Const.Value.UNINSTALL -> {
+                action == Const.Value.UNINSTALL -> {
                     _showReboot.value = false
                     onResult(withContext(Dispatchers.IO) {
                         MagiskInstaller.Uninstall(outItems, logItems).exec()
                     })
                 }
-                Const.Value.FLASH_MAGISK -> {
+                action == Const.Value.FLASH_MAGISK -> {
                     onResult(withContext(Dispatchers.IO) {
-                        if (Info.isEmulator)
+                        if (Info.isEmulator) {
                             MagiskInstaller.Emulator(outItems, logItems).exec()
-                        else
+                        } else {
                             MagiskInstaller.Direct(outItems, logItems).exec()
+                        }
                     })
                 }
-                Const.Value.FLASH_INACTIVE_SLOT -> {
+                action == Const.Value.FLASH_INACTIVE_SLOT -> {
                     _showReboot.value = false
                     onResult(withContext(Dispatchers.IO) {
                         MagiskInstaller.SecondSlot(outItems, logItems).exec()
                     })
                 }
-                Const.Value.PATCH_FILE -> {
+                action == Const.Value.PATCH_FILE -> {
                     uri ?: return@launch
                     _showReboot.value = false
                     onResult(withContext(Dispatchers.IO) {
                         MagiskInstaller.Patch(uri, outItems, logItems).exec()
                     })
                 }
-                Const.Value.DOWNLOAD -> {
+                action == Const.Value.DOWNLOAD -> {
                     uri ?: return@launch
                     _showReboot.value = false
                     onResult(withContext(Dispatchers.IO) {
                         MagiskInstaller.Download(uri.toString(), outItems, logItems).exec()
                     })
+                }
+                else -> {
+                    consoleItems.add("! unknown installer action")
+                    onResult(false)
                 }
             }
         }

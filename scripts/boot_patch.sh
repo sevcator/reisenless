@@ -131,8 +131,8 @@ if [ -n "$RAMDISK" ]; then
   fi
   if [ -z "$LEGACY_BACKUP_CONFIG" ]; then
     LEGACY_BACKUP_CONFIG=$(./mboot cpio $RAMDISK "ls .backup" 2>/dev/null \
-      | sed -n 's#.* \\.backup/\\.\\([[:alnum:]_-]*\\)$#\\1#p' \
-      | grep -v -E '^(magisk|cfg|rmlist)$' | head -n 1)
+      | sed -n 's#.*[[:space:]]\.backup/\(\.[[:alnum:]_-]*\)$#\1#p' \
+      | grep -v -E '^\.(magisk|cfg|rmlist)$' | head -n 1)
     [ -n "$LEGACY_BACKUP_CONFIG" ] && STATUS=1
   fi
   if [ "$STATUS" -eq 0 ] && [ -n "$LEGACY_BACKUP_CONFIG" ] \
@@ -164,12 +164,15 @@ case $STATUS in
     ui_print "- patched boot image detected"
 
     if ./mboot cpio $RAMDISK "exists .backup/$BACKUP_CONFIG" 2>/dev/null; then
-      ./mboot cpio $RAMDISK "extract .backup/$BACKUP_CONFIG config.orig" "restore"
+      ./mboot cpio $RAMDISK \
+        "extract .backup/$BACKUP_CONFIG config.orig" \
+        "rm .backup/$BACKUP_CONFIG" "restore"
     elif [ -n "$LEGACY_BACKUP_CONFIG" ] \
         && ./mboot cpio $RAMDISK "exists .backup/$LEGACY_BACKUP_CONFIG" 2>/dev/null; then
       ui_print "- migrating previous randomized boot marker"
       ./mboot cpio $RAMDISK \
-        "extract .backup/$LEGACY_BACKUP_CONFIG config.orig" "restore"
+        "extract .backup/$LEGACY_BACKUP_CONFIG config.orig" \
+        "rm .backup/$LEGACY_BACKUP_CONFIG" "restore"
     else
       ./mboot cpio $RAMDISK "extract .backup/.magisk config.orig" "restore"
     fi

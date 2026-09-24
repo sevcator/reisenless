@@ -1,6 +1,5 @@
 package com.topjohnwu.magisk.ui.flash
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -126,7 +124,6 @@ fun FlashScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScrollbar(listState, contentPadding = PaddingValues(vertical = 4.dp))
-                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 itemsIndexed(items) { _, line ->

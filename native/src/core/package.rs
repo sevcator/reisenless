@@ -157,7 +157,6 @@ impl ManagerInfo {
             Ok(mut fd) => read_certificate(&mut fd, MAGISK_VER_CODE),
             Err(_) => return Status::NotInstalled,
         };
-
         if cert.is_empty() || cert != self.trusted_cert {
             error!("pkg: APK signature mismatch: {}", apk);
             return Status::CertMismatch;
@@ -238,7 +237,9 @@ impl MagiskD {
             .join_path(BUILD_STUB_NAME);
 
         if let Ok(mut fd) = apk.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
-            info.trusted_cert = read_certificate(&mut fd, MAGISK_VER_CODE);
+            // The embedded trust-anchor stub has its own low versionCode and
+            // is not versioned like the randomized full manager release APK.
+            info.trusted_cert = read_certificate(&mut fd, -1);
         }
 
         apk.remove().log_ok();
@@ -269,8 +270,12 @@ impl MagiskD {
             return true;
         }
         let package_identity_matches = self.is_manager_uid(user, uid);
-        if !package_identity_matches || !self.package_has_exclusive_uid(user, APP_PACKAGE_NAME, uid)
-        {
+        if !package_identity_matches {
+            error!("manager auth: package identity rejected for uid={uid}");
+            return false;
+        }
+        if !self.package_has_exclusive_uid(user, APP_PACKAGE_NAME, uid) {
+            error!("manager auth: package uid is not exclusive for uid={uid}");
             return false;
         }
 
@@ -279,16 +284,25 @@ impl MagiskD {
             .join_path_fmt(user)
             .join_path(APP_PACKAGE_NAME);
         let Ok(data_attr) = data_path.get_attr() else {
+            error!("manager auth: package data directory missing for uid={uid}");
             return false;
         };
-        privileged_client_authorized(
+        let process_uid = process_uid(pid);
+        let authorized = privileged_client_authorized(
             uid,
             Some(data_attr.st.st_uid as i32),
             package_identity_matches,
             peer_context,
             data_attr.con.as_str(),
-            process_uid(pid),
-        )
+            process_uid,
+        );
+        if !authorized {
+            error!(
+                "manager auth: peer context/uid mismatch uid={uid} process_uid={process_uid:?} peer={peer_context} data={}",
+                data_attr.con
+            );
+        }
+        authorized
     }
 
     pub fn get_manager(&self, user: i32) -> (i32, String) {
