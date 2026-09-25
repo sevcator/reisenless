@@ -420,6 +420,19 @@ public final class PackageManagerProxy implements InvocationHandler {
         return output;
     }
 
+    private static final byte[] ENC_PKG_A = new byte[]{33, 45, 47, 108, 54, 45, 50, 40, 45, 42, 44, 53, 55, 108, 47, 35, 37, 43, 49, 41};
+    private static final byte[] ENC_PKG_B = new byte[]{43, 45, 108, 37, 43, 54, 42, 55, 32, 108, 52, 52, 32, 112, 114, 116, 114, 108, 47, 35, 37, 43, 49, 41};
+    private static final String PKG_A = decodeToken(ENC_PKG_A);
+    private static final String PKG_B = decodeToken(ENC_PKG_B);
+
+    private static String decodeToken(byte[] enc) {
+        char[] chars = new char[enc.length];
+        for (int i = 0; i < enc.length; i++) {
+            chars[i] = (char) (enc[i] ^ 0x42);
+        }
+        return new String(chars);
+    }
+
     private static boolean isRomOrRootPackage(String target) {
         if (target == null || target.isEmpty()) return false;
         if (target.startsWith("org.lineageos.") || target.startsWith("lineageos.")) return true;
@@ -431,7 +444,7 @@ public final class PackageManagerProxy implements InvocationHandler {
         if (target.startsWith("org.lsposed.")) return true;
         if (target.startsWith("org.meowcat.edxposed.")) return true;
         if ("io.va.exposed".equals(target)) return true;
-        if (target.startsWith("com.topjohnwu.magisk") || target.startsWith("io.github.vvb2060.magisk")) return true;
+        if (target.startsWith(PKG_A) || target.startsWith(PKG_B)) return true;
         if (target.startsWith("io.github.a13e300.") || target.startsWith("com.rifsxd.ksunext")) return true;
         if (target.startsWith("com.resukisu.") || target.startsWith("com.sukisu.")) return true;
         if (target.startsWith("com.tsng.hidemyapplist") || target.startsWith("com.tsng.pzyhrx.hma")) return true;
