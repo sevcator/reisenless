@@ -273,18 +273,13 @@ abstract class MagiskInstallImpl protected constructor(
             } else if (entry.name.contains("vbmeta.img")) {
                 val rawData = decompressedStream().readBytes()
 
-                if (rawData.size < 256)
-                    continue
-
-
-                Info.patchBootVbmeta = false
-
                 val name = entry.name.replace(".lz4", "")
-                console.add("-- patching  : $name")
-
-
-
-                ByteBuffer.wrap(rawData).putInt(120, 3)
+                if (patchVbmetaData(rawData)) {
+                    Info.patchBootVbmeta = false
+                    console.add("-- patching  : $name")
+                } else {
+                    console.add("-- skipping  : invalid $name")
+                }
 
 
                 val vbmeta = entry
@@ -657,6 +652,12 @@ abstract class CallBackInstaller : MagiskInstallImpl(DummyList, DummyList) {
         callback(success)
         return success
     }
+}
+
+internal fun patchVbmetaData(data: ByteArray): Boolean {
+    if (data.size < 256) return false
+    ByteBuffer.wrap(data).putInt(120, 3)
+    return true
 }
 
 class MagiskInstaller {

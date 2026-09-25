@@ -2411,6 +2411,8 @@ def parse_args():
 
     stub_parser = subparsers.add_parser("stub", help="build the manager trust anchor")
 
+    udonge_parser = subparsers.add_parser("udonge", help="build the built-in Udonge payload")
+
     clean_parser = subparsers.add_parser("clean", help="cleanup")
     clean_parser.add_argument(
         "targets", nargs="*", help="native, cpp, rust, java, or empty to clean all"
@@ -2477,6 +2479,7 @@ def parse_args():
     app_parser.set_defaults(func=build_app)
     app_legacy_parser.set_defaults(func=build_app_legacy)
     stub_parser.set_defaults(func=build_stub)
+    udonge_parser.set_defaults(func=build_udonge)
     emu_parser.set_defaults(func=setup_avd)
     avd_patch_parser.set_defaults(func=patch_avd_file)
     clean_parser.set_defaults(func=cleanup)

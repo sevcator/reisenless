@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -80,6 +81,7 @@ import com.topjohnwu.magisk.ui.component.ConfirmResult
 import com.topjohnwu.magisk.ui.component.MarkdownTextAsync
 import com.topjohnwu.magisk.ui.component.rememberConfirmDialog
 import com.topjohnwu.magisk.ui.component.verticalScrollbar
+import com.topjohnwu.magisk.ui.webui.WebUIActivity
 import com.topjohnwu.magisk.utils.textHolder
 import kotlinx.coroutines.launch
 import com.topjohnwu.magisk.core.R as CoreR
@@ -248,6 +250,7 @@ private fun ModuleCard(
     onUpdateClick: (OnlineModule?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val infoAlpha = if (!item.isRemoved && item.isEnabled && !item.showNotice) 1f else 0.5f
     val strikeThrough = if (item.isRemoved) TextDecoration.LineThrough else TextDecoration.None
     val colorScheme = MaterialTheme.colorScheme
@@ -342,6 +345,32 @@ private fun ModuleCard(
                     exit = fadeOut()
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (item.module.hasWebUi) {
+                            FilledTonalButton(
+                                shape = RoundedCornerShape(20.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                onClick = {
+                                    context.startActivity(
+                                        WebUIActivity.intent(context, item.module.id, item.module.name)
+                                    )
+                                },
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        modifier = Modifier.size(18.dp),
+                                        imageVector = Icons.Default.Language,
+                                        contentDescription = stringResource(CoreR.string.webui),
+                                    )
+                                    Text(
+                                        text = stringResource(CoreR.string.webui),
+                                        style = MaterialTheme.typography.labelLarge,
+                                    )
+                                }
+                            }
+                        }
                         if (item.showAction) {
                             FilledTonalButton(
                                 shape = RoundedCornerShape(20.dp),

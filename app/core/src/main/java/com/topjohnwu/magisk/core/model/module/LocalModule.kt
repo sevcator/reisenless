@@ -1,14 +1,13 @@
 package com.topjohnwu.magisk.core.model.module
 
-import com.squareup.moshi.JsonDataException
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.di.ServiceLocator
 import com.topjohnwu.magisk.core.utils.RootUtils
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.nio.ExtendedFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
-import java.io.IOException
 import java.util.Locale
 
 data class LocalModule(
@@ -110,8 +109,11 @@ data class LocalModule(
             updateInfo = OnlineModule(this, json)
             outdated = json.versionCode > versionCode
             return true
-        } catch (e: IOException) {
-        } catch (e: JsonDataException) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            updateInfo = null
+            outdated = false
         }
 
         return false

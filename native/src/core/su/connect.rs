@@ -137,6 +137,7 @@ impl SuAppContext<'_> {
         }
     }
 
+    #[allow(dead_code)]
     fn app_request(&mut self) {
         let mut fifo = cstr::buf::new::<64>();
         fifo.write_fmt(format_args!(
@@ -226,12 +227,12 @@ impl SuAppContext<'_> {
     }
 
     pub(super) fn connect_app(&mut self) {
-
         if self.settings.policy == SuPolicy::Query {
-            self.app_request();
+            self.settings.policy = SuPolicy::Deny;
+            return;
         }
 
-        if !self.settings.notify {
+        if self.settings.policy == SuPolicy::Deny || !self.settings.notify {
             return;
         }
 

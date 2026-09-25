@@ -1,0 +1,8 @@
+<resources>
+    <plurals name="hide_apps_service_active">
+        <item quantity="one">встроенный фильтр активен · правило приложения: %1$d</item>
+        <item quantity="few">встроенный фильтр активен · правила приложений: %1$d</item>
+        <item quantity="many">встроенный фильтр активен · правил приложений: %1$d</item>
+        <item quantity="other">встроенный фильтр активен · правила приложений: %1$d</item>
+    </plurals>
+</resources>

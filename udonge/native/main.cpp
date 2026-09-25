@@ -160,26 +160,42 @@ public:
         // Process names are application-controlled through android:process.
         // Bind package-hiding policy to the system-owned app data directory so
         // an ordinary app cannot name itself like an exempt system package.
-        std::string package = package_from_data_dir(jstr(args->app_data_dir));
-        if (package.empty()) package = base_package(process_name);
-        is_gms_unstable_ = package == "com.google.android.gms"
+        package_ = package_from_data_dir(jstr(args->app_data_dir));
+        if (package_.empty()) package_ = base_package(process_name);
+
+        if ((args->uid % 100000) < 10000 ||
+            package_ == "com.android.systemui" ||
+            process_name.find("systemui") != std::string::npos ||
+            process_name == "system_server") {
+            hide_apps_ = false;
+            cloak_ = false;
+            return;
+        }
+
+        is_gms_unstable_ = package_ == "com.google.android.gms"
                 && process_name == "com.google.android.gms.unstable";
-        if (!fetch_config(process_name, package)) return;
-        if ((args->uid % 100000) < 10000) cfg_.rom_keywords.clear();
-        hide_apps_ = !hide_dex_.empty() && !hide_rule_.empty();
+        if (!fetch_config(process_name, package_)) return;
+        hide_apps_ = !hide_dex_.empty() && (!hide_rule_.empty() || cfg_.shouldCloak(package_));
+        if (hide_apps_ && hide_rule_.empty()) {
+            hide_rule_ = "T\t" + package_ + "\tB\t0\t\t\t";
+        }
 
         // Child zygotes inherit the mount decision, but must not initialize
         // Binder or app-only Java services before their later forks.
         if (child_zygote) {
+            if (cfg_.shouldCloak(package_)) {
+                cloak_ = true;
+                keep_loaded_ = true;
+            }
             return;
         }
 
         if (is_gms_unstable_) return;
         // Cloak/stealth candidacy comes from the live targets configuration.
-        if (cfg_.shouldStealth(package)) {
+        if (cfg_.shouldStealth(package_)) {
             return;
         }
-        if (cfg_.shouldCloak(package)) {
+        if (cfg_.shouldCloak(package_)) {
             cloak_ = true;
             keep_loaded_ = true;
             cloak::hook_native_load(api_, env_);
@@ -192,8 +208,12 @@ public:
             // child-zygote FD audit rejects that descriptor on the next fork,
             // breaking app-zygote helpers and WebView renderers. Do not bypass
             // the audit or inherit a Binder connection across a zygote fork.
-            // Descendant package filtering needs a separate post-fork hook.
-            api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
+            // Native PLT hooks (stat, open, read, selinux_check_access) do not touch
+            // Binder and are safe to install in child_zygote.
+            if (cloak_) {
+                cloak::install_hooks(api_, &cfg_);
+            }
+            if (!keep_loaded_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
             return;
         }
         if (is_gms_unstable_) {
@@ -213,6 +233,7 @@ public:
             // Patch Build.TYPE and Build.TAGS static constants so Java-level
             // cross-checks (Build.TYPE vs fingerprint tail) see clean values.
             cloak::spoof_build_type(env_);
+            cloak::spoof_custom_rom(env_);
         }
         if (!keep_loaded_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
     }
@@ -316,6 +337,9 @@ static void companion_handler(int client) {
     std::string hide_dex;
     if (!hide_rule.empty() || target_config.shouldCloak(package)) {
         hide_dex = cloak::read_file(UDONGE_ROOT "/runtime/hideapps.dex");
+        if (hide_rule.empty()) {
+            hide_rule = "T\t" + package + "\tB\t0\t\t\t";
+        }
     }
     write_str(client, targets);
     write_str(client, props);

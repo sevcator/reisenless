@@ -18,10 +18,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
@@ -55,7 +58,8 @@ fun HideAppsScreen(viewModel: HideAppsViewModel, onBack: () -> Unit) {
     val query by viewModel.query.collectAsState()
     val status by viewModel.status.collectAsState()
     val showAppPicker = remember { mutableStateOf(false) }
-    val selectedApp = apps.firstOrNull { it.packageName == selectedCaller }
+    val isAllApps = selectedCaller == HideAppsViewModel.ALL_APPS_CALLER
+    val selectedApp = if (isAllApps) null else apps.firstOrNull { it.packageName == selectedCaller }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     if (showAppPicker.value) {
@@ -63,6 +67,10 @@ fun HideAppsScreen(viewModel: HideAppsViewModel, onBack: () -> Unit) {
             apps = apps.filter { it.packageName != com.topjohnwu.magisk.core.AppContext.packageName },
             onSelect = {
                 viewModel.selectCaller(it.packageName)
+                showAppPicker.value = false
+            },
+            onSelectAllApps = {
+                viewModel.selectCaller(HideAppsViewModel.ALL_APPS_CALLER)
                 showAppPicker.value = false
             },
             onDismiss = { showAppPicker.value = false },
@@ -89,11 +97,15 @@ fun HideAppsScreen(viewModel: HideAppsViewModel, onBack: () -> Unit) {
                 .padding(horizontal = 12.dp),
         ) {
             Text(
-                text = stringResource(
-                    if (status.available) CoreR.string.hide_apps_service_active
-                    else CoreR.string.hide_apps_service_inactive,
-                    status.filterCount,
-                ),
+                text = if (status.available) {
+                    pluralStringResource(
+                        CoreR.plurals.hide_apps_service_active,
+                        status.filterCount,
+                        status.filterCount,
+                    )
+                } else {
+                    stringResource(CoreR.string.hide_apps_service_inactive)
+                },
                 color = if (status.available) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
@@ -109,19 +121,34 @@ fun HideAppsScreen(viewModel: HideAppsViewModel, onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    selectedApp?.let {
-                        Image(
-                            painter = rememberDrawablePainter(it.icon),
+                    if (isAllApps) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
                             contentDescription = null,
                             modifier = Modifier.size(40.dp),
+                            tint = MaterialTheme.colorScheme.primary,
                         )
                         Spacer(Modifier.width(12.dp))
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(CoreR.string.hide_apps_querying_app), style = MaterialTheme.typography.labelMedium)
-                        Text(selectedApp?.label ?: stringResource(CoreR.string.hide_apps_choose_app))
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(CoreR.string.hide_apps_querying_app), style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(CoreR.string.hide_apps_all_apps), style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(CoreR.string.hide_apps_summary), style = MaterialTheme.typography.bodySmall)
+                        }
+                    } else {
                         selectedApp?.let {
-                            Text(it.packageName, style = MaterialTheme.typography.bodySmall)
+                            Image(
+                                painter = rememberDrawablePainter(it.icon),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                            )
+                            Spacer(Modifier.width(12.dp))
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(CoreR.string.hide_apps_querying_app), style = MaterialTheme.typography.labelMedium)
+                            Text(selectedApp?.label ?: stringResource(CoreR.string.hide_apps_choose_app))
+                            selectedApp?.let {
+                                Text(it.packageName, style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     }
                 }
@@ -131,26 +158,28 @@ fun HideAppsScreen(viewModel: HideAppsViewModel, onBack: () -> Unit) {
             SettingSwitchRow(
                 title = stringResource(CoreR.string.hide_apps_enable_rule),
                 checked = rule != null,
-                enabled = selectedApp != null,
+                enabled = isAllApps || selectedApp != null,
                 onCheckedChange = viewModel::setEnabled,
             )
-            SettingSwitchRow(
-                title = stringResource(CoreR.string.hide_apps_whitelist_mode),
-                summary = stringResource(
-                    if (rule?.useWhitelist == true) CoreR.string.hide_apps_whitelist_summary
-                    else CoreR.string.hide_apps_blacklist_summary,
-                ),
-                checked = rule?.useWhitelist == true,
-                enabled = rule != null,
-                onCheckedChange = viewModel::setWhitelist,
-            )
-            if (rule?.useWhitelist == true) {
+            if (!isAllApps) {
                 SettingSwitchRow(
-                    title = stringResource(CoreR.string.hide_apps_exclude_system),
-                    checked = rule?.excludeSystemApps == true,
-                    enabled = true,
-                    onCheckedChange = viewModel::setExcludeSystem,
+                    title = stringResource(CoreR.string.hide_apps_whitelist_mode),
+                    summary = stringResource(
+                        if (rule?.useWhitelist == true) CoreR.string.hide_apps_whitelist_summary
+                        else CoreR.string.hide_apps_blacklist_summary,
+                    ),
+                    checked = rule?.useWhitelist == true,
+                    enabled = rule != null,
+                    onCheckedChange = viewModel::setWhitelist,
                 )
+                if (rule?.useWhitelist == true) {
+                    SettingSwitchRow(
+                        title = stringResource(CoreR.string.hide_apps_exclude_system),
+                        checked = rule?.excludeSystemApps == true,
+                        enabled = true,
+                        onCheckedChange = viewModel::setExcludeSystem,
+                    )
+                }
             }
 
             OutlinedTextField(
@@ -222,6 +251,7 @@ private fun TargetRow(app: HidePackageInfo, checked: Boolean, enabled: Boolean, 
 private fun AppPickerDialog(
     apps: List<HidePackageInfo>,
     onSelect: (HidePackageInfo) -> Unit,
+    onSelectAllApps: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -230,6 +260,35 @@ private fun AppPickerDialog(
         text = {
             Box(Modifier.fillMaxWidth().height(420.dp)) {
                 LazyColumn {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectAllApps() }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = null,
+                                modifier = Modifier.size(36.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    stringResource(CoreR.string.hide_apps_all_apps),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Text(
+                                    stringResource(CoreR.string.hide_apps_summary),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    }
                     items(apps, key = { it.packageName }) { app ->
                         Row(
                             modifier = Modifier.fillMaxWidth().clickable { onSelect(app) }.padding(vertical = 8.dp),

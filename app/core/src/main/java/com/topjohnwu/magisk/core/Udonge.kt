@@ -1,17 +1,12 @@
 package com.topjohnwu.magisk.core
 
-import android.app.job.JobInfo
 import android.app.job.JobScheduler
-import android.content.ComponentName
 import android.content.Context
-import android.os.Build
 import android.util.Base64
 import com.topjohnwu.superuser.Shell
 
 object Udonge {
 
-    private const val UPDATE_INTERVAL_MS = 60L * 60L * 1000L
-    private const val UPDATE_FLEX_MS = 15L * 60L * 1000L
     const val DEFAULT_ROM_KEYWORDS =
         "lineage\n" +
         "crdroid\n" +
@@ -48,6 +43,19 @@ object Udonge {
     private val runtime = "$root/runtime"
     private val pendingReboot = "$state/pending-reboot"
 
+    @Volatile
+    private var cachedVersion: String = ""
+
+    fun version(): String {
+        if (cachedVersion.isNotEmpty()) return cachedVersion
+        val ver = runCatching {
+            val cmd = "cat '$runtime/version' 2>/dev/null || cat '$state/.version' 2>/dev/null"
+            com.topjohnwu.superuser.ShellUtils.fastCmd(cmd).trim()
+        }.getOrNull().orEmpty()
+        cachedVersion = if (ver.isNotEmpty()) ver else Info.env.versionString.ifEmpty { BuildConfig.APP_VERSION_NAME }
+        return cachedVersion
+    }
+
     fun setEnabled(enabled: Boolean): Boolean {
         val action = if (enabled) {
             "mkdir -p '$state' && " +
@@ -72,18 +80,11 @@ object Udonge {
     }
 
     fun setBackgroundUpdates(enabled: Boolean): Boolean {
-        val keyboxUpdates = enabled && Config.udongeEnabled
-        val action = if (keyboxUpdates) {
-            "mkdir -p '$state' && : > '$state/background-updates' && " +
-                ": > '$state/.keybox-refresh' && " +
-                "if [ ! -f '$pendingReboot' ] && [ -f '$runtime/service.sh' ]; then " +
-                "'$runtime/service.sh' </dev/null >/dev/null 2>&1 & fi"
-        } else {
-            "rm -f '$state/background-updates' '$state/.keybox-refresh'"
-        }
+        if (enabled) return false
+        val action = "rm -f '$state/background-updates' '$state/.keybox-refresh'"
         val success = Shell.cmd(action).exec().isSuccess
         if (success) {
-            Config.udongeBackgroundUpdates = enabled
+            Config.udongeBackgroundUpdates = false
             scheduleBackgroundUpdates(AppContext)
         }
         return success
@@ -138,6 +139,17 @@ object Udonge {
         }
     }
 
+    fun refreshKeyboxes(): Boolean {
+        if (!Config.udongeEnabled || !Config.udongeBackgroundUpdates) {
+            return Shell.cmd("rm -f '$state/.keybox-refresh'").exec().isSuccess
+        }
+        return Shell.cmd(
+            "mkdir -p '$state' && : > '$state/.keybox-refresh' && " +
+                "if [ ! -f '$pendingReboot' ] && [ -f '$runtime/service.sh' ]; then " +
+                "'$runtime/service.sh' </dev/null >/dev/null 2>&1 & fi"
+        ).exec().isSuccess
+    }
+
     private fun writeKeyboxUrls(value: String, execute: (String) -> Boolean): Boolean {
         val normalized = value.lineSequence()
             .map(String::trim)
@@ -159,46 +171,14 @@ object Udonge {
         return execute(command)
     }
 
-    fun refreshKeyboxes(): Boolean {
-        if (!Config.udongeEnabled || !Config.udongeBackgroundUpdates) {
-            return Shell.cmd("rm -f '$state/.keybox-refresh'").exec().isSuccess
-        }
-        return Shell.cmd(
-            "mkdir -p '$state' && : > '$state/.keybox-refresh' && " +
-                "if [ ! -f '$pendingReboot' ] && [ -f '$runtime/service.sh' ]; then " +
-                "'$runtime/service.sh' </dev/null >/dev/null 2>&1 & fi"
-        ).exec().isSuccess
-    }
-
     fun scheduleBackgroundUpdates(context: Context) {
         val scheduler = context.getSystemService(JobScheduler::class.java)
-        val enabled = Config.udongeEnabled && Config.udongeBackgroundUpdates
-        if (!enabled) {
-            scheduler.cancel(Const.ID.BACKGROUND_UPDATE_JOB_ID)
-            return
+        // Eirin is intentionally UI-only for now. Cancel any persisted hourly
+        // job left by older builds so it cannot keep waking the app in idle.
+        scheduler.cancel(Const.ID.BACKGROUND_UPDATE_JOB_ID)
+        if (Config.udongeBackgroundUpdates) {
+            Config.udongeBackgroundUpdates = false
         }
-        val service = ComponentName(context, BackgroundUpdateJobService::class.java)
-        val builder = JobInfo.Builder(Const.ID.BACKGROUND_UPDATE_JOB_ID, service)
-            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-            .setPersisted(true)
-        if (Build.VERSION.SDK_INT >= 24) {
-            builder.setPeriodic(UPDATE_INTERVAL_MS, UPDATE_FLEX_MS)
-        } else {
-            builder.setPeriodic(UPDATE_INTERVAL_MS)
-        }
-        val job = builder.build()
-        scheduler.schedule(job)
-    }
-
-    fun runBackgroundUpdates(): Boolean {
-        if (!Config.udongeEnabled || !Config.udongeBackgroundUpdates) {
-            return Shell.cmd("rm -f '$state/.keybox-refresh'").exec().isSuccess
-        }
-        return Shell.cmd(
-            "mkdir -p '$state' && : > '$state/.keybox-refresh' && " +
-                "if [ ! -f '$pendingReboot' ] && [ -f '$runtime/service.sh' ]; then " +
-                "'$runtime/service.sh' </dev/null >/dev/null 2>&1; fi"
-        ).exec().isSuccess
     }
 
     fun setRomKeywords(value: String): Boolean = setRomKeywords(value) { command ->

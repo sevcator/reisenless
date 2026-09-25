@@ -1,11 +1,10 @@
 package com.topjohnwu.magisk.ui.webui
 
+import android.net.Uri
 import android.webkit.MimeTypeMap
 import android.webkit.WebResourceResponse
 import androidx.webkit.WebViewAssetLoader
 import java.io.File
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 
 
 internal class RootFsPathHandler(
@@ -16,7 +15,8 @@ internal class RootFsPathHandler(
 
     override fun handle(path: String): WebResourceResponse {
         return try {
-            val decoded = URLDecoder.decode(path.removePrefix("/"), StandardCharsets.UTF_8.name())
+            // URLDecoder applies form-encoding rules and turns literal '+' into a space.
+            val decoded = Uri.decode(path.removePrefix("/"))
             val file = File(root, decoded).canonicalFile
             if (file.path != root.path && !file.path.startsWith(rootPrefix)) {
                 return notFound()
@@ -24,7 +24,7 @@ internal class RootFsPathHandler(
 
             if (!file.isFile) return notFound()
             WebResourceResponse(mimeType(file.name), null, file.inputStream())
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             notFound()
         }
     }

@@ -41,6 +41,7 @@ import com.topjohnwu.magisk.core.R
 import com.topjohnwu.magisk.core.di.ServiceLocator
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
@@ -351,7 +352,9 @@ fun MarkdownTextAsync(
     LaunchedEffect(Unit) {
         try {
             mdText = withContext(Dispatchers.IO) { getMarkdownText() }
-        } catch (e: IOException) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
             error = true
         }
     }

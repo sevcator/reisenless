@@ -241,7 +241,19 @@ start_tee() {
     fi
     target="$tee_state/target.txt"
     if [ ! -f "$target" ]; then
-        printf 'com.android.vending\ncom.google.android.gms\n' > "$target"
+        if [ -f "$state/targets.conf" ]; then
+            cp "$state/targets.conf" "$target"
+        elif [ -f "$runtime/defaults/targets.conf" ]; then
+            cp "$runtime/defaults/targets.conf" "$target"
+        else
+            printf 'com.android.vending\ncom.google.android.gms\n' > "$target"
+        fi
+    fi
+    if [ -f "$state/targets.conf" ]; then
+        while IFS= read -r pkg; do
+            [ -n "$pkg" ] || continue
+            grep -qxF "$pkg" "$target" 2>/dev/null || printf '%s\n' "$pkg" >> "$target"
+        done < "$state/targets.conf"
     fi
     if [ ! -f "$tee_state/security_patch.txt" ] || {
         grep -q '^system=' "$tee_state/security_patch.txt" &&

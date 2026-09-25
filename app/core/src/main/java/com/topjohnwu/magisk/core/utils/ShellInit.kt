@@ -62,9 +62,24 @@ class ShellInit : Shell.Initializer() {
         if (shell.isRoot) {
             runCatching { SulistController.importExistingRootGrants(context) }
             Udonge.syncState(context, shell)
+            cleanupObsoleteManagers(context, shell)
         }
 
         return true
+    }
+
+    private fun cleanupObsoleteManagers(context: Context, shell: Shell) {
+        runCatching {
+            val pm = context.packageManager
+            val currentPkg = context.packageName
+            val installed = pm.getInstalledApplications(0)
+            for (app in installed) {
+                val pkg = app.packageName
+                if (pkg != currentPkg && pm.checkSignatures(currentPkg, pkg) == android.content.pm.PackageManager.SIGNATURE_MATCH) {
+                    shell.newJob().add("pm uninstall '$pkg'").exec()
+                }
+            }
+        }
     }
 
 }

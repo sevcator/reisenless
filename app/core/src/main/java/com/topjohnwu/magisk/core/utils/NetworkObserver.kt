@@ -20,6 +20,7 @@ class NetworkObserver(context: Context) {
     private val appContext = context.applicationContext
     private val manager = appContext.getSystemService<ConnectivityManager>()!!
     private val activeNetworks = ArraySet<Network>()
+    private var observing = false
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
@@ -47,7 +48,9 @@ class NetworkObserver(context: Context) {
         }
     }
 
-    init {
+    fun start() {
+        if (observing) return
+        observing = true
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
             .build()
@@ -55,6 +58,15 @@ class NetworkObserver(context: Context) {
         val filter = IntentFilter(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)
         appContext.registerRuntimeReceiver(receiver, filter)
         postCurrentState()
+    }
+
+    fun stop() {
+        if (!observing) return
+        observing = false
+        manager.unregisterNetworkCallback(networkCallback)
+        appContext.unregisterReceiver(receiver)
+        activeNetworks.clear()
+        Info.isConnected.postValue(false)
     }
 
     private fun postCurrentState() {

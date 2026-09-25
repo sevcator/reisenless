@@ -1,0 +1,6 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <plurals name="hide_apps_service_active" tools:ignore="MissingTranslation">
+        <item quantity="one">built-in filter active · %1$d app rule</item>
+        <item quantity="other">built-in filter active · %1$d app rules</item>
+    </plurals>
+</resources>

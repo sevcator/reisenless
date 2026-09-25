@@ -27,6 +27,8 @@ import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.launch
 import java.io.File
 import java.lang.ref.WeakReference
+import java.util.Collections
+import java.util.IdentityHashMap
 
 lateinit var AppApkPath: String
     private set
@@ -42,6 +44,9 @@ object AppContext : ContextWrapper(null),
     private lateinit var application: Application
     private lateinit var networkObserver: NetworkObserver
     private var profileInstallScheduled = false
+    private val startedActivities = Collections.newSetFromMap(
+        IdentityHashMap<Activity, Boolean>()
+    )
 
     init {
         Os.setenv("PATH", "${Os.getenv("PATH")}:/debug_ramdisk:/sbin", true)
@@ -52,6 +57,11 @@ object AppContext : ContextWrapper(null),
     }
 
     override fun onActivityStarted(activity: Activity) {
+        if (activity !is UntrackedActivity && startedActivities.add(activity) &&
+            startedActivities.size == 1
+        ) {
+            networkObserver.start()
+        }
         if (!profileInstallScheduled && !BuildConfig.DEBUG) {
             profileInstallScheduled = true
             GlobalScope.launch(Dispatchers.IO) {
@@ -167,7 +177,13 @@ object AppContext : ContextWrapper(null),
     }
 
     override fun onActivityCreated(activity: Activity, bundle: Bundle?) {}
-    override fun onActivityStopped(activity: Activity) {}
+    override fun onActivityStopped(activity: Activity) {
+        if (activity !is UntrackedActivity && startedActivities.remove(activity) &&
+            startedActivities.isEmpty()
+        ) {
+            networkObserver.stop()
+        }
+    }
     override fun onActivitySaveInstanceState(activity: Activity, bundle: Bundle) {}
     override fun onActivityDestroyed(activity: Activity) {}
     override fun onLowMemory() {}

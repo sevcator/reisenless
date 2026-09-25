@@ -61,7 +61,7 @@ fun FlashScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("${stringResource(CoreR.string.flash_screen_title)} - $statusText") },
+                title = { Text(statusText) },
                 navigationIcon = {
                     IconButton(
                         modifier = Modifier.padding(start = 16.dp),

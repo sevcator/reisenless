@@ -91,16 +91,54 @@ public final class PackageManagerProxy implements InvocationHandler {
                 new PackageManagerProxy(delegate, caller, rule));
     }
 
+    private static volatile Object sWrappedPackageManager = null;
+
     public static void installFrameworkCaches(Object packageManager) {
-        if (packageManager == null) return;
+        installFrameworkCaches(packageManager, null);
+    }
+
+    public static void installFrameworkCaches(Object packageManager, String caller) {
+        if (caller != null && isSystemProcess(caller)) {
+            return;
+        }
+        if (Process.myUid() % 100000 < 10000) {
+            return;
+        }
+        if (packageManager != null) {
+            sWrappedPackageManager = packageManager;
+            try {
+                Class<?> activityThread = Class.forName("android.app.ActivityThread");
+                setStaticField(activityThread, "sPackageManager", packageManager);
+                Object thread = invokeStatic(activityThread, "currentActivityThread");
+                if (thread != null) installContextCache(invoke(thread, "getSystemContext"), packageManager);
+                installContextCache(invokeStatic(activityThread, "currentApplication"), packageManager);
+            } catch (ReflectiveOperationException ignored) {
+                // Framework layouts differ by release; each cache is best effort.
+            }
+        }
+
         try {
-            Class<?> activityThread = Class.forName("android.app.ActivityThread");
-            setStaticField(activityThread, "sPackageManager", packageManager);
-            Object thread = invokeStatic(activityThread, "currentActivityThread");
-            if (thread != null) installContextCache(invoke(thread, "getSystemContext"), packageManager);
-            installContextCache(invokeStatic(activityThread, "currentApplication"), packageManager);
-        } catch (ReflectiveOperationException ignored) {
-            // Framework layouts differ by release; each cache is best effort.
+            Class<?> assetManager = Class.forName("android.content.res.AssetManager");
+            Field field = assetManager.getDeclaredField("LINEAGE_APK_PATH");
+            field.setAccessible(true);
+            try {
+                field.set(null, null);
+            } catch (Throwable e) {
+                try {
+                    Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
+                    Field theUnsafe = unsafeClass.getDeclaredField("theUnsafe");
+                    theUnsafe.setAccessible(true);
+                    Object unsafe = theUnsafe.get(null);
+                    Method staticFieldBase = unsafeClass.getMethod("staticFieldBase", Field.class);
+                    Method staticFieldOffset = unsafeClass.getMethod("staticFieldOffset", Field.class);
+                    Method putObject = unsafeClass.getMethod("putObject", Object.class, long.class, Object.class);
+                    Object base = staticFieldBase.invoke(unsafe, field);
+                    long offset = ((Number) staticFieldOffset.invoke(unsafe, field)).longValue();
+                    putObject.invoke(unsafe, base, offset, null);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
         }
 
         try {
@@ -111,13 +149,104 @@ public final class PackageManagerProxy implements InvocationHandler {
             if (value instanceof Map<?, ?>) {
                 @SuppressWarnings("unchecked")
                 Map<String, IBinder> cache = (Map<String, IBinder>) value;
-                IBinder binder = cache.get("package");
-                if (binder != null && !Proxy.isProxyClass(binder.getClass())) {
-                    cache.put("package", wrapBinder(binder, packageManager));
+                cache.entrySet().removeIf(entry -> isLineageService(entry.getKey()));
+                if (packageManager != null) {
+                    IBinder binder = cache.get("package");
+                    if (binder != null && !Proxy.isProxyClass(binder.getClass())) {
+                        cache.put("package", wrapBinder(binder, packageManager));
+                    }
                 }
             }
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
+
+            Method getIServiceManager = serviceManager.getDeclaredMethod("getIServiceManager");
+            getIServiceManager.setAccessible(true);
+            Object sm = getIServiceManager.invoke(null);
+            if (sm != null && !Proxy.isProxyClass(sm.getClass())) {
+                Class<?> iServiceManagerClass = Class.forName("android.os.IServiceManager");
+                Object smProxy = Proxy.newProxyInstance(
+                        PackageManagerProxy.class.getClassLoader(),
+                        new Class<?>[]{iServiceManagerClass},
+                        new ServiceManagerProxy(sm));
+                Field sSmField = serviceManager.getDeclaredField("sServiceManager");
+                sSmField.setAccessible(true);
+                sSmField.set(null, smProxy);
+            }
+        } catch (Throwable ignored) {
             // ActivityThread remains protected if ServiceManager internals change.
+        }
+    }
+
+    private static boolean isLineageService(Object key) {
+        if (!(key instanceof String)) return false;
+        String name = (String) key;
+        return name.contains("lineage") || "profile".equals(name);
+    }
+
+    private static final class ServiceManagerProxy implements InvocationHandler {
+        private final Object delegate;
+
+        ServiceManagerProxy(Object delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            String name = method.getName();
+            if (("getService".equals(name) || "checkService".equals(name)) && args != null && args.length > 0) {
+                if (isLineageService(args[0])) {
+                    return null;
+                }
+                if ("package".equals(args[0]) && sWrappedPackageManager != null) {
+                    try {
+                        Object binder = method.invoke(delegate, args);
+                        if (binder instanceof IBinder) {
+                            return wrapBinder((IBinder) binder, sWrappedPackageManager);
+                        }
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                }
+            }
+            if ("getService2".equals(name) && args != null && args.length > 0) {
+                if (isLineageService(args[0])) {
+                    try {
+                        return method.invoke(delegate, new Object[]{"_reisenless_none"});
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                }
+            }
+            if ("listServices".equals(name)) {
+                try {
+                    Object result = method.invoke(delegate, args);
+                    if (result instanceof String[]) {
+                        String[] services = (String[]) result;
+                        List<String> filtered = new ArrayList<>(services.length);
+                        for (String s : services) {
+                            if (!isLineageService(s)) filtered.add(s);
+                        }
+                        return filtered.toArray(new String[0]);
+                    }
+                    return result;
+                } catch (InvocationTargetException e) {
+                    throw e.getCause();
+                }
+            }
+            if ("isDeclared".equals(name) && args != null && args.length > 0) {
+                if (isLineageService(args[0])) {
+                    return false;
+                }
+            }
+            if ("getDeclaredInstances".equals(name) && args != null && args.length > 0) {
+                if (isLineageService(args[0])) {
+                    return new String[0];
+                }
+            }
+            try {
+                return method.invoke(delegate, args);
+            } catch (InvocationTargetException e) {
+                throw e.getCause();
+            }
         }
     }
 
@@ -181,12 +310,28 @@ public final class PackageManagerProxy implements InvocationHandler {
     }
 
     private static boolean isSystemProcess(String caller) {
-        return Process.myUid() % 100000 < 10000 || "android".equals(caller);
+        if (Process.myUid() % 100000 < 10000) return true;
+        if (caller == null || caller.isEmpty()) return false;
+        return "android".equals(caller)
+                || "system".equals(caller)
+                || caller.contains("systemui")
+                || caller.startsWith("com.android.server.");
     }
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         String name = method.getName();
+        if ("asBinder".equals(name)) {
+            try {
+                Object binder = method.invoke(delegate, args);
+                if (binder instanceof IBinder) {
+                    return wrapBinder((IBinder) binder, proxy);
+                }
+                return binder;
+            } catch (InvocationTargetException e) {
+                throw e.getCause();
+            }
+        }
         if (hasHiddenExplicitPackage(name, args)) return hiddenValue(method.getReturnType(), name);
         final Object result;
         try {
@@ -275,10 +420,30 @@ public final class PackageManagerProxy implements InvocationHandler {
         return output;
     }
 
+    private static boolean isRomOrRootPackage(String target) {
+        if (target == null || target.isEmpty()) return false;
+        if (target.startsWith("org.lineageos.") || target.startsWith("lineageos.")) return true;
+        if (target.startsWith("org.protonaosp.")) return true;
+        if (target.startsWith("co.aospa.")) return true;
+        if (target.startsWith("com.crdroid.")) return true;
+        if (target.startsWith("org.omnirom.")) return true;
+        if (target.startsWith("io.chaldeaprjkt.")) return true;
+        if (target.startsWith("org.lsposed.")) return true;
+        if (target.startsWith("org.meowcat.edxposed.")) return true;
+        if ("io.va.exposed".equals(target)) return true;
+        if (target.startsWith("com.topjohnwu.magisk") || target.startsWith("io.github.vvb2060.magisk")) return true;
+        if (target.startsWith("io.github.a13e300.") || target.startsWith("com.rifsxd.ksunext")) return true;
+        if (target.startsWith("com.resukisu.") || target.startsWith("com.sukisu.")) return true;
+        if (target.startsWith("com.tsng.hidemyapplist") || target.startsWith("com.tsng.pzyhrx.hma")) return true;
+        if (target.startsWith("com.topmiaohan.hidebllist")) return true;
+        return false;
+    }
+
     private boolean shouldHide(String target) {
         if (target == null || target.isEmpty() || target.equals(caller)) return false;
         if (NEVER_HIDE.contains(target)) return false;
         if (target.equals(manager)) return true;
+        if (isRomOrRootPackage(target)) return true;
         if (whitelist && excludeSystem && systemPackages.contains(target)) return false;
         return whitelist ? !selected.contains(target) : selected.contains(target);
     }

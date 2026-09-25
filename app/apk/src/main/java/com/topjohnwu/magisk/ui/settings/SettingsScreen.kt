@@ -11,15 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -28,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -41,7 +37,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
-import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.core.model.ColorMode
 import com.topjohnwu.magisk.core.utils.LocaleSetting
 import com.topjohnwu.magisk.ui.ThemeState
@@ -52,9 +47,6 @@ import com.topjohnwu.magisk.ui.component.SettingsSwitchAction
 import com.topjohnwu.magisk.ui.component.SmallTitle
 import com.topjohnwu.magisk.ui.component.verticalScrollbar
 import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import com.topjohnwu.magisk.core.R as CoreR
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -246,152 +238,31 @@ private fun UdongeSection(
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val scope = rememberCoroutineScope()
     val udongeEnabled by viewModel.udongeEnabled.collectAsStateWithLifecycle()
-    var backgroundUpdates by remember { mutableStateOf(Config.udongeBackgroundUpdates) }
-    var romHiding by remember { mutableStateOf(Config.udongeRomHidingEnabled) }
-    var showKeyboxes by rememberSaveable { mutableStateOf(false) }
-    var showRomKeywords by rememberSaveable { mutableStateOf(false) }
-    var keyboxUrls by rememberSaveable { mutableStateOf(Config.udongeKeyboxUrls) }
-    var romKeywords by rememberSaveable { mutableStateOf(Config.udongeRomKeywords) }
-
+    var eirinEnabled by remember { mutableStateOf(false) }
     LaunchedEffect(udongeEnabled) {
-        backgroundUpdates = Config.udongeBackgroundUpdates
-        romHiding = Config.udongeRomHidingEnabled
+        if (!udongeEnabled) eirinEnabled = false
     }
 
-    fun applyAsync(action: () -> Boolean, rollback: () -> Unit = {}) {
-        scope.launch {
-            if (!withContext(Dispatchers.IO) { action() }) rollback()
-        }
-    }
-
-    if (showKeyboxes) {
-        TextListDialog(
-            title = stringResource(CoreR.string.udonge_keybox_list_title),
-            hint = stringResource(CoreR.string.udonge_keybox_hint),
-            value = keyboxUrls,
-            onValueChange = { keyboxUrls = it },
-            onDismiss = { showKeyboxes = false },
-            onConfirm = {
-                showKeyboxes = false
-                applyAsync({
-                    Udonge.setKeyboxUrls(keyboxUrls) && Udonge.refreshKeyboxes()
-                })
-            },
-        )
-    }
-
-    if (showRomKeywords) {
-        TextListDialog(
-            title = stringResource(CoreR.string.udonge_rom_keywords_config_title),
-            hint = stringResource(CoreR.string.udonge_rom_keywords_hint),
-            value = romKeywords,
-            onValueChange = { romKeywords = it },
-            onDismiss = { showRomKeywords = false },
-            onConfirm = {
-                showRomKeywords = false
-                applyAsync({
-                    Udonge.setRomKeywords(romKeywords).also { success ->
-                        if (success) HideAppsRootClient.syncRomKeywordsHideApps(romKeywords)
-                    }
-                })
-            },
-        )
-    }
-
-    SmallTitle(text = stringResource(CoreR.string.udonge))
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
-        // 1. Pass Strong Integrity (Switch)
         SettingsSwitch(
             title = stringResource(CoreR.string.udonge_integrity_title),
-            summary = stringResource(CoreR.string.udonge_integrity_summary),
+            summary = stringResource(CoreR.string.udonge_version_label, remember { com.topjohnwu.magisk.core.Udonge.version() }) + " · " + stringResource(CoreR.string.udonge_integrity_summary),
             checked = udongeEnabled,
             onCheckedChange = { viewModel.toggleUdonge(it) },
         )
-
-        // 2. Allow Background Updates (Switch)
         SettingsSwitch(
             title = stringResource(CoreR.string.udonge_background_updates_title),
             summary = stringResource(CoreR.string.udonge_background_updates_summary),
-            checked = backgroundUpdates,
+            checked = eirinEnabled,
             enabled = udongeEnabled,
-            onCheckedChange = { next ->
-                backgroundUpdates = next
-                applyAsync({ Udonge.setBackgroundUpdates(next) }) {
-                    backgroundUpdates = !next
-                }
-            },
-        )
-
-        // 3. Keybox Sources (Button)
-        SettingsArrow(
-            title = stringResource(CoreR.string.udonge_keybox_list_title),
-            summary = stringResource(CoreR.string.udonge_keybox_list_summary),
-            onClick = { showKeyboxes = true },
-        )
-
-        // 4. Hide Your System Things (Switch + Button)
-        SettingsSwitch(
-            title = stringResource(CoreR.string.udonge_rom_keywords_title),
-            summary = stringResource(CoreR.string.udonge_rom_keywords_summary),
-            checked = romHiding,
-            enabled = udongeEnabled,
-            onCheckedChange = { next ->
-                romHiding = next
-                applyAsync({
-                    Udonge.setRomHidingEnabled(next).also { success ->
-                        if (success) {
-                            HideAppsRootClient.syncRomKeywordsHideApps(
-                                if (next) Config.udongeRomKeywords else "",
-                            )
-                        }
-                    }
-                }) { romHiding = !next }
-            },
-        )
-        SettingsArrow(
-            title = stringResource(CoreR.string.udonge_rom_keywords_config_title),
-            summary = stringResource(CoreR.string.udonge_rom_keywords_config_summary),
-            enabled = udongeEnabled,
-            onClick = { showRomKeywords = true },
+            onCheckedChange = { eirinEnabled = it },
         )
     }
-}
-
-@Composable
-private fun TextListDialog(
-    title: String,
-    hint: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                maxLines = 10,
-                label = { Text(hint) },
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text(stringResource(android.R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
-        },
-    )
 }
 
 // --- Superuser ---

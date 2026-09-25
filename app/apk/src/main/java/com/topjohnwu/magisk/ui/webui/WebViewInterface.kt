@@ -47,9 +47,11 @@ internal class WebViewInterface(
             if (args.isNotBlank()) {
                 val values = runCatching { org.json.JSONArray(args) }.getOrNull()
                 if (values != null) {
+                    val arguments = ArrayList<String>(values.length())
                     for (index in 0 until values.length()) {
-                        append(' ').append(values.optString(index))
+                        arguments += values.optString(index)
                     }
+                    append(WebUiCommandBuilder.appendArguments("", arguments))
                 }
             }
         }
@@ -87,13 +89,16 @@ internal class WebViewInterface(
 
     private fun withOptions(command: String, options: String?): String {
         val opts = options?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return command
-        return buildString {
-            opts.optString("cwd").takeIf { it.isNotBlank() }?.let { append("cd ").append(it).append(';') }
-            opts.optJSONObject("env")?.keys()?.forEach { key ->
-                append("export ").append(key).append('=').append(opts.getJSONObject("env").getString(key)).append(';')
+        val environment = buildMap {
+            opts.optJSONObject("env")?.let { env ->
+                val keys = env.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    put(key, env.optString(key))
+                }
             }
-            append(command)
         }
+        return WebUiCommandBuilder.withOptions(command, opts.optString("cwd"), environment)
     }
 
     private fun runCommand(command: String, timeoutSeconds: Int? = 5): CommandResult {
@@ -109,7 +114,7 @@ internal class WebViewInterface(
         )
     }
 
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
+    private fun shellQuote(value: String): String = WebUiCommandBuilder.shellQuote(value)
 
     private fun postCallback(callback: String, result: CommandResult) {
         val js = """

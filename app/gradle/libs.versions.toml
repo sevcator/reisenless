@@ -13,8 +13,10 @@ compose-m3 = "1.4.0"
 navigation3 = "1.1.7"
 navigationevent = "1.1.2"
 wire = "6.4.7"
+junit = "4.13.2"
 
 [libraries]
+junit = { module = "junit:junit", version.ref = "junit" }
 bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version = "1.85" }
 commons-compress = { module = "org.apache.commons:commons-compress", version = "1.28.0" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }

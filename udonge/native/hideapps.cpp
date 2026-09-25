@@ -32,10 +32,7 @@ void exempt_hidden_apis(JNIEnv *env) {
     jobject runtime = env->CallStaticObjectMethod(vm_class, get_runtime);
     jclass string_class = env->FindClass("java/lang/String");
     static constexpr const char *kPrefixes[] = {
-        "Landroid/app/ActivityThread;",
-        "Landroid/app/ApplicationPackageManager;",
-        "Landroid/content/pm/ParceledListSlice;",
-        "Landroid/os/ServiceManager;",
+        "L",
     };
     jobjectArray prefixes = env->NewObjectArray(
             sizeof(kPrefixes) / sizeof(kPrefixes[0]), string_class, nullptr);
@@ -52,8 +49,11 @@ void exempt_hidden_apis(JNIEnv *env) {
 
 bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
              const std::string &dex) {
-    if (!env || caller.empty() || dex.empty() || rule.empty()) {
+    if (!env || dex.empty() || rule.empty()) {
         return false;
+    }
+    if (caller.find("systemui") != std::string::npos || caller == "android" || caller == "system") {
+        return true;
     }
     exempt_hidden_apis(env);
 
@@ -72,11 +72,7 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
             original = env->CallStaticObjectMethod(activity_thread, get_package_manager);
         }
     }
-    if (!original) {
-        clear_exception(env);
-        return false;
-    }
-    if (clear_exception(env)) return false;
+    clear_exception(env);
 
     jbyteArray bytes = env->NewByteArray(static_cast<jsize>(dex.size()));
     env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(dex.size()),
@@ -120,28 +116,40 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
     }
     if (clear_exception(env)) return false;
 
-    jmethodID wrap_proxy = env->GetStaticMethodID(
-            proxy_class, "wrap",
-            "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;");
-    jstring caller_string = env->NewStringUTF(caller.c_str());
-    jstring rule_string = env->NewStringUTF(rule.c_str());
-    jobject proxy = wrap_proxy
-            ? env->CallStaticObjectMethod(proxy_class, wrap_proxy, original,
-                                          caller_string, rule_string)
-            : nullptr;
-    if (!proxy) {
-        clear_exception(env);
-        return false;
+    jobject proxy = nullptr;
+    if (original) {
+        jmethodID wrap_proxy = env->GetStaticMethodID(
+                proxy_class, "wrap",
+                "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;");
+        jstring caller_string = env->NewStringUTF(caller.c_str());
+        jstring rule_string = env->NewStringUTF(rule.c_str());
+        proxy = wrap_proxy
+                ? env->CallStaticObjectMethod(proxy_class, wrap_proxy, original,
+                                              caller_string, rule_string)
+                : nullptr;
+        if (!proxy) {
+            clear_exception(env);
+            return false;
+        }
+        if (clear_exception(env)) return false;
     }
-    if (clear_exception(env)) return false;
 
     jmethodID install_caches = env->GetStaticMethodID(
-            proxy_class, "installFrameworkCaches", "(Ljava/lang/Object;)V");
+            proxy_class, "installFrameworkCaches", "(Ljava/lang/Object;Ljava/lang/String;)V");
     if (!install_caches) {
         clear_exception(env);
-        return false;
+        install_caches = env->GetStaticMethodID(
+                proxy_class, "installFrameworkCaches", "(Ljava/lang/Object;)V");
+        if (!install_caches) {
+            clear_exception(env);
+            return false;
+        }
+        env->CallStaticVoidMethod(proxy_class, install_caches, proxy);
+    } else {
+        jstring caller_str = env->NewStringUTF(caller.c_str());
+        env->CallStaticVoidMethod(proxy_class, install_caches, proxy, caller_str);
+        if (caller_str) env->DeleteLocalRef(caller_str);
     }
-    env->CallStaticVoidMethod(proxy_class, install_caches, proxy);
     if (clear_exception(env)) return false;
     return true;
 }

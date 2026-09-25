@@ -12,6 +12,7 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewAssetLoader
 import com.topjohnwu.magisk.core.Const
@@ -33,7 +34,7 @@ class WebUIActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val moduleId = intent.getStringExtra(EXTRA_MODULE_ID)
-        if (moduleId == null || !MODULE_ID.matches(moduleId)) {
+        if (moduleId == null || !WebUiCommandBuilder.isValidModuleId(moduleId)) {
             finish()
             return
         }
@@ -91,7 +92,13 @@ class WebUIActivity : ComponentActivity() {
             ) = loader.shouldInterceptRequest(request.url)
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (request.url.host == WEB_DOMAIN) return false
+                if (WebUiCommandBuilder.isInternalUrl(
+                        request.url.scheme,
+                        request.url.host,
+                        request.url.port,
+                    )
+                ) return false
+                if (request.url.scheme != "http" && request.url.scheme != "https") return true
                 return try {
                     startActivity(externalViewIntent(request.url))
                     true
@@ -106,8 +113,11 @@ class WebUIActivity : ComponentActivity() {
     }
 
     private fun prepareWebRoot(moduleId: String): File? {
+        if (!WebUiCommandBuilder.isValidModuleId(moduleId)) return null
         val source = File(Const.MODULE_PATH, "$moduleId/webroot")
-        val target = File(cacheDir, "webui/$moduleId")
+        val targetRoot = File(cacheDir, "webui").canonicalFile
+        val target = File(targetRoot, moduleId)
+        if (!target.canonicalPath.startsWith(targetRoot.path + File.separator)) return null
         val command = """
             rm -rf ${shellQuote(target.path)} &&
             mkdir -p ${shellQuote(target.path)} &&
@@ -127,10 +137,10 @@ class WebUIActivity : ComponentActivity() {
             .setNegativeButton(android.R.string.cancel) { _, _ -> finish() }
             .setPositiveButton(CoreR.string.webui_install_webview) { _, _ ->
                 val market = externalViewIntent(
-                    Uri.parse("market://details?id=com.google.android.webview")
+                    "market://details?id=com.google.android.webview".toUri()
                 )
                 val browser = externalViewIntent(
-                    Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.webview")
+                    "https://play.google.com/store/apps/details?id=com.google.android.webview".toUri()
                 )
                 try { startActivity(market) } catch (_: ActivityNotFoundException) { startActivity(browser) }
             }
@@ -146,13 +156,14 @@ class WebUIActivity : ComponentActivity() {
         if (::webView.isInitialized) {
             webView.removeJavascriptInterface("ksu")
             webView.stopLoading()
+            (webView.parent as? android.view.ViewGroup)?.removeView(webView)
+            webView.destroy()
         }
         super.onDestroy()
     }
 
     companion object {
         private const val WEB_DOMAIN = "appassets.androidplatform.net"
-        private val MODULE_ID = Regex("[A-Za-z0-9._-]+")
         const val EXTRA_MODULE_ID = "module_id"
         const val EXTRA_MODULE_NAME = "module_name"
 

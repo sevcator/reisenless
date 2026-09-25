@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
 
-    <string name="not_installed">not installed</string>
+    <string name="not_installed" tools:ignore="MissingTranslation">not installed</string>
 
 
     <string name="no_connection">no connection available</string>
@@ -10,6 +10,7 @@
     <string name="hide">hide</string>
     <string name="home_package">package</string>
     <string name="home_app_title">app</string>
+    <string name="home_fumo_icon_description" tools:ignore="MissingTranslation">Reisenless app icon; tap for a surprise</string>
     <string name="home_follow_title">follow us</string>
     <string name="home_installed_version">installed</string>
     <string name="home_latest_version">latest</string>
@@ -25,12 +26,12 @@
     <string name="recovery_mode">recovery mode</string>
     <string name="install_options_title">options</string>
     <string name="install_method_title">method</string>
-    <string name="install_source_title">payload source</string>
-    <string name="install_source_launched">from launched apk</string>
-    <string name="install_source_selected">from selected apk</string>
-    <string name="install_choose_apk">choose apk file</string>
-    <string name="install_choose_image">choose image file</string>
-    <string name="install_source_warning">only select an apk you trust. its matching manager must be installed so android can run its tools. this mode patches a raw boot image without flashing. use the selected apk’s manager afterward; this manager may not be authorized by its build.</string>
+    <string name="install_source_title" tools:ignore="MissingTranslation">payload source</string>
+    <string name="install_source_launched" tools:ignore="MissingTranslation">from launched apk</string>
+    <string name="install_source_selected" tools:ignore="MissingTranslation">from selected apk</string>
+    <string name="install_choose_apk" tools:ignore="MissingTranslation">choose apk file</string>
+    <string name="install_choose_image" tools:ignore="MissingTranslation">choose image file</string>
+    <string name="install_source_warning" tools:ignore="MissingTranslation">only select an apk you trust. its matching manager must be installed so android can run its tools. this mode patches a raw boot image without flashing. use the selected apk’s manager afterward; this manager may not be authorized by its build.</string>
     <string name="install_next">next</string>
     <string name="install_start">let\'s go</string>
     <string name="direct_install">direct install (recommended)</string>
@@ -47,7 +48,7 @@
     <string name="touch_filtered_warning">because an app is obscuring a superuser request, reisenless can\'t verify your response.</string>
     <string name="deny">deny</string>
     <string name="prompt">prompt</string>
-    <string name="restrict">restrict</string>
+    <string name="restrict" tools:ignore="MissingTranslation">restrict</string>
     <string name="grant">grant</string>
     <string name="su_warning">grants full access to your device.\ndeny if you\'re not sure!</string>
     <string name="forever">forever</string>
@@ -99,39 +100,39 @@
     <string name="suspend_text_riru">module suspended because %1$s is enabled</string>
     <string name="suspend_text_zygisk">module suspended because %1$s isn\'t enabled</string>
     <string name="zygisk_module_unloaded">zygisk module not loaded due to incompatibility</string>
-    <string name="module_empty">no module installed</string>
+    <string name="module_empty">no modules installed yet.</string>
     <string name="confirm_install">install module %1$s?</string>
     <string name="confirm_install_title">install confirmation</string>
 
 
-    <string name="settings_theme_mode">theme</string>
-    <string name="theme_light">light</string>
-    <string name="theme_dark">dark</string>
-    <string name="settings_accent_color">accent color</string>
-    <string name="udonge">udonge</string>
-    <string name="udonge_background_updates_title">allow background updates</string>
-    <string name="udonge_background_updates_summary">refresh keyboxes in the background once per day</string>
-    <string name="udonge_integrity_title">pass strong integrity</string>
-    <string name="udonge_integrity_summary">apply integrity and device-hiding changes safely after reboot</string>
-    <string name="udonge_keybox_list_title">keybox sources</string>
-    <string name="udonge_keybox_list_summary">add or remove links for keyboxes</string>
-    <string name="udonge_keybox_hint">one https link per line</string>
-    <string name="udonge_rom_keywords_title" tools:ignore="MissingTranslation">hide something wrong</string>
+    <string name="settings_theme_mode" tools:ignore="MissingTranslation">theme</string>
+    <string name="theme_light" tools:ignore="MissingTranslation">light</string>
+    <string name="theme_dark" tools:ignore="MissingTranslation">dark</string>
+    <string name="settings_accent_color" tools:ignore="MissingTranslation">accent color</string>
+    <string name="udonge" tools:ignore="MissingTranslation">udonge</string>
+    <string name="udonge_background_updates_title" tools:ignore="MissingTranslation">eirin</string>
+    <string name="udonge_background_updates_summary" tools:ignore="MissingTranslation">allow udonge to regularly check and restore your integrity</string>
+    <string name="udonge_integrity_title" tools:ignore="MissingTranslation">udonge</string>
+    <string name="udonge_integrity_summary" tools:ignore="MissingTranslation">make your device as sweet like jelly &gt;w&lt;</string>
+    <string name="udonge_keybox_list_title" tools:ignore="MissingTranslation">keybox list</string>
+    <string name="udonge_keybox_list_summary" tools:ignore="MissingTranslation">add or remove keybox links</string>
+    <string name="udonge_keybox_hint" tools:ignore="MissingTranslation">one https link per line</string>
+    <string name="udonge_rom_keywords_title" tools:ignore="MissingTranslation">hide suspicious things</string>
     <string name="udonge_rom_keywords_summary" tools:ignore="MissingTranslation">hide custom ROM paths, packages, properties, and framework traces</string>
-    <string name="udonge_rom_keywords_config_title" tools:ignore="MissingTranslation">configure hidden system things</string>
-    <string name="udonge_rom_keywords_config_summary" tools:ignore="MissingTranslation">one ROM name per line (e.g. lineage, protonaosp)</string>
-    <string name="udonge_rom_keywords_hint" tools:ignore="MissingTranslation">one ROM name per line (e.g. lineage, protonaosp)</string>
-    <string name="color_preview">color preview</string>
-    <string name="color_white">white</string>
-    <string name="color_blue">blue</string>
-    <string name="color_green">green</string>
-    <string name="color_amber">amber</string>
-    <string name="color_red">red</string>
-    <string name="color_pink">pink</string>
-    <string name="color_purple">purple</string>
-    <string name="color_teal">teal</string>
-    <string name="color_gray">gray</string>
-    <string name="module_search_installed">search installed modules</string>
+    <string name="udonge_rom_keywords_config_title" tools:ignore="MissingTranslation">configure hidden system items</string>
+    <string name="udonge_rom_keywords_config_summary" tools:ignore="MissingTranslation">one ROM name per line</string>
+    <string name="udonge_rom_keywords_hint" tools:ignore="MissingTranslation">one ROM name per line</string>
+    <string name="color_preview" tools:ignore="MissingTranslation">color preview</string>
+    <string name="color_white" tools:ignore="MissingTranslation">white</string>
+    <string name="color_blue" tools:ignore="MissingTranslation">blue</string>
+    <string name="color_green" tools:ignore="MissingTranslation">green</string>
+    <string name="color_amber" tools:ignore="MissingTranslation">amber</string>
+    <string name="color_red" tools:ignore="MissingTranslation">red</string>
+    <string name="color_pink" tools:ignore="MissingTranslation">pink</string>
+    <string name="color_purple" tools:ignore="MissingTranslation">purple</string>
+    <string name="color_teal" tools:ignore="MissingTranslation">teal</string>
+    <string name="color_gray" tools:ignore="MissingTranslation">gray</string>
+    <string name="module_search_installed" tools:ignore="MissingTranslation">search installed modules</string>
     <string name="language">language</string>
     <string name="system_default">(system default)</string>
     <string name="settings_zygisk_summary">run parts of reisenless in the zygote daemon</string>
@@ -159,8 +160,8 @@
     <string name="settings_su_auth_title">user authentication</string>
     <string name="settings_su_auth_summary">ask for user authentication during superuser requests</string>
     <string name="settings_su_auth_insecure">no authentication method is configured on the device</string>
-    <string name="settings_su_restrict_title">restrict root capabilities</string>
-    <string name="settings_su_restrict_summary">will restrict new superuser apps by default. warning: this will break most apps. don\'t enable it unless you know what you\'re doing.</string>
+    <string name="settings_su_restrict_title" tools:ignore="MissingTranslation">restrict root capabilities</string>
+    <string name="settings_su_restrict_summary" tools:ignore="MissingTranslation">will restrict new superuser apps by default. warning: this will break most apps. don\'t enable it unless you know what you\'re doing.</string>
     <string name="settings_customization">app</string>
     <string name="settings_random_name_title">randomize output name</string>
     <string name="settings_random_name_description">randomize the output file name of patched images and tar files to prevent detection</string>
@@ -183,7 +184,7 @@
     <!--Toasts, Dialogs-->
     <string name="yes">yes</string>
     <string name="no">no</string>
-    <string name="repo_install_title">install %1$s %2$s(%3$d)</string>
+    <string name="repo_install_title" tools:ignore="MissingTranslation">install %1$s %2$s(%3$d)</string>
     <string name="download">download</string>
     <string name="reboot">reboot</string>
     <string name="close">close</string>
@@ -198,8 +199,10 @@
     <string name="restore_fail">stock backup doesn\'t exist!</string>
     <string name="setup_fail">setup failed</string>
     <string name="env_fix_title">requires additional setup</string>
-    <string name="env_fix_msg">your device needs additional setup for magisk to work properly. do you want to proceed and reboot?</string>
-    <string name="env_full_fix_msg">your device needs reflash magisk to work properly. please reinstall magisk within app, recovery mode cannot get correct device info.</string>
+    <string name="env_fix_msg">your device needs additional setup for reisenless to work properly. do you want to proceed and reboot?</string>
+    <string name="env_full_fix_msg">your device needs reflash reisenless to work properly. please reinstall reisenless within app, recovery mode cannot get correct device info.</string>
+    <string name="hide_apps_all_apps" tools:ignore="MissingTranslation">all apps (global)</string>
+    <string name="udonge_version_label" tools:ignore="MissingTranslation">udonge %1$s</string>
     <string name="setup_msg">running environment setup…</string>
     <string name="unsupport_magisk_title">unsupported magisk version</string>
     <string name="unsupport_magisk_msg">this version of the app doesn\'t support magisk versions lower than %1$s.\n\nthe app will behave as if no magisk is installed. please update magisk as soon as possible.</string>
@@ -212,14 +215,13 @@
     <string name="install_unknown_denied">allow \"install unknown apps\" to enable this functionality</string>
     <string name="app_not_found">no app found to handle this action</string>
     <string name="reboot_apply_change">reboot to apply changes</string>
-    <string name="settings_sulist_title">sulist</string>
-    <string name="sulist">sulist</string>
-    <string name="settings_sulist_summary">only listed apps and processes can use root or see reisenless changes</string>
-    <string name="settings_sulist_config_title">configure sulist</string>
-    <string name="settings_sulist_config_summary">select apps and processes allowed to use reisenless</string>
+    <string name="settings_sulist_title" tools:ignore="MissingTranslation">sulist</string>
+    <string name="sulist" tools:ignore="MissingTranslation">sulist</string>
+    <string name="settings_sulist_summary" tools:ignore="MissingTranslation">only listed apps and processes can use root or see reisenless changes</string>
+    <string name="settings_sulist_config_title" tools:ignore="MissingTranslation">configure sulist</string>
+    <string name="settings_sulist_config_summary" tools:ignore="MissingTranslation">select apps and processes allowed to use reisenless</string>
     <string name="hide_apps_title" tools:ignore="MissingTranslation">hide apps</string>
     <string name="hide_apps_summary" tools:ignore="MissingTranslation">hide selected packages from app queries</string>
-    <string name="hide_apps_service_active" tools:ignore="MissingTranslation">built-in filter active · %1$d app rules</string>
     <string name="hide_apps_service_inactive" tools:ignore="MissingTranslation">built-in filter inactive · enable zygisk and reboot</string>
     <string name="hide_apps_querying_app" tools:ignore="MissingTranslation">app whose queries will be filtered</string>
     <string name="hide_apps_choose_app" tools:ignore="MissingTranslation">choose an app</string>
@@ -242,11 +244,11 @@
     <string name="disabled" tools:ignore="MissingTranslation">disabled</string>
     <string name="ramdisk" tools:ignore="MissingTranslation">ramdisk</string>
     <string name="shared_uid" tools:ignore="MissingTranslation">shared uid</string>
-    <string name="webui">webui</string>
-    <string name="webui_root_required">root and an active reisenless installation are required for webui</string>
-    <string name="webui_webview_required">android system webview required</string>
-    <string name="webui_webview_required_summary">this device does not have a usable android webview provider. install or enable android system webview, then try again.</string>
-    <string name="webui_install_webview">install webview</string>
+    <string name="webui" tools:ignore="MissingTranslation">webui</string>
+    <string name="webui_root_required" tools:ignore="MissingTranslation">root and an active reisenless installation are required for webui</string>
+    <string name="webui_webview_required" tools:ignore="MissingTranslation">android system webview required</string>
+    <string name="webui_webview_required_summary" tools:ignore="MissingTranslation">this device does not have a usable android webview provider. install or enable android system webview, then try again.</string>
+    <string name="webui_install_webview" tools:ignore="MissingTranslation">install webview</string>
 
     <!-- Upstream application compatibility -->
     <string name="modules">modules</string>
@@ -255,35 +257,35 @@
     <string name="install">install</string>
     <string name="section_home">home</string>
     <string name="section_theme">themes</string>
-    <string name="download_patch_file">download and patch a file</string>
-    <string name="download_dialog_title">enter image url</string>
-    <string name="download_dialog_msg">full ota image or factory image</string>
-    <string name="notification">notification</string>
-    <string name="back">back</string>
-    <string name="granted">granted</string>
-    <string name="denied">denied</string>
-    <string name="settings_dark_mode_title">theme mode</string>
-    <string name="settings_dark_mode_message">select the mode that best suits your style</string>
-    <string name="settings_dark_mode_light">always light</string>
-    <string name="settings_dark_mode_system">follow system</string>
-    <string name="settings_dark_mode_dark">always dark</string>
-    <string name="settings_download_path_title">download path</string>
-    <string name="settings_download_path_message">files will be saved to %1$s</string>
-    <string name="settings_color_mode">color mode</string>
-    <string name="color_mode_system">system</string>
-    <string name="color_mode_light">light</string>
-    <string name="color_mode_dark">dark</string>
-    <string name="color_mode_monet_system">monet (system)</string>
-    <string name="color_mode_monet_light">monet (light)</string>
-    <string name="color_mode_monet_dark">monet (dark)</string>
+    <string name="download_patch_file" tools:ignore="MissingTranslation">download and patch a file</string>
+    <string name="download_dialog_title" tools:ignore="MissingTranslation">enter image url</string>
+    <string name="download_dialog_msg" tools:ignore="MissingTranslation">full ota image or factory image</string>
+    <string name="notification" tools:ignore="MissingTranslation">notification</string>
+    <string name="back" tools:ignore="MissingTranslation">back</string>
+    <string name="granted" tools:ignore="MissingTranslation">granted</string>
+    <string name="denied" tools:ignore="MissingTranslation">denied</string>
+    <string name="settings_dark_mode_title" tools:ignore="MissingTranslation">theme mode</string>
+    <string name="settings_dark_mode_message" tools:ignore="MissingTranslation">select the mode that best suits your style</string>
+    <string name="settings_dark_mode_light" tools:ignore="MissingTranslation">always light</string>
+    <string name="settings_dark_mode_system" tools:ignore="MissingTranslation">follow system</string>
+    <string name="settings_dark_mode_dark" tools:ignore="MissingTranslation">always dark</string>
+    <string name="settings_download_path_title" tools:ignore="MissingTranslation">download path</string>
+    <string name="settings_download_path_message" tools:ignore="MissingTranslation">files will be saved to %1$s</string>
+    <string name="settings_color_mode" tools:ignore="MissingTranslation">color mode</string>
+    <string name="color_mode_system" tools:ignore="MissingTranslation">system</string>
+    <string name="color_mode_light" tools:ignore="MissingTranslation">light</string>
+    <string name="color_mode_dark" tools:ignore="MissingTranslation">dark</string>
+    <string name="color_mode_monet_system" tools:ignore="MissingTranslation">monet (system)</string>
+    <string name="color_mode_monet_light" tools:ignore="MissingTranslation">monet (light)</string>
+    <string name="color_mode_monet_dark" tools:ignore="MissingTranslation">monet (dark)</string>
     <string name="progress_channel">progress notifications</string>
-    <string name="su_notification_channel">superuser notifications</string>
+    <string name="su_notification_channel" tools:ignore="MissingTranslation">superuser notifications</string>
     <string name="download_complete">download complete</string>
     <string name="download_file_error">error downloading file</string>
-    <string name="su_notification_granted_title">superuser granted</string>
-    <string name="su_notification_denied_title">superuser denied</string>
-    <string name="menuSaveLog">save output</string>
-    <string name="module_update_install_title">install %1$s %2$s (%3$d)</string>
-    <string name="method_download">download image</string>
+    <string name="su_notification_granted_title" tools:ignore="MissingTranslation">superuser granted</string>
+    <string name="su_notification_denied_title" tools:ignore="MissingTranslation">superuser denied</string>
+    <string name="menuSaveLog" tools:ignore="MissingTranslation">save output</string>
+    <string name="module_update_install_title" tools:ignore="MissingTranslation">install %1$s %2$s (%3$d)</string>
+    <string name="method_download" tools:ignore="MissingTranslation">download image</string>
 
 </resources>

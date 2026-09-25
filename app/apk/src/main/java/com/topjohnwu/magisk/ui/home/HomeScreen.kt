@@ -1,12 +1,15 @@
 package com.topjohnwu.magisk.ui.home
 
 import android.content.Intent
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +53,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,6 +64,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -67,6 +72,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Config
@@ -80,6 +86,10 @@ import com.topjohnwu.magisk.ui.component.verticalScrollbar
 import com.topjohnwu.magisk.ui.flash.FlashUtils
 import com.topjohnwu.magisk.ui.install.InstallBottomSheet
 import com.topjohnwu.magisk.ui.install.InstallViewModel
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.offset
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.topjohnwu.magisk.core.R as CoreR
 
@@ -213,6 +223,7 @@ fun HomeScreen(
             if (uiState.magiskState == HomeViewModel.State.OUTDATED) {
                 OutdatedRootCard(onReinstall = { showInstallSheet = true })
             }
+            HomeFumo()
             StatusCard()
         }
     }
@@ -222,6 +233,64 @@ fun HomeScreen(
         onDismiss = { showInstallSheet = false },
         installVm = installVm,
     )
+}
+
+@Composable
+private fun HomeFumo() {
+    val context = LocalContext.current
+    val icon = remember(context) {
+        runCatching { context.applicationInfo.loadIcon(context.packageManager) }.getOrNull()
+    }
+    val player = remember(context) {
+        runCatching { MediaPlayer.create(context, R.raw.fumo) }.getOrNull()
+    }
+    var animationId by remember { mutableIntStateOf(0) }
+    val verticalOffset = remember { Animatable(-170f) }
+    val fumoAlpha = remember { Animatable(0f) }
+
+    DisposableEffect(player) {
+        onDispose { player?.release() }
+    }
+    LaunchedEffect(animationId) {
+        if (animationId == 0) return@LaunchedEffect
+        verticalOffset.snapTo(-170f)
+        fumoAlpha.snapTo(1f)
+        verticalOffset.animateTo(85f, tween(durationMillis = 720))
+        delay(450)
+        fumoAlpha.animateTo(0f, tween(durationMillis = 220))
+    }
+
+    Box(
+        modifier = Modifier.fillMaxWidth().height(210.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        icon?.let {
+            Image(
+                painter = rememberDrawablePainter(it),
+                contentDescription = stringResource(CoreR.string.home_fumo_icon_description),
+                modifier = Modifier.size(76.dp).clickable {
+                    player?.let { audio ->
+                        runCatching {
+                            if (audio.isPlaying) audio.pause()
+                            audio.seekTo(0)
+                            audio.start()
+                        }
+                    }
+                    animationId++
+                },
+            )
+        }
+        if (animationId > 0) {
+            Image(
+                painter = painterResource(R.drawable.fumo_reisen),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(156.dp)
+                    .offset(y = verticalOffset.value.dp)
+                    .alpha(fumoAlpha.value),
+            )
+        }
+    }
 }
 
 @Composable
@@ -329,6 +398,7 @@ private fun StatusCard(
     modifier: Modifier = Modifier
 ) {
     val zygiskMismatch = Config.zygisk != Info.isZygiskEnabled
+    val udongeVersion = remember { com.topjohnwu.magisk.core.Udonge.version() }
     val statuses = listOf(
         StatusInfo(
             label = stringResource(CoreR.string.zygisk),
@@ -341,6 +411,10 @@ private fun StatusCard(
         StatusInfo(
             label = stringResource(CoreR.string.ramdisk),
             status = stringResource(if (Info.ramdisk) CoreR.string.yes else CoreR.string.no)
+        ),
+        StatusInfo(
+            label = stringResource(CoreR.string.udonge),
+            status = udongeVersion
         )
     )
 

@@ -43,9 +43,13 @@ class HideAppsViewModel : AsyncLoadViewModel() {
         get() = _apps.value.asSequence().filter(HidePackageInfo::isSystem)
             .map(HidePackageInfo::packageName).toSet()
 
+    companion object {
+        const val ALL_APPS_CALLER = "*"
+    }
+
     val targets = combine(_apps, _selectedCaller, _query) { apps, caller, query ->
         apps.asSequence()
-            .filter { it.packageName != caller }
+            .filter { caller == ALL_APPS_CALLER || it.packageName != caller }
             .filter { query.isBlank() || it.label.contains(query, true) || it.packageName.contains(query, true) }
             .sortedWith(compareBy({ it.isSystem }, { it.label.lowercase() }, { it.packageName }))
             .toList()
@@ -71,8 +75,12 @@ class HideAppsViewModel : AsyncLoadViewModel() {
             }.sortedBy { it.label.lowercase() }
         }
         _apps.value = loaded
-        val initial = repository.config.scope.keys.firstOrNull { key -> loaded.any { it.packageName == key } }
-            ?: loaded.firstOrNull { !it.isSystem && it.packageName != AppContext.packageName }?.packageName
+        val initial = if (repository.config.enabled || repository.config.hiddenPackages.isNotEmpty()) {
+            ALL_APPS_CALLER
+        } else {
+            repository.config.scope.keys.firstOrNull { key -> loaded.any { it.packageName == key } }
+                ?: ALL_APPS_CALLER
+        }
         selectCaller(initial)
         withContext(Dispatchers.IO) {
             val synced = HideAppsRootClient.sync(repository.config, systemPackages)
@@ -82,14 +90,29 @@ class HideAppsViewModel : AsyncLoadViewModel() {
 
     fun selectCaller(packageName: String?) {
         _selectedCaller.value = packageName
-        _rule.value = packageName?.let(repository.config.scope::get)
+        _rule.value = if (packageName == ALL_APPS_CALLER) {
+            if (repository.config.enabled) HideAppsRule(packages = repository.config.hiddenPackages) else null
+        } else {
+            packageName?.let(repository.config.scope::get)
+        }
     }
 
     fun setQuery(query: String) {
         _query.value = query
     }
 
-    fun setEnabled(enabled: Boolean) = updateRule(if (enabled) _rule.value ?: HideAppsRule() else null)
+    fun setEnabled(enabled: Boolean) {
+        if (_selectedCaller.value == ALL_APPS_CALLER) {
+            repository.setEnabled(enabled)
+            _rule.value = if (enabled) HideAppsRule(packages = repository.config.hiddenPackages) else null
+            viewModelScope.launch(Dispatchers.IO) {
+                val synced = HideAppsRootClient.sync(repository.config, systemPackages)
+                _status.value = if (synced) HideAppsRootClient.status() else HideAppsStatus(false, 0, 0)
+            }
+        } else {
+            updateRule(if (enabled) _rule.value ?: HideAppsRule() else null)
+        }
+    }
 
     fun setWhitelist(enabled: Boolean) = updateRule((_rule.value ?: HideAppsRule()).copy(useWhitelist = enabled))
 
@@ -97,6 +120,19 @@ class HideAppsViewModel : AsyncLoadViewModel() {
         updateRule((_rule.value ?: HideAppsRule()).copy(excludeSystemApps = enabled))
 
     fun togglePackage(packageName: String) {
+        if (_selectedCaller.value == ALL_APPS_CALLER) {
+            val hidden = packageName in repository.config.hiddenPackages
+            repository.setHidden(packageName, !hidden)
+            if (!repository.config.enabled) {
+                repository.setEnabled(true)
+            }
+            _rule.value = HideAppsRule(packages = repository.config.hiddenPackages)
+            viewModelScope.launch(Dispatchers.IO) {
+                val synced = HideAppsRootClient.sync(repository.config, systemPackages)
+                _status.value = if (synced) HideAppsRootClient.status() else HideAppsStatus(false, 0, 0)
+            }
+            return
+        }
         val current = _rule.value ?: HideAppsRule()
         val packages = current.packages.toMutableSet()
         if (!packages.add(packageName)) packages.remove(packageName)

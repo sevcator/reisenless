@@ -67,12 +67,9 @@ class SettingsViewModel : BaseViewModel() {
         viewModelScope.launch {
             val success = withContext(Dispatchers.IO) {
                 if (enabled) {
-                    Udonge.setEnabled(true) &&
-                        Udonge.setBackgroundUpdates(true) &&
-                        Udonge.refreshKeyboxes()
+                    Udonge.setBackgroundUpdates(false) && Udonge.setEnabled(true)
                 } else {
-                    Udonge.setBackgroundUpdates(false)
-                    Udonge.setEnabled(false)
+                    Udonge.setBackgroundUpdates(false) && Udonge.setEnabled(false)
                 }
             }
             if (success) {

@@ -17,4 +17,7 @@ void spoof_display(JNIEnv *env, const Config &cfg);
 // Keep Java Build constants consistent with the sanitized native properties.
 void spoof_build_type(JNIEnv *env);
 
+// Overwrite Custom ROM reflection fields like AssetManager.LINEAGE_APK_PATH to nullptr.
+void spoof_custom_rom(JNIEnv *env);
+
 } // namespace cloak

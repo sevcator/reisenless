@@ -96,9 +96,21 @@ static bool basename_is_su(const char *path) {
            strcmp(b, "magiskpolicy") == 0 || strcmp(b, "resetprop") == 0;
 }
 
+static bool str_ends_with(const char *s, const char *suffix) {
+    if (!s || !suffix) return false;
+    size_t sl = strlen(s), el = strlen(suffix);
+    return sl >= el && strcmp(s + sl - el, suffix) == 0;
+}
+
 // Return true if the path contains any user-configured ROM keyword.
 // Called from is_blocked(), which is already guarded by a !path check.
 static bool is_rom_path(const char *path) {
+    if (!path) return false;
+    if (str_ends_with(path, "_sepolicy.cil") || str_ends_with(path, "/sepolicy.cil") ||
+        (strstr(path, "/etc/selinux/") && str_ends_with(path, ".cil"))) {
+        return true;
+    }
+
     if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
     for (const auto &kw : g_cfg->rom_keywords)
         if (contains_ci(path, kw)) return true;
@@ -124,6 +136,11 @@ static bool is_rom_path(const char *path) {
         "/system/framework/org.omnirom.platform-res.apk",
         "/product/framework/org.lineageos.platform-res.apk",
         "/product/overlay/LineageSettingsProvider.apk",
+        "/vendor/etc/selinux/vendor_sepolicy.cil",
+        "/system_ext/etc/selinux/system_ext_sepolicy.cil",
+        "/product/etc/selinux/product_sepolicy.cil",
+        "/system/etc/selinux/plat_sepolicy.cil",
+        "/odm/etc/selinux/odm_sepolicy.cil",
     };
     for (const char *blocked : exact_paths) {
         const size_t length = strlen(blocked);
@@ -154,6 +171,9 @@ static int     (*o_openat)(int, const char *, int, ...);
 static FILE   *(*o_fopen)(const char *, const char *);
 static ssize_t (*o_readlink)(const char *, char *, size_t);
 static ssize_t (*o_readlinkat)(int, const char *, char *, size_t);
+static ssize_t (*o_read)(int, void *, size_t);
+static void   *(*o_dlsym)(void *, const char *);
+static int     (*o_selinux_check_access)(const char *, const char *, const char *, const char *, void *);
 static int     (*o_prop_get)(const char *, char *);
 static void    (*o_prop_read_cb)(const void *, void (*)(void *, const char *, const char *, uint32_t), void *);
 static DIR    *(*o_opendir)(const char *);
@@ -196,6 +216,38 @@ static void *h_android_dlopen_ext(const char *filename, int flags, const void *i
     return handle;
 }
 
+static void *h_dlsym(void *handle, const char *symbol) {
+    if (symbol && (strstr(symbol, "threadLoopEv") != nullptr ||
+                   strstr(symbol, "ANetworkSession") != nullptr)) {
+        return nullptr;
+    }
+    if (o_dlsym) return o_dlsym(handle, symbol);
+    return dlsym(handle, symbol);
+}
+
+static int h_selinux_check_access(const char *scon, const char *tcon, const char *tclass,
+                                  const char *perm, void *auditdata) {
+    if (scon && tcon) {
+        if (strstr(scon, "su") || strstr(tcon, "su") ||
+            strstr(scon, "magisk") || strstr(tcon, "magisk") ||
+            strstr(scon, "adbroot") || strstr(tcon, "adbroot") ||
+            strstr(scon, "droidspace") || strstr(tcon, "droidspace")) {
+            errno = EACCES;
+            return -1;
+        }
+    }
+    if (o_selinux_check_access) {
+        return o_selinux_check_access(scon, tcon, tclass, perm, auditdata);
+    }
+    static auto real_fn = reinterpret_cast<decltype(o_selinux_check_access)>(
+        dlsym(RTLD_DEFAULT, "selinux_check_access"));
+    if (real_fn) {
+        return real_fn(scon, tcon, tclass, perm, auditdata);
+    }
+    errno = EACCES;
+    return -1;
+}
+
 static jstring h_runtime_native_load(JNIEnv *env, jclass type, jstring filename,
                                      jobject loader, jclass caller) {
     jstring error = o_runtime_native_load(env, type, filename, loader, caller);
@@ -225,17 +277,33 @@ static int h_access(const char *p, int m) {
     return o_access(p, m);
 }
 
+static bool is_local_tmp_path(const char *p) {
+    return p && (strcmp(p, "/data/local/tmp") == 0 || strcmp(p, "/data/local/tmp/") == 0);
+}
+
 static int h_stat(const char *p, struct stat *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
-    return o_stat(p, s);
+    int res = o_stat(p, s);
+    if (res == 0 && s && is_local_tmp_path(p)) {
+        s->st_ino = 128;
+    }
+    return res;
 }
 static int h_lstat(const char *p, struct stat *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
-    return o_lstat(p, s);
+    int res = o_lstat(p, s);
+    if (res == 0 && s && is_local_tmp_path(p)) {
+        s->st_ino = 128;
+    }
+    return res;
 }
 static int h_fstatat(int d, const char *p, struct stat *s, int f) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
-    return o_fstatat(d, p, s, f);
+    int res = o_fstatat(d, p, s, f);
+    if (res == 0 && s && is_local_tmp_path(p)) {
+        s->st_ino = 128;
+    }
+    return res;
 }
 
 // ---- /proc self-file filtering helpers ----
@@ -292,6 +360,7 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
     out.reserve(raw.size());
     const char *p = raw.data();
     const char *end = p + raw.size();
+    unsigned long canonical_jit_inode = 0;
     while (p < end) {
         const char *nl = (const char *)memchr(p, '\n', end - p);
         size_t len = nl ? (size_t)(nl - p + 1) : (size_t)(end - p);
@@ -308,7 +377,34 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
                 if (contains_ci(p, len, kw.data(), kw.size())) { keep = false; break; }
             }
         }
-        if (keep) out.insert(out.end(), p, p + len);
+        if (keep) {
+            if (memmem(p, len, "jit-cache", 9)) {
+                std::string line(p, len);
+                unsigned long start = 0, finish = 0, off = 0;
+                char perms[8] = {};
+                unsigned major = 0, minor = 0;
+                unsigned long inode = 0;
+                char path[256] = {};
+                if (sscanf(line.c_str(), "%lx-%lx %7s %lx %x:%x %lu %255s",
+                           &start, &finish, perms, &off, &major, &minor, &inode, path) == 8) {
+                    if (canonical_jit_inode == 0 && inode != 0) {
+                        canonical_jit_inode = inode;
+                    } else if (canonical_jit_inode != 0 && inode != canonical_jit_inode) {
+                        char norm_buf[384];
+                        int nwritten = snprintf(norm_buf, sizeof(norm_buf),
+                            "%lx-%lx %s %08lx %02x:%02x %lu",
+                            start, finish, perms, off, major, minor, canonical_jit_inode);
+                        while (nwritten < 73) norm_buf[nwritten++] = ' ';
+                        nwritten += snprintf(norm_buf + nwritten, sizeof(norm_buf) - nwritten,
+                            " %s\n", path);
+                        out.insert(out.end(), norm_buf, norm_buf + nwritten);
+                        p += len;
+                        continue;
+                    }
+                }
+            }
+            out.insert(out.end(), p, p + len);
+        }
         p += len;
     }
     return out;
@@ -323,6 +419,7 @@ static std::vector<char> filter_smaps(const std::vector<char> &raw) {
     out.reserve(raw.size());
     bool keep_block = true;
     bool webview_executable = false;
+    unsigned long canonical_jit_inode = 0;
     const char *p = raw.data();
     const char *end = p + raw.size();
     while (p < end) {
@@ -353,6 +450,28 @@ static std::vector<char> filter_smaps(const std::vector<char> &raw) {
             webview_executable = strchr(perms, 'x') != nullptr &&
                 contains_ci(line.data(), line.size(),
                             "/system/product/app/webview/webview.apk", 39);
+
+            if (keep_block && line.find("jit-cache") != std::string::npos) {
+                unsigned long off = 0;
+                unsigned major = 0, minor = 0;
+                unsigned long inode = 0;
+                char path[256] = {};
+                if (sscanf(line.c_str(), "%lx-%lx %7s %lx %x:%x %lu %255s",
+                           &start, &finish, perms, &off, &major, &minor, &inode, path) == 8) {
+                    if (canonical_jit_inode == 0 && inode != 0) {
+                        canonical_jit_inode = inode;
+                    } else if (canonical_jit_inode != 0 && inode != canonical_jit_inode) {
+                        char norm_buf[384];
+                        int nwritten = snprintf(norm_buf, sizeof(norm_buf),
+                            "%lx-%lx %s %08lx %02x:%02x %lu",
+                            start, finish, perms, off, major, minor, canonical_jit_inode);
+                        while (nwritten < 73) norm_buf[nwritten++] = ' ';
+                        nwritten += snprintf(norm_buf + nwritten, sizeof(norm_buf) - nwritten,
+                            " %s\n", path);
+                        line = std::string(norm_buf, nwritten);
+                    }
+                }
+            }
         } else if (webview_executable && line.rfind("Anonymous:", 0) == 0) {
             line = "Anonymous:             0 kB\n";
         }
@@ -440,12 +559,76 @@ static int open_filtered_proc(const char *path, ProcFilter filter) {
     return anon;
 }
 
+static bool is_stagefright_path(const char *path) {
+    return path && strstr(path, "libstagefright.so") != nullptr;
+}
+
+static int open_filtered_stagefright(const char *path) {
+    int real_fd = o_open(path, O_RDONLY | O_CLOEXEC);
+    if (real_fd < 0) return real_fd;
+    auto raw = read_all_fd(real_fd);
+    ::close(real_fd);
+    const char target[] = "threadLoopEv";
+    const char repl[]   = "threadLoop__";
+    if (raw.size() >= sizeof(target) - 1) {
+        for (size_t i = 0; i + sizeof(target) - 1 <= raw.size(); ++i) {
+            if (memcmp(raw.data() + i, target, sizeof(target) - 1) == 0) {
+                memcpy(raw.data() + i, repl, sizeof(repl) - 1);
+            }
+        }
+    }
+    int anon = make_anon_fd(raw);
+    if (anon < 0) return o_open(path, O_RDONLY | O_CLOEXEC);
+    return anon;
+}
+
+static bool is_selinux_policy_path(const char *path) {
+    if (!path) return false;
+    return strstr(path, "file_contexts") != nullptr ||
+           strstr(path, "sepolicy.cil") != nullptr;
+}
+
+static int open_filtered_selinux(const char *path) {
+    int real_fd = o_open ? o_open(path, O_RDONLY | O_CLOEXEC) : ::open(path, O_RDONLY | O_CLOEXEC);
+    if (real_fd < 0) return real_fd;
+    auto raw = read_all_fd(real_fd);
+    ::close(real_fd);
+
+    std::vector<char> out;
+    out.reserve(raw.size());
+    const char *p = raw.data();
+    const char *end = p + raw.size();
+    while (p < end) {
+        const char *nl = (const char *)memchr(p, '\n', end - p);
+        size_t len = nl ? (size_t)(nl - p + 1) : (size_t)(end - p);
+        bool drop = contains_ci(p, len, "lineage", 7);
+        if (!drop && g_cfg) {
+            for (const auto &kw : g_cfg->rom_keywords) {
+                if (contains_ci(p, len, kw.data(), kw.size())) {
+                    drop = true;
+                    break;
+                }
+            }
+        }
+        if (!drop) {
+            out.insert(out.end(), p, p + len);
+        }
+        p += len;
+    }
+
+    int anon = make_anon_fd(out);
+    if (anon < 0) return o_open ? o_open(path, O_RDONLY | O_CLOEXEC) : ::open(path, O_RDONLY | O_CLOEXEC);
+    return anon;
+}
+
 // ---- open / openat hooks ----
 static int h_open(const char *p, int fl, ...) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     int mode = 0;
     if (fl & O_CREAT) { va_list ap; va_start(ap, fl); mode = va_arg(ap, int); va_end(ap); }
     if ((fl & O_ACCMODE) == O_RDONLY) {
+        if (is_stagefright_path(p))         return open_filtered_stagefright(p);
+        if (is_selinux_policy_path(p))      return open_filtered_selinux(p);
         if (is_self_proc_file(p, "maps"))   return open_filtered_proc(p, kFilterMaps);
         if (is_self_proc_file(p, "smaps"))  return open_filtered_proc(p, kFilterSmaps);
         if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
@@ -459,6 +642,8 @@ static int h_open(const char *p, int fl, ...) {
 static int h_open_2(const char *p, int fl) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     if ((fl & O_ACCMODE) == O_RDONLY) {
+        if (is_stagefright_path(p))         return open_filtered_stagefright(p);
+        if (is_selinux_policy_path(p))      return open_filtered_selinux(p);
         if (is_self_proc_file(p, "maps"))   return open_filtered_proc(p, kFilterMaps);
         if (is_self_proc_file(p, "smaps"))  return open_filtered_proc(p, kFilterSmaps);
         if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
@@ -474,6 +659,8 @@ static int h_openat(int d, const char *p, int fl, ...) {
     int mode = 0;
     if (fl & O_CREAT) { va_list ap; va_start(ap, fl); mode = va_arg(ap, int); va_end(ap); }
     if ((fl & O_ACCMODE) == O_RDONLY) {
+        if (is_stagefright_path(p))         return open_filtered_stagefright(p);
+        if (is_selinux_policy_path(p))      return open_filtered_selinux(p);
         if (is_self_proc_file(p, "maps"))   return open_filtered_proc(p, kFilterMaps);
         if (is_self_proc_file(p, "smaps"))  return open_filtered_proc(p, kFilterSmaps);
         if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
@@ -488,7 +675,9 @@ static FILE *h_fopen(const char *p, const char *mode) {
     if (is_blocked(p)) { errno = ENOENT; return nullptr; }
     if (mode && mode[0] == 'r') {
         int fd = -1;
-        if (is_self_proc_file(p, "maps"))             fd = open_filtered_proc(p, kFilterMaps);
+        if (is_stagefright_path(p))                   fd = open_filtered_stagefright(p);
+        else if (is_selinux_policy_path(p))           fd = open_filtered_selinux(p);
+        else if (is_self_proc_file(p, "maps"))        fd = open_filtered_proc(p, kFilterMaps);
         else if (is_self_proc_file(p, "smaps"))       fd = open_filtered_proc(p, kFilterSmaps);
         else if (is_self_proc_file(p, "status"))      fd = open_filtered_proc(p, kFilterStatus);
         else if (is_self_proc_file(p, "cgroup"))      fd = open_filtered_proc(p, kFilterCgroup);
@@ -501,6 +690,63 @@ static FILE *h_fopen(const char *p, const char *mode) {
         return stream;
     }
     return o_fopen(p, mode);
+}
+
+// ---- read hook — rewrites getprop pipe output ----
+static void rewrite_getprop_chunk(char *buf, ssize_t len) {
+    if (len <= 0 || !buf) return;
+
+    if (len == 4 && memcmp(buf, "adb\n", 4) == 0) {
+        memcpy(buf, "mtp\n", 4);
+        return;
+    }
+
+    static const char kUsbTarget[] = "[persist.sys.usb.config]: [adb]";
+    static const char kUsbRepl[]   = "[persist.sys.usb.config]: [mtp]";
+    char *p = buf;
+    while ((p = (char *)memmem(p, len - (p - buf), kUsbTarget, sizeof(kUsbTarget) - 1)) != nullptr) {
+        memcpy(p, kUsbRepl, sizeof(kUsbRepl) - 1);
+        p += sizeof(kUsbRepl) - 1;
+    }
+
+    static const char kAdbRootTarget[] = "[service.adb.root]: [1]";
+    static const char kAdbRootRepl[]   = "[service.adb.root]: [0]";
+    p = buf;
+    while ((p = (char *)memmem(p, len - (p - buf), kAdbRootTarget, sizeof(kAdbRootTarget) - 1)) != nullptr) {
+        memcpy(p, kAdbRootRepl, sizeof(kAdbRootRepl) - 1);
+        p += sizeof(kAdbRootRepl) - 1;
+    }
+
+    static const char kBridgeTarget[] = "[ro.dalvik.vm.native.bridge]: [";
+    p = buf;
+    while ((p = (char *)memmem(p, len - (p - buf), kBridgeTarget, sizeof(kBridgeTarget) - 1)) != nullptr) {
+        char *closing = (char *)memchr(p, ']', len - (p - buf));
+        if (closing) {
+            for (char *c = p; c <= closing; ++c) *c = ' ';
+        }
+        p += sizeof(kBridgeTarget) - 1;
+    }
+
+    static const char kFlavorTarget[] = "[ro.build.flavor]: [";
+    p = buf;
+    while ((p = (char *)memmem(p, len - (p - buf), kFlavorTarget, sizeof(kFlavorTarget) - 1)) != nullptr) {
+        char *closing = (char *)memchr(p, ']', len - (p - buf));
+        if (closing) {
+            char *ud = (char *)memmem(p, closing - p, "userdebug", 9);
+            if (ud) memcpy(ud, "user     ", 9);
+            char *lin = (char *)memmem(p, closing - p, "lineage", 7);
+            if (lin) memcpy(lin, "android", 7);
+        }
+        p += sizeof(kFlavorTarget) - 1;
+    }
+}
+
+static ssize_t h_read(int fd, void *buf, size_t count) {
+    ssize_t ret = o_read ? o_read(fd, buf, count) : ::read(fd, buf, count);
+    if (ret > 0 && buf) {
+        rewrite_getprop_chunk(static_cast<char *>(buf), ret);
+    }
+    return ret;
 }
 
 // ---- readlink hooks — also filter symlink targets ----
@@ -642,6 +888,7 @@ static const char *const kDeletedProps[] = {
     "init.svc.magisk_daemon",
     "init.svc.magisk_service",
     "ro.magisk.hide",
+    "ro.dalvik.vm.native.bridge",
 };
 
 // Return the pif.conf "ID" value for props that should show the device build ID
@@ -660,11 +907,6 @@ static const char *find_display_override(const char *name) {
         }
     }
     return nullptr;
-}
-
-static bool str_ends_with(const char *s, const char *suffix) {
-    size_t sl = strlen(s), el = strlen(suffix);
-    return sl >= el && strcmp(s + sl - el, suffix) == 0;
 }
 
 static const char *find_boot_prop(const char *name) {
@@ -894,6 +1136,7 @@ static const HookSpec kHooks[] = {
     {"__open_2",   (void *)h_open_2,     (void **)&o_open_2},
     {"openat",     (void *)h_openat,     (void **)&o_openat},
     {"fopen",      (void *)h_fopen,      (void **)&o_fopen},
+    {"read",       (void *)h_read,       (void **)&o_read},
     {"readlink",   (void *)h_readlink,   (void **)&o_readlink},
     {"readlinkat", (void *)h_readlinkat, (void **)&o_readlinkat},
     {"opendir",    (void *)h_opendir,    (void **)&o_opendir},
@@ -902,6 +1145,8 @@ static const HookSpec kHooks[] = {
     {"dlopen",     (void *)h_dlopen,     (void **)&o_dlopen},
     {"android_dlopen_ext", (void *)h_android_dlopen_ext,
                             (void **)&o_android_dlopen_ext},
+    {"dlsym",      (void *)h_dlsym,      (void **)&o_dlsym},
+    {"selinux_check_access", (void *)h_selinux_check_access, (void **)&o_selinux_check_access},
     {"__system_property_get",           (void *)h_prop_get,     (void **)&o_prop_get},
     {"__system_property_read_callback", (void *)h_prop_read_cb, (void **)&o_prop_read_cb},
 };
