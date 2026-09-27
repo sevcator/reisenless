@@ -2125,6 +2125,17 @@ def build_all():
     check_environment()
     build_native()
     build_app()
+    build_legacy()
+
+
+def build_legacy():
+    _validate_generated_flags(
+        "Build native binaries with the same mode and configuration first."
+    )
+    build_udonge()
+    header("* Building the legacy manager app")
+    apk = build_apk(":apk-legacy")
+    header(f"Output: {apk}")
 
 
 def test_native_auth():
@@ -2584,6 +2595,8 @@ def parse_args():
 
     udonge_parser = subparsers.add_parser("udonge", parents=[common], help="build the built-in Udonge payload")
 
+    legacy_parser = subparsers.add_parser("legacy", parents=[common], help="build the legacy manager app")
+
     clean_parser = subparsers.add_parser("clean", help="cleanup")
     clean_parser.add_argument(
         "targets", nargs="*", help="native, cpp, rust, java, or empty to clean all"
@@ -2631,11 +2644,12 @@ def parse_args():
     app_parser.set_defaults(func=build_app)
     stub_parser.set_defaults(func=build_stub)
     udonge_parser.set_defaults(func=build_udonge)
+    legacy_parser.set_defaults(func=build_legacy)
     clean_parser.set_defaults(func=cleanup)
     ndk_parser.set_defaults(func=setup_ndk)
 
     known_actions = {
-        "all", "native", "app", "stub", "udonge", "clean", "ndk",
+        "all", "native", "app", "stub", "udonge", "legacy", "clean", "ndk",
         "install", "check", "clippy", "cargo", "rustup",
         "test-native-auth", "test-identity",
     }
