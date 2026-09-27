@@ -146,6 +146,15 @@ if [ -d "$legacy_tee_state" ]; then
 fi
 chmod 700 "$root" "$state"
 
+# Prevent MIUI ThemeCompatibilityLoader crash in app_process/TEESimulator
+if [ ! -f /data/system/theme_config/theme_compatibility.xml ]; then
+    mkdir -p /data/system/theme_config 2>/dev/null
+    touch /data/system/theme_config/theme_compatibility.xml 2>/dev/null
+    chmod 755 /data/system/theme_config 2>/dev/null || true
+    chmod 644 /data/system/theme_config/theme_compatibility.xml 2>/dev/null || true
+    chown system:system /data/system/theme_config /data/system/theme_config/theme_compatibility.xml 2>/dev/null || true
+fi
+
 refresh_keybox() {
     if [ -x "$runtime/keybox_heal.sh" ]; then
         "$runtime/keybox_heal.sh" heal

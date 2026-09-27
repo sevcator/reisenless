@@ -117,6 +117,15 @@ setprop ctl.stop soter-1-0 2>/dev/null || true
 
 chmod 600 "$state/.certified" "$state/.keybox-checked" 2>/dev/null || true
 
+# Prevent MIUI ThemeCompatibilityLoader crash in app_process/TEESimulator
+if [ ! -f /data/system/theme_config/theme_compatibility.xml ]; then
+    mkdir -p /data/system/theme_config 2>/dev/null
+    touch /data/system/theme_config/theme_compatibility.xml 2>/dev/null
+    chmod 755 /data/system/theme_config 2>/dev/null || true
+    chmod 644 /data/system/theme_config/theme_compatibility.xml 2>/dev/null || true
+    chown system:system /data/system/theme_config /data/system/theme_config/theme_compatibility.xml 2>/dev/null || true
+fi
+
 if grep -qF 'google/tegu_beta/tegu:CANARY/ZP11.260618.005/15760424' "$state/pif.conf"; then
     cp "$runtime/defaults/pif.conf" "$state/pif.conf"
     chmod 600 "$state/pif.conf"
