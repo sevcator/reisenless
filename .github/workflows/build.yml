@@ -45,7 +45,7 @@ jobs:
         run: |
           python build.py test-native-auth
           python build.py test-identity
-          python build.py -vr all
+          python build.py all -r -v
 
       - name: Resolve randomized artifact name
         shell: bash

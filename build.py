@@ -2566,22 +2566,42 @@ def parse_args():
         "-s", "--serial", help="ADB device serial for installation"
     )
 
+    sub_common = argparse.ArgumentParser(add_help=False)
+    sub_common.add_argument(
+        "-r", "--release", action="store_true", default=argparse.SUPPRESS, help="compile in release mode"
+    )
+    sub_common.add_argument(
+        "-v", "--verbose", action="count", default=argparse.SUPPRESS, help="verbose output"
+    )
+    sub_common.add_argument(
+        "-c",
+        "--config",
+        default=argparse.SUPPRESS,
+        help="custom config file (default: config.prop)",
+    )
+    sub_common.add_argument(
+        "-i", "--install", action="store_true", default=argparse.SUPPRESS, help="install built APK on connected ADB device"
+    )
+    sub_common.add_argument(
+        "-s", "--serial", default=argparse.SUPPRESS, help="ADB device serial for installation"
+    )
+
     parser = argparse.ArgumentParser(description="Magisk / Reisenless build script", parents=[common])
     parser.set_defaults(func=lambda: None)
     subparsers = parser.add_subparsers(title="actions")
 
-    all_parser = subparsers.add_parser("all", parents=[common], help="build everything (native, udonge, stub, app)")
+    all_parser = subparsers.add_parser("all", parents=[sub_common], help="build everything (native, udonge, stub, app)")
 
     install_parser = subparsers.add_parser(
-        "install", parents=[common], help="install built APK onto connected ADB device"
+        "install", parents=[sub_common], help="install built APK onto connected ADB device"
     )
     install_parser.add_argument("apk", nargs="?", help="path to APK file (optional)")
 
     check_parser = subparsers.add_parser(
-        "check", parents=[common], help="check environment and toolchain dependencies"
+        "check", parents=[sub_common], help="check environment and toolchain dependencies"
     )
 
-    native_parser = subparsers.add_parser("native", parents=[common], help="build native binaries")
+    native_parser = subparsers.add_parser("native", parents=[sub_common], help="build native binaries")
     native_parser.add_argument(
         "targets",
         nargs="*",
@@ -2589,13 +2609,13 @@ def parse_args():
         or empty for defaults ({', '.join(default_targets)})",
     )
 
-    app_parser = subparsers.add_parser("app", parents=[common], help="build the manager app")
+    app_parser = subparsers.add_parser("app", parents=[sub_common], help="build the manager app")
 
-    stub_parser = subparsers.add_parser("stub", parents=[common], help="build the manager trust anchor")
+    stub_parser = subparsers.add_parser("stub", parents=[sub_common], help="build the manager trust anchor")
 
-    udonge_parser = subparsers.add_parser("udonge", parents=[common], help="build the built-in Udonge payload")
+    udonge_parser = subparsers.add_parser("udonge", parents=[sub_common], help="build the built-in Udonge payload")
 
-    legacy_parser = subparsers.add_parser("legacy", parents=[common], help="build the legacy manager app")
+    legacy_parser = subparsers.add_parser("legacy", parents=[sub_common], help="build the legacy manager app")
 
     clean_parser = subparsers.add_parser("clean", help="cleanup")
     clean_parser.add_argument(
@@ -2660,8 +2680,11 @@ def parse_args():
         cmd_args = ["all"] + cmd_args
 
     parsed = parser.parse_args(cmd_args)
-    if "-r" in cmd_args or "--release" in cmd_args:
+    if any(a == "--release" or re.fullmatch(r"-[a-zA-Z]*r[a-zA-Z]*", a) for a in cmd_args):
         parsed.release = True
+    v_count = sum(a.count("v") for a in cmd_args if re.fullmatch(r"-[a-zA-Z]+", a))
+    if v_count > getattr(parsed, "verbose", 0):
+        parsed.verbose = v_count
     return parsed
 
 
