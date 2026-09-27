@@ -37,8 +37,6 @@ import com.topjohnwu.magisk.core.base.SplashController
 import com.topjohnwu.magisk.core.base.SplashScreenHost
 import com.topjohnwu.magisk.core.wrap
 import com.topjohnwu.magisk.ui.component.rememberConfirmDialog
-import com.topjohnwu.magisk.ui.deny.DenyListScreen
-import com.topjohnwu.magisk.ui.deny.DenyListViewModel
 import com.topjohnwu.magisk.ui.flash.FlashScreen
 import com.topjohnwu.magisk.ui.flash.FlashUtils
 import com.topjohnwu.magisk.ui.flash.FlashViewModel
@@ -47,11 +45,11 @@ import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
 import com.topjohnwu.magisk.ui.hideapps.HideAppsViewModel
 import com.topjohnwu.magisk.ui.module.ActionScreen
 import com.topjohnwu.magisk.ui.module.ActionViewModel
+import com.topjohnwu.magisk.ui.module.ModuleViewModel
 import com.topjohnwu.magisk.ui.navigation.LocalNavigator
 import com.topjohnwu.magisk.ui.navigation.Navigator
 import com.topjohnwu.magisk.ui.navigation.Route
 import com.topjohnwu.magisk.ui.navigation.rememberNavigator
-import com.topjohnwu.magisk.ui.superuser.SuperuserDetailScreen
 import com.topjohnwu.magisk.ui.superuser.SuperuserViewModel
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -118,18 +116,17 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
                                     val superuserVm: SuperuserViewModel = viewModel(
                                         viewModelStoreOwner = this@MainActivity, factory = VMFactory
                                     )
+                                    val moduleVm: ModuleViewModel = viewModel(
+                                        viewModelStoreOwner = this@MainActivity, factory = VMFactory
+                                    )
                                     MainScreen(
                                         initialTab = initialTab,
                                         superuserViewModel = superuserVm,
+                                        moduleViewModel = moduleVm,
                                         onAuthenticate = { action ->
                                             extension.withAuthentication { if (it) action() }
                                         }
                                     )
-                                }
-                                entry<Route.DenyList> { _ ->
-                                    val vm: DenyListViewModel = viewModel(factory = VMFactory)
-                                    LaunchedEffect(Unit) { vm.startLoading() }
-                                    DenyListScreen(vm, onBack = { navigator.pop() })
                                 }
                                 entry<Route.HideApps> { _ ->
                                     val vm: HideAppsViewModel = viewModel(factory = VMFactory)
@@ -146,24 +143,6 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
                                         }
                                     }
                                     FlashScreen(vm, action = key.action, onBack = { navigator.pop() })
-                                }
-                                entry<Route.SuperuserDetail> { key ->
-                                    val vm: SuperuserViewModel = viewModel(
-                                        viewModelStoreOwner = this@MainActivity, factory = VMFactory
-                                    )
-                                    LaunchedEffect(Unit) {
-                                        vm.authenticate = { onSuccess ->
-                                            extension.withAuthentication { if (it) onSuccess() }
-                                        }
-                                    }
-                                    SuperuserDetailScreen(
-                                        uid = key.uid,
-                                        viewModel = vm,
-                                        onBack = { navigator.pop() },
-                                        onAuthenticate = { action ->
-                                            extension.withAuthentication { if (it) action() }
-                                        }
-                                    )
                                 }
                                 entry<Route.Action> { key ->
                                     val vm: ActionViewModel = viewModel(factory = VMFactory)

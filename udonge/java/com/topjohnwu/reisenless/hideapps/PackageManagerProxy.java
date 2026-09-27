@@ -435,6 +435,7 @@ public final class PackageManagerProxy implements InvocationHandler {
 
     private static boolean isRomOrRootPackage(String target) {
         if (target == null || target.isEmpty()) return false;
+        if (target.startsWith("bin.mt.")) return true;
         if (target.startsWith("org.lineageos.") || target.startsWith("lineageos.")) return true;
         if (target.startsWith("org.protonaosp.")) return true;
         if (target.startsWith("co.aospa.")) return true;

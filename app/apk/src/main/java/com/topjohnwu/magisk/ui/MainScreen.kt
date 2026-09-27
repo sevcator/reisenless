@@ -50,6 +50,8 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.arch.VMFactory
@@ -80,6 +82,7 @@ fun MainScreen(
     modifier: Modifier = Modifier,
     initialTab: Int = Tab.HOME.ordinal,
     superuserViewModel: SuperuserViewModel? = null,
+    moduleViewModel: ModuleViewModel? = null,
     onAuthenticate: ((onSuccess: () -> Unit) -> Unit)? = null,
 ) {
     val navigator = LocalNavigator.current
@@ -94,6 +97,31 @@ fun MainScreen(
     }
     val initialPage = visibleTabs.indexOf(Tab.entries[initialTab]).coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { visibleTabs.size })
+
+    val activity = LocalActivity.current as? ComponentActivity
+    val superuserVm: SuperuserViewModel = superuserViewModel
+        ?: if (activity != null) {
+            viewModel(viewModelStoreOwner = activity, factory = VMFactory)
+        } else {
+            viewModel(factory = VMFactory)
+        }
+    val moduleVm: ModuleViewModel = moduleViewModel
+        ?: if (activity != null) {
+            viewModel(viewModelStoreOwner = activity, factory = VMFactory)
+        } else {
+            viewModel(factory = VMFactory)
+        }
+
+    val superuserUiState by superuserVm.uiState.collectAsStateWithLifecycle()
+    val moduleUiState by moduleVm.uiState.collectAsStateWithLifecycle()
+
+    val superuserCount = superuserUiState.policies.size
+    val moduleCount = moduleUiState.modules.size
+
+    LaunchedEffect(Unit) {
+        superuserVm.startLoading()
+        moduleVm.startLoading()
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         HorizontalPager(
@@ -112,33 +140,25 @@ fun MainScreen(
                     }
                     CollectNavEvents(vm, navigator)
                     CollectNavEvents(installVm, navigator)
-                    HomeScreen(vm, installVm)
+                    HomeScreen(vm, installVm, isCurrentPage = isCurrentPage)
                 }
                 Tab.SUPERUSER -> {
-                    val activity = LocalActivity.current as? ComponentActivity
-                    val vm: SuperuserViewModel = superuserViewModel
-                        ?: if (activity != null) {
-                            viewModel(viewModelStoreOwner = activity, factory = VMFactory)
-                        } else {
-                            viewModel(factory = VMFactory)
-                        }
                     LaunchedEffect(onAuthenticate) {
                         if (onAuthenticate != null) {
-                            vm.authenticate = onAuthenticate
+                            superuserVm.authenticate = onAuthenticate
                         }
                     }
                     LaunchedEffect(isCurrentPage) {
-                        if (isCurrentPage) vm.startLoading()
+                        if (isCurrentPage) superuserVm.startLoading()
                     }
-                    SuperuserScreen(vm)
+                    SuperuserScreen(superuserVm)
                 }
                 Tab.MODULES -> {
-                    val vm: ModuleViewModel = viewModel(factory = VMFactory)
                     LaunchedEffect(isCurrentPage) {
-                        if (isCurrentPage) vm.startLoading()
+                        if (isCurrentPage) moduleVm.startLoading()
                     }
-                    CollectNavEvents(vm, navigator)
-                    ModuleScreen(vm)
+                    CollectNavEvents(moduleVm, navigator)
+                    ModuleScreen(moduleVm)
                 }
                 Tab.SETTINGS -> {
                     val vm: SettingsViewModel = viewModel(factory = VMFactory)
@@ -156,6 +176,13 @@ fun MainScreen(
         FloatingNavigationBar(
             pagerState = pagerState,
             visibleTabs = visibleTabs,
+            badgeCounts = { tab ->
+                when (tab) {
+                    Tab.MODULES -> moduleCount
+                    Tab.SUPERUSER -> superuserCount
+                    else -> 0
+                }
+            },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
@@ -165,6 +192,7 @@ fun MainScreen(
 private fun FloatingNavigationBar(
     pagerState: PagerState,
     visibleTabs: List<Tab>,
+    badgeCounts: (Tab) -> Int,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -187,6 +215,7 @@ private fun FloatingNavigationBar(
             FloatingNavItem(
                 icon = ImageVector.vectorResource(tab.iconRes),
                 label = stringResource(tab.titleRes),
+                badgeCount = badgeCounts(tab),
                 selected = pagerState.currentPage == index,
                 enabled = true,
                 onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
@@ -200,6 +229,7 @@ private fun FloatingNavigationBar(
 private fun FloatingNavItem(
     icon: ImageVector,
     label: String,
+    badgeCount: Int,
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -255,15 +285,32 @@ private fun FloatingNavItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            modifier = Modifier
-                .padding(top = 6.dp)
-                .size(22.dp)
-                .scale(iconScale),
-            tint = iconTint,
-        )
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(top = 6.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier
+                    .size(22.dp)
+                    .scale(iconScale),
+                tint = iconTint,
+            )
+            if (badgeCount > 0) {
+                Text(
+                    text = badgeCount.toString(),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 10.sp
+                    ),
+                    color = iconTint,
+                    modifier = Modifier.padding(start = 2.dp, bottom = 1.dp)
+                )
+            }
+        }
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,

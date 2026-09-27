@@ -17,8 +17,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -55,33 +52,23 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val scrollState = rememberScrollState()
     Scaffold(
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(CoreR.string.settings)) },
-                scrollBehavior = scrollBehavior
-            )
-        }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .padding(padding)
-                .verticalScrollbar(scrollState, contentPadding = PaddingValues(bottom = 88.dp))
+                .verticalScrollbar(scrollState, contentPadding = PaddingValues(top = 16.dp, bottom = 88.dp))
                 .verticalScroll(scrollState)
                 .padding(horizontal = 12.dp)
-                .padding(bottom = 88.dp)
+                .padding(top = 16.dp, bottom = 88.dp)
         ) {
             CustomizationSection(viewModel = viewModel)
             if (Info.env.isActive) {
                 Spacer(Modifier.height(12.dp))
                 ReisenlessSection(viewModel = viewModel)
-                Spacer(Modifier.height(12.dp))
-                UdongeSection(viewModel = viewModel)
             }
             if (Info.showSuperUser) {
                 Spacer(Modifier.height(12.dp))
@@ -188,10 +175,7 @@ private fun ReisenlessSection(
             var zygisk by remember { mutableStateOf(Config.zygisk) }
             SettingsSwitch(
                 title = stringResource(CoreR.string.zygisk),
-                summary = stringResource(
-                    if (zygisk != Info.isZygiskEnabled) CoreR.string.reboot_apply_change
-                    else CoreR.string.settings_zygisk_summary
-                ),
+                summary = stringResource(CoreR.string.settings_zygisk_summary),
                 checked = zygisk,
                 onCheckedChange = {
                     zygisk = it
@@ -200,25 +184,7 @@ private fun ReisenlessSection(
                 }
             )
 
-            // 3. SuList (Switch)
-            val suListEnabled by viewModel.suListEnabled.collectAsStateWithLifecycle()
-            val suListBusy by viewModel.suListBusy.collectAsStateWithLifecycle()
-            SettingsSwitch(
-                title = stringResource(CoreR.string.settings_sulist_title),
-                summary = stringResource(CoreR.string.settings_sulist_summary),
-                checked = suListEnabled,
-                enabled = !suListBusy,
-                onCheckedChange = { viewModel.toggleSuList(it) }
-            )
-
-            // 4. Configure SuList (Button)
-            SettingsArrow(
-                title = stringResource(CoreR.string.settings_sulist_config_title),
-                summary = stringResource(CoreR.string.settings_sulist_config_summary),
-                onClick = { viewModel.navigateToSuList() }
-            )
-
-            // 5. Hide Apps (Switch)
+            // 4. Hide Apps (Switch)
             val hideAppsEnabled by viewModel.hideAppsEnabled.collectAsStateWithLifecycle()
             SettingsSwitchAction(
                 title = stringResource(CoreR.string.hide_apps_title),
@@ -227,41 +193,26 @@ private fun ReisenlessSection(
                 onClick = viewModel::navigateToHideApps,
                 onCheckedChange = viewModel::toggleHideApps,
             )
+
+            // 5. Udonge (Switch)
+            val udongeEnabled by viewModel.udongeEnabled.collectAsStateWithLifecycle()
+            SettingsSwitch(
+                title = stringResource(CoreR.string.udonge_integrity_title),
+                summary = stringResource(CoreR.string.udonge_integrity_summary),
+                checked = udongeEnabled,
+                onCheckedChange = { viewModel.toggleUdonge(it) },
+            )
+
+            // 7. Eirin (Switch)
+            val eirinEnabled by viewModel.eirinEnabled.collectAsStateWithLifecycle()
+            SettingsSwitch(
+                title = stringResource(CoreR.string.udonge_background_updates_title),
+                summary = stringResource(CoreR.string.udonge_background_updates_summary),
+                checked = eirinEnabled,
+                enabled = udongeEnabled,
+                onCheckedChange = { viewModel.toggleEirin(it) },
+            )
         }
-    }
-}
-
-// --- Udonge ---
-
-@Composable
-private fun UdongeSection(
-    viewModel: SettingsViewModel,
-    modifier: Modifier = Modifier
-) {
-    val udongeEnabled by viewModel.udongeEnabled.collectAsStateWithLifecycle()
-    var eirinEnabled by remember { mutableStateOf(false) }
-    LaunchedEffect(udongeEnabled) {
-        if (!udongeEnabled) eirinEnabled = false
-    }
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-    ) {
-        SettingsSwitch(
-            title = stringResource(CoreR.string.udonge_integrity_title),
-            summary = stringResource(CoreR.string.udonge_version_label, remember { com.topjohnwu.magisk.core.Udonge.version() }) + " · " + stringResource(CoreR.string.udonge_integrity_summary),
-            checked = udongeEnabled,
-            onCheckedChange = { viewModel.toggleUdonge(it) },
-        )
-        SettingsSwitch(
-            title = stringResource(CoreR.string.udonge_background_updates_title),
-            summary = stringResource(CoreR.string.udonge_background_updates_summary),
-            checked = eirinEnabled,
-            enabled = udongeEnabled,
-            onCheckedChange = { eirinEnabled = it },
-        )
     }
 }
 
@@ -399,21 +350,6 @@ private fun SuperuserSection(
             onSelectedIndexChange = {
                 timeoutIndex = it
                 Config.suDefaultTimeout = timeoutValues[it]
-            }
-        )
-
-        // SU Notification
-        val notifEntries = remember {
-            resources.getStringArray(CoreR.array.su_notification).toList()
-        }
-        var suNotification by remember { mutableIntStateOf(Config.suNotification) }
-        SettingsDropdown(
-            title = stringResource(CoreR.string.superuser_notification),
-            items = notifEntries,
-            selectedIndex = suNotification,
-            onSelectedIndexChange = {
-                suNotification = it
-                Config.suNotification = it
             }
         )
 

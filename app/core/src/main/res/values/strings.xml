@@ -242,6 +242,8 @@
     <string name="reinstall" tools:ignore="MissingTranslation">reinstall</string>
     <string name="enabled" tools:ignore="MissingTranslation">enabled</string>
     <string name="disabled" tools:ignore="MissingTranslation">disabled</string>
+    <string name="on" tools:ignore="MissingTranslation">on</string>
+    <string name="off" tools:ignore="MissingTranslation">off</string>
     <string name="ramdisk" tools:ignore="MissingTranslation">ramdisk</string>
     <string name="shared_uid" tools:ignore="MissingTranslation">shared uid</string>
     <string name="webui" tools:ignore="MissingTranslation">webui</string>

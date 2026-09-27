@@ -31,21 +31,13 @@ object Notifications {
             if (SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(PROGRESS_CHANNEL,
                     getString(R.string.progress_channel), NotificationManager.IMPORTANCE_LOW)
-                val su = NotificationChannel(SU_CHANNEL,
-                    getString(R.string.su_notification_channel), NotificationManager.IMPORTANCE_HIGH)
-                mgr.createNotificationChannels(listOf(channel, su))
+                mgr.createNotificationChannels(listOf(channel))
             }
         }
     }
 
     fun suNotificationOrToast(context: android.content.Context, granted: Boolean, appName: String) {
-        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
-            val resId = if (granted) R.string.su_allow_toast else R.string.su_deny_toast
-            context.toast(context.getString(resId, appName), Toast.LENGTH_SHORT)
-            return
-        }
-        setup()
-        suNotification(granted, appName)
+        // Disabled
     }
 
     fun startProgress(title: CharSequence): Notification.Builder {
@@ -65,32 +57,7 @@ object Notifications {
 
     @SuppressLint("InlinedApi")
     fun suNotification(granted: Boolean, appName: String) {
-        AppContext.apply {
-            val flag = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            val pending = PendingIntent.getActivity(this, 0, selfLaunchIntent(), flag)
-            val title = getString(
-                if (granted) R.string.su_notification_granted_title
-                else R.string.su_notification_denied_title
-            )
-            val text = getString(
-                if (granted) R.string.su_allow_toast else R.string.su_deny_toast,
-                appName
-            )
-            val builder = (if (SDK_INT >= Build.VERSION_CODES.O) {
-                Notification.Builder(this, SU_CHANNEL)
-            } else {
-                Notification.Builder(this).setPriority(Notification.PRIORITY_HIGH)
-            })
-                .setSmallIcon(android.R.drawable.stat_sys_warning)
-                .setContentIntent(pending)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setAutoCancel(true)
-            if (SDK_INT >= Build.VERSION_CODES.O) {
-                builder.setTimeoutAfter(3_000L)
-            }
-            mgr.notify(nextId(), builder.build())
-        }
+        // Disabled
     }
 
     fun nextId() = nextId.incrementAndGet()

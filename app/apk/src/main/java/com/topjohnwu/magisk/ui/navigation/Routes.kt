@@ -12,15 +12,8 @@ sealed interface Route : NavKey, Parcelable {
 
     @Parcelize
     @Serializable
-    data object DenyList : Route
-
-    @Parcelize
-    @Serializable
     data object HideApps : Route
 
-    @Parcelize
-    @Serializable
-    data class SuperuserDetail(val uid: Int) : Route
 
     @Parcelize
     @Serializable

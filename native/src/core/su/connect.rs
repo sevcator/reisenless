@@ -7,7 +7,7 @@ use crate::socket::IpcRead;
 use ExtraVal::{Int, Str};
 use base::{
     BytesExt, FileAttr, LibcReturn, LoggedError, LoggedResult, ResultExt, Utf8CStrBuf, cstr,
-    fork_dont_care, warn,
+    warn,
 };
 use nix::fcntl::OFlag;
 use nix::poll::{PollFd, PollFlags, PollTimeout};
@@ -16,7 +16,7 @@ use std::fmt::Write;
 use std::fs::File;
 use std::os::fd::AsFd;
 use std::os::unix::net::UCred;
-use std::process::{Command, exit};
+use std::process::Command;
 
 struct Extra<'a> {
     key: &'static str,
@@ -206,6 +206,7 @@ impl SuAppContext<'_> {
         };
     }
 
+    #[allow(dead_code)]
     fn app_notify(&self) {
         let extras = [
             Extra {
@@ -231,17 +232,5 @@ impl SuAppContext<'_> {
             self.settings.policy = SuPolicy::Deny;
             return;
         }
-
-        if self.settings.policy == SuPolicy::Deny || !self.settings.notify {
-            return;
-        }
-
-        if fork_dont_care() != 0 {
-            return;
-        }
-
-        self.app_notify();
-
-        exit(0);
     }
 }

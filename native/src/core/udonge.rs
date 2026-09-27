@@ -109,6 +109,7 @@ fn runtime_complete(root: &str) -> bool {
         "post-fs-data.sh",
         "service.sh",
         "stop.sh",
+        "keybox_heal.sh",
         "defaults/keybox.xml",
         "defaults/keybox_urls.conf",
         "defaults/pif.conf",
@@ -180,10 +181,10 @@ pub fn setup_runtime(run_optional_features: bool) {
     let buffer = cstr::buf::default();
     let ramdisk_archive = buffer.join_path(get_magisk_tmp()).join_path(BUILD_UDONGE_ARCHIVE);
     let persistent_archive = cstr::buf::default().join_path(DATABIN).join_path(BUILD_UDONGE_ARCHIVE);
-    let archive = if ramdisk_archive.exists() {
-        &ramdisk_archive
-    } else {
+    let archive = if persistent_archive.exists() {
         &persistent_archive
+    } else {
+        &ramdisk_archive
     };
 
     cstr!(UDONGE_ROOT).mkdirs(0o700).ok();

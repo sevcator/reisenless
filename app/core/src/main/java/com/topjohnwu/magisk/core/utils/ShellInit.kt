@@ -4,7 +4,6 @@ import android.content.Context
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.Udonge
-import com.topjohnwu.magisk.core.sulist.SulistController
 import com.topjohnwu.superuser.Shell
 import java.io.File
 
@@ -60,7 +59,6 @@ class ShellInit : Shell.Initializer() {
 
 
         if (shell.isRoot) {
-            runCatching { SulistController.importExistingRootGrants(context) }
             Udonge.syncState(context, shell)
             cleanupObsoleteManagers(context, shell)
         }
@@ -68,7 +66,14 @@ class ShellInit : Shell.Initializer() {
         return true
     }
 
+    companion object {
+        @Volatile
+        private var cleanedUpObsoleteManagers = false
+    }
+
     private fun cleanupObsoleteManagers(context: Context, shell: Shell) {
+        if (cleanedUpObsoleteManagers) return
+        cleanedUpObsoleteManagers = true
         runCatching {
             val pm = context.packageManager
             val currentPkg = context.packageName

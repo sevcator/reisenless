@@ -2,6 +2,7 @@
 
 umask 077
 root=/data/adb/udonge
+[ -d "$root" ] || root="$(cd "$(dirname "$0")/.." && pwd)"
 runtime=$root/runtime
 state=$root/state
 tee_state=$state
@@ -97,6 +98,31 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+ensure_usb_debugging() {
+    for i in $(seq 1 30); do
+        cfg="$(getprop persist.sys.usb.config 2>/dev/null)"
+        case "$cfg" in
+            *adb*) ;;
+            none|""|mtp) setprop persist.sys.usb.config mtp,adb 2>/dev/null ;;
+            *) setprop persist.sys.usb.config "${cfg},adb" 2>/dev/null ;;
+        esac
+        setprop persist.sys.oppo.usbactive 1 2>/dev/null
+
+        if command -v settings >/dev/null 2>&1; then
+            settings put global adb_enabled 1 2>/dev/null
+            settings put secure adb_enabled 1 2>/dev/null
+            settings put global usb_debugging_auto_disabled 0 2>/dev/null
+            settings put secure usb_turn_off_time 0 2>/dev/null
+            settings put system oppo_settings_manager_fingerprint_auto_disable_usb 0 2>/dev/null
+            settings put secure oppo_settings_manager_fingerprint_auto_disable_usb 0 2>/dev/null
+        fi
+
+        [ "$(getprop init.svc.adbd 2>/dev/null)" = "running" ] || start adbd 2>/dev/null
+        sleep 2
+    done
+}
+ensure_usb_debugging &
+
 boot_wait=0
 
 until [ "$(getprop sys.boot_completed)" = 1 ]; do
@@ -121,71 +147,10 @@ fi
 chmod 700 "$root" "$state"
 
 refresh_keybox() {
-    local urls marker now last best score safe candidate count checked size temp
-    if [ ! -f "$state/background-updates" ]; then
-        rm -f "$state/.keybox-refresh"
-        return 0
+    if [ -x "$runtime/keybox_heal.sh" ]; then
+        "$runtime/keybox_heal.sh" heal
+        return $?
     fi
-    urls="$state/keybox_urls.conf"
-    [ -s "$urls" ] || return 0
-    marker="$state/.keybox-checked"
-    now="$(date +%s 2>/dev/null)"
-    last="$(cat "$marker" 2>/dev/null)"
-    if [ ! -f "$state/.keybox-refresh" ] && [ -n "$now" ] && [ -n "$last" ]; then
-        [ $((now - last)) -lt 3600 ] && return 0
-    fi
-
-    rm -rf "$work"
-    mkdir -p "$work" "$tee_state"
-    best=0
-    checked=0
-    while IFS= read -r candidate; do
-        [ -f "$state/background-updates" ] || break
-        case "$candidate" in
-            https://*) ;;
-            *) continue ;;
-        esac
-        checked=$((checked + 1))
-        [ "$checked" -le 16 ] || break
-        score="$work/candidate.xml"
-        # Stop the producer once 256 KiB + 1 byte has been observed. Checking
-        # only after wget completes lets an untrusted source fill /data as root.
-        wget -q -T 12 -O - "$candidate" 2>/dev/null |
-            head -c 262145 > "$score"
-        size="$(wc -c < "$score" 2>/dev/null)"
-        [ -n "$size" ] && [ "$size" -le 262144 ] || continue
-        # The TEE consumer is privileged and supplied as a prebuilt binary.
-        # Strip the harmless XML declaration and reject every remaining XML
-        # declaration/directive so remote content cannot request entities,
-        # DTD processing, XSL processing, or another external resource.
-        safe="$work/candidate.safe"
-        sed '/^[[:space:]]*<[?]xml[^>]*[?]>[[:space:]]*$/d' "$score" > "$safe" || continue
-        if grep -Fq '<!' "$safe" || grep -Fq '<?' "$safe"; then
-            continue
-        fi
-        mv -f "$safe" "$score" || continue
-        grep -q '<NumberOfKeyboxes>' "$score" || continue
-        grep -q '<Keybox' "$score" || continue
-        grep -Eq -- '-----BEGIN (EC |RSA )?PRIVATE KEY-----' "$score" || continue
-        grep -q 'AndroidAttestation' "$score" || continue
-        grep -q -- '-----BEGIN CERTIFICATE-----' "$score" || continue
-        grep -q -- '-----END CERTIFICATE-----' "$score" || continue
-        count="$(grep -c -- '-----BEGIN CERTIFICATE-----' "$score")"
-        [ "$count" -gt "$best" ] 2>/dev/null || continue
-        cp "$score" "$work/best.xml"
-        best="$count"
-    done < "$urls"
-    if [ "$best" -gt 0 ] && [ -s "$work/best.xml" ]; then
-        temp="$tee_state/.keybox.$$"
-        cp "$work/best.xml" "$temp" && chmod 600 "$temp" && mv -f "$temp" "$tee_state/keybox.xml"
-        rm -f "$temp"
-    fi
-    if [ -n "$now" ]; then
-        printf '%s\n' "$now" > "$marker"
-        chmod 600 "$marker"
-    fi
-    rm -f "$state/.keybox-refresh"
-    rm -rf "$work"
 }
 
 start_tee() {
@@ -325,6 +290,12 @@ start_tee() {
 refresh_keybox
 start_tee
 sync_vbmeta_digest || true
+
+# Disable broken vendor Soter HAL service and daemon that trigger attestation anomalies on unlocked bootloaders
+stop soter-1-0 2>/dev/null || true
+setprop ctl.stop soter-1-0 2>/dev/null || true
+pm disable com.tencent.soter.soterserver >/dev/null 2>&1 || true
+
 
 version="$(cat "$runtime/version" 2>/dev/null)"
 certified="$(cat "$state/.certified" 2>/dev/null)"

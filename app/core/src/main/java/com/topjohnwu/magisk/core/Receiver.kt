@@ -8,7 +8,6 @@ import com.topjohnwu.magisk.core.base.BaseReceiver
 import com.topjohnwu.magisk.core.di.ServiceLocator
 import com.topjohnwu.magisk.core.download.DownloadEngine
 import com.topjohnwu.magisk.core.download.Subject
-import com.topjohnwu.magisk.core.sulist.SulistController
 import com.topjohnwu.magisk.view.Notifications
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.GlobalScope
@@ -52,11 +51,7 @@ open class Receiver : BaseReceiver() {
             Intent.ACTION_UID_REMOVED -> {
                 getUid(intent)?.let { rmPolicy(it) }
             }
-            Intent.ACTION_PACKAGE_FULLY_REMOVED -> {
-                getPkg(intent)?.let {
-                    Shell.EXECUTOR.execute { SulistController.remove(it) }
-                }
-            }
+            Intent.ACTION_PACKAGE_FULLY_REMOVED -> Unit
             Intent.ACTION_MY_PACKAGE_REPLACED -> Unit
         }
     }

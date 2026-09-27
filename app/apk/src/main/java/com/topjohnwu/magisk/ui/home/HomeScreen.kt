@@ -1,5 +1,6 @@
 package com.topjohnwu.magisk.ui.home
 
+import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
 import android.os.Build
@@ -7,11 +8,14 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.widget.Toast
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -56,7 +60,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,10 +73,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -87,6 +101,9 @@ import com.topjohnwu.magisk.ui.flash.FlashUtils
 import com.topjohnwu.magisk.ui.install.InstallBottomSheet
 import com.topjohnwu.magisk.ui.install.InstallViewModel
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.offset
 import kotlinx.coroutines.delay
@@ -98,11 +115,11 @@ import com.topjohnwu.magisk.core.R as CoreR
 fun HomeScreen(
     viewModel: HomeViewModel,
     installVm: InstallViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCurrentPage: Boolean = true,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val scope = rememberCoroutineScope()
     val loadingDialog = rememberLoadingDialog()
 
@@ -179,52 +196,133 @@ fun HomeScreen(
         )
     }
 
-    val scrollState = rememberScrollState()
+    val fumos = remember { mutableStateListOf<RandomFumo>() }
+    var nextId by remember { mutableLongStateOf(0L) }
+    val player = remember(context) {
+        runCatching { MediaPlayer.create(context, R.raw.fumo) }.getOrNull()
+    }
+    DisposableEffect(player) {
+        onDispose { player?.release() }
+    }
+    LaunchedEffect(isCurrentPage) {
+        if (!isCurrentPage) {
+            fumos.clear()
+        }
+    }
 
     Scaffold(
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(CoreR.string.section_home)) },
-                scrollBehavior = scrollBehavior,
-                actions = {
-                    IconButton(onClick = { showInstallSheet = true }) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_download),
-                            contentDescription = stringResource(CoreR.string.install),
-                        )
-                    }
-                    if (Info.env.isActive) {
-                        IconButton(onClick = { viewModel.onDeletePressed() }) {
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            val configuration = LocalConfiguration.current
+            val maxFumoSize = remember(configuration.screenWidthDp, configuration.screenHeightDp) {
+                (minOf(configuration.screenWidthDp, configuration.screenHeightDp) * 0.9f).coerceAtLeast(240f).toInt()
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 16.dp, bottom = 88.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (Info.isRooted) {
+                            RebootButton()
+                        }
+                        if (Info.env.isActive) {
+                            IconButton(onClick = { viewModel.onDeletePressed() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(CoreR.string.uninstall_magisk_title),
+                                )
+                            }
+                        }
+                        IconButton(onClick = { showInstallSheet = true }) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(CoreR.string.uninstall_magisk_title),
+                                painter = painterResource(R.drawable.ic_download),
+                                contentDescription = stringResource(CoreR.string.install),
                             )
                         }
                     }
-                    if (Info.isRooted) {
-                        RebootButton()
+                }
+
+                if (uiState.magiskState == HomeViewModel.State.OUTDATED) {
+                    OutdatedRootCard(onReinstall = { showInstallSheet = true })
+                }
+                StatusCard()
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(CoreR.drawable.ic_reisen_white),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(Color.Gray.copy(alpha = 0.22f)),
+                        modifier = Modifier
+                            .size(160.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                player?.let { audio ->
+                                    runCatching {
+                                        if (audio.isPlaying) audio.pause()
+                                        audio.seekTo(0)
+                                        audio.start()
+                                    }
+                                }
+                                val randomSize = (80..maxFumoSize).random().dp
+                                val randomX = (0..100).random() / 100f
+                                val randomY = (0..100).random() / 100f
+                                fumos.add(
+                                    RandomFumo(
+                                        id = nextId++,
+                                        xRatio = randomX,
+                                        yRatio = randomY,
+                                        sizeDp = randomSize,
+                                    )
+                                )
+                            }
+                    )
+                }
+            }
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 88.dp)
+            ) {
+                for (fumo in fumos) {
+                    key(fumo.id) {
+                        RandomFumoItem(
+                            fumo = fumo,
+                            parentWidth = maxWidth,
+                            parentHeight = maxHeight,
+                            onFinished = {
+                                fumos.remove(fumo)
+                            }
+                        )
                     }
                 }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .padding(padding)
-                .verticalScrollbar(scrollState, contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp))
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(top = 12.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (uiState.magiskState == HomeViewModel.State.OUTDATED) {
-                OutdatedRootCard(onReinstall = { showInstallSheet = true })
             }
-            HomeFumo()
-            StatusCard()
         }
     }
 
@@ -235,62 +333,46 @@ fun HomeScreen(
     )
 }
 
+private data class RandomFumo(
+    val id: Long,
+    val xRatio: Float,
+    val yRatio: Float,
+    val sizeDp: Dp,
+)
+
 @Composable
-private fun HomeFumo() {
-    val context = LocalContext.current
-    val icon = remember(context) {
-        runCatching { context.applicationInfo.loadIcon(context.packageManager) }.getOrNull()
-    }
-    val player = remember(context) {
-        runCatching { MediaPlayer.create(context, R.raw.fumo) }.getOrNull()
-    }
-    var animationId by remember { mutableIntStateOf(0) }
-    val verticalOffset = remember { Animatable(-170f) }
-    val fumoAlpha = remember { Animatable(0f) }
+private fun RandomFumoItem(
+    fumo: RandomFumo,
+    parentWidth: Dp,
+    parentHeight: Dp,
+    onFinished: () -> Unit
+) {
+    val alpha = remember { Animatable(1f) }
 
-    DisposableEffect(player) {
-        onDispose { player?.release() }
-    }
-    LaunchedEffect(animationId) {
-        if (animationId == 0) return@LaunchedEffect
-        verticalOffset.snapTo(-170f)
-        fumoAlpha.snapTo(1f)
-        verticalOffset.animateTo(85f, tween(durationMillis = 720))
-        delay(450)
-        fumoAlpha.animateTo(0f, tween(durationMillis = 220))
+    LaunchedEffect(fumo.id) {
+        delay(5000)
+        alpha.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(durationMillis = 5000, easing = LinearEasing)
+        )
+        onFinished()
     }
 
-    Box(
-        modifier = Modifier.fillMaxWidth().height(210.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        icon?.let {
-            Image(
-                painter = rememberDrawablePainter(it),
-                contentDescription = stringResource(CoreR.string.home_fumo_icon_description),
-                modifier = Modifier.size(76.dp).clickable {
-                    player?.let { audio ->
-                        runCatching {
-                            if (audio.isPlaying) audio.pause()
-                            audio.seekTo(0)
-                            audio.start()
-                        }
-                    }
-                    animationId++
-                },
-            )
-        }
-        if (animationId > 0) {
-            Image(
-                painter = painterResource(R.drawable.fumo_reisen),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(156.dp)
-                    .offset(y = verticalOffset.value.dp)
-                    .alpha(fumoAlpha.value),
-            )
-        }
-    }
+    val maxOffsetX = (parentWidth - fumo.sizeDp).coerceAtLeast(0.dp)
+    val maxOffsetY = (parentHeight - fumo.sizeDp).coerceAtLeast(0.dp)
+    val offsetX = maxOffsetX * fumo.xRatio
+    val offsetY = maxOffsetY * fumo.yRatio
+
+    Image(
+        painter = painterResource(R.drawable.fumo_reisen),
+        contentDescription = null,
+        modifier = Modifier
+            .offset(x = offsetX, y = offsetY)
+            .size(fumo.sizeDp)
+            .graphicsLayer {
+                this.alpha = alpha.value
+            }
+    )
 }
 
 @Composable
@@ -357,7 +439,6 @@ private fun RebootButton(
 
     Box(modifier = modifier) {
         IconButton(
-            modifier = Modifier.padding(end = 16.dp),
             onClick = { showMenu = true },
         ) {
             Icon(
@@ -397,24 +478,25 @@ private data class StatusInfo(val label: String, val status: String)
 private fun StatusCard(
     modifier: Modifier = Modifier
 ) {
-    val zygiskMismatch = Config.zygisk != Info.isZygiskEnabled
-    val udongeVersion = remember { com.topjohnwu.magisk.core.Udonge.version() }
+    val isZygiskActive = Config.zygisk && Info.isZygiskEnabled
     val statuses = listOf(
-        StatusInfo(
-            label = stringResource(CoreR.string.zygisk),
-            status = stringResource(
-                if (zygiskMismatch) CoreR.string.reboot_apply_change
-                else if (Config.zygisk) CoreR.string.enabled
-                else CoreR.string.disabled
-            )
-        ),
         StatusInfo(
             label = stringResource(CoreR.string.ramdisk),
             status = stringResource(if (Info.ramdisk) CoreR.string.yes else CoreR.string.no)
         ),
         StatusInfo(
+            label = stringResource(CoreR.string.zygisk),
+            status = stringResource(
+                if (isZygiskActive) CoreR.string.on
+                else CoreR.string.off
+            )
+        ),
+        StatusInfo(
             label = stringResource(CoreR.string.udonge),
-            status = udongeVersion
+            status = stringResource(
+                if (Config.udongeEnabled) CoreR.string.on
+                else CoreR.string.off
+            )
         )
     )
 

@@ -112,7 +112,8 @@ void exec_common_scripts(Utf8CStr stage) {
     for (const auto &script : scripts) {
         exec_t exec {
             .pre_exec = set_script_env,
-            .fork = pfs ? xfork : fork_dont_care
+            .fork = pfs ? xfork : fork_dont_care,
+            .path = bbpath(),
         };
         exec_command(exec, BBEXEC_CMD, script.data());
         PFS_WAIT()
@@ -151,7 +152,8 @@ void exec_module_scripts(Utf8CStr stage, const rust::Vec<ModuleInfo> &module_lis
             continue;
         exec_t exec {
             .pre_exec = set_script_env,
-            .fork = pfs ? xfork : fork_dont_care
+            .fork = pfs ? xfork : fork_dont_care,
+            .path = bbpath(),
         };
         exec_command(exec, BBEXEC_CMD, path);
         PFS_WAIT()

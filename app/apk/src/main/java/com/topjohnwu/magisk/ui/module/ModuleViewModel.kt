@@ -134,14 +134,16 @@ class ModuleViewModel : AsyncLoadViewModel() {
     }
 
     fun toggleRemove(item: ModuleItem) {
-        val newRemoved = !item.isRemoved
-        item.module.remove = newRemoved
-        _uiState.update { state ->
-            state.copy(
-                modules = state.modules.map {
-                    if (it.module.id == item.module.id) it.copy(isRemoved = newRemoved) else it
-                }
-            )
+        viewModelScope.launch(Dispatchers.IO) {
+            val newRemoved = !item.isRemoved
+            item.module.remove = newRemoved
+            _uiState.update { state ->
+                state.copy(
+                    modules = state.modules.map {
+                        if (it.module.id == item.module.id) it.copy(isRemoved = newRemoved) else it
+                    }
+                )
+            }
         }
     }
 }

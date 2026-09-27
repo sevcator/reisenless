@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.topjohnwu.magisk.core.di.ServiceLocator
-import com.topjohnwu.magisk.ui.deny.DenyListViewModel
 import com.topjohnwu.magisk.ui.flash.FlashViewModel
 import com.topjohnwu.magisk.ui.home.HomeViewModel
 import com.topjohnwu.magisk.ui.hideapps.HideAppsViewModel
@@ -21,7 +20,6 @@ val VMFactory: ViewModelProvider.Factory = viewModelFactory {
     initializer { SuperuserViewModel(ServiceLocator.policyDB) }
     initializer { InstallViewModel() }
     initializer { SuRequestViewModel(ServiceLocator.policyDB, ServiceLocator.timeoutPrefs) }
-    initializer { DenyListViewModel() }
     initializer { FlashViewModel() }
     initializer { ActionViewModel() }
     initializer { ModuleViewModel() }

@@ -71,9 +71,7 @@ impl Default for DbSettings {
             multiuser_mode: MultiuserMode::default(),
             mnt_ns: MntNsMode::default(),
             boot_count: 0,
-            // A missing row means a fresh installation. Explicit database
-            // values still override this secure default during upgrades.
-            sulist: true,
+            sulist: false,
             zygisk: false,
         }
     }
@@ -348,7 +346,7 @@ mod tests {
     use super::DbSettings;
 
     #[test]
-    fn missing_sulist_setting_has_secure_default() {
-        assert!(DbSettings::default().sulist);
+    fn missing_sulist_setting_defaults_to_false() {
+        assert!(!DbSettings::default().sulist);
     }
 }

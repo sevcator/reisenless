@@ -43,19 +43,6 @@ object Udonge {
     private val runtime = "$root/runtime"
     private val pendingReboot = "$state/pending-reboot"
 
-    @Volatile
-    private var cachedVersion: String = ""
-
-    fun version(): String {
-        if (cachedVersion.isNotEmpty()) return cachedVersion
-        val ver = runCatching {
-            val cmd = "cat '$runtime/version' 2>/dev/null || cat '$state/.version' 2>/dev/null"
-            com.topjohnwu.superuser.ShellUtils.fastCmd(cmd).trim()
-        }.getOrNull().orEmpty()
-        cachedVersion = if (ver.isNotEmpty()) ver else Info.env.versionString.ifEmpty { BuildConfig.APP_VERSION_NAME }
-        return cachedVersion
-    }
-
     fun setEnabled(enabled: Boolean): Boolean {
         val action = if (enabled) {
             "mkdir -p '$state' && " +
@@ -80,11 +67,14 @@ object Udonge {
     }
 
     fun setBackgroundUpdates(enabled: Boolean): Boolean {
-        if (enabled) return false
-        val action = "rm -f '$state/background-updates' '$state/.keybox-refresh'"
+        val action = if (enabled) {
+            "mkdir -p '$state' && : > '$state/background-updates'"
+        } else {
+            "rm -f '$state/background-updates' '$state/.keybox-refresh'"
+        }
         val success = Shell.cmd(action).exec().isSuccess
         if (success) {
-            Config.udongeBackgroundUpdates = false
+            Config.udongeBackgroundUpdates = enabled
             scheduleBackgroundUpdates(AppContext)
         }
         return success
@@ -101,21 +91,113 @@ object Udonge {
         return shell.newJob().add(action).exec().isSuccess
     }
 
+    @Volatile
+    private var cachedAssetId: String? = null
+
+    fun syncRuntime(context: Context, shell: Shell) {
+        runCatching {
+            val installedId = com.topjohnwu.superuser.ShellUtils.fastCmd("cat '$runtime/payload.id' 2>/dev/null").trim()
+
+            var targetId = cachedAssetId
+            if (targetId == null) {
+                runCatching {
+                    java.util.zip.ZipInputStream(context.assets.open(Const.UDONGE_ARCHIVE)).use { zis ->
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            if (entry.name == "payload.id") {
+                                targetId = zis.bufferedReader().readLine()?.trim()
+                                break
+                            }
+                            entry = zis.nextEntry
+                        }
+                    }
+                }
+                if (targetId.isNullOrEmpty()) {
+                    val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    context.assets.open(Const.UDONGE_ARCHIVE).use { stream ->
+                        while (stream.read(buffer).also { bytesRead = it } > 0) {
+                            digest.update(buffer, 0, bytesRead)
+                        }
+                    }
+                    targetId = digest.digest().joinToString("") { "%02x".format(it) }
+                }
+                cachedAssetId = targetId
+            }
+
+            if (installedId.isEmpty() || installedId != targetId) {
+                val tempDir = java.io.File(context.cacheDir, "udonge_extract_${System.currentTimeMillis()}")
+                tempDir.mkdirs()
+                java.util.zip.ZipInputStream(context.assets.open(Const.UDONGE_ARCHIVE)).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        val outFile = java.io.File(tempDir, entry.name)
+                        if (entry.isDirectory) {
+                            outFile.mkdirs()
+                        } else {
+                            outFile.parentFile?.mkdirs()
+                            outFile.outputStream().use { output ->
+                                zis.copyTo(output)
+                            }
+                        }
+                        zis.closeEntry()
+                        entry = zis.nextEntry
+                    }
+                }
+
+                val tempExtractPath = tempDir.absolutePath
+                val targetArchive = "${Const.DATABIN}/${Const.UDONGE_ARCHIVE}"
+                val cmd = "mkdir -p '${Const.DATABIN}' '$root/runtime.new' '$state' && " +
+                    "cp -af '$tempExtractPath/.' '$root/runtime.new/' && " +
+                    "if [ -f '$root/runtime.new/service.sh' ] && [ -f '$root/runtime.new/hideapps.dex' ]; then " +
+                    "printf '%s\\n' '$targetId' > '$root/runtime.new/payload.id' && " +
+                    "rm -rf '$root/runtime.old' && " +
+                    "[ ! -d '$root/runtime' ] || mv '$root/runtime' '$root/runtime.old' && " +
+                    "mv '$root/runtime.new' '$root/runtime' && " +
+                    "chmod -R 700 '$root' && " +
+                    "chcon -R u:object_r:system_file:s0 '$root/runtime' 2>/dev/null; " +
+                    "chcon u:object_r:udonge_lib_file:s0 '$root/runtime/tee/'*'/libTEESimulator.so' 2>/dev/null; " +
+                    "fi; " +
+                    "rm -rf '$tempExtractPath'"
+                shell.newJob().add(cmd).exec()
+                tempDir.deleteRecursively()
+
+                val tempArchive = java.io.File(context.cacheDir, "udonge.tmp")
+                context.assets.open(Const.UDONGE_ARCHIVE).use { input ->
+                    tempArchive.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                val tempArchiveStr = tempArchive.absolutePath
+                shell.newJob().add("cp -f '$tempArchiveStr' '$targetArchive' && rm -f '$tempArchiveStr'").exec()
+                tempArchive.delete()
+            }
+        }
+    }
+
     fun syncState(context: Context, shell: Shell) {
+        syncRuntime(context, shell)
         val enabled = Config.udongeEnabled
-        val enabledCommand = if (enabled) {
-            "mkdir -p '$state' && : > '$state/enabled' && rm -f '$state/disabled'"
+        val job = shell.newJob()
+        if (enabled) {
+            job.add("mkdir -p '$state' && : > '$state/enabled' && rm -f '$state/disabled'")
+            val keyboxCmd = buildKeyboxUrlsCommand(Config.udongeKeyboxUrls)
+            if (keyboxCmd.isNotEmpty()) job.add(keyboxCmd)
+            val bgUpdatesCmd = if (Config.udongeBackgroundUpdates) {
+                "mkdir -p '$state' && : > '$state/background-updates'"
+            } else {
+                "rm -f '$state/background-updates' '$state/.keybox-refresh'"
+            }
+            job.add(bgUpdatesCmd)
+            if (Config.udongeRomHidingEnabled) {
+                val romCmd = buildRomKeywordsCommand(Config.udongeRomKeywords)
+                if (romCmd.isNotEmpty()) job.add(romCmd)
+            }
         } else {
-            "mkdir -p '$state' && rm -f '$state/enabled' && : > '$state/disabled'"
+            job.add("mkdir -p '$state' && rm -f '$state/enabled' && : > '$state/disabled' && rm -f '$state/background-updates' '$state/.keybox-refresh'")
         }
-        shell.newJob().add(enabledCommand).exec()
-        if (enabled) syncKeyboxUrls(shell)
-        syncBackgroundUpdates(shell)
-        if (enabled && Config.udongeRomHidingEnabled) {
-            setRomKeywords(Config.udongeRomKeywords, shell)
-        } else if (enabled) {
-            setRomKeywords("", shell)
-        }
+        job.exec()
     }
 
     fun setKeyboxUrls(value: String): Boolean {
@@ -150,7 +232,7 @@ object Udonge {
         ).exec().isSuccess
     }
 
-    private fun writeKeyboxUrls(value: String, execute: (String) -> Boolean): Boolean {
+    private fun buildKeyboxUrlsCommand(value: String): String {
         val normalized = value.lineSequence()
             .map(String::trim)
             .filter { it.startsWith("https://") && it.length <= 2048 }
@@ -166,19 +248,18 @@ object Udonge {
         } else {
             " && rm -f '$state/.keybox-refresh'"
         }
-        val command = "mkdir -p '$state' && printf '%s' '$encoded' | " +
+        return "mkdir -p '$state' && printf '%s' '$encoded' | " +
             "base64 -d > '$state/keybox_urls.conf'$refresh"
+    }
+
+    private fun writeKeyboxUrls(value: String, execute: (String) -> Boolean): Boolean {
+        val command = buildKeyboxUrlsCommand(value)
         return execute(command)
     }
 
     fun scheduleBackgroundUpdates(context: Context) {
         val scheduler = context.getSystemService(JobScheduler::class.java)
-        // Eirin is intentionally UI-only for now. Cancel any persisted hourly
-        // job left by older builds so it cannot keep waking the app in idle.
         scheduler.cancel(Const.ID.BACKGROUND_UPDATE_JOB_ID)
-        if (Config.udongeBackgroundUpdates) {
-            Config.udongeBackgroundUpdates = false
-        }
     }
 
     fun setRomKeywords(value: String): Boolean = setRomKeywords(value) { command ->
@@ -195,7 +276,7 @@ object Udonge {
         shell.newJob().add(command).exec().isSuccess
     }
 
-    private fun setRomKeywords(value: String, execute: (String) -> Boolean): Boolean {
+    private fun buildRomKeywordsCommand(value: String): String {
         val normalized = value.lineSequence()
             .map(String::trim)
             .filter { it.length >= 3 && it.none { c -> c.isWhitespace() } }
@@ -203,10 +284,22 @@ object Udonge {
             .take(32)
             .joinToString("\n")
         val encoded = Base64.encodeToString(normalized.toByteArray(), Base64.NO_WRAP)
-        val command = "mkdir -p '$state' && printf '%s' '$encoded' | " +
+        return "mkdir -p '$state' && printf '%s' '$encoded' | " +
             "base64 -d > '$state/rom_keywords.conf'"
+    }
+
+    private fun setRomKeywords(value: String, execute: (String) -> Boolean): Boolean {
+        val command = buildRomKeywordsCommand(value)
         val success = execute(command)
-        if (success) Config.udongeRomKeywords = normalized
+        if (success) {
+            val normalized = value.lineSequence()
+                .map(String::trim)
+                .filter { it.length >= 3 && it.none { c -> c.isWhitespace() } }
+                .distinct()
+                .take(32)
+                .joinToString("\n")
+            Config.udongeRomKeywords = normalized
+        }
         return success
     }
 

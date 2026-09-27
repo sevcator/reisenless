@@ -14,7 +14,13 @@
 #include <sys/sysmacros.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <linux/sockios.h>
 #include <set>
+#include <map>
 #include <mutex>
 #include <tuple>
 #include <utility>
@@ -150,8 +156,90 @@ static bool is_rom_path(const char *path) {
     return false;
 }
 
+static bool is_vpn_iface(const char *name) {
+    if (!name || name[0] == '\0') return false;
+
+    // Fast check for real/exempt interfaces
+    if (strncmp(name, "lo", 2) == 0 && (name[2] == '\0' || name[2] == ':')) return false;
+    if (strncmp(name, "wlan", 4) == 0) return false;
+    if (strncmp(name, "rmnet", 5) == 0) return false;
+    if (strncmp(name, "eth", 3) == 0) return false;
+    if (strncmp(name, "dummy", 5) == 0) return false;
+    if (strncmp(name, "ifb", 3) == 0) return false;
+    if (strncmp(name, "bnep", 4) == 0) return false;
+    if (strncmp(name, "rndis", 5) == 0) return false;
+    if (strncmp(name, "ccmni", 5) == 0) return false;
+    if (strncmp(name, "seth", 4) == 0) return false;
+
+    static const char *const kVpnPrefixes[] = {
+        "tun", "tap", "wg", "ppp", "ipsec", "xfrm",
+        "utun", "l2tp", "gre", "tailscale", "zt", "he-ipv6"
+    };
+
+    size_t len = strlen(name);
+    for (const char *prefix : kVpnPrefixes) {
+        size_t plen = strlen(prefix);
+        if (len >= plen && strncasecmp(name, prefix, plen) == 0) {
+            return true;
+        }
+    }
+
+    if (contains_ci(name, len, "vpn", 3)) {
+        return true;
+    }
+
+    if (strncasecmp(name, "if", 2) == 0 && len > 2) {
+        bool all_digits = true;
+        for (size_t i = 2; i < len; ++i) {
+            if (name[i] < '0' || name[i] > '9') {
+                all_digits = false;
+                break;
+            }
+        }
+        if (all_digits) return true;
+    }
+
+    return false;
+}
+
+static bool is_vpn_path(const char *path) {
+    if (!path) return false;
+    const char *iface = nullptr;
+    if (strncmp(path, "/sys/class/net/", 15) == 0) {
+        iface = path + 15;
+    } else if (strncmp(path, "/sys/devices/virtual/net/", 25) == 0) {
+        iface = path + 25;
+    } else if (strncmp(path, "/proc/sys/net/ipv4/conf/", 24) == 0) {
+        iface = path + 24;
+    } else if (strncmp(path, "/proc/sys/net/ipv6/conf/", 24) == 0) {
+        iface = path + 24;
+    }
+    if (iface) {
+        char name[64] = {0};
+        const char *slash = strchr(iface, '/');
+        size_t len = slash ? static_cast<size_t>(slash - iface) : strlen(iface);
+        if (len > 0 && len < sizeof(name)) {
+            memcpy(name, iface, len);
+            if (is_vpn_iface(name)) return true;
+        }
+    }
+    return false;
+}
+
+static bool is_mt_path(const char *path) {
+    if (!path) return false;
+    if (strcasestr(path, "/MT2") != nullptr || strcasecmp(path, "MT2") == 0 ||
+        strncasecmp(path, "MT2/", 4) == 0 ||
+        strcasestr(path, "bin.mt.") != nullptr) {
+        return true;
+    }
+    return false;
+}
+
 static bool is_blocked(const char *path) {
     if (!path) return false;
+    if (is_vpn_path(path)) return true;
+    if (is_mt_path(path)) return true;
     for (const char *s : kBlockedSubstr)
         if (strstr(path, s)) return true;
     if (basename_is_su(path)) return true;
@@ -165,6 +253,9 @@ static int     (*o_access)(const char *, int);
 static int     (*o_stat)(const char *, struct stat *);
 static int     (*o_lstat)(const char *, struct stat *);
 static int     (*o_fstatat)(int, const char *, struct stat *, int);
+static int     (*o_stat64)(const char *, struct stat64 *);
+static int     (*o_lstat64)(const char *, struct stat64 *);
+static int     (*o_fstatat64)(int, const char *, struct stat64 *, int);
 static int     (*o_open)(const char *, int, ...);
 static int     (*o_open_2)(const char *, int);
 static int     (*o_openat)(int, const char *, int, ...);
@@ -178,12 +269,19 @@ static int     (*o_prop_get)(const char *, char *);
 static void    (*o_prop_read_cb)(const void *, void (*)(void *, const char *, const char *, uint32_t), void *);
 static DIR    *(*o_opendir)(const char *);
 static struct dirent *(*o_readdir)(DIR *);
+static struct dirent64 *(*o_readdir64)(DIR *);
+static int     (*o_execve)(const char *, char *const [], char *const []);
+static int     (*o_execvp)(const char *, char *const []);
+static int     (*o_execvpe)(const char *, char *const [], char *const []);
 static char   *(*o_getenv)(const char *);
 static void   *(*o_dlopen)(const char *, int);
 static void   *(*o_android_dlopen_ext)(const char *, int, const void *);
 static void   *(*o_loader_dlopen)(const char *, int, const void *);
 static void   *(*o_loader_android_dlopen_ext)(const char *, int, const void *, const void *);
 static jstring (*o_runtime_native_load)(JNIEnv *, jclass, jstring, jobject, jclass);
+static int     (*o_getifaddrs)(struct ifaddrs **) = nullptr;
+static int     (*o_ioctl)(int, unsigned long, ...) = nullptr;
+static int     (*o_setsockopt)(int, int, int, const void *, socklen_t) = nullptr;
 static void install_late_library_hooks();
 
 static void refresh_late_library_hooks() {
@@ -250,12 +348,13 @@ static int h_selinux_check_access(const char *scon, const char *tcon, const char
 
 static jstring h_runtime_native_load(JNIEnv *env, jclass type, jstring filename,
                                      jobject loader, jclass caller) {
-    jstring error = o_runtime_native_load(env, type, filename, loader, caller);
+    jstring error = o_runtime_native_load ? o_runtime_native_load(env, type, filename, loader, caller) : nullptr;
     refresh_late_library_hooks();
     return error;
 }
 
 void hook_native_load(zygisk::Api *api, JNIEnv *env) {
+    if (!api || !env) return;
     JNINativeMethod method{
         const_cast<char *>("nativeLoad"),
         const_cast<char *>(
@@ -263,6 +362,10 @@ void hook_native_load(zygisk::Api *api, JNIEnv *env) {
         reinterpret_cast<void *>(h_runtime_native_load),
     };
     api->hookJniNativeMethods(env, "java/lang/Runtime", &method, 1);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return;
+    }
     o_runtime_native_load =
         reinterpret_cast<decltype(o_runtime_native_load)>(method.fnPtr);
 }
@@ -281,9 +384,31 @@ static bool is_local_tmp_path(const char *p) {
     return p && (strcmp(p, "/data/local/tmp") == 0 || strcmp(p, "/data/local/tmp/") == 0);
 }
 
+// Check if the path ends with "mountinfo"
+static bool is_mountinfo_path(const char *path) {
+    if (!path) return false;
+    size_t len = strlen(path);
+    return len >= 9 && strcmp(path + len - 9, "mountinfo") == 0;
+}
+
+static std::string resolve_at_path(int dirfd, const char *path) {
+    if (!path || path[0] == '\0') return "";
+    if (path[0] == '/') return path;
+    if (dirfd == AT_FDCWD || dirfd < 0) return path;
+    char fd_path[64];
+    snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", dirfd);
+    char resolved[PATH_MAX];
+    ssize_t len = ::readlink(fd_path, resolved, sizeof(resolved) - 1);
+    if (len > 0) {
+        resolved[len] = '\0';
+        return std::string(resolved) + "/" + path;
+    }
+    return path;
+}
+
 static int h_stat(const char *p, struct stat *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
-    int res = o_stat(p, s);
+    int res = o_stat ? o_stat(p, s) : ::stat(p, s);
     if (res == 0 && s && is_local_tmp_path(p)) {
         s->st_ino = 128;
     }
@@ -291,16 +416,53 @@ static int h_stat(const char *p, struct stat *s) {
 }
 static int h_lstat(const char *p, struct stat *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
-    int res = o_lstat(p, s);
+    int res = o_lstat ? o_lstat(p, s) : ::lstat(p, s);
     if (res == 0 && s && is_local_tmp_path(p)) {
         s->st_ino = 128;
     }
     return res;
 }
 static int h_fstatat(int d, const char *p, struct stat *s, int f) {
+    std::string full_path;
+    const char *target = p;
+    if (p && p[0] != '/' && d != AT_FDCWD && d >= 0) {
+        full_path = resolve_at_path(d, p);
+        if (!full_path.empty()) target = full_path.c_str();
+    }
+    if (is_blocked(target)) { errno = ENOENT; return -1; }
+    int res = o_fstatat ? o_fstatat(d, p, s, f) : ::fstatat(d, p, s, f);
+    if (res == 0 && s && is_local_tmp_path(target)) {
+        s->st_ino = 128;
+    }
+    return res;
+}
+
+static int h_stat64(const char *p, struct stat64 *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
-    int res = o_fstatat(d, p, s, f);
+    int res = o_stat64 ? o_stat64(p, s) : ::stat64(p, s);
     if (res == 0 && s && is_local_tmp_path(p)) {
+        s->st_ino = 128;
+    }
+    return res;
+}
+static int h_lstat64(const char *p, struct stat64 *s) {
+    if (is_blocked(p)) { errno = ENOENT; return -1; }
+    int res = o_lstat64 ? o_lstat64(p, s) : ::lstat64(p, s);
+    if (res == 0 && s && is_local_tmp_path(p)) {
+        s->st_ino = 128;
+    }
+    return res;
+}
+static int h_fstatat64(int d, const char *p, struct stat64 *s, int f) {
+    std::string full_path;
+    const char *target = p;
+    if (p && p[0] != '/' && d != AT_FDCWD && d >= 0) {
+        full_path = resolve_at_path(d, p);
+        if (!full_path.empty()) target = full_path.c_str();
+    }
+    if (is_blocked(target)) { errno = ENOENT; return -1; }
+    int res = o_fstatat64 ? o_fstatat64(d, p, s, f) : ::fstatat64(d, p, s, f);
+    if (res == 0 && s && is_local_tmp_path(target)) {
         s->st_ino = 128;
     }
     return res;
@@ -410,6 +572,132 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
     return out;
 }
 
+
+// Normalize mountinfo lines by removing blocked entries and renumbering peer groups
+// (shared:X, master:X, propagate_from:X) into a contiguous gapless sequence to defeat
+// DuckDetector's detect_peer_group_gap probe.
+static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
+    struct LineSpan {
+        size_t start;
+        size_t len;
+    };
+    std::vector<LineSpan> kept;
+    const char *p = raw.data();
+    const char *end = p + raw.size();
+
+    // Step 1: Collect non-blocked lines
+    while (p < end) {
+        const char *nl = static_cast<const char *>(memchr(p, '\n', end - p));
+        size_t len = nl ? static_cast<size_t>(nl - p + 1) : static_cast<size_t>(end - p);
+        bool keep = true;
+        for (const char *s : kBlockedSubstr) {
+            if (memmem(p, len, s, strlen(s))) { keep = false; break; }
+        }
+        if (keep) {
+            for (const char *s : kMountsExtra) {
+                if (memmem(p, len, s, strlen(s))) { keep = false; break; }
+            }
+        }
+        if (keep && g_cfg) {
+            for (const auto &kw : g_cfg->rom_keywords) {
+                if (contains_ci(p, len, kw.data(), kw.size())) {
+                    keep = false;
+                    break;
+                }
+            }
+        }
+        if (keep) {
+            kept.push_back({static_cast<size_t>(p - raw.data()), len});
+        }
+        p += len;
+    }
+
+    // Step 2: Extract all shared:X, master:X, propagate_from:X IDs and collect unique IDs in order
+    std::set<unsigned long> unique_shared;
+    static const char *const kTags[] = {"shared:", "master:", "propagate_from:"};
+    for (const auto &span : kept) {
+        const char *line = raw.data() + span.start;
+        const char *line_end = line + span.len;
+        const char *sep = static_cast<const char *>(memmem(line, span.len, " - ", 3));
+        const char *opt_end = sep ? sep : line_end;
+
+        for (const char *tag : kTags) {
+            size_t tag_len = strlen(tag);
+            const char *cur = line;
+            while ((cur = static_cast<const char *>(memmem(cur, opt_end - cur, tag, tag_len))) != nullptr) {
+                if (cur == line || cur[-1] == ' ') {
+                    const char *val_start = cur + tag_len;
+                    char *val_end = nullptr;
+                    unsigned long sid = strtoul(val_start, &val_end, 10);
+                    if (val_end > val_start && (val_end == opt_end || *val_end == ' ' || *val_end == '\n')) {
+                        unique_shared.insert(sid);
+                    }
+                }
+                cur += tag_len;
+            }
+        }
+    }
+
+    // Step 3: Build a gapless remap table: 1, 2, 3, ... N
+    std::map<unsigned long, unsigned long> remap;
+    if (!unique_shared.empty()) {
+        unsigned long next_id = 1;
+        for (unsigned long sid : unique_shared) {
+            remap[sid] = next_id++;
+        }
+    }
+
+    // Step 4: Stream rewritten lines into output buffer
+    std::vector<char> out;
+    out.reserve(raw.size());
+
+    for (const auto &span : kept) {
+        const char *line = raw.data() + span.start;
+        size_t len = span.len;
+        const char *sep = static_cast<const char *>(memmem(line, len, " - ", 3));
+
+        if (!sep || remap.empty()) {
+            out.insert(out.end(), line, line + len);
+            continue;
+        }
+
+        // Rewrite optional fields before " - "
+        const char *cur = line;
+        static const char *const kTags[] = {"shared:", "master:", "propagate_from:"};
+        while (cur < sep) {
+            bool handled = false;
+            for (const char *tag : kTags) {
+                size_t tag_len = strlen(tag);
+                if ((cur == line || cur[-1] == ' ') && strncmp(cur, tag, tag_len) == 0) {
+                    const char *val_start = cur + tag_len;
+                    char *val_end = nullptr;
+                    unsigned long id = strtoul(val_start, &val_end, 10);
+                    if (val_end > val_start && (val_end == sep || *val_end == ' ')) {
+                        auto it = remap.find(id);
+                        if (it != remap.end()) {
+                            out.insert(out.end(), tag, tag + tag_len);
+                            char num_buf[32];
+                            int n = snprintf(num_buf, sizeof(num_buf), "%lu", it->second);
+                            out.insert(out.end(), num_buf, num_buf + n);
+                            cur = val_end;
+                            handled = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!handled) {
+                out.push_back(*cur);
+                cur++;
+            }
+        }
+        // Append remainder of line (" - ...\n")
+        out.insert(out.end(), sep, line + len);
+    }
+
+    return out;
+}
+
 static std::vector<char> filter_maps(const std::vector<char> &raw) {
     return filter_blocked_lines(raw, false);
 }
@@ -501,7 +789,116 @@ static std::vector<char> filter_status(const std::vector<char> &raw) {
     return out;
 }
 
-enum ProcFilter { kFilterMaps, kFilterSmaps, kFilterStatus, kFilterMounts, kFilterNetUnix, kFilterCgroup };
+static std::vector<char> filter_proc_net_route(const std::vector<char> &raw) {
+    std::vector<char> out;
+    out.reserve(raw.size());
+    const char *p = raw.data();
+    const char *end = p + raw.size();
+    while (p < end) {
+        const char *nl = static_cast<const char *>(memchr(p, '\n', end - p));
+        size_t len = nl ? static_cast<size_t>(nl - p + 1) : static_cast<size_t>(end - p);
+        size_t flen = 0;
+        while (flen < len && p[flen] != '\t' && p[flen] != ' ' && p[flen] != '\n') {
+            flen++;
+        }
+        char ifname[64] = {0};
+        if (flen > 0 && flen < sizeof(ifname)) {
+            memcpy(ifname, p, flen);
+            if (is_vpn_iface(ifname)) {
+                p += len;
+                continue;
+            }
+        }
+        out.insert(out.end(), p, p + len);
+        p += len;
+    }
+    return out;
+}
+
+static std::vector<char> filter_proc_net_dev(const std::vector<char> &raw) {
+    std::vector<char> out;
+    out.reserve(raw.size());
+    const char *p = raw.data();
+    const char *end = p + raw.size();
+    while (p < end) {
+        const char *nl = static_cast<const char *>(memchr(p, '\n', end - p));
+        size_t len = nl ? static_cast<size_t>(nl - p + 1) : static_cast<size_t>(end - p);
+        const char *colon = static_cast<const char *>(memchr(p, ':', len));
+        if (colon) {
+            const char *start = p;
+            while (start < colon && (*start == ' ' || *start == '\t')) start++;
+            size_t nlen = colon - start;
+            char ifname[64] = {0};
+            if (nlen > 0 && nlen < sizeof(ifname)) {
+                memcpy(ifname, start, nlen);
+                if (is_vpn_iface(ifname)) {
+                    p += len;
+                    continue;
+                }
+            }
+        }
+        out.insert(out.end(), p, p + len);
+        p += len;
+    }
+    return out;
+}
+
+static std::vector<char> filter_proc_net_last_field(const std::vector<char> &raw) {
+    std::vector<char> out;
+    out.reserve(raw.size());
+    const char *p = raw.data();
+    const char *end = p + raw.size();
+    while (p < end) {
+        const char *nl = static_cast<const char *>(memchr(p, '\n', end - p));
+        size_t len = nl ? static_cast<size_t>(nl - p + 1) : static_cast<size_t>(end - p);
+        size_t tend = len;
+        while (tend > 0 && (p[tend - 1] == '\n' || p[tend - 1] == '\r' || p[tend - 1] == ' ' || p[tend - 1] == '\t')) {
+            tend--;
+        }
+        size_t tstart = tend;
+        while (tstart > 0 && p[tstart - 1] != ' ' && p[tstart - 1] != '\t') {
+            tstart--;
+        }
+        size_t tlen = tend - tstart;
+        char ifname[64] = {0};
+        if (tlen > 0 && tlen < sizeof(ifname)) {
+            memcpy(ifname, p + tstart, tlen);
+            if (is_vpn_iface(ifname)) {
+                p += len;
+                continue;
+            }
+        }
+        out.insert(out.end(), p, p + len);
+        p += len;
+    }
+    return out;
+}
+
+static bool is_proc_net_path(const char *path, const char *name) {
+    if (!path || !name) return false;
+    if (strncmp(path, "/proc/", 6) != 0) return false;
+    const char *net = strstr(path, "/net/");
+    if (net) {
+        return strcmp(net + 5, name) == 0;
+    }
+    if (strncmp(path, "/proc/net/", 10) == 0) {
+        return strcmp(path + 10, name) == 0;
+    }
+    return false;
+}
+
+enum ProcFilter {
+    kFilterMaps,
+    kFilterSmaps,
+    kFilterStatus,
+    kFilterMounts,
+    kFilterNetUnix,
+    kFilterCgroup,
+    kFilterNetRoute,
+    kFilterNetIpv6Route,
+    kFilterNetDev,
+    kFilterNetIfInet6,
+};
 
 // Create a memory-backed seekable fd containing `content`.
 // Prefers memfd_create (API 23+); falls back to a pipe.
@@ -539,7 +936,7 @@ static int make_anon_fd(const std::vector<char> &content) {
 }
 
 static int open_filtered_proc(const char *path, ProcFilter filter) {
-    int real_fd = o_open(path, O_RDONLY | O_CLOEXEC);
+    int real_fd = o_open ? o_open(path, O_RDONLY | O_CLOEXEC) : ::open(path, O_RDONLY | O_CLOEXEC);
     if (real_fd < 0) return real_fd;
     auto raw = read_all_fd(real_fd);
     ::close(real_fd);
@@ -549,13 +946,23 @@ static int open_filtered_proc(const char *path, ProcFilter filter) {
         case kFilterMaps:    filtered = filter_maps(raw); break;
         case kFilterSmaps:   filtered = filter_smaps(raw); break;
         case kFilterStatus:  filtered = filter_status(raw); break;
-        case kFilterMounts:  filtered = filter_blocked_lines(raw, true);  break;
-        case kFilterNetUnix: filtered = filter_blocked_lines(raw, false); break;
-        case kFilterCgroup:  filtered = filter_blocked_lines(raw, false); break;
+        case kFilterMounts:
+            if (is_mountinfo_path(path)) {
+                filtered = filter_mountinfo(raw);
+            } else {
+                filtered = filter_blocked_lines(raw, true);
+            }
+            break;
+        case kFilterNetUnix:      filtered = filter_blocked_lines(raw, false); break;
+        case kFilterCgroup:       filtered = filter_blocked_lines(raw, false); break;
+        case kFilterNetRoute:     filtered = filter_proc_net_route(raw); break;
+        case kFilterNetIpv6Route: filtered = filter_proc_net_last_field(raw); break;
+        case kFilterNetDev:       filtered = filter_proc_net_dev(raw); break;
+        case kFilterNetIfInet6:   filtered = filter_proc_net_last_field(raw); break;
     }
 
     int anon = make_anon_fd(filtered);
-    if (anon < 0) return o_open(path, O_RDONLY | O_CLOEXEC);
+    if (anon < 0) return o_open ? o_open(path, O_RDONLY | O_CLOEXEC) : ::open(path, O_RDONLY | O_CLOEXEC);
     return anon;
 }
 
@@ -564,7 +971,7 @@ static bool is_stagefright_path(const char *path) {
 }
 
 static int open_filtered_stagefright(const char *path) {
-    int real_fd = o_open(path, O_RDONLY | O_CLOEXEC);
+    int real_fd = o_open ? o_open(path, O_RDONLY | O_CLOEXEC) : ::open(path, O_RDONLY | O_CLOEXEC);
     if (real_fd < 0) return real_fd;
     auto raw = read_all_fd(real_fd);
     ::close(real_fd);
@@ -578,7 +985,7 @@ static int open_filtered_stagefright(const char *path) {
         }
     }
     int anon = make_anon_fd(raw);
-    if (anon < 0) return o_open(path, O_RDONLY | O_CLOEXEC);
+    if (anon < 0) return o_open ? o_open(path, O_RDONLY | O_CLOEXEC) : ::open(path, O_RDONLY | O_CLOEXEC);
     return anon;
 }
 
@@ -635,8 +1042,12 @@ static int h_open(const char *p, int fl, ...) {
         if (is_self_proc_file(p, "cgroup")) return open_filtered_proc(p, kFilterCgroup);
         if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
         if (p && strcmp(p, "/proc/net/unix") == 0) return open_filtered_proc(p, kFilterNetUnix);
+        if (is_proc_net_path(p, "route"))      return open_filtered_proc(p, kFilterNetRoute);
+        if (is_proc_net_path(p, "ipv6_route")) return open_filtered_proc(p, kFilterNetIpv6Route);
+        if (is_proc_net_path(p, "dev"))        return open_filtered_proc(p, kFilterNetDev);
+        if (is_proc_net_path(p, "if_inet6"))   return open_filtered_proc(p, kFilterNetIfInet6);
     }
-    return o_open(p, fl, mode);
+    return o_open ? o_open(p, fl, mode) : ::open(p, fl, mode);
 }
 
 static int h_open_2(const char *p, int fl) {
@@ -650,25 +1061,39 @@ static int h_open_2(const char *p, int fl) {
         if (is_self_proc_file(p, "cgroup")) return open_filtered_proc(p, kFilterCgroup);
         if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
         if (p && strcmp(p, "/proc/net/unix") == 0) return open_filtered_proc(p, kFilterNetUnix);
+        if (is_proc_net_path(p, "route"))      return open_filtered_proc(p, kFilterNetRoute);
+        if (is_proc_net_path(p, "ipv6_route")) return open_filtered_proc(p, kFilterNetIpv6Route);
+        if (is_proc_net_path(p, "dev"))        return open_filtered_proc(p, kFilterNetDev);
+        if (is_proc_net_path(p, "if_inet6"))   return open_filtered_proc(p, kFilterNetIfInet6);
     }
-    return o_open_2(p, fl);
+    return o_open_2 ? o_open_2(p, fl) : ::open(p, fl);
 }
 
 static int h_openat(int d, const char *p, int fl, ...) {
-    if (is_blocked(p)) { errno = ENOENT; return -1; }
+    std::string full_path;
+    const char *target = p;
+    if (p && p[0] != '/' && d != AT_FDCWD && d >= 0) {
+        full_path = resolve_at_path(d, p);
+        if (!full_path.empty()) target = full_path.c_str();
+    }
+    if (is_blocked(target)) { errno = ENOENT; return -1; }
     int mode = 0;
     if (fl & O_CREAT) { va_list ap; va_start(ap, fl); mode = va_arg(ap, int); va_end(ap); }
     if ((fl & O_ACCMODE) == O_RDONLY) {
-        if (is_stagefright_path(p))         return open_filtered_stagefright(p);
-        if (is_selinux_policy_path(p))      return open_filtered_selinux(p);
-        if (is_self_proc_file(p, "maps"))   return open_filtered_proc(p, kFilterMaps);
-        if (is_self_proc_file(p, "smaps"))  return open_filtered_proc(p, kFilterSmaps);
-        if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
-        if (is_self_proc_file(p, "cgroup")) return open_filtered_proc(p, kFilterCgroup);
-        if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
-        if (p && strcmp(p, "/proc/net/unix") == 0) return open_filtered_proc(p, kFilterNetUnix);
+        if (is_stagefright_path(target))         return open_filtered_stagefright(target);
+        if (is_selinux_policy_path(target))      return open_filtered_selinux(target);
+        if (is_self_proc_file(target, "maps"))   return open_filtered_proc(target, kFilterMaps);
+        if (is_self_proc_file(target, "smaps"))  return open_filtered_proc(target, kFilterSmaps);
+        if (is_self_proc_file(target, "status")) return open_filtered_proc(target, kFilterStatus);
+        if (is_self_proc_file(target, "cgroup")) return open_filtered_proc(target, kFilterCgroup);
+        if (is_mount_path(target))               return open_filtered_proc(target, kFilterMounts);
+        if (target && strcmp(target, "/proc/net/unix") == 0) return open_filtered_proc(target, kFilterNetUnix);
+        if (is_proc_net_path(target, "route"))      return open_filtered_proc(target, kFilterNetRoute);
+        if (is_proc_net_path(target, "ipv6_route")) return open_filtered_proc(target, kFilterNetIpv6Route);
+        if (is_proc_net_path(target, "dev"))        return open_filtered_proc(target, kFilterNetDev);
+        if (is_proc_net_path(target, "if_inet6"))   return open_filtered_proc(target, kFilterNetIfInet6);
     }
-    return o_openat(d, p, fl, mode);
+    return o_openat ? o_openat(d, p, fl, mode) : ::openat(d, p, fl, mode);
 }
 
 static FILE *h_fopen(const char *p, const char *mode) {
@@ -683,6 +1108,10 @@ static FILE *h_fopen(const char *p, const char *mode) {
         else if (is_self_proc_file(p, "cgroup"))      fd = open_filtered_proc(p, kFilterCgroup);
         else if (is_mount_path(p))                    fd = open_filtered_proc(p, kFilterMounts);
         else if (p && strcmp(p, "/proc/net/unix") == 0) fd = open_filtered_proc(p, kFilterNetUnix);
+        else if (is_proc_net_path(p, "route"))        fd = open_filtered_proc(p, kFilterNetRoute);
+        else if (is_proc_net_path(p, "ipv6_route"))   fd = open_filtered_proc(p, kFilterNetIpv6Route);
+        else if (is_proc_net_path(p, "dev"))          fd = open_filtered_proc(p, kFilterNetDev);
+        else if (is_proc_net_path(p, "if_inet6"))      fd = open_filtered_proc(p, kFilterNetIfInet6);
         else                                          return o_fopen(p, mode);
         if (fd < 0) return nullptr;
         FILE *stream = fdopen(fd, mode);
@@ -693,6 +1122,7 @@ static FILE *h_fopen(const char *p, const char *mode) {
 }
 
 // ---- read hook — rewrites getprop pipe output ----
+// ---- read hook — rewrites getprop pipe output ----
 static void rewrite_getprop_chunk(char *buf, ssize_t len) {
     if (len <= 0 || !buf) return;
 
@@ -700,25 +1130,63 @@ static void rewrite_getprop_chunk(char *buf, ssize_t len) {
         memcpy(buf, "mtp\n", 4);
         return;
     }
-
-    static const char kUsbTarget[] = "[persist.sys.usb.config]: [adb]";
-    static const char kUsbRepl[]   = "[persist.sys.usb.config]: [mtp]";
-    char *p = buf;
-    while ((p = (char *)memmem(p, len - (p - buf), kUsbTarget, sizeof(kUsbTarget) - 1)) != nullptr) {
-        memcpy(p, kUsbRepl, sizeof(kUsbRepl) - 1);
-        p += sizeof(kUsbRepl) - 1;
+    if (len == 7 && memcmp(buf, "orange\n", 7) == 0) {
+        memcpy(buf, "green\n\0", 7);
+        return;
+    }
+    if (len == 10 && memcmp(buf, "userdebug\n", 10) == 0) {
+        memcpy(buf, "user\n\0\0\0\0\0", 10);
+        return;
+    }
+    if (len == 9 && memcmp(buf, "unlocked\n", 9) == 0) {
+        memcpy(buf, "locked\n\0\0", 9);
+        return;
     }
 
-    static const char kAdbRootTarget[] = "[service.adb.root]: [1]";
-    static const char kAdbRootRepl[]   = "[service.adb.root]: [0]";
-    p = buf;
-    while ((p = (char *)memmem(p, len - (p - buf), kAdbRootTarget, sizeof(kAdbRootTarget) - 1)) != nullptr) {
-        memcpy(p, kAdbRootRepl, sizeof(kAdbRootRepl) - 1);
-        p += sizeof(kAdbRootRepl) - 1;
+    struct PropRepl {
+        const char *target;
+        size_t target_len;
+        const char *repl;
+        size_t repl_len;
+    };
+
+    static const PropRepl kChunkReplacements[] = {
+        {"[ro.boot.verifiedbootstate]: [orange]", 37, "[ro.boot.verifiedbootstate]: [green ]", 37},
+        {"[ro.boot.flash.locked]: [0]",           27, "[ro.boot.flash.locked]: [1]",           27},
+        {"[ro.boot.vbmeta.device_state]: [unlocked]", 41, "[ro.boot.vbmeta.device_state]: [locked  ]", 41},
+        {"[ro.boot.selinux]: [permissive]",       31, "[ro.boot.selinux]: [enforcing ]",       31},
+        {"[ro.secureboot.lockstate]: [unlocked]",  39, "[ro.secureboot.lockstate]: [locked  ]",  39},
+        {"[vendor.boot.verifiedbootstate]: [orange]", 44, "[vendor.boot.verifiedbootstate]: [green ]", 44},
+        {"[vendor.boot.vbmeta.device_state]: [unlocked]", 48, "[vendor.boot.vbmeta.device_state]: [locked  ]", 48},
+        {"[ro.is_ever_orange]: [1]",              25, "[ro.is_ever_orange]: [0]",              25},
+        {"[ro.debuggable]: [1]",                  20, "[ro.debuggable]: [0]",                  20},
+        {"[ro.force.debuggable]: [1]",            26, "[ro.force.debuggable]: [0]",            26},
+        {"[ro.build.type]: [userdebug]",          28, "[ro.build.type]: [user     ]",          28},
+        {"[ro.product.build.type]: [userdebug]",  36, "[ro.product.build.type]: [user     ]",  36},
+        {"[ro.system.build.type]: [userdebug]",   35, "[ro.system.build.type]: [user     ]",   35},
+        {"[ro.system_ext.build.type]: [userdebug]", 39, "[ro.system_ext.build.type]: [user     ]", 39},
+        {"[ro.vendor.build.type]: [userdebug]",   35, "[ro.vendor.build.type]: [user     ]",   35},
+        {"[ro.vendor_dlkm.build.type]: [userdebug]", 40, "[ro.vendor_dlkm.build.type]: [user     ]", 40},
+        {"[ro.bootimage.build.type]: [userdebug]", 38, "[ro.bootimage.build.type]: [user     ]", 38},
+        {"[ro.odm.build.type]: [userdebug]",      32, "[ro.odm.build.type]: [user     ]",      32},
+        {"[persist.sys.usb.config]: [adb]",       31, "[persist.sys.usb.config]: [mtp]",       31},
+        {"[sys.usb.config]: [adb]",               23, "[sys.usb.config]: [mtp]",               23},
+        {"[sys.usb.state]: [adb]",                22, "[sys.usb.state]: [mtp]",                22},
+        {"[service.adb.root]: [1]",               23, "[service.adb.root]: [0]",               23},
+        {"[sys.oem_unlock_allowed]: [1]",         29, "[sys.oem_unlock_allowed]: [0]",         29},
+        {"[init.svc.adbd]: [running]",            25, "[init.svc.adbd]: [stopped]",            25},
+    };
+
+    for (const auto &entry : kChunkReplacements) {
+        char *p = buf;
+        while ((p = (char *)memmem(p, len - (p - buf), entry.target, entry.target_len)) != nullptr) {
+            memcpy(p, entry.repl, entry.repl_len);
+            p += entry.repl_len;
+        }
     }
 
     static const char kBridgeTarget[] = "[ro.dalvik.vm.native.bridge]: [";
-    p = buf;
+    char *p = buf;
     while ((p = (char *)memmem(p, len - (p - buf), kBridgeTarget, sizeof(kBridgeTarget) - 1)) != nullptr) {
         char *closing = (char *)memchr(p, ']', len - (p - buf));
         if (closing) {
@@ -782,7 +1250,7 @@ static ssize_t h_readlinkat(int d, const char *p, char *b, size_t n) {
 static struct dirent *h_readdir(DIR *dir) {
     struct dirent *entry;
     while ((entry = o_readdir(dir)) != nullptr) {
-        if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name)))
+        if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name) || is_vpn_iface(entry->d_name)))
             continue;
         break;
     }
@@ -792,6 +1260,54 @@ static struct dirent *h_readdir(DIR *dir) {
 static DIR *h_opendir(const char *p) {
     if (is_blocked(p)) { errno = ENOENT; return nullptr; }
     return o_opendir(p);
+}
+
+static struct dirent64 *h_readdir64(DIR *dir) {
+    struct dirent64 *entry;
+    while ((entry = o_readdir64 ? o_readdir64(dir) : (struct dirent64 *)::readdir64(dir)) != nullptr) {
+        if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name) || is_vpn_iface(entry->d_name)))
+            continue;
+        break;
+    }
+    return entry;
+}
+
+// ---- exec filtering ----
+static bool has_blocked_exec(const char *pathname, char *const argv[]) {
+    if (pathname && is_blocked(pathname)) return true;
+    if (argv) {
+        for (int i = 0; argv[i] != nullptr; ++i) {
+            if (is_blocked(argv[i])) return true;
+        }
+    }
+    return false;
+}
+
+static int h_execve(const char *pathname, char *const argv[], char *const envp[]) {
+    if (has_blocked_exec(pathname, argv)) {
+        static char false_path[] = "/system/bin/false";
+        static char *const false_argv[] = {false_path, nullptr};
+        return o_execve ? o_execve(false_path, false_argv, envp) : ::execve(false_path, false_argv, envp);
+    }
+    return o_execve ? o_execve(pathname, argv, envp) : ::execve(pathname, argv, envp);
+}
+
+static int h_execvp(const char *file, char *const argv[]) {
+    if (has_blocked_exec(file, argv)) {
+        static char false_path[] = "/system/bin/false";
+        static char *const false_argv[] = {false_path, nullptr};
+        return o_execvp ? o_execvp(false_path, false_argv) : ::execvp(false_path, false_argv);
+    }
+    return o_execvp ? o_execvp(file, argv) : ::execvp(file, argv);
+}
+
+static int h_execvpe(const char *file, char *const argv[], char *const envp[]) {
+    if (has_blocked_exec(file, argv)) {
+        static char false_path[] = "/system/bin/false";
+        static char *const false_argv[] = {false_path, nullptr};
+        return o_execvpe ? o_execvpe(false_path, false_argv, envp) : ::execvpe(false_path, false_argv, envp);
+    }
+    return o_execvpe ? o_execvpe(file, argv, envp) : ::execvpe(file, argv, envp);
 }
 
 // ---- getenv hook — hide LD_PRELOAD / LD_LIBRARY_PATH injections ----
@@ -972,6 +1488,12 @@ static bool value_has_rom_keyword(const char *value) {
 }
 
 static bool is_deleted_prop(const char *name) {
+    if (!name) return false;
+    if (strncmp(name, "net.vpn.", 8) == 0) return true;
+    if (strcmp(name, "init.svc.openvpn") == 0 ||
+        strcmp(name, "init.svc.wireguard") == 0 ||
+        strcmp(name, "init.svc.strongswan") == 0 ||
+        strcmp(name, "init.svc.xl2tpd") == 0) return true;
     for (const char *p : kDeletedProps)
         if (strcmp(name, p) == 0) return true;
     if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
@@ -1123,6 +1645,134 @@ static void h_prop_read_cb(const void *pi,
     o_prop_read_cb(pi, cb_trampoline, &ctx);
 }
 
+// ---- VPN concealment hooks ----
+static thread_local bool s_in_getifaddrs = false;
+
+static int h_getifaddrs(struct ifaddrs **ifap) {
+    if (!o_getifaddrs) {
+        auto real_fn = reinterpret_cast<int (*)(struct ifaddrs **)>(
+            dlsym(RTLD_DEFAULT, "getifaddrs"));
+        if (!real_fn) {
+            errno = EFAULT;
+            return -1;
+        }
+        o_getifaddrs = real_fn;
+    }
+
+    s_in_getifaddrs = true;
+    int rc = o_getifaddrs(ifap);
+    s_in_getifaddrs = false;
+
+    if (rc != 0 || !ifap || !*ifap) return rc;
+
+    struct ifaddrs **curr = ifap;
+    while (*curr) {
+        struct ifaddrs *entry = *curr;
+        if (entry->ifa_name && is_vpn_iface(entry->ifa_name)) {
+            *curr = entry->ifa_next;
+        } else {
+            curr = &(entry->ifa_next);
+        }
+    }
+    return rc;
+}
+
+static int h_ioctl(int fd, unsigned long req, ...) {
+    va_list ap;
+    va_start(ap, req);
+    void *arg = va_arg(ap, void *);
+    va_end(ap);
+
+    if (s_in_getifaddrs) {
+        return o_ioctl ? o_ioctl(fd, req, arg) : ::ioctl(fd, req, arg);
+    }
+
+    if (req == SIOCGIFCONF && arg != nullptr) {
+        int ret = o_ioctl ? o_ioctl(fd, req, arg) : ::ioctl(fd, req, arg);
+        if (ret == 0) {
+            auto *ifc = static_cast<struct ifconf *>(arg);
+            if (ifc->ifc_req && ifc->ifc_len > 0) {
+                int total_entries = ifc->ifc_len / static_cast<int>(sizeof(struct ifreq));
+                int kept = 0;
+                for (int i = 0; i < total_entries; ++i) {
+                    struct ifreq &entry = ifc->ifc_req[i];
+                    char name_buf[IFNAMSIZ + 1] = {0};
+                    memcpy(name_buf, entry.ifr_name, IFNAMSIZ);
+                    if (is_vpn_iface(name_buf)) {
+                        continue;
+                    }
+                    if (kept != i) {
+                        ifc->ifc_req[kept] = entry;
+                    }
+                    kept++;
+                }
+                if (kept < total_entries) {
+                    memset(&ifc->ifc_req[kept], 0, (total_entries - kept) * sizeof(struct ifreq));
+                }
+                ifc->ifc_len = kept * static_cast<int>(sizeof(struct ifreq));
+            }
+        }
+        return ret;
+    }
+
+    if (req == SIOCGIFNAME && arg != nullptr) {
+        int ret = o_ioctl ? o_ioctl(fd, req, arg) : ::ioctl(fd, req, arg);
+        if (ret == 0) {
+            auto *ifr = static_cast<struct ifreq *>(arg);
+            char name_buf[IFNAMSIZ + 1] = {0};
+            memcpy(name_buf, ifr->ifr_name, IFNAMSIZ);
+            if (is_vpn_iface(name_buf)) {
+                errno = ENODEV;
+                return -1;
+            }
+        }
+        return ret;
+    }
+
+    if (arg != nullptr && (req >= 0x8910 && req <= 0x8970)) {
+        auto *ifr = static_cast<const struct ifreq *>(arg);
+        char name_buf[IFNAMSIZ + 1] = {0};
+        memcpy(name_buf, ifr->ifr_name, IFNAMSIZ);
+        if (is_vpn_iface(name_buf)) {
+            errno = ENODEV;
+            return -1;
+        }
+    }
+
+    return o_ioctl ? o_ioctl(fd, req, arg) : ::ioctl(fd, req, arg);
+}
+
+#ifndef SO_BINDTOIFINDEX
+#define SO_BINDTOIFINDEX 62
+#endif
+
+static int h_setsockopt(int fd, int level, int optname, const void *optval, socklen_t optlen) {
+    if (level == SOL_SOCKET && optval != nullptr) {
+        if (optname == SO_BINDTODEVICE && optlen > 0) {
+            char name_buf[IFNAMSIZ + 1] = {0};
+            size_t copy_len = optlen < IFNAMSIZ ? optlen : IFNAMSIZ;
+            memcpy(name_buf, optval, copy_len);
+            if (is_vpn_iface(name_buf)) {
+                errno = ENODEV;
+                return -1;
+            }
+        } else if (optname == SO_BINDTOIFINDEX && optlen >= sizeof(int)) {
+            int ifindex = *static_cast<const int *>(optval);
+            if (ifindex > 0) {
+                char name_buf[IFNAMSIZ] = {0};
+                if (if_indextoname(static_cast<unsigned int>(ifindex), name_buf)) {
+                    if (is_vpn_iface(name_buf)) {
+                        errno = ENODEV;
+                        return -1;
+                    }
+                }
+            }
+        }
+    }
+    return o_setsockopt ? o_setsockopt(fd, level, optname, optval, optlen)
+                        : ::setsockopt(fd, level, optname, optval, optlen);
+}
+
 // ---- hook table ----
 struct HookSpec { const char *sym; void *hook; void **orig; };
 
@@ -1132,6 +1782,9 @@ static const HookSpec kHooks[] = {
     {"stat",       (void *)h_stat,       (void **)&o_stat},
     {"lstat",      (void *)h_lstat,      (void **)&o_lstat},
     {"fstatat",    (void *)h_fstatat,    (void **)&o_fstatat},
+    {"stat64",     (void *)h_stat64,     (void **)&o_stat64},
+    {"lstat64",    (void *)h_lstat64,    (void **)&o_lstat64},
+    {"fstatat64",  (void *)h_fstatat64,  (void **)&o_fstatat64},
     {"open",       (void *)h_open,       (void **)&o_open},
     {"__open_2",   (void *)h_open_2,     (void **)&o_open_2},
     {"openat",     (void *)h_openat,     (void **)&o_openat},
@@ -1141,6 +1794,10 @@ static const HookSpec kHooks[] = {
     {"readlinkat", (void *)h_readlinkat, (void **)&o_readlinkat},
     {"opendir",    (void *)h_opendir,    (void **)&o_opendir},
     {"readdir",    (void *)h_readdir,    (void **)&o_readdir},
+    {"readdir64",  (void *)h_readdir64,  (void **)&o_readdir64},
+    {"execve",     (void *)h_execve,     (void **)&o_execve},
+    {"execvp",     (void *)h_execvp,     (void **)&o_execvp},
+    {"execvpe",    (void *)h_execvpe,    (void **)&o_execvpe},
     {"getenv",     (void *)h_getenv,     (void **)&o_getenv},
     {"dlopen",     (void *)h_dlopen,     (void **)&o_dlopen},
     {"android_dlopen_ext", (void *)h_android_dlopen_ext,
@@ -1149,6 +1806,9 @@ static const HookSpec kHooks[] = {
     {"selinux_check_access", (void *)h_selinux_check_access, (void **)&o_selinux_check_access},
     {"__system_property_get",           (void *)h_prop_get,     (void **)&o_prop_get},
     {"__system_property_read_callback", (void *)h_prop_read_cb, (void **)&o_prop_read_cb},
+    {"getifaddrs",  (void *)h_getifaddrs,  (void **)&o_getifaddrs},
+    {"ioctl",       (void *)h_ioctl,       (void **)&o_ioctl},
+    {"setsockopt",  (void *)h_setsockopt,  (void **)&o_setsockopt},
 };
 
 static const HookSpec kPropsHooks[] = {
@@ -1257,9 +1917,15 @@ void install_hooks(zygisk::Api *api, const Config *cfg, HookProfile profile) {
         // its destructor calls __system_property_get through the patched PLT, and
         // our hook then accesses the already-freed UdongeModule's g_cfg → SIGSEGV.
         if (strstr(p, "libzygisk")) continue;
+        // Skip ioctl hook for libbinder.so: Duck Detector TEE native probe checks that
+        // libbinder.so's ioctl GOT entry resolves to the real libc ioctl. Binder ioctl
+        // codes (BINDER_WRITE_READ etc.) are never VPN/network-interface-related, so
+        // excluding libbinder from the ioctl hook is safe and avoids false detection.
+        const bool is_libbinder = (strstr(p, "libbinder.so") != nullptr);
         dev_t dev = makedev(major, minor);
         const unsigned long image_base = start - off;
         for (size_t i = 0; i < nhooks; i++) {
+            if (is_libbinder && strcmp(hooks[i].sym, "ioctl") == 0) continue;
             if (!seen.insert({dev, inode, image_base, hooks[i].sym}).second) continue;
             api->pltHookRegister(dev, inode, hooks[i].sym, hooks[i].hook, hooks[i].orig);
         }

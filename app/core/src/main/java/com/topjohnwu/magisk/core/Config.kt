@@ -96,8 +96,8 @@ object Config : PreferenceConfig, DBConfig {
 
     private var localePrefs by preference(Key.LOCALE, "")
     var accentColor by preference(Key.ACCENT_COLOR, 0xFFC95BC8.toInt())
-    var udongeEnabled by preference(Key.UDONGE_ENABLED, false)
-    var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
+    var udongeEnabled by preference(Key.UDONGE_ENABLED, true)
+    var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, true)
     private var storedUdongeKeyboxUrls by preference(
         Key.UDONGE_KEYBOX_URLS,
         DEFAULT_UDONGE_KEYBOX_URLS,
@@ -115,7 +115,7 @@ object Config : PreferenceConfig, DBConfig {
         }
 
     var zygisk by dbSettings(Key.ZYGISK, Info.isEmulator)
-    var sulist by dbSettings(Key.SULIST, true)
+    var sulist by dbSettings(Key.SULIST, false)
     var keyStoreRaw by dbStrings(Key.KEYSTORE, "", true)
 
     var suDefaultTimeout by preferenceStrInt(Key.SU_REQUEST_TIMEOUT, 10)
@@ -140,6 +140,9 @@ object Config : PreferenceConfig, DBConfig {
             if (prefs.getBoolean(SU_FINGERPRINT, false))
                 suBiometric = true
             remove(SU_FINGERPRINT)
+            if (!prefs.contains(Key.SU_AUTO_RESPONSE) || prefs.getString(Key.SU_AUTO_RESPONSE, null) == "2") {
+                putString(Key.SU_AUTO_RESPONSE, Value.SU_PROMPT.toString())
+            }
         }
     }
 }

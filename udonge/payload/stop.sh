@@ -2,6 +2,7 @@
 
 umask 077
 root=/data/adb/udonge
+[ -d "$root" ] || root="$(cd "$(dirname "$0")/.." && pwd)"
 runtime=$root/runtime
 state=$root/state
 run=$root/tee-runtime

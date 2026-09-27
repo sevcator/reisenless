@@ -81,6 +81,23 @@ void spoof_custom_rom(JNIEnv *env) {
         env->DeleteLocalRef(asset_mgr);
     }
     env->ExceptionClear();
+
+    jclass lin_build = env->FindClass("lineageos/os/Build");
+    if (lin_build) {
+        static const char *const kLineageFields[] = {
+            "LINEAGE_VERSION", "LINEAGE_DISPLAY_VERSION", "UNKNOWN"
+        };
+        for (const char *fname : kLineageFields) {
+            jfieldID fid = env->GetStaticFieldID(lin_build, fname, "Ljava/lang/String;");
+            if (fid) {
+                env->SetStaticObjectField(lin_build, fid, nullptr);
+            } else {
+                env->ExceptionClear();
+            }
+        }
+        env->DeleteLocalRef(lin_build);
+    }
+    env->ExceptionClear();
 }
 
 } // namespace cloak

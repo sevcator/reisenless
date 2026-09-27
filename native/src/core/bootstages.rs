@@ -1,6 +1,6 @@
 use crate::consts::{
     APP_PACKAGE_NAME, BBPATH, BIN32_DATABIN_NAME, BUILD_BUSYBOX_NAME, DATABIN,
-    MAIN_BIN_NAME_32, MODULEROOT, POLICY_BIN_NAME, POLICY_DATABIN_NAME, SECURE_DIR,
+    MAIN_BIN_NAME, MAIN_BIN_NAME_32, MODULEROOT, POLICY_BIN_NAME, POLICY_DATABIN_NAME, SECURE_DIR,
 };
 use crate::daemon::MagiskD;
 use crate::ffi::{
@@ -108,6 +108,13 @@ impl MagiskD {
                 .append_path(get_magisk_tmp())
                 .append_path(POLICY_BIN_NAME);
             mpol.copy_to(tmp).log_ok();
+        }
+
+        let resetprop = buf.append_path(get_magisk_tmp()).append_path("resetprop");
+        if !resetprop.exists() {
+            resetprop
+                .create_symlink_to(cstr!(concatcp!("./", MAIN_BIN_NAME)))
+                .log_ok();
         }
 
         true

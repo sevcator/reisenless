@@ -26,6 +26,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
+data class AddableAppInfo(
+    val packageName: String,
+    val appName: String,
+    val icon: Drawable,
+    val uid: Int,
+)
+
 data class PolicyItem(
     val policy: SuPolicy,
     val packageName: String,
@@ -61,6 +68,9 @@ class SuperuserViewModel(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    private val _installableApps = MutableStateFlow<List<AddableAppInfo>>(emptyList())
+    val installableApps: StateFlow<List<AddableAppInfo>> = _installableApps.asStateFlow()
 
     @SuppressLint("InlinedApi")
     override suspend fun doLoadWork() {
@@ -109,6 +119,60 @@ class SuperuserViewModel(
                 { it.packageName }
             ))
             _uiState.update { it.copy(loading = false, policies = policies, suRestrict = Config.suRestrict) }
+            loadInstallableApps()
+        }
+    }
+
+    suspend fun loadInstallableApps() {
+        withContext(Dispatchers.Default) {
+            val pm = AppContext.packageManager
+            val installed = pm.getInstalledApplications(MATCH_UNINSTALLED_PACKAGES)
+            val currentUids = _uiState.value.policies.map { it.policy.uid }.toSet()
+            val list = installed.filter { app ->
+                app.packageName != AppContext.packageName &&
+                app.uid != Process.SYSTEM_UID &&
+                app.uid !in currentUids
+            }.map { app ->
+                AddableAppInfo(
+                    packageName = app.packageName,
+                    appName = app.getLabel(pm),
+                    icon = runCatching { app.loadIcon(pm) }.getOrDefault(pm.defaultActivityIcon),
+                    uid = app.uid,
+                )
+            }.sortedBy { it.appName.lowercase(Locale.ROOT) }
+            _installableApps.value = list
+        }
+    }
+
+    fun grantApp(app: AddableAppInfo) {
+        viewModelScope.launch {
+            val policy = SuPolicy(
+                uid = app.uid,
+                policy = SuPolicy.ALLOW,
+                remain = 0L,
+                notification = true,
+            )
+            withContext(Dispatchers.IO) {
+                db.update(policy)
+            }
+            val newItem = PolicyItem(
+                policy = policy,
+                packageName = app.packageName,
+                isSharedUid = false,
+                icon = app.icon,
+                appName = app.appName,
+                policyValue = SuPolicy.ALLOW,
+                notification = true,
+            )
+            _uiState.update { state ->
+                val updated = (state.policies.filter { it.policy.uid != app.uid } + newItem)
+                    .sortedWith(compareBy({ it.appName.lowercase(Locale.ROOT) }, { it.packageName }))
+                state.copy(policies = updated)
+            }
+            _installableApps.update { list ->
+                list.filter { it.uid != app.uid }
+            }
+            showSnackbar(AppContext.getString(R.string.su_snack_grant, app.appName))
         }
     }
 
@@ -124,6 +188,7 @@ class SuperuserViewModel(
             _uiState.update { state ->
                 state.copy(policies = state.policies.filter { it.policy.uid != item.policy.uid })
             }
+            loadInstallableApps()
             onDeleted()
         }
     }

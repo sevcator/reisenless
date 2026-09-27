@@ -19,6 +19,13 @@ import struct
 import subprocess
 import sys
 import tarfile
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 import tempfile
 import time
 import urllib.request
@@ -512,6 +519,20 @@ def _build_identity() -> dict[str, str]:
         size = minimum + digest[0] % (maximum - minimum + 1)
         return "".join(string.ascii_lowercase[value % 26] for value in digest[1:size + 1])
 
+    def random_label() -> str:
+        consonants = "bcdfghjklmnprstvwz"
+        vowels = "aeiou"
+        digest = hashlib.shake_256(f"{seed}\0{namespace}\0label-name".encode("utf-8")).digest(8)
+        syllables = 2 + (digest[0] % 2)
+        name = []
+        for i in range(syllables):
+            c = consonants[digest[1 + i*2] % len(consonants)]
+            v = vowels[digest[2 + i*2] % len(vowels)]
+            name.append(c + v)
+        if digest[7] % 2 == 0:
+            name.append(consonants[digest[6] % len(consonants)])
+        return "".join(name).capitalize()
+
     explicit_secure_dir = config.get("secureDir", "")
     randomize_secure = config.get("randomizeSecureDir", "true").lower() == "true"
     if args.release and not randomize_secure:
@@ -548,9 +569,8 @@ def _build_identity() -> dict[str, str]:
         "widgetNamespace": "com." + token("widget-owner", 9, 9)
             + "." + token("widget-package", 6, 6),
         "vendorNamespace": "com." + token("vendor-namespace", 9, 9),
-        # Keep the product name stable in user-facing Android surfaces. The
-        # package, classes, binaries, and runtime paths remain randomized.
-        "appLabel": "Reisenless",
+        # User-facing application label randomized per seed
+        "appLabel": random_label(),
         "appVersionName": token("app-version", 8, 12),
         "artifactName": token("release-artifact", 10, 16) + ".apk",
         "brandLong": token("visible-brand-long", 10, 10),
@@ -1884,6 +1904,27 @@ def build_apk(module: str):
         ),
     )
 
+    palette = [
+        "#3F51B5", "#2196F3", "#009688", "#4CAF50", "#FF5722",
+        "#795548", "#607D8B", "#673AB7", "#00BCD4", "#E91E63",
+        "#1E88E5", "#43A047", "#5E35B1", "#00897B", "#3949AB"
+    ]
+    color_digest = hashlib.shake_256(f"{identity['runtimeSeed']}\0icon-color".encode("utf-8")).digest(1)
+    icon_bg = palette[color_digest[0] % len(palette)]
+    colors_xml = Path("app", "core", "src", "main", "res", "values", "colors.xml")
+    if colors_xml.exists():
+        colors_content = (
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<resources>\n'
+            f'    <color name="ic_launcher_background">{icon_bg}</color>\n'
+            f'    <color name="dark">{icon_bg}</color>\n'
+            '    <color name="light">#e0e0e0</color>\n'
+            '    <color name="su_request_background">#e0e0e0</color>\n'
+            '    <color name="splash_background">@color/ic_launcher_background</color>\n'
+            '</resources>\n'
+        )
+        write_if_diff(colors_xml, colors_content)
+
     os.chdir("app")
     build_type = "Release" if args.release else "Debug"
     proc = execv(
@@ -1924,10 +1965,7 @@ def build_app():
     )
     build_udonge()
     header("* Building the manager app")
-    manager_ui = config.get("managerUi", "compose")
-    if manager_ui not in {"classic", "compose"}:
-        error("managerUi must be classic or compose")
-    apk = build_apk(":apk-legacy" if manager_ui == "classic" else ":apk")
+    apk = build_apk(":apk")
 
     source = apk
     target = apk.parent / (
@@ -1937,27 +1975,14 @@ def build_app():
     )
     mv(source, target)
     header(f"Output: {target}")
-
-
-def build_app_legacy():
-    _validate_generated_flags(
-        "Build native binaries with the same mode and configuration first."
-    )
-    build_udonge()
-    header("* Building the legacy Magisk app")
-    apk = build_apk(":apk-legacy")
-    header(f"Output: {apk}")
+    if getattr(args, "install", False):
+        install_apk(target)
 
 
 def build_stub():
     header("* Building the signed manager trust anchor")
     apk = build_apk(":stub")
     header(f"Output: {apk}")
-
-
-
-
-
 
 
 def cleanup():
@@ -1996,42 +2021,110 @@ def cleanup():
         os.chdir("..")
 
 
+def install_apk(apk_path: Path = None):
+    ensure_paths()
+    ensure_adb()
+    if not apk_path:
+        outdir = Path(config.get("outdir", "out"))
+        candidates = sorted(outdir.glob("*.apk"), key=os.path.getmtime, reverse=True)
+        for apk in candidates:
+            if "stub" not in apk.name:
+                apk_path = apk
+                break
+        if not apk_path:
+            error("No APK found in out/ to install")
+
+    header(f"* Installing APK on device: {apk_path.name}")
+    try:
+        devices_out = cmd_out([str(adb_path), "devices"])
+    except Exception as e:
+        error(f"Failed to run adb devices: {e}")
+
+    lines = [l for l in devices_out.splitlines() if l.strip() and not l.startswith("List of devices")]
+    online_devices = [l.split()[0] for l in lines if "device" in l]
+    if not online_devices:
+        error("No Android device connected via ADB. Please connect your device and enable USB debugging.")
+
+    cmd = [str(adb_path)]
+    if hasattr(args, "serial") and args.serial:
+        cmd.extend(["-s", args.serial])
+    cmd.extend(["install", "-r", "-d", str(apk_path)])
+
+    color_print("\033[32m", f"Running: {' '.join(str(c) for c in cmd)}")
+    res = execv(cmd)
+    if res.returncode != 0:
+        error(f"Failed to install {apk_path.name} on device!")
+    color_print("\033[32;1m", f"\n[+] Successfully installed {apk_path.name} on device ({online_devices[0]})!\n")
+
+    udonge_bin = config["outdir"] / "udonge.bin"
+    if udonge_bin.exists():
+        target_device_args = ["-s", args.serial] if hasattr(args, "serial") and args.serial else []
+        try:
+            su_check = subprocess.run(
+                [str(adb_path), *target_device_args, "shell", "su -c id"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, shell=is_windows
+            )
+            if "uid=0" in su_check.stdout:
+                color_print("\033[36m", "* Updating active Udonge runtime on device via root ADB...")
+                execv([str(adb_path), *target_device_args, "push", str(udonge_bin), "/data/local/tmp/udonge.bin"])
+                identity = _build_identity()
+                bb_name = identity.get("busybox", "busybox")
+                script_path = config["outdir"] / "unpack_udonge.sh"
+                script_content = (
+                    "#!/system/bin/sh\n"
+                    "roots=\"/data/adb/udonge\"\n"
+                    "for rd in $(find /data -maxdepth 3 -name runtime -type d 2>/dev/null); do\n"
+                    "  roots=\"$roots $(dirname \"$rd\")\"\n"
+                    "done\n"
+                    "for root in $roots; do\n"
+                    "  mkdir -p \"$root/runtime.new\" \"$root/state\"\n"
+                    "  unpacked=0\n"
+                    f"  for bb in /data/adb/magisk/busybox /data/*/*/{bb_name} /data/*/{bb_name} /data/*/*busybox* busybox; do\n"
+                    "    if [ -x \"$bb\" ]; then\n"
+                    "      ln -sf \"$bb\" /data/local/tmp/bb_unpacker 2>/dev/null\n"
+                    "      if /data/local/tmp/bb_unpacker unzip -oq /data/local/tmp/udonge.bin -d \"$root/runtime.new\" 2>/dev/null; then\n"
+                    "        rm -f /data/local/tmp/bb_unpacker\n"
+                    "        unpacked=1\n"
+                    "        break\n"
+                    "      fi\n"
+                    "      rm -f /data/local/tmp/bb_unpacker\n"
+                    "    fi\n"
+                    "  done\n"
+                    "  if [ \"$unpacked\" = 0 ]; then\n"
+                    "    unzip -oq /data/local/tmp/udonge.bin -d \"$root/runtime.new\" 2>/dev/null\n"
+                    "  fi\n"
+                    "  if [ -f \"$root/runtime.new/service.sh\" ] && [ -f \"$root/runtime.new/hideapps.dex\" ]; then\n"
+                    "    rm -rf \"$root/runtime.old\"\n"
+                    "    [ ! -d \"$root/runtime\" ] || mv \"$root/runtime\" \"$root/runtime.old\"\n"
+                    "    mv \"$root/runtime.new\" \"$root/runtime\"\n"
+                    "    chmod -R 700 \"$root\"\n"
+                    "    chcon -R u:object_r:system_file:s0 \"$root/runtime\" 2>/dev/null\n"
+                    "    chcon u:object_r:udonge_lib_file:s0 \"$root/runtime/tee/\"*\"/libTEESimulator.so\" 2>/dev/null\n"
+                    "  else\n"
+                    "    rm -rf \"$root/runtime.new\"\n"
+                    "  fi\n"
+                    "done\n"
+                    "rm -f /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh /data/local/tmp/bb_unpacker\n"
+                    "echo UDONGE_SYNCED\n"
+                )
+                script_path.write_bytes(script_content.encode("utf-8"))
+                execv([str(adb_path), *target_device_args, "push", str(script_path), "/data/local/tmp/unpack_udonge.sh"])
+                res_unpack = subprocess.run(
+                    [str(adb_path), *target_device_args, "shell", "su -c sh /data/local/tmp/unpack_udonge.sh"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=is_windows
+                )
+                if "UDONGE_SYNCED" in res_unpack.stdout:
+                    color_print("\033[32;1m", "[+] Successfully updated active Udonge runtime on device!\n")
+                else:
+                    color_print("\033[33m", f"[*] Udonge runtime sync output: {res_unpack.stdout.strip()} {res_unpack.stderr.strip()}\n")
+        except Exception as e:
+            color_print("\033[33m", f"[*] Note on runtime sync: {e}\n")
+
+
 def build_all():
+    check_environment()
     build_native()
     build_app()
-    build_app_legacy()
-
-
-
-
-
-
-
-def gen_ide():
-    ensure_paths()
-    set_build_abis({args.abi})
-
-
-    dump_flag_header()
-
-
-    os.chdir(Path("native", "src"))
-    run_cargo(["check"])
-    os.chdir(Path("..", ".."))
-
-
-    rm_rf(Path("native", "compile_commands.json"))
-    run_ndk_build(
-        [
-            "B_MAGISK=1",
-            "B_INIT=1",
-            "B_BOOT=1",
-            "B_POLICY=1",
-            "B_PRELOAD=1",
-            "B_CRT0=1",
-            "compile_commands.json",
-        ]
-    )
 
 
 def test_native_auth():
@@ -2199,111 +2292,172 @@ def setup_rustup():
 
 
 
-def push_files(script: Path):
-    if args.build:
-        build_all()
-    ensure_adb()
+def check_environment(fatal: bool = True) -> bool:
+    header("* Checking environment & build toolchains")
+    all_ok = True
 
-    abi = cmd_out([adb_path, "shell", "getprop", "ro.product.cpu.abi"])
-    if not abi:
-        error("Cannot detect emulator ABI")
+    def ok(msg):
+        color_print("\033[32m", f"  [+] {msg}")
 
-    if args.apk:
-        apk = Path(args.apk)
+    def warn(msg):
+        color_print("\033[33m", f"  [!] {msg}")
+
+    def fail(msg):
+        nonlocal all_ok
+        all_ok = False
+        color_print("\033[31m", f"  [-] {msg}")
+
+    # 1. Python
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    if sys.version_info >= (3, 8):
+        ok(f"Python: {py_ver}")
     else:
-        apk = Path(
-            config["outdir"], ("app-release.apk" if args.release else "app-debug.apk")
-        )
+        fail(f"Python: {py_ver} (Requires Python 3.8+)")
+
+    # 2. Git
+    git_bin = shutil.which("git")
+    if not git_bin and is_windows:
+        cand = Path("C:/Program Files/Git/cmd/git.exe")
+        if cand.exists():
+            git_bin = str(cand)
+            os.environ["PATH"] = f"{cand.parent}{os.pathsep}{os.environ.get('PATH', '')}"
+    if git_bin:
+        try:
+            ver = cmd_out([git_bin, "--version"])
+            ok(f"Git: {ver}")
+        except Exception:
+            ok("Git: available")
+    else:
+        fail("Git: Not found in PATH")
+
+    # 3. Android SDK
+    ensure_paths()
+    if sdk_path and sdk_path.exists():
+        platforms = [p.name for p in (sdk_path / "platforms").glob("android-*")]
+        bt = [b.name for b in (sdk_path / "build-tools").glob("*")]
+        if platforms and bt:
+            ok(f"Android SDK: {sdk_path} (platforms: {', '.join(sorted(platforms))}, build-tools: {sorted(bt)[-1]})")
+        else:
+            fail(f"Android SDK: {sdk_path} (missing platforms or build-tools)")
+    else:
+        fail("Android SDK: Not found. Set ANDROID_HOME environment variable.")
+
+    # 4. ADB
+    if adb_path and adb_path.exists():
+        ok(f"ADB: {adb_path}")
+    elif shutil.which("adb"):
+        ok(f"ADB: {shutil.which('adb')}")
+    else:
+        warn("ADB: Not found (required only for device install)")
+
+    # 5. Android NDK
+    if ndk_path.exists() and (ndk_build.exists() or Path(f"{ndk_build}.cmd").exists()):
+        ok(f"Magisk NDK: {ndk_path}")
+    else:
+        warn(f"Magisk NDK: Not yet set up at {ndk_path}. Run './build.py ndk' to set it up automatically.")
+
+    # 6. JDK
+    jdk_env = find_jdk()
+    if jdk_env and "JAVA_HOME" in jdk_env:
+        jh = jdk_env["JAVA_HOME"]
+        ok(f"JDK: {jh}")
+    elif shutil.which("javac"):
+        ok(f"JDK: {shutil.which('javac')}")
+    else:
+        fail("JDK: Java 17+ not found. Please set JAVA_HOME or install JDK 17+.")
+
+    # 7. Rust & Android Targets
+    rustc_bin = shutil.which("rustc")
+    cargo_bin = shutil.which("cargo")
+    if rustc_bin and cargo_bin:
+        rver = cmd_out([rustc_bin, "--version"])
+        ok(f"Rust: {rver}")
+        try:
+            installed_targets = set(cmd_out(["rustup", "target", "list", "--installed"]).split())
+            needed_targets = set(support_abis.values()) - {"riscv64-linux-android"}
+            missing_targets = needed_targets - installed_targets
+            if not missing_targets:
+                ok(f"Rust Targets: All installed ({', '.join(sorted(needed_targets))})")
+            else:
+                warn(f"Missing Rust target(s): {', '.join(missing_targets)}. Auto-installing via rustup...")
+                for target in missing_targets:
+                    execv(["rustup", "target", "add", target])
+        except Exception:
+            pass
+    else:
+        fail("Rust/Cargo: Not found. Please install Rust via rustup (https://rustup.rs).")
+
+    # 8. Connected Devices (if install requested)
+    if hasattr(args, "install") and args.install:
+        try:
+            dev_out = cmd_out([str(adb_path), "devices"])
+            devs = [l.split()[0] for l in dev_out.splitlines() if l.strip() and not l.startswith("List of devices") and "device" in l]
+            if devs:
+                ok(f"Connected Android Device: {', '.join(devs)}")
+            else:
+                warn("No connected device detected via ADB. (Device needed for --install)")
+        except Exception:
+            warn("Could not query ADB devices")
+
+    print("")
+    if not all_ok and fatal:
+        error("Environment checks failed! Please install the missing dependencies listed above.")
+    return all_ok
 
 
-    busybox = Path(config["outdir"], "busybox")
-    with ZipFile(apk) as zf:
-        busybox_lib = _build_identity()["busyboxLibName"]
-        with zf.open(f"lib/{abi}/lib{busybox_lib}.so") as libbb:
-            with open(busybox, "wb") as bb:
-                bb.write(libbb.read())
-
-    try:
-        proc = execv([adb_path, "push", busybox, script, "/data/local/tmp"])
-        if proc.returncode != 0:
-            error("adb push failed!")
-    finally:
-        rm_rf(busybox)
-
-    proc = execv([adb_path, "push", apk, "/data/local/tmp/magisk.apk"])
-    if proc.returncode != 0:
-        error("adb push failed!")
-
-
-def setup_avd():
-    header("* Setting up emulator")
-
-    push_files(Path("scripts", "live_setup.sh"))
-
-    proc = execv([adb_path, "shell", "sh", "/data/local/tmp/live_setup.sh"])
-    if proc.returncode != 0:
-        error("live_setup.sh failed!")
-
-
-def patch_avd_file():
-    input = Path(args.image)
-    output = Path(args.output)
-
-    header(f"* Patching {input.name}")
-
-    push_files(Path("scripts", "host_patch.sh"))
-
-    proc = execv([adb_path, "push", input, "/data/local/tmp"])
-    if proc.returncode != 0:
-        error("adb push failed!")
-
-    src_file = f"/data/local/tmp/{input.name}"
-    out_file = f"{src_file}.magisk"
-
-    proc = execv([adb_path, "shell", "sh", "/data/local/tmp/host_patch.sh", src_file])
-    if proc.returncode != 0:
-        error("host_patch.sh failed!")
-
-    proc = execv([adb_path, "pull", out_file, output])
-    if proc.returncode != 0:
-        error("adb pull failed!")
-
-    header(f"Output: {output}")
-
-
-
-
-
-
-
-def ensure_paths():
+def ensure_paths(fatal: bool = True):
     global sdk_path, ndk_root, ndk_path, rust_sysroot
     global ndk_build, gradlew, adb_path
 
+    paths_to_add = []
+    if is_windows and not shutil.which("git"):
+        for git_candidate in [
+            Path("C:/Program Files/Git/cmd"),
+            Path("C:/Program Files/Git/bin"),
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Git" / "cmd",
+            Path("C:/Program Files (x86)/Git/cmd"),
+        ]:
+            if git_candidate.exists():
+                paths_to_add.append(str(git_candidate))
+                break
 
-    if "sdk_path" in globals():
-        return
+    sdk_val = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+    if not sdk_val and is_windows:
+        local_app_data = os.environ.get("LOCALAPPDATA", "")
+        if local_app_data:
+            candidate = Path(local_app_data) / "Android" / "Sdk"
+            if candidate.exists():
+                sdk_val = str(candidate)
+    elif not sdk_val:
+        for candidate in [Path.home() / "Android" / "Sdk", Path.home() / "Library" / "Android" / "sdk"]:
+            if candidate.exists():
+                sdk_val = str(candidate)
+                break
 
-    try:
-        sdk_path = Path(os.environ["ANDROID_HOME"])
-    except KeyError:
-        try:
-            sdk_path = Path(os.environ["ANDROID_SDK_ROOT"])
-        except KeyError:
-            error("Please set Android SDK path to environment variable ANDROID_HOME")
+    if sdk_val and Path(sdk_val).exists():
+        sdk_path = Path(sdk_val)
+        os.environ["ANDROID_HOME"] = str(sdk_path)
+        ndk_root = sdk_path / "ndk"
+        ndk_path = ndk_root / "magisk"
+        ndk_build = ndk_path / "ndk-build"
+        rust_sysroot = ndk_path / "toolchains" / "rust"
+        adb_path = sdk_path / "platform-tools" / ("adb.exe" if is_windows else "adb")
+        paths_to_add.append(str(sdk_path / "platform-tools"))
+    elif fatal:
+        error("Please set Android SDK path to environment variable ANDROID_HOME")
 
-    ndk_root = sdk_path / "ndk"
-    ndk_path = ndk_root / "magisk"
-    ndk_build = ndk_path / "ndk-build"
-    rust_sysroot = ndk_path / "toolchains" / "rust"
-    adb_path = sdk_path / "platform-tools" / "adb"
-    gradlew = Path.cwd() / "app" / "gradlew"
+    curr_path = os.environ.get("PATH", "")
+    for p in paths_to_add:
+        if p not in curr_path:
+            curr_path = f"{p}{os.pathsep}{curr_path}"
+    os.environ["PATH"] = curr_path
 
+    gradlew = Path.cwd() / "app" / ("gradlew.bat" if is_windows else "gradlew")
 
 
 def ensure_adb():
     global adb_path
-    if "adb_path" not in globals():
+    if "adb_path" not in globals() or not adb_path.exists():
         if adb := shutil.which("adb"):
             adb_path = Path(adb)
         else:
@@ -2338,14 +2492,16 @@ def set_build_abis(abis: set[str]):
 
 
 def load_config():
-    commit_hash = cmd_out(["git", "rev-parse", "--short=8", "HEAD"])
-    commit_timestamp = cmd_out(["git", "show", "-s", "--format=%ct", "HEAD"])
+    ensure_paths(fatal=False)
 
+    commit_hash = cmd_out(["git", "rev-parse", "--short=8", "HEAD"]).strip()
+    if not commit_hash:
+        commit_hash = "alpha"
+    commit_ts = cmd_out(["git", "show", "-s", "--format=%ct", "HEAD"]).strip()
 
     config["version"] = commit_hash
-    config["versionCode"] = 1000000
+    config["versionCode"] = int(commit_ts) if commit_ts.isdigit() else 1000000
     config["outdir"] = "out"
-
 
     if args.config.exists():
         config.update(parse_props(args.config))
@@ -2356,14 +2512,16 @@ def load_config():
             if key.startswith("magisk."):
                 config[key[7:]] = value
 
-
-    config["version"] = commit_hash
-    config["versionCode"] = commit_timestamp
-
-    try:
-        config["versionCode"] = int(config["versionCode"])
-    except ValueError:
-        error('Config error: "versionCode" is required to be an integer')
+    if commit_ts.isdigit():
+        config["versionCode"] = int(commit_ts)
+        config["version"] = commit_hash
+    else:
+        try:
+            config["versionCode"] = int(config.get("versionCode", 1000000))
+        except (ValueError, TypeError):
+            config["versionCode"] = 1000000
+        if "version" not in config or not config["version"]:
+            config["version"] = commit_hash
 
     config["outdir"] = Path(config["outdir"])
     config["outdir"].mkdir(mode=0o755, parents=True, exist_ok=True)
@@ -2377,25 +2535,42 @@ def load_config():
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Magisk build script")
-    parser.set_defaults(func=lambda x: None)
-    parser.add_argument(
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument(
         "-r", "--release", action="store_true", help="compile in release mode"
     )
-    parser.add_argument(
+    common.add_argument(
         "-v", "--verbose", action="count", default=0, help="verbose output"
     )
-    parser.add_argument(
+    common.add_argument(
         "-c",
         "--config",
         default="config.prop",
         help="custom config file (default: config.prop)",
     )
+    common.add_argument(
+        "-i", "--install", action="store_true", help="install built APK on connected ADB device"
+    )
+    common.add_argument(
+        "-s", "--serial", help="ADB device serial for installation"
+    )
+
+    parser = argparse.ArgumentParser(description="Magisk / Reisenless build script", parents=[common])
+    parser.set_defaults(func=lambda: None)
     subparsers = parser.add_subparsers(title="actions")
 
-    all_parser = subparsers.add_parser("all", help="build everything")
+    all_parser = subparsers.add_parser("all", parents=[common], help="build everything (native, udonge, stub, app)")
 
-    native_parser = subparsers.add_parser("native", help="build native binaries")
+    install_parser = subparsers.add_parser(
+        "install", parents=[common], help="install built APK onto connected ADB device"
+    )
+    install_parser.add_argument("apk", nargs="?", help="path to APK file (optional)")
+
+    check_parser = subparsers.add_parser(
+        "check", parents=[common], help="check environment and toolchain dependencies"
+    )
+
+    native_parser = subparsers.add_parser("native", parents=[common], help="build native binaries")
     native_parser.add_argument(
         "targets",
         nargs="*",
@@ -2403,15 +2578,11 @@ def parse_args():
         or empty for defaults ({', '.join(default_targets)})",
     )
 
-    app_parser = subparsers.add_parser("app", help="build the Magisk app")
+    app_parser = subparsers.add_parser("app", parents=[common], help="build the manager app")
 
-    app_legacy_parser = subparsers.add_parser(
-        "app-legacy", help="build the legacy Magisk app"
-    )
+    stub_parser = subparsers.add_parser("stub", parents=[common], help="build the manager trust anchor")
 
-    stub_parser = subparsers.add_parser("stub", help="build the manager trust anchor")
-
-    udonge_parser = subparsers.add_parser("udonge", help="build the built-in Udonge payload")
+    udonge_parser = subparsers.add_parser("udonge", parents=[common], help="build the built-in Udonge payload")
 
     clean_parser = subparsers.add_parser("clean", help="cleanup")
     clean_parser.add_argument(
@@ -2419,22 +2590,6 @@ def parse_args():
     )
 
     ndk_parser = subparsers.add_parser("ndk", help="setup Magisk NDK")
-
-    emu_parser = subparsers.add_parser("emulator", help="setup AVD for development")
-    emu_parser.add_argument("apk", help="a Magisk APK to use", nargs="?")
-    emu_parser.add_argument(
-        "-b", "--build", action="store_true", help="build before patching"
-    )
-
-    avd_patch_parser = subparsers.add_parser(
-        "avd_patch", help="patch AVD ramdisk.img or init_boot.img"
-    )
-    avd_patch_parser.add_argument("image", help="path to ramdisk.img or init_boot.img")
-    avd_patch_parser.add_argument("output", help="output file name")
-    avd_patch_parser.add_argument("--apk", help="a Magisk APK to use")
-    avd_patch_parser.add_argument(
-        "-b", "--build", action="store_true", help="build before patching"
-    )
 
     cargo_parser = subparsers.add_parser(
         "cargo", help="call 'cargo' commands against the project"
@@ -2457,9 +2612,6 @@ def parse_args():
         "wrapper_dir", help="path to setup rustup wrapper binaries"
     )
 
-    gen_parser = subparsers.add_parser("gen", help="generate files for IDE")
-    gen_parser.add_argument("--abi", default="arm64-v8a", help="target ABI to generate")
-
     native_auth_test_parser = subparsers.add_parser(
         "test-native-auth", help="run host-only manager authorization tests"
     )
@@ -2467,29 +2619,36 @@ def parse_args():
         "test-identity", help="test deterministic private identity generation"
     )
 
-
     all_parser.set_defaults(func=build_all)
+    install_parser.set_defaults(func=lambda: install_apk(Path(args.apk) if getattr(args, "apk", None) else None))
+    check_parser.set_defaults(func=lambda: check_environment(fatal=False))
     native_parser.set_defaults(func=build_native)
     cargo_parser.set_defaults(func=cargo_cli)
     clippy_parser.set_defaults(func=clippy_cli)
     rustup_parser.set_defaults(func=setup_rustup)
-    gen_parser.set_defaults(func=gen_ide)
     native_auth_test_parser.set_defaults(func=test_native_auth)
     identity_test_parser.set_defaults(func=test_identity_generation)
     app_parser.set_defaults(func=build_app)
-    app_legacy_parser.set_defaults(func=build_app_legacy)
     stub_parser.set_defaults(func=build_stub)
     udonge_parser.set_defaults(func=build_udonge)
-    emu_parser.set_defaults(func=setup_avd)
-    avd_patch_parser.set_defaults(func=patch_avd_file)
     clean_parser.set_defaults(func=cleanup)
     ndk_parser.set_defaults(func=setup_ndk)
 
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
+    known_actions = {
+        "all", "native", "app", "stub", "udonge", "clean", "ndk",
+        "install", "check", "clippy", "cargo", "rustup",
+        "test-native-auth", "test-identity",
+    }
+    cmd_args = sys.argv[1:]
+    if not cmd_args:
+        cmd_args = ["all", "-r"]
+    elif not any(a in known_actions for a in cmd_args) and not any(h in cmd_args for h in ("-h", "--help")):
+        cmd_args = ["all"] + cmd_args
 
-    return parser.parse_args()
+    parsed = parser.parse_args(cmd_args)
+    if "-r" in cmd_args or "--release" in cmd_args:
+        parsed.release = True
+    return parsed
 
 
 def main():

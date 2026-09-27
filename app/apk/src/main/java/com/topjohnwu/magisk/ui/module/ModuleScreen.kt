@@ -22,16 +22,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -42,13 +46,17 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -143,28 +151,91 @@ fun ModuleScreen(
         )
     }
 
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        searchQuery = ""
+    }
+
+    val filteredModules = remember(uiState.modules, searchQuery) {
+        if (searchQuery.isBlank()) uiState.modules
+        else uiState.modules.filter {
+            it.module.name.contains(searchQuery, ignoreCase = true) ||
+            it.module.id.contains(searchQuery, ignoreCase = true) ||
+            it.module.author.contains(searchQuery, ignoreCase = true) ||
+            it.module.description.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(CoreR.string.modules)) },
-                scrollBehavior = scrollBehavior
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { filePicker.launch("application/zip") },
-                shape = RoundedCornerShape(20.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(bottom = 88.dp, end = 20.dp),
-                content = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(CoreR.string.module_action_install_external),
-                        modifier = Modifier.size(28.dp),
-                    )
+                navigationIcon = {
+                    if (!isSearchActive) {
+                        IconButton(onClick = { isSearchActive = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(CoreR.string.hide_filter_hint),
+                            )
+                        }
+                    }
                 },
+                title = {
+                    if (isSearchActive) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text(stringResource(CoreR.string.hide_filter_hint)) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        searchQuery = ""
+                                    } else {
+                                        isSearchActive = false
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            },
+                            shape = RoundedCornerShape(28.dp),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(end = 8.dp)
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+                actions = {
+                    if (!isSearchActive) {
+                        IconButton(onClick = { filePicker.launch("application/zip") }) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(CoreR.string.module_action_install_external),
+                            )
+                        }
+                    }
+                }
             )
         }
     ) { padding ->
@@ -223,7 +294,7 @@ fun ModuleScreen(
         ) {
             item { Spacer(Modifier.height(4.dp)) }
             items(
-                items = uiState.modules,
+                items = filteredModules,
                 key = { it.module.id },
                 contentType = { "ModuleCard" }
             ) { item ->
@@ -296,6 +367,7 @@ private fun ModuleCard(
                     }
                     Switch(
                         checked = item.isEnabled,
+                        enabled = !item.isRemoved,
                         onCheckedChange = { viewModel.toggleEnabled(item) }
                     )
                 }
@@ -432,17 +504,12 @@ private fun ModuleCard(
 
                 FilledTonalButton(
                     shape = RoundedCornerShape(20.dp),
-                    colors = if (item.isRemoved) {
-                        ButtonDefaults.filledTonalButtonColors()
-                    } else {
-                        ButtonDefaults.filledTonalButtonColors(
-                            containerColor = colorScheme.errorContainer,
-                            contentColor = colorScheme.onErrorContainer
-                        )
-                    },
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = if (item.isRemoved) colorScheme.primaryContainer else colorScheme.errorContainer,
+                        contentColor = if (item.isRemoved) colorScheme.onPrimaryContainer else colorScheme.onErrorContainer
+                    ),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     onClick = { viewModel.toggleRemove(item) },
-                    enabled = !item.isUpdated
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -450,14 +517,11 @@ private fun ModuleCard(
                     ) {
                         Icon(
                             modifier = Modifier.size(18.dp),
-                            imageVector = if (item.isRemoved) Icons.AutoMirrored.Filled.Undo else Icons.Default.Delete,
+                            imageVector = if (item.isRemoved) Icons.Default.Restore else Icons.Default.Delete,
                             contentDescription = null
                         )
                         Text(
-                            text = stringResource(
-                                if (item.isRemoved) CoreR.string.module_state_restore
-                                else CoreR.string.module_state_remove
-                            ),
+                            text = stringResource(if (item.isRemoved) CoreR.string.module_state_restore else CoreR.string.module_state_remove),
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }

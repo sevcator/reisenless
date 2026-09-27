@@ -10,7 +10,6 @@ import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.R
 import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.core.ktx.toast
-import com.topjohnwu.magisk.core.sulist.SulistController
 import com.topjohnwu.magisk.core.utils.RootUtils
 import com.topjohnwu.magisk.hideapps.HideAppsRepository
 import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
@@ -31,23 +30,12 @@ class SettingsViewModel : BaseViewModel() {
     private val _udongeEnabled = MutableStateFlow(Config.udongeEnabled)
     val udongeEnabled: StateFlow<Boolean> = _udongeEnabled.asStateFlow()
 
-    // The pager may construct Settings while the root backend is unavailable.
-    // Obtain the real state only through refreshSuList's guarded async request.
-    private val _suListEnabled = MutableStateFlow(false)
-    val suListEnabled: StateFlow<Boolean> = _suListEnabled.asStateFlow()
-
-    private val _suListBusy = MutableStateFlow(false)
-    val suListBusy: StateFlow<Boolean> = _suListBusy.asStateFlow()
+    private val _eirinEnabled = MutableStateFlow(Config.udongeBackgroundUpdates)
+    val eirinEnabled: StateFlow<Boolean> = _eirinEnabled.asStateFlow()
 
     val zygiskMismatch get() = Config.zygisk != Info.isZygiskEnabled
 
     var authenticate: (onSuccess: () -> Unit) -> Unit = { it() }
-
-    init {
-        if (Info.env.isActive && Const.Version.atLeast_24_0()) {
-            refreshSuList()
-        }
-    }
 
     fun refreshHideApps() {
         _hideAppsEnabled.value = hideAppsRepo.config.enabled
@@ -67,13 +55,14 @@ class SettingsViewModel : BaseViewModel() {
         viewModelScope.launch {
             val success = withContext(Dispatchers.IO) {
                 if (enabled) {
-                    Udonge.setBackgroundUpdates(false) && Udonge.setEnabled(true)
+                    Udonge.setEnabled(true)
                 } else {
                     Udonge.setBackgroundUpdates(false) && Udonge.setEnabled(false)
                 }
             }
             if (success) {
                 _udongeEnabled.value = enabled
+                if (!enabled) _eirinEnabled.value = false
             } else {
                 _udongeEnabled.value = Config.udongeEnabled
                 showSnackbar(R.string.failure)
@@ -81,8 +70,18 @@ class SettingsViewModel : BaseViewModel() {
         }
     }
 
-    fun navigateToSuList() {
-        navigateTo(Route.DenyList)
+    fun toggleEirin(enabled: Boolean) {
+        viewModelScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                Udonge.setBackgroundUpdates(enabled)
+            }
+            if (success) {
+                _eirinEnabled.value = enabled
+            } else {
+                _eirinEnabled.value = Config.udongeBackgroundUpdates
+                showSnackbar(R.string.failure)
+            }
+        }
     }
 
     fun navigateToHideApps() {
@@ -93,45 +92,6 @@ class SettingsViewModel : BaseViewModel() {
         viewModelScope.launch {
             RootUtils.addSystemlessHosts()
             AppContext.toast(R.string.settings_hosts_toast, Toast.LENGTH_SHORT)
-        }
-    }
-
-    fun toggleSuList(enabled: Boolean) {
-        if (_suListBusy.value) return
-        viewModelScope.launch {
-            _suListBusy.value = true
-            try {
-                val actual = withContext(Dispatchers.IO) {
-                    runCatching { SulistController.setEnabled(enabled) }.getOrNull()
-                }
-                if (actual != null) {
-                    _suListEnabled.value = actual
-                }
-                if (actual != enabled) {
-                    showSnackbar(R.string.failure)
-                }
-            } finally {
-                _suListBusy.value = false
-            }
-        }
-    }
-
-    private fun refreshSuList() {
-        if (_suListBusy.value) return
-        viewModelScope.launch {
-            _suListBusy.value = true
-            try {
-                val actual = withContext(Dispatchers.IO) {
-                    runCatching { SulistController.status() }.getOrNull()
-                }
-                if (actual != null) {
-                    _suListEnabled.value = actual
-                } else {
-                    showSnackbar(R.string.failure)
-                }
-            } finally {
-                _suListBusy.value = false
-            }
         }
     }
 

@@ -2,9 +2,11 @@ package com.topjohnwu.magisk.ui
 
 import android.app.Activity
 import android.os.Build
+import android.util.TypedValue
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
@@ -179,6 +181,22 @@ val MagiskTypography = Typography(
     ),
 )
 
+private fun getSystemOrFallbackColorScheme(context: android.content.Context, isDark: Boolean): ColorScheme {
+    val baseScheme = if (isDark) MagiskDarkColorScheme else MagiskLightColorScheme
+    val tv = TypedValue()
+    val hasAccent = context.theme.resolveAttribute(android.R.attr.colorAccent, tv, true) && tv.data != 0
+    return if (hasAccent) {
+        val accent = Color(tv.data)
+        baseScheme.copy(
+            primary = accent,
+            primaryContainer = accent.copy(alpha = 0.3f),
+            secondary = accent,
+        )
+    } else {
+        baseScheme
+    }
+}
+
 @Composable
 fun MagiskTheme(
     content: @Composable () -> Unit
@@ -188,7 +206,7 @@ fun MagiskTheme(
     val context = LocalContext.current
 
     val isDarkTheme = mode.isDark(isDark)
-    val useDynamicColor = mode.isMonet && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val isDynamicColorSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val view = LocalView.current
 
     SideEffect {
@@ -201,10 +219,9 @@ fun MagiskTheme(
     }
 
     val colorScheme = when {
-        useDynamicColor && isDarkTheme -> dynamicDarkColorScheme(context)
-        useDynamicColor && !isDarkTheme -> dynamicLightColorScheme(context)
-        isDarkTheme -> MagiskDarkColorScheme
-        else -> MagiskLightColorScheme
+        isDynamicColorSupported && isDarkTheme -> dynamicDarkColorScheme(context)
+        isDynamicColorSupported && !isDarkTheme -> dynamicLightColorScheme(context)
+        else -> getSystemOrFallbackColorScheme(context, isDark = isDarkTheme)
     }
 
     MaterialTheme(

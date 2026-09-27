@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#C95BC8</color>
-    <color name="dark">#C95BC8</color>
+    <color name="ic_launcher_background">#2196F3</color>
+    <color name="dark">#2196F3</color>
     <color name="light">#e0e0e0</color>
     <color name="su_request_background">#e0e0e0</color>
     <color name="splash_background">@color/ic_launcher_background</color>

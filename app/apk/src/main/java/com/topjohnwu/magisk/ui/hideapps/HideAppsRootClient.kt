@@ -36,7 +36,8 @@ object HideAppsRootClient {
         if (!result.isSuccess) return false
 
         restartPackage?.takeIf(::isPackageName)?.let { packageName ->
-            Shell.cmd("am force-stop --user current '$packageName'").exec()
+            // Suppress errors — force-stop can fail for system packages or kill Udonge's shell session
+            Shell.cmd("am force-stop --user current '$packageName' 2>/dev/null; true").exec()
         }
         return true
     }
@@ -95,6 +96,7 @@ object HideAppsRootClient {
             .asSequence()
             .map(String::trim)
             .filter(::isPackageName)
+            .plus(listOf("bin.mt.plus", "bin.mt.termex"))
             .toSet()
 
     private fun packageList(systemOnly: Boolean = false): Set<String> {

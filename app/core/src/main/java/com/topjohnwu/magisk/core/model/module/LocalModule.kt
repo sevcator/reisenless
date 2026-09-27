@@ -49,11 +49,23 @@ data class LocalModule(
             }
         }
 
+    fun delete(): Boolean {
+        val uninstallScript = base.getChildFile("uninstall.sh")
+        if (uninstallScript.exists()) {
+            Shell.cmd("sh '${uninstallScript.path}'").exec()
+        }
+        removeFile.delete()
+        disableFile.delete()
+        updateFile.delete()
+        val result = Shell.cmd("rm -rf '${base.path}'").exec().isSuccess
+        Shell.cmd("copy_preinit_files").submit()
+        return result
+    }
+
     var remove: Boolean
         get() = removeFile.exists()
         set(remove) {
             if (remove) {
-                if (updateFile.exists()) return
                 removeFile.createNewFile()
                 Shell.cmd("copy_preinit_files").submit()
             } else {
