@@ -137,7 +137,6 @@ impl SuAppContext<'_> {
         }
     }
 
-    #[allow(dead_code)]
     fn app_request(&mut self) {
         let mut fifo = cstr::buf::new::<64>();
         fifo.write_fmt(format_args!(
@@ -206,8 +205,7 @@ impl SuAppContext<'_> {
         };
     }
 
-    #[allow(dead_code)]
-    fn app_notify(&self) {
+    pub(super) fn app_notify(&self) {
         let extras = [
             Extra {
                 key: "from.uid",
@@ -229,8 +227,7 @@ impl SuAppContext<'_> {
 
     pub(super) fn connect_app(&mut self) {
         if self.settings.policy == SuPolicy::Query {
-            self.settings.policy = SuPolicy::Deny;
-            return;
+            self.app_request();
         }
     }
 }

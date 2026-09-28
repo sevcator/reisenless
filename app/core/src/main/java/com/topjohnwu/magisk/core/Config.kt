@@ -20,7 +20,6 @@ object Config : PreferenceConfig, DBConfig {
 
     object Key {
 
-        const val ROOT_ACCESS = "root_access"
         const val SU_MULTIUSER_MODE = "multiuser_mode"
         const val SU_MNT_NS = "mnt_ns"
         const val SU_BIOMETRIC = "su_biometric"
@@ -30,8 +29,6 @@ object Config : PreferenceConfig, DBConfig {
         const val KEYSTORE = "keystore"
 
 
-        const val SU_REQUEST_TIMEOUT = "su_request_timeout"
-        const val SU_AUTO_RESPONSE = "su_auto_response"
         const val SU_NOTIFICATION = "su_notification"
         const val SU_REAUTH = "su_reauth"
         const val SU_TAPJACK = "su_tapjack"
@@ -52,12 +49,6 @@ object Config : PreferenceConfig, DBConfig {
 
     object Value {
 
-        const val ROOT_ACCESS_DISABLED = 0
-        const val ROOT_ACCESS_APPS_ONLY = 1
-        const val ROOT_ACCESS_ADB_ONLY = 2
-        const val ROOT_ACCESS_APPS_AND_ADB = 3
-
-
         const val MULTIUSER_MODE_OWNER_ONLY = 0
         const val MULTIUSER_MODE_OWNER_MANAGED = 1
         const val MULTIUSER_MODE_USER = 2
@@ -72,10 +63,6 @@ object Config : PreferenceConfig, DBConfig {
         const val NOTIFICATION_TOAST = 1
         const val NOTIFICATION_STATUS_BAR = 2
 
-
-        const val SU_PROMPT = 0
-        const val SU_AUTO_DENY = 1
-        const val SU_AUTO_ALLOW = 2
 
         const val THEME_LIGHT = 1
         const val THEME_DARK = 2
@@ -118,10 +105,7 @@ object Config : PreferenceConfig, DBConfig {
     var sulist by dbSettings(Key.SULIST, false)
     var keyStoreRaw by dbStrings(Key.KEYSTORE, "", true)
 
-    var suDefaultTimeout by preferenceStrInt(Key.SU_REQUEST_TIMEOUT, 10)
-    var suAutoResponse by preferenceStrInt(Key.SU_AUTO_RESPONSE, Value.SU_PROMPT)
     var suNotification by preferenceStrInt(Key.SU_NOTIFICATION, Value.NOTIFICATION_TOAST)
-    var rootMode by dbSettings(Key.ROOT_ACCESS, Value.ROOT_ACCESS_APPS_AND_ADB)
     var suMntNamespaceMode by dbSettings(Key.SU_MNT_NS, Value.NAMESPACE_MODE_REQUESTER)
     var suMultiuserMode by dbSettings(Key.SU_MULTIUSER_MODE, Value.MULTIUSER_MODE_OWNER_ONLY)
     private var suBiometric by dbSettings(Key.SU_BIOMETRIC, false)
@@ -135,14 +119,15 @@ object Config : PreferenceConfig, DBConfig {
     var suRestrict by preference(Key.SU_RESTRICT, false)
 
     private const val SU_FINGERPRINT = "su_fingerprint"
+    private const val LEGACY_SU_AUTO_RESPONSE = "su_auto_response"
+    private const val LEGACY_SU_REQUEST_TIMEOUT = "su_request_timeout"
     fun init() {
         prefs.edit {
             if (prefs.getBoolean(SU_FINGERPRINT, false))
                 suBiometric = true
             remove(SU_FINGERPRINT)
-            if (!prefs.contains(Key.SU_AUTO_RESPONSE) || prefs.getString(Key.SU_AUTO_RESPONSE, null) == "2") {
-                putString(Key.SU_AUTO_RESPONSE, Value.SU_PROMPT.toString())
-            }
+            remove(LEGACY_SU_AUTO_RESPONSE)
+            remove(LEGACY_SU_REQUEST_TIMEOUT)
         }
     }
 }

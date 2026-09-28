@@ -4,15 +4,13 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.widget.Toast
 import androidx.core.content.getSystemService
-import androidx.core.app.NotificationManagerCompat
 import com.topjohnwu.magisk.core.AppContext
+import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.R
-import com.topjohnwu.magisk.core.ktx.selfLaunchIntent
 import com.topjohnwu.magisk.core.ktx.toast
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -37,7 +35,9 @@ object Notifications {
     }
 
     fun suNotificationOrToast(context: android.content.Context, granted: Boolean, appName: String) {
-        // Disabled
+        if (Config.suNotification != Config.Value.NOTIFICATION_TOAST) return
+        val prefix = if (granted) "<#>" else "<#!>"
+        context.toast("$prefix $appName", Toast.LENGTH_SHORT)
     }
 
     fun startProgress(title: CharSequence): Notification.Builder {

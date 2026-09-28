@@ -1,7 +1,7 @@
 use super::connect::SuAppContext;
 use super::db::RootSettings;
 use crate::daemon::{AID_ROOT, AID_SHELL, MagiskD, to_app_id, to_user_id};
-use crate::db::{DbSettings, MultiuserMode, RootAccess};
+use crate::db::{DbSettings, MultiuserMode};
 use crate::ffi::{SuPolicy, SuRequest, exec_root_shell};
 use crate::socket::IpcRead;
 use base::{LoggedResult, ResultExt, WriteExt, debug, error, exit_on_error, libc, warn};
@@ -149,6 +149,9 @@ impl MagiskD {
                 sdk_int: self.sdk_int(),
             };
             app.connect_app();
+            if !manager_authenticated && info.mgr_uid > 0 && app.settings.notify {
+                app.app_notify();
+            }
 
             access.refresh();
 
@@ -231,34 +234,15 @@ impl MagiskD {
             let mut access = RootSettings::default();
             self.get_root_settings(eval_uid, &mut access)?;
 
-            if uid == AID_SHELL && matches!(cfg.root_access, RootAccess::AppsAndAdb | RootAccess::AdbOnly) {
-                access.policy = SuPolicy::Allow;
-                access.notify = false;
-            }
-
             let (mgr_uid, mgr_pkg) = self.get_manager(to_user_id(eval_uid));
             if mgr_uid > 0 && to_app_id(uid) == to_app_id(mgr_uid) {
                 access.policy = SuPolicy::Allow;
                 access.notify = false;
             }
 
-            match cfg.root_access {
-                RootAccess::Disabled => {
-                    warn!("Root access is disabled!");
-                    return Ok(Arc::new(SuInfo::deny(uid)));
-                }
-                RootAccess::AdbOnly => {
-                    if uid != AID_SHELL {
-                        warn!("Root access limited to ADB only!");
-                        return Ok(Arc::new(SuInfo::deny(uid)));
-                    }
-                }
-                RootAccess::AppsOnly if uid == AID_SHELL => {
-                    warn!("Root access is disabled for ADB!");
-                    return Ok(Arc::new(SuInfo::deny(uid)));
-                }
-                _ => {}
-            };
+            if uid == AID_SHELL && access.policy == SuPolicy::Query {
+                return Ok(Arc::new(SuInfo::deny(uid)));
+            }
 
             if access.policy == SuPolicy::Query && mgr_uid < 0 {
                 warn!("su: manager authentication failed; reinstall the current manager APK");

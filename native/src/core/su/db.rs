@@ -1,8 +1,8 @@
 use crate::daemon::{
-    AID_APP_END, AID_APP_START, AID_ROOT, AID_SHELL, MagiskD, to_app_id, to_user_id,
+    AID_APP_END, AID_APP_START, AID_ROOT, MagiskD, to_app_id, to_user_id,
 };
 use crate::db::DbArg::Integer;
-use crate::db::{MultiuserMode, RootAccess, SqlTable, SqliteResult, SqliteReturn};
+use crate::db::{MultiuserMode, SqlTable, SqliteResult, SqliteReturn};
 use crate::ffi::{DbValues, SuPolicy};
 use base::ResultExt;
 
@@ -96,17 +96,6 @@ impl MagiskD {
             Ok(cfg) => cfg,
             Err(_) => return false,
         };
-
-        match cfg.root_access {
-            RootAccess::Disabled => return false,
-            RootAccess::AppsOnly => {
-                if uid == AID_SHELL {
-                    return false;
-                }
-            }
-            RootAccess::AdbOnly if uid != AID_SHELL => return false,
-            _ => {}
-        }
 
         match cfg.multiuser_mode {
             MultiuserMode::OwnerOnly => {

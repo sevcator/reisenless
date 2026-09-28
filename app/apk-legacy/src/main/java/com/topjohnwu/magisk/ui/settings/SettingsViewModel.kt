@@ -61,8 +61,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         if (Info.showSuperUser) {
             list.addAll(listOf(
                 Superuser,
-                Tapjack, Authentication, AccessMode, MultiuserMode, MountNamespaceMode,
-                AutomaticResponse, RequestTimeout, SUNotification
+                Tapjack, Authentication, MultiuserMode, MountNamespaceMode, SUNotification
             ))
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
                 // Re-authenticate is not feasible on 8.0+
@@ -84,7 +83,6 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         when (item) {
             SuList -> toggleSuList()
             Authentication -> AuthEvent(doAction).publish()
-            AutomaticResponse -> if (Config.suAuth) AuthEvent(doAction).publish() else doAction()
             else -> doAction()
         }
     }

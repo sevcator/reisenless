@@ -9,28 +9,6 @@
         <item>@string/sixtymin</item>
     </string-array>
 
-    <string-array name="su_access">
-        <item>@string/settings_su_disable</item>
-        <item>@string/settings_su_app</item>
-        <item>@string/settings_su_adb</item>
-        <item>@string/settings_su_app_adb</item>
-    </string-array>
-
-    <string-array name="request_timeout">
-        <item>@string/settings_su_request_10</item>
-        <item>@string/settings_su_request_15</item>
-        <item>@string/settings_su_request_20</item>
-        <item>@string/settings_su_request_30</item>
-        <item>@string/settings_su_request_45</item>
-        <item>@string/settings_su_request_60</item>
-    </string-array>
-
-    <string-array name="auto_response">
-        <item>@string/prompt</item>
-        <item>@string/deny</item>
-        <item>@string/grant</item>
-    </string-array>
-
     <string-array name="su_notification">
         <item>@string/none</item>
         <item>@string/toast</item>

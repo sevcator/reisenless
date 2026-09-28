@@ -263,21 +263,6 @@ private fun SuperuserSection(
             }
         )
 
-        // Access Mode
-        val accessEntries = remember {
-            resources.getStringArray(CoreR.array.su_access).toList()
-        }
-        var accessMode by remember { mutableIntStateOf(Config.rootMode) }
-        SettingsDropdown(
-            title = stringResource(CoreR.string.superuser_access),
-            items = accessEntries,
-            selectedIndex = accessMode,
-            onSelectedIndexChange = {
-                accessMode = it
-                Config.rootMode = it
-            }
-        )
-
         // Multiuser Mode
         val multiuserEntries = remember {
             resources.getStringArray(CoreR.array.multiuser_mode).toList()
@@ -314,42 +299,6 @@ private fun SuperuserSection(
             onSelectedIndexChange = {
                 mntNamespaceMode = it
                 Config.suMntNamespaceMode = it
-            }
-        )
-
-        // Automatic Response
-        val autoResponseEntries = remember {
-            resources.getStringArray(CoreR.array.auto_response).toList()
-        }
-        var autoResponse by remember { mutableIntStateOf(Config.suAutoResponse) }
-        SettingsDropdown(
-            title = stringResource(CoreR.string.auto_response),
-            items = autoResponseEntries,
-            selectedIndex = autoResponse,
-            onSelectedIndexChange = { newIndex ->
-                val doIt = {
-                    autoResponse = newIndex
-                    Config.suAutoResponse = newIndex
-                }
-                if (Config.suAuth) viewModel.withAuth(doIt) else doIt()
-            }
-        )
-
-        // Request Timeout
-        val timeoutEntries = remember {
-            resources.getStringArray(CoreR.array.request_timeout).toList()
-        }
-        val timeoutValues = remember { listOf(10, 15, 20, 30, 45, 60) }
-        var timeoutIndex by remember {
-            mutableIntStateOf(timeoutValues.indexOf(Config.suDefaultTimeout).coerceAtLeast(0))
-        }
-        SettingsDropdown(
-            title = stringResource(CoreR.string.request_timeout),
-            items = timeoutEntries,
-            selectedIndex = timeoutIndex,
-            onSelectedIndexChange = {
-                timeoutIndex = it
-                Config.suDefaultTimeout = timeoutValues[it]
             }
         )
 

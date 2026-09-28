@@ -70,7 +70,7 @@ class SuRequestViewModel(
     }
 
     private val handler = SuRequestHandler(AppContext.packageManager, policyDB)
-    private val millis = SECONDS.toMillis(Config.suDefaultTimeout.toLong())
+    private val millis = SECONDS.toMillis(10L)
     private var timer = SuTimer(millis, 1000)
     private var initialized = false
 

@@ -144,10 +144,6 @@ public:
         const bool child_zygote = args->is_child_zygote && *args->is_child_zygote;
         std::string process_name = jstr(args->nice_name);
         if (process_name.empty()) return;
-        // Every ordinary application process that receives this module must
-        // inherit the same sanitized namespace. The authenticated manager is
-        // excluded by the daemon before module descriptors are sent.
-        api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
         // Android names a dedicated app zygote after its owner with this
         // suffix. Resolve the configured Udonge target before asking the
         // companion for its policy.
@@ -175,6 +171,11 @@ public:
         is_gms_unstable_ = package_ == "com.google.android.gms"
                 && process_name == "com.google.android.gms.unstable";
         if (!fetch_config(process_name, package_)) return;
+        // Only explicit protection targets should lose the su mount. Ordinary
+        // apps must be able to find su and request root from the manager.
+        if (cfg_.shouldCloak(package_) || cfg_.shouldStealth(package_)) {
+            api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
+        }
         hide_apps_ = !hide_dex_.empty() && (!hide_rule_.empty() || cfg_.shouldCloak(package_));
         if (hide_apps_ && hide_rule_.empty()) {
             hide_rule_ = "T\t" + package_ + "\tB\t0\t\t\t";

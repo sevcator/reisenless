@@ -3,7 +3,6 @@ package com.topjohnwu.magisk.core.su
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.data.magiskdb.PolicyDao
 import com.topjohnwu.magisk.core.ktx.getPackageInfo
 import com.topjohnwu.magisk.core.model.su.SuPolicy
@@ -42,17 +41,6 @@ class SuRequestHandler(
         if (!init(intent)) {
             reject()
             return false
-        }
-
-        when (Config.suAutoResponse) {
-            Config.Value.SU_AUTO_DENY -> {
-                respond(SuPolicy.DENY, 0)
-                return false
-            }
-            Config.Value.SU_AUTO_ALLOW -> {
-                respond(SuPolicy.ALLOW, 0)
-                return false
-            }
         }
 
         return true

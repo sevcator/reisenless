@@ -232,12 +232,6 @@ object Superuser : BaseSettingsItem.Section() {
     override val title = CoreR.string.superuser.asText()
 }
 
-object AccessMode : BaseSettingsItem.Selector() {
-    override val title = CoreR.string.superuser_access.asText()
-    override val entryRes = CoreR.array.su_access
-    override var value by Config::rootMode
-}
-
 object MultiuserMode : BaseSettingsItem.Selector() {
     override val title = CoreR.string.multiuser_mode.asText()
     override val entryRes = CoreR.array.multiuser_mode
@@ -254,24 +248,6 @@ object MountNamespaceMode : BaseSettingsItem.Selector() {
     override val entryRes = CoreR.array.namespace
     override val descriptionRes = CoreR.array.namespace_summary
     override var value by Config::suMntNamespaceMode
-}
-
-object AutomaticResponse : BaseSettingsItem.Selector() {
-    override val title = CoreR.string.auto_response.asText()
-    override val entryRes = CoreR.array.auto_response
-    override var value by Config::suAutoResponse
-}
-
-object RequestTimeout : BaseSettingsItem.Selector() {
-    override val title = CoreR.string.request_timeout.asText()
-    override val entryRes = CoreR.array.request_timeout
-
-    private val entryValues = listOf(10, 15, 20, 30, 45, 60)
-    override var value = entryValues.indexOfFirst { it == Config.suDefaultTimeout }
-        set(value) {
-            field = value
-            Config.suDefaultTimeout = entryValues[value]
-        }
 }
 
 object SUNotification : BaseSettingsItem.Selector() {
