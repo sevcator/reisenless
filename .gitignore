@@ -18,6 +18,18 @@ out
 /manager-ui.xml
 /picker.xml
 /unlock.xml
+/duck_manifest.txt
+/dump.txt
+/dump_top.xml
+/picker_dump.xml
+/read.txt
+/report.txt
+/scratch_db.sqlite
+/scratch_ui.xml
+/dump_duck.sh
+/inspect_live*.sh
+/test_inspect.sh
+/vpnhide-main/
 
 # This local helper stages the repository and must never stage itself
 /upload-to-github.bat

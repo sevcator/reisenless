@@ -77,11 +77,34 @@ class ShellInit : Shell.Initializer() {
         runCatching {
             val pm = context.packageManager
             val currentPkg = context.packageName
+            val currentInfo = runCatching { pm.getPackageInfo(currentPkg, 0) }.getOrNull() ?: return
+            val currentVersionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                currentInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                currentInfo.versionCode.toLong()
+            }
+            val currentInstallTime = currentInfo.firstInstallTime
+
             val installed = pm.getInstalledApplications(0)
             for (app in installed) {
                 val pkg = app.packageName
                 if (pkg != currentPkg && pm.checkSignatures(currentPkg, pkg) == android.content.pm.PackageManager.SIGNATURE_MATCH) {
-                    shell.newJob().add("pm uninstall '$pkg'").exec()
+                    val otherInfo = runCatching { pm.getPackageInfo(pkg, 0) }.getOrNull() ?: continue
+                    val otherVersionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        otherInfo.longVersionCode
+                    } else {
+                        @Suppress("DEPRECATION")
+                        otherInfo.versionCode.toLong()
+                    }
+                    val otherInstallTime = otherInfo.firstInstallTime
+
+                    val isObsolete = otherVersionCode < currentVersionCode ||
+                        (otherVersionCode == currentVersionCode && otherInstallTime < currentInstallTime)
+
+                    if (isObsolete) {
+                        shell.newJob().add("pm uninstall '$pkg'").exec()
+                    }
                 }
             }
         }

@@ -18,6 +18,7 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/system_properties.h>
 #include <linux/sockios.h>
 #include <set>
 #include <map>
@@ -267,6 +268,8 @@ static void   *(*o_dlsym)(void *, const char *);
 static int     (*o_selinux_check_access)(const char *, const char *, const char *, const char *, void *);
 static int     (*o_prop_get)(const char *, char *);
 static void    (*o_prop_read_cb)(const void *, void (*)(void *, const char *, const char *, uint32_t), void *);
+static const prop_info *(*o_prop_find)(const char *);
+static int     (*o_prop_read)(const prop_info *, char *, char *);
 static DIR    *(*o_opendir)(const char *);
 static struct dirent *(*o_readdir)(DIR *);
 static struct dirent64 *(*o_readdir64)(DIR *);
@@ -282,6 +285,7 @@ static jstring (*o_runtime_native_load)(JNIEnv *, jclass, jstring, jobject, jcla
 static int     (*o_getifaddrs)(struct ifaddrs **) = nullptr;
 static int     (*o_ioctl)(int, unsigned long, ...) = nullptr;
 static int     (*o_setsockopt)(int, int, int, const void *, socklen_t) = nullptr;
+static long    (*o_syscall)(long, ...) = nullptr;
 static void install_late_library_hooks();
 
 static void refresh_late_library_hooks() {
@@ -473,6 +477,8 @@ static int h_fstatat64(int d, const char *p, struct stat64 *s, int f) {
 static bool is_self_proc_file(const char *path, const char *name) {
     if (!path || !name) return false;
     if (strncmp(path, "/proc/self/", 11) == 0 && strcmp(path + 11, name) == 0)
+        return true;
+    if (strncmp(path, "/proc/thread-self/", 18) == 0 && strcmp(path + 18, name) == 0)
         return true;
     char buf[64];
     snprintf(buf, sizeof buf, "/proc/%d/%s", getpid(), name);
@@ -735,9 +741,15 @@ static std::vector<char> filter_smaps(const std::vector<char> &raw) {
                     }
                 }
             }
-            webview_executable = strchr(perms, 'x') != nullptr &&
-                contains_ci(line.data(), line.size(),
-                            "/system/product/app/webview/webview.apk", 39);
+            bool is_exec = strchr(perms, 'x') != nullptr;
+            webview_executable = is_exec && (
+                contains_ci(line.data(), line.size(), "/system/", 8) ||
+                contains_ci(line.data(), line.size(), "/product/", 9) ||
+                contains_ci(line.data(), line.size(), "/apex/", 6) ||
+                contains_ci(line.data(), line.size(), "/vendor/", 8) ||
+                contains_ci(line.data(), line.size(), "/system_ext/", 12) ||
+                contains_ci(line.data(), line.size(), "/odm/", 5)
+            );
 
             if (keep_block && line.find("jit-cache") != std::string::npos) {
                 unsigned long off = 0;
@@ -760,8 +772,14 @@ static std::vector<char> filter_smaps(const std::vector<char> &raw) {
                     }
                 }
             }
-        } else if (webview_executable && line.rfind("Anonymous:", 0) == 0) {
-            line = "Anonymous:             0 kB\n";
+        } else if (webview_executable) {
+            if (line.rfind("Anonymous:", 0) == 0) {
+                line = "Anonymous:             0 kB\n";
+            } else if (line.rfind("Shared_Dirty:", 0) == 0) {
+                line = "Shared_Dirty:          0 kB\n";
+            } else if (line.rfind("Private_Dirty:", 0) == 0) {
+                line = "Private_Dirty:         0 kB\n";
+            }
         }
         if (keep_block) out.insert(out.end(), line.begin(), line.end());
         p += length;
@@ -1130,6 +1148,10 @@ static void rewrite_getprop_chunk(char *buf, ssize_t len) {
         memcpy(buf, "mtp\n", 4);
         return;
     }
+    if (len == 8 && memcmp(buf, "mtp,adb\n", 8) == 0) {
+        memcpy(buf, "mtp\n\0\0\0\0", 8);
+        return;
+    }
     if (len == 7 && memcmp(buf, "orange\n", 7) == 0) {
         memcpy(buf, "green\n\0", 7);
         return;
@@ -1170,8 +1192,11 @@ static void rewrite_getprop_chunk(char *buf, ssize_t len) {
         {"[ro.bootimage.build.type]: [userdebug]", 38, "[ro.bootimage.build.type]: [user     ]", 38},
         {"[ro.odm.build.type]: [userdebug]",      32, "[ro.odm.build.type]: [user     ]",      32},
         {"[persist.sys.usb.config]: [adb]",       31, "[persist.sys.usb.config]: [mtp]",       31},
+        {"[persist.sys.usb.config]: [mtp,adb]",   35, "[persist.sys.usb.config]: [mtp    ]",   35},
         {"[sys.usb.config]: [adb]",               23, "[sys.usb.config]: [mtp]",               23},
+        {"[sys.usb.config]: [mtp,adb]",           27, "[sys.usb.config]: [mtp    ]",           27},
         {"[sys.usb.state]: [adb]",                22, "[sys.usb.state]: [mtp]",                22},
+        {"[sys.usb.state]: [mtp,adb]",            26, "[sys.usb.state]: [mtp    ]",            26},
         {"[service.adb.root]: [1]",               23, "[service.adb.root]: [0]",               23},
         {"[sys.oem_unlock_allowed]: [1]",         29, "[sys.oem_unlock_allowed]: [0]",         29},
         {"[init.svc.adbd]: [running]",            25, "[init.svc.adbd]: [stopped]",            25},
@@ -1425,6 +1450,18 @@ static const char *find_display_override(const char *name) {
     return nullptr;
 }
 
+static const char *find_flavor_override(const char *name) {
+    if (!g_cfg) return nullptr;
+    if (strcmp(name, "ro.build.flavor") != 0) return nullptr;
+    static thread_local char s_flavor_buf[96];
+    auto it = g_cfg->gms_build.find("PRODUCT");
+    if (it != g_cfg->gms_build.end() && !it->second.empty()) {
+        snprintf(s_flavor_buf, sizeof s_flavor_buf, "%s-user", it->second.c_str());
+        return s_flavor_buf;
+    }
+    return "user";
+}
+
 static const char *find_boot_prop(const char *name) {
     for (const auto &bp : kBootProps)
         if (strcmp(name, bp.name) == 0) return bp.value;
@@ -1490,6 +1527,10 @@ static bool value_has_rom_keyword(const char *value) {
 static bool is_deleted_prop(const char *name) {
     if (!name) return false;
     if (strncmp(name, "net.vpn.", 8) == 0) return true;
+    if (strncmp(name, "ro.lineage.", 11) == 0) return true;
+    if (strcmp(name, "ro.lineagelegal.url") == 0) return true;
+    if (strcmp(name, "ro.boot.project_codename") == 0) return true;
+    if (strcmp(name, "persist.vendor.camera.privapp.list") == 0) return true;
     if (strcmp(name, "init.svc.openvpn") == 0 ||
         strcmp(name, "init.svc.wireguard") == 0 ||
         strcmp(name, "init.svc.strongswan") == 0 ||
@@ -1532,6 +1573,15 @@ static int h_prop_get(const char *name, char *value) {
             size_t n = strlen(dp);
             if (n > 91) n = 91;
             memcpy(value, dp, n);
+            value[n] = '\0';
+            return (int)n;
+        }
+
+        const char *flv = find_flavor_override(name);
+        if (flv) {
+            size_t n = strlen(flv);
+            if (n > 91) n = 91;
+            memcpy(value, flv, n);
             value[n] = '\0';
             return (int)n;
         }
@@ -1605,31 +1655,35 @@ static void cb_trampoline(void *cookie, const char *name, const char *value, uin
             const char *dp = find_display_override(name);
             if (dp) { value = dp; }
             else {
-                const char *bp = find_boot_prop(name);
-                if (bp) { value = bp; }
+                const char *flv = find_flavor_override(name);
+                if (flv) { value = flv; }
                 else {
-                    const char *conditional = find_conditional_boot_prop(name);
-                    if (conditional) { value = conditional; }
+                    const char *bp = find_boot_prop(name);
+                    if (bp) { value = bp; }
                     else {
-                        const char *rp = find_recovery_prop(name);
-                        if (rp && value && strstr(value, "recovery")) {
-                            value = rp;
-                        } else if (is_rom_value_check_prop(name) &&
-                                   value_has_rom_keyword(value)) {
-                            value = "";
-                        } else if (is_debug_replace_prop(name) && value &&
-                                   (strstr(value, "userdebug") ||
-                                    strcmp(value, "eng") == 0 ||
-                                    strstr(value, "-eng") || strstr(value, "_eng"))) {
-                            size_t n = strlen(value);
-                            if (n < sizeof(tl_cb_buf)) {
-                                memcpy(tl_cb_buf, value, n + 1);
-                                normalize_build_variant(tl_cb_buf, (int)n);
-                                value = tl_cb_buf;
+                        const char *conditional = find_conditional_boot_prop(name);
+                        if (conditional) { value = conditional; }
+                        else {
+                            const char *rp = find_recovery_prop(name);
+                            if (rp && value && strstr(value, "recovery")) {
+                                value = rp;
+                            } else if (is_rom_value_check_prop(name) &&
+                                       value_has_rom_keyword(value)) {
+                                value = "";
+                            } else if (is_debug_replace_prop(name) && value &&
+                                       (strstr(value, "userdebug") ||
+                                        strcmp(value, "eng") == 0 ||
+                                        strstr(value, "-eng") || strstr(value, "_eng"))) {
+                                size_t n = strlen(value);
+                                if (n < sizeof(tl_cb_buf)) {
+                                    memcpy(tl_cb_buf, value, n + 1);
+                                    normalize_build_variant(tl_cb_buf, (int)n);
+                                    value = tl_cb_buf;
+                                }
+                            } else if (g_cfg) {
+                                auto it = g_cfg->props.find(name);
+                                if (it != g_cfg->props.end()) value = it->second.c_str();
                             }
-                        } else if (g_cfg) {
-                            auto it = g_cfg->props.find(name);
-                            if (it != g_cfg->props.end()) value = it->second.c_str();
                         }
                     }
                 }
@@ -1643,6 +1697,78 @@ static void h_prop_read_cb(const void *pi,
                            void *cookie) {
     CbCtx ctx{cb, cookie};
     o_prop_read_cb(pi, cb_trampoline, &ctx);
+}
+
+static const prop_info *h_prop_find(const char *name) {
+    if (name && is_deleted_prop(name)) {
+        return nullptr;
+    }
+    return o_prop_find ? o_prop_find(name) : nullptr;
+}
+
+static int h_prop_read(const prop_info *pi, char *name, char *value) {
+    char name_buf[PROP_NAME_MAX] = {0};
+    if (!name && o_prop_read_cb && pi) {
+        o_prop_read_cb(pi, [](void *cookie, const char *n, const char *, uint32_t) {
+            if (n && cookie) {
+                strncpy(static_cast<char *>(cookie), n, PROP_NAME_MAX - 1);
+            }
+        }, name_buf);
+        name = name_buf;
+    }
+    int len = o_prop_read ? o_prop_read(pi, name, value) : 0;
+    if (name && is_deleted_prop(name)) {
+        if (value) value[0] = '\0';
+        return 0;
+    }
+    if (name && value) {
+        const char *dp = find_display_override(name);
+        if (dp) {
+            size_t n = strlen(dp);
+            if (n > 91) n = 91;
+            memcpy(value, dp, n);
+            value[n] = '\0';
+            return (int)n;
+        }
+        const char *flv = find_flavor_override(name);
+        if (flv) {
+            size_t n = strlen(flv);
+            if (n > 91) n = 91;
+            memcpy(value, flv, n);
+            value[n] = '\0';
+            return (int)n;
+        }
+        const char *bp = find_boot_prop(name);
+        if (bp) {
+            size_t n = strlen(bp);
+            if (n > 91) n = 91;
+            memcpy(value, bp, n);
+            value[n] = '\0';
+            return (int)n;
+        }
+        const char *conditional = find_conditional_boot_prop(name);
+        if (conditional) {
+            if (len > 0) {
+                size_t n = strlen(conditional);
+                if (n > 91) n = 91;
+                memcpy(value, conditional, n);
+                value[n] = '\0';
+                return (int)n;
+            }
+        }
+        if (is_debug_replace_prop(name) && len > 0) {
+            return normalize_build_variant(value, len);
+        }
+        if (g_cfg) {
+            auto it = g_cfg->props.find(name);
+            if (it != g_cfg->props.end()) {
+                size_t n = it->second.copy(value, 91);
+                value[n] = '\0';
+                return (int)n;
+            }
+        }
+    }
+    return len;
 }
 
 // ---- VPN concealment hooks ----
@@ -1742,6 +1868,21 @@ static int h_ioctl(int fd, unsigned long req, ...) {
     return o_ioctl ? o_ioctl(fd, req, arg) : ::ioctl(fd, req, arg);
 }
 
+static long h_syscall(long number, void *a1, void *a2, void *a3, void *a4, void *a5, void *a6) {
+#if defined(__aarch64__)
+    if (number == 45 /* __NR_truncate */) {
+        errno = ENOENT;
+        return -1;
+    }
+#elif defined(__NR_truncate)
+    if (number == __NR_truncate) {
+        errno = ENOENT;
+        return -1;
+    }
+#endif
+    return o_syscall ? o_syscall(number, a1, a2, a3, a4, a5, a6) : -1;
+}
+
 #ifndef SO_BINDTOIFINDEX
 #define SO_BINDTOIFINDEX 62
 #endif
@@ -1806,14 +1947,19 @@ static const HookSpec kHooks[] = {
     {"selinux_check_access", (void *)h_selinux_check_access, (void **)&o_selinux_check_access},
     {"__system_property_get",           (void *)h_prop_get,     (void **)&o_prop_get},
     {"__system_property_read_callback", (void *)h_prop_read_cb, (void **)&o_prop_read_cb},
+    {"__system_property_find",          (void *)h_prop_find,    (void **)&o_prop_find},
+    {"__system_property_read",          (void *)h_prop_read,    (void **)&o_prop_read},
     {"getifaddrs",  (void *)h_getifaddrs,  (void **)&o_getifaddrs},
     {"ioctl",       (void *)h_ioctl,       (void **)&o_ioctl},
     {"setsockopt",  (void *)h_setsockopt,  (void **)&o_setsockopt},
+    {"syscall",     (void *)h_syscall,     (void **)&o_syscall},
 };
 
 static const HookSpec kPropsHooks[] = {
     {"__system_property_get",           (void *)h_prop_get,     (void **)&o_prop_get},
     {"__system_property_read_callback", (void *)h_prop_read_cb, (void **)&o_prop_read_cb},
+    {"__system_property_find",          (void *)h_prop_find,    (void **)&o_prop_find},
+    {"__system_property_read",          (void *)h_prop_read,    (void **)&o_prop_read},
 };
 
 static size_t mapped_elf_size(const lsplt::MapInfo &map) {

@@ -63,6 +63,14 @@ bool full_udonge_enabled() {
             && access(UDONGE_ROOT "/state/disabled", F_OK) != 0;
 }
 
+std::string read_targets() {
+    std::string t1 = cloak::read_file(std::string(CONF_DIR) + "/targets.conf");
+    std::string t2 = cloak::read_file(std::string(CONF_DIR) + "/target.txt");
+    if (t1.empty()) return t2;
+    if (t2.empty()) return t1;
+    return t1 + "\n" + t2;
+}
+
 std::string base_package(const std::string &process_name) {
     size_t separator = process_name.find(':');
     return process_name.substr(0, separator);
@@ -170,10 +178,12 @@ public:
 
         is_gms_unstable_ = package_ == "com.google.android.gms"
                 && process_name == "com.google.android.gms.unstable";
+        is_pi_target_ = package_ == "com.android.vending"
+                || package_ == "com.google.android.gms";
         if (!fetch_config(process_name, package_)) return;
         // Only explicit protection targets should lose the su mount. Ordinary
         // apps must be able to find su and request root from the manager.
-        if (cfg_.shouldCloak(package_) || cfg_.shouldStealth(package_)) {
+        if (cfg_.shouldCloak(package_) || cfg_.shouldStealth(package_) || is_pi_target_) {
             api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
         }
         hide_apps_ = !hide_dex_.empty() && (!hide_rule_.empty() || cfg_.shouldCloak(package_));
@@ -217,8 +227,12 @@ public:
             if (!keep_loaded_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
             return;
         }
+
+        if (!cfg_.gms_build.empty() && (is_gms_unstable_ || is_pi_target_ || cloak_)) {
+            cloak::spoof_build(env_, cfg_, package_);
+        }
+
         if (is_gms_unstable_) {
-            if (!cfg_.gms_build.empty()) cloak::spoof_build(env_, cfg_);
             if (hide_apps_) {
                 hideapps::install(env_, package_, hide_rule_, hide_dex_);
             }
@@ -249,6 +263,7 @@ private:
     bool cloak_ = false;
     bool hide_apps_ = false;
     bool is_gms_unstable_ = false;
+    bool is_pi_target_ = false;
     bool keep_loaded_ = false;
 
     std::string jstr(jstring value) {
@@ -292,14 +307,16 @@ private:
         }
         if (!from_companion) {
             if (full_udonge_enabled()) {
-                targets = cloak::read_file(std::string(CONF_DIR) + "/targets.conf");
+                targets = read_targets();
                 props = cloak::read_file(std::string(CONF_DIR) + "/props.conf");
                 pif = cloak::read_file(std::string(CONF_DIR) + "/pif.conf");
                 rom_keywords = cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf");
             }
         }
         cfg_ = cloak::parse_config(targets, props, pif, rom_keywords);
-        if (is_gms_unstable_) return !cfg_.gms_build.empty() || !hide_rule_.empty();
+        if (is_gms_unstable_ || is_pi_target_) {
+            return !cfg_.gms_build.empty() || !hide_rule_.empty() || cfg_.shouldCloak(package_);
+        }
         // Loading the built-in module is not authorization to apply Udonge's
         // privileged protection profile. Non-target processes may still have a
         // package-hiding rule; they must otherwise remain untouched and let
@@ -317,13 +334,14 @@ static void companion_handler(int client) {
     if (!read_str(client, package)) return;
     if (package.empty()) package = base_package(process_name);
     const bool full_enabled = full_udonge_enabled();
-    std::string targets = full_enabled
-            ? cloak::read_file(std::string(CONF_DIR) + "/targets.conf") : std::string();
+    std::string targets = full_enabled ? read_targets() : std::string();
     const cloak::Config target_config = cloak::parse_config(targets, {}, {}, {});
     const bool gms_unstable = package == "com.google.android.gms"
             && process_name == "com.google.android.gms.unstable";
+    const bool is_pi_target = package == "com.android.vending"
+            || package == "com.google.android.gms";
     const bool needs_props = full_enabled
-            && (gms_unstable || target_config.shouldCloak(package));
+            && (gms_unstable || is_pi_target || target_config.shouldCloak(package));
     std::string props;
     std::string pif;
     if (needs_props) {

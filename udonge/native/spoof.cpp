@@ -17,7 +17,7 @@ static void set_str(JNIEnv *env, jclass cls, const char *field, const std::strin
     env->DeleteLocalRef(s);
 }
 
-void spoof_build(JNIEnv *env, const Config &cfg) {
+void spoof_build(JNIEnv *env, const Config &cfg, const std::string &pkg) {
     if (!env || cfg.gms_build.empty()) return;
 
     jclass build = env->FindClass("android/os/Build");
@@ -41,6 +41,22 @@ void spoof_build(JNIEnv *env, const Config &cfg) {
             set_str(env, build, k.c_str(), v);
         }
     }
+
+    if (pkg == "com.android.vending" && ver) {
+        auto it = cfg.gms_build.find("spoofVendingSdk");
+        if (it != cfg.gms_build.end() && !it->second.empty()) {
+            int target_sdk = std::atoi(it->second.c_str());
+            if (target_sdk > 0) {
+                jfieldID fid = env->GetStaticFieldID(ver, "SDK_INT", "I");
+                if (fid) {
+                    env->SetStaticIntField(ver, fid, target_sdk == 1 ? 32 : target_sdk);
+                } else {
+                    env->ExceptionClear();
+                }
+            }
+        }
+    }
+
     env->ExceptionClear();
     if (ver) env->DeleteLocalRef(ver);
     env->DeleteLocalRef(build);

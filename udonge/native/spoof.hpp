@@ -5,8 +5,7 @@
 namespace cloak {
 
 // Overwrite android.os.Build / Build.VERSION fields in the current process with
-// the certified-device values from cfg.gms_build (via JNI SetStaticObjectField).
-void spoof_build(JNIEnv *env, const Config &cfg);
+void spoof_build(JNIEnv *env, const Config &cfg, const std::string &pkg = "");
 
 // Overwrite only Build.DISPLAY using the DISPLAY (or ID) value from cfg.gms_build.
 // Targeted variant for cloaked non-GMS apps — avoids changing MODEL/BRAND/etc.

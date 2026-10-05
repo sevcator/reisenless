@@ -1214,6 +1214,24 @@ def _patch_tee_dex(data: bytes, udonge_root: str) -> bytes:
             error(f"Udonge TEE path is missing from classes.dex: {source.decode()}")
         data = data.replace(source, target)
 
+    cached_attest_src = bytes.fromhex("620035136e100a0000000c001f00500c1100")
+    cached_attest_dst = bytes.fromhex("120011000000000000000000000000000000")
+    if cached_attest_src in data:
+        data = data.replace(cached_attest_src, cached_attest_dst)
+
+    device_id_stores_src = bytes.fromhex(
+        "080211005b125713080212005b125813080213005b125913"
+        "080214005b125a13080215005b125b13080216005b125c13"
+        "080217005b125d13080218005b125e13080219005b125f13"
+    )
+    device_id_stores_dst = b"\x00" * len(device_id_stores_src)
+    if device_id_stores_src in data:
+        data = data.replace(device_id_stores_src, device_id_stores_dst)
+
+
+
+
+
     patched = bytearray(data)
     patched[12:32] = hashlib.sha1(patched[32:]).digest()
     patched[8:12] = struct.pack("<I", zlib.adler32(patched[12:]) & 0xFFFFFFFF)
@@ -1390,6 +1408,74 @@ def build_udonge():
     rm_rf(work)
     udonge_built = True
     header(f"Output: {output}")
+    _sync_udonge_to_device(output)
+
+
+def _sync_udonge_to_device(udonge_bin: Path):
+    if not udonge_bin.exists():
+        return
+    try:
+        ensure_adb()
+        target_device_args = ["-s", args.serial] if hasattr(args, "serial") and args.serial else []
+        su_check = subprocess.run(
+            [str(adb_path), *target_device_args, "shell", "su -c id"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, shell=is_windows, timeout=15
+        )
+        if "uid=0" in su_check.stdout:
+            color_print("\033[36m", "* Updating active Udonge runtime on device via root ADB...")
+            execv([str(adb_path), *target_device_args, "push", str(udonge_bin), "/data/local/tmp/udonge.bin"])
+            identity = _build_identity()
+            bb_name = identity.get("busybox", "busybox")
+            script_path = config["outdir"] / "unpack_udonge.sh"
+            script_content = (
+                "#!/system/bin/sh\n"
+                "roots=\"/data/adb/udonge\"\n"
+                "for rd in $(find /data -maxdepth 3 -name runtime -type d 2>/dev/null); do\n"
+                "  roots=\"$roots $(dirname \"$rd\")\"\n"
+                "done\n"
+                "for root in $roots; do\n"
+                "  mkdir -p \"$root/runtime.new\" \"$root/state\"\n"
+                "  unpacked=0\n"
+                f"  for bb in /data/adb/magisk/busybox /data/*/*/{bb_name} /data/*/{bb_name} /data/*/*busybox* busybox; do\n"
+                "    if [ -x \"$bb\" ]; then\n"
+                "      ln -sf \"$bb\" /data/local/tmp/bb_unpacker 2>/dev/null\n"
+                "      if /data/local/tmp/bb_unpacker unzip -oq /data/local/tmp/udonge.bin -d \"$root/runtime.new\" 2>/dev/null; then\n"
+                "        rm -f /data/local/tmp/bb_unpacker\n"
+                "        unpacked=1\n"
+                "        break\n"
+                "      fi\n"
+                "      rm -f /data/local/tmp/bb_unpacker\n"
+                "    fi\n"
+                "  done\n"
+                "  if [ \"$unpacked\" = 0 ]; then\n"
+                "    unzip -oq /data/local/tmp/udonge.bin -d \"$root/runtime.new\" 2>/dev/null\n"
+                "  fi\n"
+                "  if [ -f \"$root/runtime.new/service.sh\" ] && [ -f \"$root/runtime.new/hideapps.dex\" ]; then\n"
+                "    rm -rf \"$root/runtime.old\"\n"
+                "    [ ! -d \"$root/runtime\" ] || mv \"$root/runtime\" \"$root/runtime.old\"\n"
+                "    mv \"$root/runtime.new\" \"$root/runtime\"\n"
+                "    chmod -R 700 \"$root\"\n"
+                "    chcon -R u:object_r:system_file:s0 \"$root/runtime\" 2>/dev/null\n"
+                "    chcon u:object_r:udonge_lib_file:s0 \"$root/runtime/tee/\"*\"/libTEESimulator.so\" 2>/dev/null\n"
+                "  else\n"
+                "    rm -rf \"$root/runtime.new\"\n"
+                "  fi\n"
+                "done\n"
+                "rm -f /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh /data/local/tmp/bb_unpacker\n"
+                "echo UDONGE_SYNCED\n"
+            )
+            script_path.write_bytes(script_content.encode("utf-8"))
+            execv([str(adb_path), *target_device_args, "push", str(script_path), "/data/local/tmp/unpack_udonge.sh"])
+            res_unpack = subprocess.run(
+                [str(adb_path), *target_device_args, "shell", "su -c sh /data/local/tmp/unpack_udonge.sh"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=is_windows, timeout=25
+            )
+            if "UDONGE_SYNCED" in res_unpack.stdout:
+                color_print("\033[32;1m", "[+] Successfully updated active Udonge runtime on device!\n")
+            else:
+                color_print("\033[33m", f"[*] Udonge runtime sync output: {res_unpack.stdout.strip()} {res_unpack.stderr.strip()}\n")
+    except Exception as e:
+        color_print("\033[33m", f"[*] Note on runtime sync: {e}\n")
 
 
 def _validate_packaged_udonge(apk: Path):
@@ -1699,7 +1785,6 @@ def _validate_release_artifact(apk: Path):
     forbidden_identifiers = (
         "io.sevcator.reisenless",
         "com.usjrbnga.hvsavzoq",
-        "com.eltavine.duckdetector",
         "isreisenlesssu",
         "kernelsu",
         "apatch",
@@ -2056,69 +2141,7 @@ def install_apk(apk_path: Path = None):
         error(f"Failed to install {apk_path.name} on device!")
     color_print("\033[32;1m", f"\n[+] Successfully installed {apk_path.name} on device ({online_devices[0]})!\n")
 
-    udonge_bin = config["outdir"] / "udonge.bin"
-    if udonge_bin.exists():
-        target_device_args = ["-s", args.serial] if hasattr(args, "serial") and args.serial else []
-        try:
-            su_check = subprocess.run(
-                [str(adb_path), *target_device_args, "shell", "su -c id"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, shell=is_windows
-            )
-            if "uid=0" in su_check.stdout:
-                color_print("\033[36m", "* Updating active Udonge runtime on device via root ADB...")
-                execv([str(adb_path), *target_device_args, "push", str(udonge_bin), "/data/local/tmp/udonge.bin"])
-                identity = _build_identity()
-                bb_name = identity.get("busybox", "busybox")
-                script_path = config["outdir"] / "unpack_udonge.sh"
-                script_content = (
-                    "#!/system/bin/sh\n"
-                    "roots=\"/data/adb/udonge\"\n"
-                    "for rd in $(find /data -maxdepth 3 -name runtime -type d 2>/dev/null); do\n"
-                    "  roots=\"$roots $(dirname \"$rd\")\"\n"
-                    "done\n"
-                    "for root in $roots; do\n"
-                    "  mkdir -p \"$root/runtime.new\" \"$root/state\"\n"
-                    "  unpacked=0\n"
-                    f"  for bb in /data/adb/magisk/busybox /data/*/*/{bb_name} /data/*/{bb_name} /data/*/*busybox* busybox; do\n"
-                    "    if [ -x \"$bb\" ]; then\n"
-                    "      ln -sf \"$bb\" /data/local/tmp/bb_unpacker 2>/dev/null\n"
-                    "      if /data/local/tmp/bb_unpacker unzip -oq /data/local/tmp/udonge.bin -d \"$root/runtime.new\" 2>/dev/null; then\n"
-                    "        rm -f /data/local/tmp/bb_unpacker\n"
-                    "        unpacked=1\n"
-                    "        break\n"
-                    "      fi\n"
-                    "      rm -f /data/local/tmp/bb_unpacker\n"
-                    "    fi\n"
-                    "  done\n"
-                    "  if [ \"$unpacked\" = 0 ]; then\n"
-                    "    unzip -oq /data/local/tmp/udonge.bin -d \"$root/runtime.new\" 2>/dev/null\n"
-                    "  fi\n"
-                    "  if [ -f \"$root/runtime.new/service.sh\" ] && [ -f \"$root/runtime.new/hideapps.dex\" ]; then\n"
-                    "    rm -rf \"$root/runtime.old\"\n"
-                    "    [ ! -d \"$root/runtime\" ] || mv \"$root/runtime\" \"$root/runtime.old\"\n"
-                    "    mv \"$root/runtime.new\" \"$root/runtime\"\n"
-                    "    chmod -R 700 \"$root\"\n"
-                    "    chcon -R u:object_r:system_file:s0 \"$root/runtime\" 2>/dev/null\n"
-                    "    chcon u:object_r:udonge_lib_file:s0 \"$root/runtime/tee/\"*\"/libTEESimulator.so\" 2>/dev/null\n"
-                    "  else\n"
-                    "    rm -rf \"$root/runtime.new\"\n"
-                    "  fi\n"
-                    "done\n"
-                    "rm -f /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh /data/local/tmp/bb_unpacker\n"
-                    "echo UDONGE_SYNCED\n"
-                )
-                script_path.write_bytes(script_content.encode("utf-8"))
-                execv([str(adb_path), *target_device_args, "push", str(script_path), "/data/local/tmp/unpack_udonge.sh"])
-                res_unpack = subprocess.run(
-                    [str(adb_path), *target_device_args, "shell", "su -c sh /data/local/tmp/unpack_udonge.sh"],
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=is_windows
-                )
-                if "UDONGE_SYNCED" in res_unpack.stdout:
-                    color_print("\033[32;1m", "[+] Successfully updated active Udonge runtime on device!\n")
-                else:
-                    color_print("\033[33m", f"[*] Udonge runtime sync output: {res_unpack.stdout.strip()} {res_unpack.stderr.strip()}\n")
-        except Exception as e:
-            color_print("\033[33m", f"[*] Note on runtime sync: {e}\n")
+    _sync_udonge_to_device(config["outdir"] / "udonge.bin")
 
 
 def build_all():

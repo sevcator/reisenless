@@ -10,7 +10,13 @@ import kotlinx.coroutines.GlobalScope
 
 object Config : PreferenceConfig, DBConfig {
 
-    const val DEFAULT_UDONGE_KEYBOX_URLS = ""
+    const val DEFAULT_UDONGE_KEYBOX_URLS =
+        "https://raw.githubusercontent.com/auroraOSP/random/main/keybox.xml\n" +
+        "https://raw.githubusercontent.com/zuri1503/Toolbox-Database/main/keybox.xml\n" +
+        "https://raw.githubusercontent.com/AresOS-AOSP/.github/main/profile/keybox.xml\n" +
+        "https://raw.githubusercontent.com/Yurii0307/yurikey/main/key\n" +
+        "https://raw.githubusercontent.com/yusufnoor786/vendor_certification/16.2/keybox.xml\n" +
+        "https://raw.githubusercontent.com/hashcones/mkboxml/main/keybox.xml"
 
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB

@@ -177,7 +177,9 @@ start_tee() {
     run="$root/tee-runtime"
     version="$(cat "$runtime/version" 2>/dev/null)"
     current="$(cat "$run/.version" 2>/dev/null)"
-    if [ "$version" != "$current" ] || [ ! -x "$run/supervisor" ]; then
+    payload_id="$(cat "$runtime/payload.id" 2>/dev/null)"
+    current_payload_id="$(cat "$run/.payload_id" 2>/dev/null)"
+    if [ "$version" != "$current" ] || [ -z "$payload_id" ] || [ "$payload_id" != "$current_payload_id" ] || [ ! -x "$run/supervisor" ]; then
         next="$root/tee-runtime.new"
         old="$root/tee-runtime.old"
         rm -rf "$next" "$old"
@@ -191,6 +193,7 @@ start_tee() {
         cp "$runtime/tee/daemon" "$next/daemon" || return 0
         chmod 700 "$next/inject" "$next/supervisor" "$next/daemon"
         printf '%s\n' "$version" > "$next/.version"
+        printf '%s\n' "$payload_id" > "$next/.payload_id"
         [ ! -d "$run" ] || mv "$run" "$old"
         if mv "$next" "$run"; then
             rm -rf "$old"
@@ -214,28 +217,92 @@ start_tee() {
         chmod 600 "$tee_state/keybox.xml"
     fi
     target="$tee_state/target.txt"
-    if [ ! -f "$target" ]; then
-        if [ -f "$state/targets.conf" ]; then
-            cp "$state/targets.conf" "$target"
-        elif [ -f "$runtime/defaults/targets.conf" ]; then
-            cp "$runtime/defaults/targets.conf" "$target"
-        else
-            printf 'com.android.vending\ncom.google.android.gms\n' > "$target"
+    [ -f "$target" ] || touch "$target"
+    for conf_file in "$runtime/defaults/targets.conf" "$state/targets.conf"; do
+        if [ -f "$conf_file" ]; then
+            while IFS= read -r raw || [ -n "$raw" ]; do
+                pkg="$(printf '%s' "$raw" | sed 's/^stealth://' | tr -d '\r\n ')"
+                [ -n "$pkg" ] || continue
+                case "$pkg" in '#'*) continue ;; esac
+                grep -qxF "$pkg" "$target" 2>/dev/null || printf '%s\n' "$pkg" >> "$target"
+            done < "$conf_file"
+        fi
+    done
+
+    # Broken TEE handling: for devices with Keymaster <= 3 on Android 12+ or broken TEE HAL,
+    # force GENERATE mode (!) for Google Play Services and Store so hardware leaf generation is bypassed.
+    local tee_broken=0
+    if [ "$sdk" -ge 31 ] 2>/dev/null; then
+        if [ -f "$state/tee-broken" ] || [ -f "$state/tee-unavailable" ] || \
+           [ "$(getprop ro.board.platform 2>/dev/null)" = "sdm845" ] || \
+           [ "$(getprop ro.boot.hardware.platform 2>/dev/null)" = "sdm845" ] || \
+           [ "$(getprop ro.product.manufacturer 2>/dev/null)" = "OnePlus" ]; then
+            tee_broken=1
+            touch "$state/tee-broken" 2>/dev/null || true
+            chmod 600 "$state/tee-broken" 2>/dev/null || true
         fi
     fi
-    if [ -f "$state/targets.conf" ]; then
-        while IFS= read -r pkg; do
-            [ -n "$pkg" ] || continue
-            grep -qxF "$pkg" "$target" 2>/dev/null || printf '%s\n' "$pkg" >> "$target"
-        done < "$state/targets.conf"
+
+    # Deduplicate and ensure '!' mode takes precedence over non-'!' entries
+    temp_target="$tee_state/.target.$$"
+    awk '{
+        line = $0
+        gsub(/[ \r\t]/, "", line)
+        if (line == "" || line ~ /^#/) next
+        if (line ~ /!$/) {
+            base = substr(line, 1, length(line) - 1)
+            is_gen[base] = 1
+        } else {
+            has_plain[line] = 1
+        }
+        order[count++] = line
+    }
+    END {
+        for (i = 0; i < count; i++) {
+            l = order[i]
+            if (l ~ /!$/) {
+                print l
+            } else if (!is_gen[l]) {
+                print l
+            }
+        }
+    }' "$target" > "$temp_target" 2>/dev/null && mv -f "$temp_target" "$target"
+
+    # If tee_broken (e.g. sdm845 / OnePlus with Keymaster <= 3 on Android 12+),
+    # ensure '!' is appended so hardware leaf generation is bypassed.
+    if [ "$tee_broken" = 1 ]; then
+        for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation; do
+            sed -i "s/^${p}\$/${p}!/" "$target" 2>/dev/null || true
+        done
+    else
+        sed -i 's/^com\.android\.vending!$/com.android.vending/' "$target" 2>/dev/null || true
+        sed -i 's/^com\.google\.android\.gms!$/com.google.android.gms/' "$target" 2>/dev/null || true
+        sed -i 's/^com\.google\.android\.gsf!$/com.google.android.gsf/' "$target" 2>/dev/null || true
+        sed -i 's/^gr\.nikolasspyr\.integritycheck[!?]*$/gr.nikolasspyr.integritycheck/' "$target" 2>/dev/null || true
+        sed -i 's/^io\.github\.vvb2060\.keyattestation[!?]*$/io.github.vvb2060.keyattestation/' "$target" 2>/dev/null || true
     fi
-    if [ ! -f "$tee_state/security_patch.txt" ] || {
-        grep -q '^system=' "$tee_state/security_patch.txt" &&
-        ! grep -Eq '^(all|vendor|boot)=' "$tee_state/security_patch.txt";
-    }; then
-        patch="$(sed -n 's/^SECURITY_PATCH=//p' "$state/pif.conf" | head -n 1)"
-        [ -z "$patch" ] || printf 'all=%s\n' "$patch" > "$tee_state/security_patch.txt"
+    # Always keep com.eltavine.duckdetector clean without '!' or '?'
+    sed -i 's/^com\.eltavine\.duckdetector[!?]*$/com.eltavine.duckdetector/' "$target" 2>/dev/null || true
+
+    # Force boot_props_mode to ensure BootStateManager does not skip Oplus-family devices (e.g. OnePlus 6)
+    printf 'force\n' > "$tee_state/boot_props_mode"
+    chmod 600 "$tee_state/boot_props_mode"
+
+    patch="$(sed -n 's/^SECURITY_PATCH=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+    [ -n "$patch" ] || patch="$(getprop ro.build.version.security_patch 2>/dev/null)"
+    if [ -n "$patch" ]; then
+        cat > "$tee_state/security_patch.txt" <<EOF
+system=prop
+boot=$patch
+vendor=$patch
+EOF
+        chmod 600 "$tee_state/security_patch.txt"
     fi
+
+    # Compatibility symlink for TrickyStore / YuriKey / IntegrityBox modules
+    mkdir -p /data/adb 2>/dev/null
+    ln -sfn "$tee_state" /data/adb/tricky_store 2>/dev/null || true
+
     [ -f "$tee_state/hbk" ] || head -c 32 /dev/urandom > "$tee_state/hbk"
     for item in "$tee_state"/*; do
         [ -e "$item" ] || continue
@@ -300,6 +367,114 @@ refresh_keybox
 start_tee
 sync_vbmeta_digest || true
 
+# AVB and verified boot state hardening (from IntegrityBox & YuriKey)
+RP="resetprop"
+if command -v resetprop >/dev/null 2>&1; then
+    $RP -n ro.boot.vbmeta.device_state locked
+    $RP -n ro.boot.verifiedbootstate green
+    $RP -n ro.boot.flash.locked 1
+    $RP -n ro.boot.veritymode enforcing
+    $RP -n ro.boot.veritymode.managed yes
+    $RP -p persist.sys.pihooks.disable.gms_props true 2>/dev/null || true
+    $RP -p persist.sys.pihooks.disable.gms_key_attestation_block true 2>/dev/null || true
+    $RP -p persist.sys.entryhooks_enabled false 2>/dev/null || true
+    $RP -p -d persist.sys.spoof.gms 2>/dev/null || true
+    $RP -p -d persist.sys.pixelprops.gms 2>/dev/null || true
+    $RP -d persist.sys.spoof.gms 2>/dev/null || true
+    $RP -d persist.sys.pixelprops.gms 2>/dev/null || true
+    $RP -n ro.boot.warranty_bit 0
+    $RP -n ro.warranty_bit 0
+    $RP -n ro.secure 1
+    $RP -n ro.debuggable 0
+    $RP -n ro.force.debuggable 0
+    $RP -n ro.adb.secure 1
+    $RP -n ro.build.type user
+    $RP -n ro.build.tags release-keys
+    $RP -n sys.oem_unlock_allowed 0
+    $RP -n ro.boot.selinux enforcing
+    $RP -n ro.boot.avb_version 1.3
+    $RP -n ro.is_ever_orange 0
+    $RP -n ro.crypto.state encrypted
+    $RP -n ro.oem_unlock_supported 0
+    $RP -n vendor.boot.vbmeta.device_state locked
+    $RP -n vendor.boot.verifiedbootstate green
+    $RP -n ro.bootmode unknown
+    $RP -n ro.boot.bootmode unknown
+    $RP -n vendor.boot.bootmode unknown
+    for part in system vendor product system_ext odm; do
+        $RP -n "partition.${part}.verified" 0
+    done
+    $RP -d ro.boot.verifiedbooterror 2>/dev/null || true
+    $RP -d ro.boot.verifyerrorpart 2>/dev/null || true
+    patch="$(sed -n 's/^SECURITY_PATCH=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+    if [ -n "$patch" ]; then
+        $RP -n ro.build.version.security_patch "$patch"
+        $RP -n ro.vendor.build.security_patch "$patch"
+    fi
+
+    # Sync product identity from pif.conf for Device ID Attestation consistency
+    if [ -f "$state/pif.conf" ]; then
+        brand="$(sed -n 's/^BRAND=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+        model="$(sed -n 's/^MODEL=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+        device="$(sed -n 's/^DEVICE=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+        manufacturer="$(sed -n 's/^MANUFACTURER=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+        product="$(sed -n 's/^PRODUCT=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+        fingerprint="$(sed -n 's/^FINGERPRINT=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+        id="$(sed -n 's/^ID=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+
+        for prefix in ro.product \
+                      ro.product.bootimage \
+                      ro.product.odm \
+                      ro.product.odm_dlkm \
+                      ro.product.product \
+                      ro.product.system \
+                      ro.product.system_ext \
+                      ro.product.system_dlkm \
+                      ro.product.vendor \
+                      ro.product.vendor_dlkm; do
+            [ -n "$brand" ] && $RP -n "${prefix}.brand" "$brand"
+            [ -n "$model" ] && $RP -n "${prefix}.model" "$model"
+            [ -n "$device" ] && $RP -n "${prefix}.device" "$device"
+            [ -n "$manufacturer" ] && $RP -n "${prefix}.manufacturer" "$manufacturer"
+            [ -n "$product" ] && $RP -n "${prefix}.name" "$product"
+        done
+        [ -n "$product" ] && $RP -n ro.build.product "$product"
+        [ -n "$model" ] && $RP -n bluetooth.device.default_name "$model"
+        $RP -n ro.com.google.clientidbase "android-google"
+        for fp_prop in ro.build.fingerprint \
+                       ro.bootimage.build.fingerprint \
+                       ro.odm.build.fingerprint \
+                       ro.product.build.fingerprint \
+                       ro.system.build.fingerprint \
+                       ro.system_ext.build.fingerprint \
+                       ro.vendor.build.fingerprint \
+                       ro.vendor_dlkm.build.fingerprint; do
+            [ -n "$fingerprint" ] && $RP -n "$fp_prop" "$fingerprint"
+        done
+        [ -n "$id" ] && {
+            $RP -n ro.build.id "$id"
+            $RP -n ro.build.display.id "$id"
+        }
+        [ -n "$product" ] && $RP -n ro.build.description "${product}-user 15 CANARY release-keys"
+        [ -n "$product" ] && $RP -n ro.build.flavor "${product}-user"
+    fi
+
+    # Strip custom ROM and OEM test residue properties (keep hardware platform props intact for Keymaster HAL)
+    for rom_prop in ro.lineage.build.version \
+                     ro.lineage.device \
+                     ro.lineage.display.version \
+                     ro.lineage.releasetype \
+                     ro.lineage.version \
+                     ro.lineagelegal.url \
+                     ro.boot.project_codename \
+                     persist.vendor.camera.privapp.list; do
+        $RP -n -d "$rom_prop" 2>/dev/null || true
+    done
+
+    # Clean up leftover root artifacts in /data/local/tmp that trigger DroidGuard AVC denials
+    rm -f /data/local/tmp/su /data/local/tmp/su-old-apk /data/local/tmp/*su* 2>/dev/null || true
+fi
+
 # Disable broken vendor Soter HAL service and daemon that trigger attestation anomalies on unlocked bootloaders
 stop soter-1-0 2>/dev/null || true
 setprop ctl.stop soter-1-0 2>/dev/null || true
@@ -307,10 +482,21 @@ pm disable com.tencent.soter.soterserver >/dev/null 2>&1 || true
 
 
 version="$(cat "$runtime/version" 2>/dev/null)"
+pif_hash="$(sha256sum "$state/pif.conf" 2>/dev/null | awk '{print $1}')"
 certified="$(cat "$state/.certified" 2>/dev/null)"
-if [ -f "$state/pif.conf" ] && [ "$version" != "$certified" ]; then
+if [ -f "$state/pif.conf" ] && [ "${version}_${pif_hash}" != "$certified" ]; then
     am force-stop com.google.android.gms >/dev/null 2>&1
+    am force-stop com.android.vending >/dev/null 2>&1
+    pm clear com.android.vending >/dev/null 2>&1
     am broadcast -a android.server.checkin.CHECKIN >/dev/null 2>&1
-    printf '%s\n' "$version" > "$state/.certified"
+    printf '%s\n' "${version}_${pif_hash}" > "$state/.certified"
     chmod 600 "$state/.certified"
+fi
+
+# Launch Keybox Hunter background worker if Strong Integrity is not yet locked
+if [ ! -f "$state/.strong_locked" ] && [ -x "$runtime/keybox_heal.sh" ]; then
+    (
+        sleep 20
+        "$runtime/keybox_heal.sh" hunt_daemon </dev/null >/dev/null 2>&1
+    ) &
 fi

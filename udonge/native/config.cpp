@@ -43,10 +43,21 @@ Config parse_config(const std::string &targets_text, const std::string &props_te
     Config cfg;
 
     for_each_line(targets_text, [&](const std::string &line) {
-        if (line.rfind("stealth:", 0) == 0) {
-            cfg.stealth_packages.insert(line.substr(8));
+        std::string pkg = line;
+        bool is_stealth = false;
+        if (pkg.rfind("stealth:", 0) == 0) {
+            pkg = pkg.substr(8);
+            is_stealth = true;
+        }
+        while (!pkg.empty() && (pkg.back() == '!' || pkg.back() == '?')) {
+            pkg.pop_back();
+        }
+        pkg = trim(pkg);
+        if (pkg.empty()) return;
+        if (is_stealth) {
+            cfg.stealth_packages.insert(pkg);
         } else {
-            cfg.packages.insert(line);
+            cfg.packages.insert(pkg);
         }
     });
 
