@@ -108,18 +108,23 @@ validate_migration_modules() {
 }
 
 rewrite_migration_paths() (
-  local root="$1" source="$2" old_runtime="$3" pattern replacement runtime file target temp
+  local root="$1" source="$2" old_runtime="$3" destination="${4:-$SECURE_DIR}"
+  local pattern replacement runtime file target temp
   [ -d "$root" ] || return 0
   pattern=$(printf '%s\n' "$source" | sed 's/[][\\.^$*|]/\\&/g') || return 1
-  replacement=$(printf '%s\n' "$SECURE_DIR" | sed 's/[&|\\]/\\&/g') || return 1
+  replacement=$(printf '%s\n' "$destination" | sed 's/[&|\\]/\\&/g') || return 1
   runtime=$(printf '%s\n' "$old_runtime" | sed 's/[][\\.^$*|]/\\&/g') || return 1
+  if [ -n "${4:-}" ]; then
+    set -- -e "s|$pattern\([/[:space:]\"';:)]\)|$replacement\1|g" -e "s|$pattern$|$replacement|g"
+  else
+    set -- -e "s|$pattern/$runtime/|$replacement/$UDONGE_DIR/|g" -e "s|$pattern/|$replacement/|g"
+  fi
   find "$root" -type f | while IFS= read -r file; do
-    grep -Fq "$source/" "$file" || continue
+    grep -Fq "$source" "$file" || continue
     od -An -v -N 8192 -tx1 "$file" | grep -q ' 00' && continue
     temp="$file.migration-new.$$"
     cp -af "$file" "$temp" || exit 1
-    if ! sed -e "s|$pattern/$runtime/|$replacement/$UDONGE_DIR/|g" \
-        -e "s|$pattern/|$replacement/|g" "$file" > "$temp" || ! mv -f "$temp" "$file"; then
+    if ! sed "$@" "$file" > "$temp" || ! mv -f "$temp" "$file"; then
       rm -f "$temp"
       exit 1
     fi
@@ -127,13 +132,23 @@ rewrite_migration_paths() (
   find "$root" -type l | while IFS= read -r file; do
     target=$(readlink "$file") || exit 1
     case "$target" in
-      "$source/$old_runtime"/*) target="$SECURE_DIR/$UDONGE_DIR/${target#"$source/$old_runtime"/}";;
-      "$source"/*) target="$SECURE_DIR/${target#"$source"/}";;
+      "$source") target="$destination";;
+      "$source/$old_runtime"/*) target="$destination/$UDONGE_DIR/${target#"$source/$old_runtime"/}";;
+      "$source"/*) target="$destination/${target#"$source"/}";;
       *) continue;;
     esac
     ln -snf "$target" "$file" || exit 1
   done
 )
+
+rewrite_installed_module_paths() {
+  local source="$1" dir legacy_dir
+  for dir in modules modules_update post-fs-data.d service.d; do
+    for legacy_dir in modules modules_update; do
+      rewrite_migration_paths "$SECURE_DIR/$dir" "$source/$legacy_dir" '' "$SECURE_DIR/$legacy_dir" || return 1
+    done
+  done
+}
 
 is_legacy_payload_dir() {
   local source="$1" directory="$2"
@@ -201,6 +216,7 @@ transactional_migrate_layout() {
     if cmp -s "$manifest" "$existing"; then
       rm -f "$existing"
       rm -rf "$stage"
+      rewrite_installed_module_paths "$source" || return 1
       return 0
     fi
     rm -f "$existing"
@@ -240,6 +256,7 @@ transactional_migrate_layout() {
     [ -d "$stage/$dir" ] || continue
     merge_missing_tree "$stage/$dir" "$SECURE_DIR/$dir" || { rm -rf "$stage"; return 1; }
   done
+  rewrite_installed_module_paths "$source" || { rm -rf "$stage"; return 1; }
   {
     printf 'source=%s\n' "$source"
     cat "$manifest"
