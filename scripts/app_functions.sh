@@ -518,7 +518,7 @@ cleanup_upgrade() {
     [ -f /data/adb/ms.db ] || database=magisk.db
     cleanup_migrated_layout /data/adb "$database" udonge .migration-canonical.complete canonical || return 1
   fi
-  for old in /data/magisk /cache/data_adb/magisk /cache/data_adb/ms; do
+  for old in /data/magisk /data/ms /cache/data_adb/magisk /cache/data_adb/ms; do
     [ -d "$old" ] && [ ! -L "$old" ] || continue
     [ -f "$old/util_functions.sh" ] || continue
     grep -q '^MAGISK_VER_CODE=[0-9]' "$old/util_functions.sh" || continue
