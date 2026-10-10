@@ -23,7 +23,6 @@ internal object OwnedCommandBuilder {
         case "${'$'}args" in *"${'$'}record"*) ;; *) exit 0 ;; esac
         group=${'$'}(awk '{sub(/^.*\) /, ""); print ${'$'}3}' "/proc/${'$'}pid/stat" 2>/dev/null)
         [ "${'$'}group" = "${'$'}pid" ] || exit 0
-        # Freeze the entire group before taking its member/start-time snapshot.
         kill -STOP -- -"${'$'}pid" 2>/dev/null || exit 0
         members=${'$'}(
             ps -A -o PID,PGID | awk -v group="${'$'}pid" '${'$'}2 == group {print ${'$'}1}' |
@@ -35,8 +34,6 @@ internal object OwnedCommandBuilder {
         kill -TERM -- -"${'$'}pid" 2>/dev/null || true
         kill -CONT -- -"${'$'}pid" 2>/dev/null || true
         sleep 0.1
-        # A surviving member retains the original group identity even if its
-        # leader has already exited. Never rely solely on the leader here.
         for entry in ${'$'}members; do
             member=${'$'}{entry%:*}
             stamp=${'$'}{entry#*:}

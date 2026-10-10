@@ -24,7 +24,7 @@ fixes and their regressions are included in the update.
 
 ## Comments and repository cleanup
 
-`COMMENTARIES.txt` contains 991 archive entries with original source locations.
+`COMMENTARIES.txt` contains 994 archive entries with original source locations.
 Language-parser checks compared the surrounding syntax before and after
 removal. Python documentation strings were removed with AST equivalence checks.
 Shebangs remain executable; compiler-consumed Rust documentation is expressed
@@ -53,8 +53,18 @@ The Actions workflow runs release builds, host regressions, Android tests and
 lint, and Rust Clippy, then uploads both manager APKs and test/lint reports.
 Signing secrets remain external to the repository.
 
-The connected ADB device was offline during this review. No new installation,
-flash or reboot was performed. Boot activation, battery consumption, every
-device/ROM combination and remote integrity acceptance are not established by
-these host and build checks. Android lint retains existing warnings; checks
+The ADB device was initially offline. After reconnection, the rooted Pixel 9a
+passed worker singleton and owned-child shutdown checks, persistent-service
+ownership checks, native file-cache and hook regressions, and the previously
+skipped WebUI command-cancellation test. All 20 APK unit tests passed with no
+skips, and APK lint completed without errors. Both optional boot/service entry
+points also exited without creating state or workers for unrequested, disabled
+and pending-reboot fixture profiles. Temporary device fixtures were removed.
+
+Sleep/lock verification deferral was skipped because the device was awake and
+unlocked; the host regression suite covers that branch. The installed daemon
+still reported build `9477a9dc`. No new installation, flash or reboot was
+performed, so boot activation of the updated build remains unverified. Battery
+consumption, every device/ROM combination and remote integrity acceptance are
+not established by these checks. Android lint retains existing warnings; checks
 complete without errors. Rust Clippy completes without warnings.

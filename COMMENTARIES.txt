@@ -1,5 +1,6 @@
 Removed first-party source comments and documentation strings.
 Each entry records its original path and line before removal.
+Follow-up entries use source locations from the reviewed commit.
 Executable shebangs and compiler-consumed Rust doc attributes are retained.
 External submodules, local source downloads, binary assets and Markdown documents are outside this archive.
 
@@ -3092,3 +3093,12 @@ Run via scripts/env.py; nothing is installed and no boot state is modified.
 #
 # Despite built from the Android 14 branch, the executable is usable on API 31+.
 ##################################################################################
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/OwnedCommandBuilder.kt:26 (embedded shell comment) ---
+# Freeze the entire group before taking its member/start-time snapshot.
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/OwnedCommandBuilder.kt:38 (embedded shell comment) ---
+# A surviving member retains the original group identity even if its
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/OwnedCommandBuilder.kt:39 (embedded shell comment) ---
+# leader has already exited. Never rely solely on the leader here.
