@@ -27,5 +27,4 @@
 
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
 
--dontwarn org.junit.**
 -dontwarn org.apache.**

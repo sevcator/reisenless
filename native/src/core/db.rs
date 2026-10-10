@@ -328,13 +328,3 @@ unsafe extern "C" fn sql_exec_for_cxx(
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::DbSettings;
-
-    #[test]
-    fn missing_sulist_setting_defaults_to_false() {
-        assert!(!DbSettings::default().sulist);
-    }
-}

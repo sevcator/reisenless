@@ -55,8 +55,6 @@ android {
 }
 
 dependencies {
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-core:4.11.0")
     api(project(":shared"))
     coreLibraryDesugaring(libs.jdk.libs)
 

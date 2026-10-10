@@ -9,7 +9,7 @@ Guidelines and workflows for developing and building native C, C++, and Rust com
 
 ## 1. Environment & Build Requirements
 
-- **General Guidelines:** Always follow the top-level [`AGENTS.md`](../../../AGENTS.md) and [`magisk-git`](../magisk-git/SKILL.md) for general repository rules, environment execution setup, and commit control policies.
+- **General Guidelines:** Always follow [`AGENTS.md`](../../AGENTS.md) and [`magisk-git`](../magisk-git/SKILL.md) for general repository rules, environment execution setup, and commit control policies.
 - **Working Directory:** Execute commands from repo root via `./build.py`. Standalone tool executions (e.g. `cargo`, `rustc`, `ndk-build`) MUST be prefixed with `scripts/env.py`.
 - **Codegen Requirement:** ALWAYS run `./build.py gen` before editing native sources to generate FFI bindings, headers, and flags (`flags.h`, `flags.rs`, `*-rs.hpp`, `*-rs.cpp`, protobuf generated modules) without performing a full build.
 
@@ -60,7 +60,7 @@ The build process follows a two-stage hybrid pipeline orchestrated by `build.py`
 - **Build All Native Binaries:** `./build.py native`
 - **Build Specific Target(s):** `./build.py native [magisk|magiskinit|magiskboot|magiskpolicy|resetprop]`
 - **Rust Clippy Lint:** `./build.py clippy`
-- **Cargo Commands:** `./build.py cargo check`, `./build.py cargo test`
+- **Cargo Commands:** `./build.py cargo check`
 - **Generate Bindings & IDE Files:** `./build.py gen`
 - **Clean Native Artifacts:** `./build.py clean native`
 

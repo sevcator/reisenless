@@ -9,7 +9,7 @@ Guidelines and workflows for developing and building the Android application in 
 
 ## 1. Environment & Gradle Setup
 
-- **General Guidelines:** Always follow the top-level [`AGENTS.md`](../../../AGENTS.md) and [`magisk-git`](../magisk-git/SKILL.md) for repository rules, environment execution setup, and commit control policies.
+- **General Guidelines:** Always follow [`AGENTS.md`](../../AGENTS.md) and [`magisk-git`](../magisk-git/SKILL.md) for repository rules, environment execution setup, and commit control policies.
 - **Working Directory:** Set working directory to `app/` when running standalone Gradle commands, or execute build commands via `./build.py` from the repository root.
 - **Environment Wrapper:** Standalone `./gradlew` commands MUST be prefixed with `../scripts/env.py` (e.g., `../scripts/env.py ./gradlew :apk:assembleDebug`). Alternatively, run `./build.py app` from the repository root (which configures the environment automatically and builds `:apk`).
 

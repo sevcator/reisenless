@@ -13,7 +13,8 @@ on physical devices and emulators.
 ## Build
 
 Use Python 3.12 or newer, a JDK, and an Android SDK. GitHub Actions uses Python
-3.14 and JDK 21. Clone with submodules:
+3.14 and JDK 21. Set a private `identitySeed` in `config.prop` or provide
+`REISENLESS_IDENTITY_SEED` before release builds. Clone with submodules:
 
 ```sh
 git clone --recurse-submodules https://github.com/sevcator/reisenless.git
@@ -28,7 +29,7 @@ commands with `scripts/env.py`; run Gradle commands from `app/`:
 ```sh
 python build.py gen
 cd app
-python ../scripts/env.py ./gradlew :core:testDebugUnitTest :apk:testDebugUnitTest :hideapps:testDebugUnitTest :core:lintDebug :apk:lintDebug :hideapps:lintDebug
+python ../scripts/env.py ./gradlew :core:lintDebug :apk:lintDebug :hideapps:lintDebug
 ```
 
 Windows uses `gradlew.bat`. Set `ANDROID_HOME` to the Android SDK directory for
@@ -51,8 +52,9 @@ The Actions workflow requires these repository secrets:
 secrets are required for release workflows, including pull-request builds.
 Release validation checks the APK signer, embedded trust anchor, native
 authorization parser, packaged payload and generated identities. The workflow
-also runs host regressions, Android unit tests and lint, and Rust Clippy.
+also runs Android lint and Rust Clippy.
 
 Builds write local artifacts under `out/`. Device installation is a separate,
 explicit action. Removed source comments are archived with their original
-locations in `COMMENTARIES.txt`. External submodules retain their upstream source.
+locations in [`docs/COMMENTARIES.txt`](docs/COMMENTARIES.txt). External submodules
+retain their upstream source.

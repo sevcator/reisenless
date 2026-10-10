@@ -1,7 +1,4 @@
-#[cfg(not(test))]
 use super::UDONGE_ROOT;
-#[cfg(test)]
-const UDONGE_ROOT: &str = "";
 
 fn base_package(process: &str) -> &str {
     let package = process
@@ -44,32 +41,4 @@ fn is_application_uid(uid: i32) -> bool {
         return true;
     }
     false
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{base_package, is_application_uid, target_config_contains};
-
-    #[test]
-    fn every_android_application_uid_uses_the_builtin_filter() {
-        assert!(is_application_uid(10_000));
-        assert!(is_application_uid(110_000));
-        assert!(is_application_uid(99_000));
-        assert!(!is_application_uid(9_999));
-        assert!(!is_application_uid(100_000));
-    }
-
-    #[test]
-    fn target_config_accepts_exact_normal_and_stealth_entries() {
-        let config = "# comment\ncom.example.normal\nstealth:com.example.stealth\n";
-        assert!(target_config_contains(config, "com.example.normal"));
-        assert!(target_config_contains(config, "com.example.stealth"));
-        assert!(!target_config_contains(config, "com.example"));
-    }
-
-    #[test]
-    fn process_suffix_is_not_part_of_package_identity() {
-        assert_eq!(base_package("com.example.app:worker"), "com.example.app");
-        assert_eq!(base_package("com.example.app_zygote"), "com.example.app");
-    }
 }

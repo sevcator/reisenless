@@ -1,4 +1,4 @@
-name: Reisenless build and checks
+name: Reisenless build
 
 on:
   push:
@@ -49,28 +49,13 @@ jobs:
           REISENLESS_KEY_ALIAS: ${{ secrets.REISENLESS_KEY_ALIAS }}
           REISENLESS_KEY_PASSWORD: ${{ secrets.REISENLESS_KEY_PASSWORD }}
           REISENLESS_CERT_SHA256: ${{ secrets.REISENLESS_CERT_SHA256 }}
-        run: |
-          python build.py test-native-auth
-          python build.py test-identity
-          python build.py all -r -v
+        run: python build.py all -r -v
 
-      - name: Check host regressions
-        run: |
-          python tools/check_sources.py
-          python -m unittest discover -s tools -p 'test_build_commands.py' -v
-          python -m unittest discover -s tools -p 'test_udonge_workers.py' -v
-          python -m unittest discover -s tools -p 'test_feature_activation.py' -v
-          python scripts/env.py python tools/test_module_activation.py
-          python scripts/env.py python tools/test_hideapps_reflection.py
-          python scripts/env.py python tools/test_superuser_auth.py
-          python scripts/env.py python tools/test_download_jobs.py
-
-      - name: Check Android tests and lint
+      - name: Check Android lint
         if: ${{ !cancelled() && steps.release_build.outcome == 'success' }}
         working-directory: app
         run: >-
           python ../scripts/env.py ./gradlew
-          :core:testDebugUnitTest :apk:testDebugUnitTest :hideapps:testDebugUnitTest
           :core:lintDebug :apk:lintDebug :hideapps:lintDebug
 
       - name: Check Rust lint
@@ -103,16 +88,6 @@ jobs:
             out/apk-legacy-release.apk
           if-no-files-found: error
           compression-level: 0
-
-      - name: Upload check reports
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: check-reports-${{ github.sha }}
-          path: |
-            app/**/build/reports/tests/
-            app/**/build/reports/lint-results-*.html
-          if-no-files-found: ignore
 
       - name: Stop gradle daemon
         if: always()

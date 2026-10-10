@@ -412,37 +412,3 @@ fun Project.setupMainApk() {
         }
     }
 }
-
-const val LSPOSED_DOWNLOAD_URL =
-    "https://github.com/topjohnwu/magisk-files/releases/download/files/LSPosed-v2.1.1-7790-release.zip"
-const val LSPOSED_CHECKSUM =
-    "f58eb92678e9d8b982de4987b249bfa8593f7c1524aff3be9976a5cb478d3263"
-
-const val SHAMIKO_DOWNLOAD_URL =
-    "https://github.com/LSPosed/LSPosed.github.io/releases/download/shamiko-383/Shamiko-v1.2.1-383-release.zip"
-const val SHAMIKO_CHECKSUM =
-    "93754a038c2d8f0e985bad45c7303b96f70a93d8335060e50146f028d3a9b13f"
-
-fun Project.setupTestApk() {
-    setupAppCommon()
-
-    androidComponents {
-        onVariants { variant ->
-            val variantName = variant.name
-            val variantCapped = variantName.replaceFirstChar { it.uppercase() }
-
-            val dlTask = tasks.register("download${variantCapped}Lsposed", SyncWithDir::class) {
-                outputFolder.set(layout.buildDirectory.dir("$variantName/lsposed"))
-                into(outputFolder)
-
-                from(downloadFile(LSPOSED_DOWNLOAD_URL, LSPOSED_CHECKSUM)) {
-                    rename { "lsposed.zip" }
-                }
-                from(downloadFile(SHAMIKO_DOWNLOAD_URL, SHAMIKO_CHECKSUM)) {
-                    rename { "shamiko.zip" }
-                }
-            }
-            variant.sources.assets?.addGeneratedSourceDirectory(dlTask, SyncWithDir::outputFolder)
-        }
-    }
-}

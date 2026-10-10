@@ -50,7 +50,3 @@ keystore.properties
 *.iml
 .idea
 .cursor
-
-/.agents/skills/*
-
-!/.agents/skills/magisk-*/

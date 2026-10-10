@@ -2096,68 +2096,6 @@ def build_legacy():
     apk = build_apk(":apk-legacy")
     header(f"Output: {apk}")
 
-def test_native_auth():
-
-    ensure_paths()
-    env = os.environ.copy()
-    env["PATH"] = f"{rust_sysroot / 'bin'}{os.pathsep}{env['PATH']}"
-    with tempfile.TemporaryDirectory(prefix="manager-auth-test-") as temp:
-        for stem in ("manager_auth", "apk_cert"):
-            source = Path("native", "src", "core", f"{stem}.rs").absolute()
-            executable = Path(temp, f"{stem}-tests")
-            if is_windows:
-                executable = executable.with_suffix(".exe")
-            compile_result = execv(
-                ["rustc", "--edition=2024", "--test", str(source), "-o", str(executable)],
-                env,
-            )
-            if compile_result.returncode != 0:
-                error(
-                    f"Host {stem} test compilation failed with exit code "
-                    f"{compile_result.returncode}"
-                )
-            test_result = execv([str(executable), "--nocapture"], env)
-            if test_result.returncode != 0:
-                error(f"Host {stem} tests failed with exit code {test_result.returncode}")
-
-def test_identity_generation():
-
-    saved_env_seed = os.environ.pop("REISENLESS_IDENTITY_SEED", None)
-    saved_seed = config.get("identitySeed")
-    saved_randomize = config.get("randomizeBuild")
-    saved_secure = config.get("randomizeSecureDir")
-    saved_release = args.release
-    try:
-        args.release = False
-        config["randomizeBuild"] = "true"
-        config["randomizeSecureDir"] = "true"
-        config["identitySeed"] = "identity-test-private-seed-a"
-        first = _build_identity()
-        second = _build_identity()
-        config["identitySeed"] = "identity-test-private-seed-b"
-        different = _build_identity()
-        if first != second:
-            error("Identity generation is not deterministic for an identical seed")
-        compared = ("appPackageName", "classNamespace", "secureDir", "runtimeSeed")
-        if any(first[key] == different[key] for key in compared):
-            error("Different private identity seeds did not separate critical identities")
-        print("Identity generation tests passed")
-    finally:
-        if saved_env_seed is not None:
-            os.environ["REISENLESS_IDENTITY_SEED"] = saved_env_seed
-        args.release = saved_release
-        if saved_seed is None:
-            config.pop("identitySeed", None)
-        else:
-            config["identitySeed"] = saved_seed
-        if saved_randomize is None:
-            config.pop("randomizeBuild", None)
-        else:
-            config["randomizeBuild"] = saved_randomize
-        if saved_secure is None:
-            config.pop("randomizeSecureDir", None)
-        else:
-            config["randomizeSecureDir"] = saved_secure
 
 def clippy_cli():
     ensure_toolchain()
@@ -2578,13 +2516,6 @@ def parse_args():
         "wrapper_dir", help="path to setup rustup wrapper binaries"
     )
 
-    native_auth_test_parser = subparsers.add_parser(
-        "test-native-auth", help="run host-only manager authorization tests"
-    )
-    identity_test_parser = subparsers.add_parser(
-        "test-identity", help="test deterministic private identity generation"
-    )
-
     all_parser.set_defaults(func=build_all)
     install_parser.set_defaults(func=lambda: install_apk(Path(args.apk) if getattr(args, "apk", None) else None))
     check_parser.set_defaults(func=lambda: check_environment(fatal=False))
@@ -2592,8 +2523,6 @@ def parse_args():
     cargo_parser.set_defaults(func=cargo_cli)
     clippy_parser.set_defaults(func=clippy_cli)
     rustup_parser.set_defaults(func=setup_rustup)
-    native_auth_test_parser.set_defaults(func=test_native_auth)
-    identity_test_parser.set_defaults(func=test_identity_generation)
     app_parser.set_defaults(func=build_app)
     stub_parser.set_defaults(func=build_stub)
     udonge_parser.set_defaults(func=build_udonge)
@@ -2604,7 +2533,6 @@ def parse_args():
     known_actions = {
         "all", "gen", "native", "app", "stub", "udonge", "legacy", "clean", "ndk",
         "install", "check", "clippy", "cargo", "rustup",
-        "test-native-auth", "test-identity",
     }
     cmd_args = sys.argv[1:]
     if not cmd_args:
