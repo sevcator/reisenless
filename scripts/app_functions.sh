@@ -641,7 +641,13 @@ refresh_udonge_runtime() {
 }
 
 direct_install() {
-  local image="$1/new-boot.img" image_size status
+  local image="$1/new-boot.img" image_size status file
+  for file in "$MAIN_BIN_NAME" "$BUSYBOX_NAME" mboot minit util_functions.sh app_functions.sh boot_patch.sh "$UDONGE_ARCHIVE"; do
+    if [ ! -s "$1/$file" ]; then
+      echo "! missing installation payload: $file"
+      return 3
+    fi
+  done
   image_size=$(stat -c '%s' "$image") || return 3
   [ "$image_size" -gt 0 ] || return 3
   echo "- flashing new boot image"

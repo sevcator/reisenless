@@ -188,7 +188,8 @@ fi
 "add 000 .backup/$BACKUP_CONFIG config" \
 || abort "! unable to patch ramdisk"
 
-rm -f ramdisk.cpio.orig config *.xz "$RAMDISK_NAME"
+rm -f ramdisk.cpio.orig config *.xz
+[ "$MAIN_BIN_NAME" = "$RAMDISK_NAME" ] || rm -f "$RAMDISK_NAME"
 
 for dt in dtb kernel_dtb extra; do
   if [ -f $dt ]; then
