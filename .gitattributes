@@ -6,6 +6,7 @@
 
 /tools/keys/** binary
 /tools/keys/futility binary
+/tools/futility binary
 *.jar binary
 *.exe binary
 *.apk binary

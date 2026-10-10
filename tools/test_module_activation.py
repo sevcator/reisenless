@@ -70,6 +70,6 @@ fn main() {
                + harness + production)
     test_source = work / 'modules.rs'
     test_source.write_text(harness, encoding='utf-8')
-    binary = work / ('modules.exe' if os.name == 'nt' else 'modules')
+    binary = work / ('module-activation-test.exe' if os.name == 'nt' else 'module-activation-test')
     subprocess.run(['rustc', '--edition=2024', str(test_source), '-o', str(binary)], check=True)
     subprocess.run([str(binary)], check=True)
