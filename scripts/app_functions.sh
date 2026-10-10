@@ -383,6 +383,8 @@ cleanup_migrated_layout() {
   [ -d "$source" ] || return 0
   case "$source" in /data/adb|"$LEGACY_SECURE_DIR") ;; *) return 1;; esac
   [ ! -L "$source" ] && [ "$(readlink -f "$source")" = "$source" ] || return 1
+  awk -v root="$source" '$2 == root || index($2, root "/") == 1 { mounted=1 }
+    END { exit mounted ? 1 : 0 }' /proc/mounts || return 1
   [ "${SECURE_DIR#"$source"/}" = "$SECURE_DIR" ] || return 1
   [ "${source#"$SECURE_DIR"/}" = "$source" ] || return 1
   [ -f "$marker" ] && [ "$(head -n 1 "$marker")" = "source=$source" ] || return 1
@@ -413,7 +415,12 @@ cleanup_migrated_layout() {
     preserve_upgrade_boot_files "$item" "$backup/boot" || return 1
     rm -rf "$item" || return 1
   done
-  rmdir "$source" 2>/dev/null || true
+  if [ "$source" = "$LEGACY_SECURE_DIR" ] && [ "$source" != /data/adb ]; then
+    preserve_upgrade_tree "$source" "$SECURE_DIR" "$backup/other" true || return 1
+    rm -rf "$source" || return 1
+  else
+    rmdir "$source" 2>/dev/null || true
+  fi
   rm -f "$marker"
 }
 
@@ -476,6 +483,19 @@ EOF
   return "$failed"
 }
 
+record_upgrade_cleanup() {
+  local version="$1" current_code="$2" current_boot="$3" current_package="$4"
+  printf '%s\n%s\n%s\n' "$version" "$current_boot" "$current_code" > "$SECURE_DIR/.upgrade-cleanup.complete.new" || return 1
+  mv "$SECURE_DIR/.upgrade-cleanup.complete.new" "$SECURE_DIR/.upgrade-cleanup.complete" || return 1
+  chmod 600 "$SECURE_DIR/.upgrade-cleanup.complete" || return 1
+  [ -n "$current_package" ] || return 0
+  [ "$(cat "$SECURE_DIR/.upgrade-managers.complete" 2>/dev/null)" != "$version:$current_code" ] || return 0
+  cleanup_obsolete_managers "$current_package" "$current_code" || return 1
+  printf '%s:%s\n' "$version" "$current_code" > "$SECURE_DIR/.upgrade-managers.complete.new" || return 1
+  mv "$SECURE_DIR/.upgrade-managers.complete.new" "$SECURE_DIR/.upgrade-managers.complete" || return 1
+  chmod 600 "$SECURE_DIR/.upgrade-managers.complete"
+}
+
 cleanup_upgrade() {
   local version="$1" current_package="$2" current_code="$3" current_boot old backup suffix database=ms.db
   [ -n "$version" ] && [ "$version" = "$MAGISK_VER" ] || return 1
@@ -484,6 +504,11 @@ cleanup_upgrade() {
   [ -n "$current_boot" ] || return 1
   [ -f "$MAGISKBIN/$MAIN_BIN_NAME" ] && [ -x "$MAGISKBIN/$BUSYBOX_NAME" ] || return 1
   [ ! -L "$SECURE_DIR" ] && [ "$(readlink -f "$SECURE_DIR")" = "$SECURE_DIR" ] || return 1
+  if [ "$(sed -n '1p' "$SECURE_DIR/.upgrade-cleanup.complete" 2>/dev/null)" = "$version" ] &&
+      [ "$(sed -n '3p' "$SECURE_DIR/.upgrade-cleanup.complete" 2>/dev/null)" = "$current_code" ]; then
+    record_upgrade_cleanup "$version" "$current_code" "$current_boot" "$current_package"
+    return $?
+  fi
   migrate_private_layout && migrate_legacy_layout || return 1
   if [ -n "$LEGACY_SECURE_DIR" ] && [ "$LEGACY_SECURE_DIR" != "$SECURE_DIR" ]; then
     cleanup_migrated_layout "$LEGACY_SECURE_DIR" "$LEGACY_DB_NAME" \
@@ -525,10 +550,7 @@ cleanup_upgrade() {
   done
   rm -rf "$MAGISKBIN.old" "$MAGISKBIN.new" \
     "$SECURE_DIR/$UDONGE_DIR/runtime.old" "$SECURE_DIR/$UDONGE_DIR/runtime.new" || return 1
-  printf '%s\n%s\n' "$version" "$current_boot" > "$SECURE_DIR/.upgrade-cleanup.complete.new" || return 1
-  mv "$SECURE_DIR/.upgrade-cleanup.complete.new" "$SECURE_DIR/.upgrade-cleanup.complete" || return 1
-  chmod 600 "$SECURE_DIR/.upgrade-cleanup.complete" || return 1
-  [ -z "$current_package" ] || cleanup_obsolete_managers "$current_package" "$current_code"
+  record_upgrade_cleanup "$version" "$current_code" "$current_boot" "$current_package"
 }
 
 migrate_private_layout() {

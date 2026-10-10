@@ -1,14 +1,12 @@
 package com.topjohnwu.magisk.core.utils
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.superuser.Shell
 import java.io.File
-import java.util.zip.ZipFile
 
 class ShellInit : Shell.Initializer() {
     override fun onInit(context: Context, shell: Shell): Boolean {
@@ -71,63 +69,20 @@ class ShellInit : Shell.Initializer() {
     }
 
     private fun cleanupObsoleteManagers(context: Context, shell: Shell) {
-        if (cleanedUpObsoleteManagers || !Info.env.isCurrentBuild) return
+        if (cleanedUpObsoleteManagers || !Info.env.isCurrentBuild ||
+            Info.env.versionCode != BuildConfig.APP_VERSION_CODE) return
         val completed = shell.newJob().add(
             "[ \"\$(sed -n '1p' '${Const.SECURE_DIR}/.upgrade-cleanup.complete')\" = '${BuildConfig.APP_VERSION_NAME}' ] && " +
-                "[ \"\$(sed -n '2p' '${Const.SECURE_DIR}/.upgrade-cleanup.complete')\" = \"\$(cat /proc/sys/kernel/random/boot_id)\" ]"
+                "[ \"\$(sed -n '2p' '${Const.SECURE_DIR}/.upgrade-cleanup.complete')\" = \"\$(cat /proc/sys/kernel/random/boot_id)\" ] && " +
+                "[ \"\$(sed -n '3p' '${Const.SECURE_DIR}/.upgrade-cleanup.complete')\" = '${BuildConfig.APP_VERSION_CODE}' ]"
         ).exec().isSuccess
         if (!completed) return
-        runCatching {
-            val pm = context.packageManager
-            val currentPkg = context.packageName
-            val currentInfo = runCatching { pm.getPackageInfo(currentPkg, 0) }.getOrNull() ?: return
-            val currentVersionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                currentInfo.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                currentInfo.versionCode.toLong()
-            }
-            val currentInstallTime = currentInfo.firstInstallTime
-            var success = true
-
-            val installed = pm.getInstalledApplications(0)
-            for (app in installed) {
-                val pkg = app.packageName
-                if (pkg != currentPkg && app.uid != context.applicationInfo.uid &&
-                    pkg.matches(Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")) &&
-                    isMagiskManager(app)) {
-                    val otherInfo = runCatching { pm.getPackageInfo(pkg, 0) }.getOrNull() ?: continue
-                    val otherVersionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                        otherInfo.longVersionCode
-                    } else {
-                        @Suppress("DEPRECATION")
-                        otherInfo.versionCode.toLong()
-                    }
-                    val otherInstallTime = otherInfo.firstInstallTime
-
-                    val isObsolete = otherVersionCode < currentVersionCode ||
-                        (otherVersionCode == currentVersionCode && otherInstallTime < currentInstallTime)
-
-                    if (isObsolete) {
-                        val result = shell.newJob().add("pm uninstall '$pkg'").exec()
-                        success = result.isSuccess && result.out.any { it.trim() == "Success" } && success
-                    }
-                }
-            }
-            cleanedUpObsoleteManagers = success
-        }
+        cleanedUpObsoleteManagers = runCatching {
+            shell.newJob().add(
+                "record_upgrade_cleanup '${BuildConfig.APP_VERSION_NAME}' '${BuildConfig.APP_VERSION_CODE}' " +
+                    "\"\$(cat /proc/sys/kernel/random/boot_id)\" '${context.packageName}'"
+            ).exec().isSuccess
+        }.getOrDefault(false)
     }
-
-    private fun isMagiskManager(app: ApplicationInfo): Boolean = runCatching {
-        ZipFile(app.sourceDir).use { archive ->
-            val util = archive.getEntry("assets/util_functions.sh") ?: return false
-            val patch = archive.getEntry("assets/boot_patch.sh") ?: return false
-            if (util.size !in 1..262144 || patch.size !in 1..262144) return false
-            val functions = archive.getInputStream(util).bufferedReader().use { it.readText() }
-            val patcher = archive.getInputStream(patch).bufferedReader().use { it.readText() }
-            functions.lineSequence().any { it.matches(Regex("MAGISK_VER_CODE=[0-9]+")) } &&
-                patcher.contains("ramdisk.cpio")
-        }
-    }.getOrDefault(false)
 
 }
