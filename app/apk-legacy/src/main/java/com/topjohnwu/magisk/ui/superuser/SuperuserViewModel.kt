@@ -104,8 +104,6 @@ class SuperuserViewModel(
         loading = false
     }
 
-    // ---
-
     fun deletePressed(item: PolicyRvItem) {
         fun updateState() = viewModelScope.launch {
             db.delete(item.item.uid)

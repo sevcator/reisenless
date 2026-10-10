@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">модулі</string>
     <string name="superuser">суперкористувач</string>
     <string name="settings">налаштування</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">теми</string>
     <string name="denylist">denylist</string>
 
-    <!--Home-->
     <string name="no_connection">немає з\’єднання</string>
     <string name="loading">завантаження…</string>
     <string name="update">оновити</string>
@@ -22,7 +20,6 @@
 <string name="uninstall_magisk_title">видалити magisk</string>
     <string name="uninstall_magisk_msg">ця дія призведе до вимкнення/видалення всіх модулів! рут буде повністю видалено!\nваші дані можуть зашифруватися, якщо вони не зашифровані!\nвпевнені, що бажаєте продовжити?</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">залишити примусове шифрування</string>
     <string name="keep_dm_verity">залишити avb 2.0/dm-verity</string>
     <string name="recovery_mode">режим recovery</string>
@@ -40,7 +37,6 @@
     <string name="reboot_delay_toast">перезавантаження через 5 секунд…</string>
     <string name="flash_screen_title">встановлення</string>
 
-    <!--Superuser-->
     <string name="su_request_title">запит прав суперкористувача</string>
     <string name="touch_filtered_warning">magisk не може перевірити вашу відповідь, тому що застосунок заступає вікно запиту прав суперкористувача</string>
     <string name="deny">відмовити</string>
@@ -72,7 +68,6 @@
     <string name="superuser_toggle_revoke">відкликати</string>
     <string name="superuser_policy_none">досі ніякий застосунок не запитував права суперкористувача</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">зберегти журнал</string>
     <string name="back">назад</string>    <string name="enabled">увімкнено</string>
     <string name="disabled">вимкнено</string>
@@ -84,7 +79,6 @@
     <string name="granted">надано</string>
     <string name="denied">відмовлено</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">показувати системні застосунки</string>
     <string name="show_os_app">показувати вбудовані застосунки</string>
     <string name="hide_filter_hint">фільтрувати за назвою</string>
@@ -96,7 +90,6 @@
     <string name="menu_sort">сортування</string>
     <string name="hide_search">пошук</string>
 
-    <!--Module-->
     <string name="no_info_provided">(немає наданої інформації)</string>
     <string name="reboot_userspace">швидке перезавантаження</string>
     <string name="reboot_recovery">перезавантажити в recovery</string>
@@ -116,7 +109,6 @@
     <string name="confirm_install">встановити модуль %1$s?</string>
     <string name="confirm_install_title">підтвердження встановлення</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">режим теми</string>
     <string name="settings_dark_mode_message">виберіть режим, який вам найбільш до вподоби!</string>
     <string name="settings_dark_mode_light">завжди світлий</string>
@@ -178,12 +170,10 @@
     <string name="requester_summary">сеанси суперкористувача наслідують простір імен запитувача</string>
     <string name="isolate_summary">кожнен сеанс суперкористувача має власний ізольований простір імен</string>
 
-    <!--Notifications-->
     <string name="progress_channel">сповіщення прогресу</string>
     <string name="download_complete">завантаження завершено</string>
     <string name="download_file_error">помилка завантаження файлу</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">так</string>
     <string name="no">ні</string>
     <string name="repo_install_title">встановити %1$s %2$s(%3$d)</string>

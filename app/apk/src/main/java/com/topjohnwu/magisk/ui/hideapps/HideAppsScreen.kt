@@ -35,7 +35,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.topjohnwu.magisk.ui.component.rememberAppIcon
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,12 +52,13 @@ import com.topjohnwu.magisk.core.R as CoreR
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HideAppsScreen(viewModel: HideAppsViewModel, onBack: () -> Unit) {
-    val apps by viewModel.apps.collectAsState()
-    val targets by viewModel.targets.collectAsState()
-    val selectedCaller by viewModel.selectedCaller.collectAsState()
-    val rule by viewModel.rule.collectAsState()
-    val query by viewModel.query.collectAsState()
-    val status by viewModel.status.collectAsState()
+    val apps by viewModel.apps.collectAsStateWithLifecycle()
+    val targets by viewModel.targets.collectAsStateWithLifecycle()
+    val selectedCaller by viewModel.selectedCaller.collectAsStateWithLifecycle()
+    val rule by viewModel.rule.collectAsStateWithLifecycle()
+    val config by viewModel.config.collectAsStateWithLifecycle()
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val status by viewModel.status.collectAsStateWithLifecycle()
     val showAppPicker = remember { mutableStateOf(false) }
     val isAllApps = selectedCaller == HideAppsViewModel.ALL_APPS_CALLER
     val selectedApp = if (isAllApps) null else apps.firstOrNull { it.packageName == selectedCaller }
@@ -137,7 +139,7 @@ fun HideAppsScreen(viewModel: HideAppsViewModel, onBack: () -> Unit) {
                     } else {
                         selectedApp?.let {
                             Image(
-                                painter = rememberDrawablePainter(it.icon),
+                                painter = rememberAppIcon(it.packageName),
                                 contentDescription = null,
                                 modifier = Modifier.size(40.dp),
                             )
@@ -196,10 +198,12 @@ fun HideAppsScreen(viewModel: HideAppsViewModel, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(targets, key = { it.packageName }) { app ->
+                    val selection = hideAppsTargetState(config, selectedCaller,
+                        app.packageName, app.isSystem, rule)
                     TargetRow(
                         app = app,
-                        checked = app.packageName in rule?.packages.orEmpty(),
-                        enabled = rule != null,
+                        checked = selection.checked,
+                        enabled = selection.enabled,
                         onClick = { viewModel.togglePackage(app.packageName) },
                     )
                 }
@@ -237,7 +241,7 @@ private fun TargetRow(app: HidePackageInfo, checked: Boolean, enabled: Boolean, 
             .padding(horizontal = 8.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(rememberDrawablePainter(app.icon), null, Modifier.size(36.dp))
+        Image(rememberAppIcon(app.packageName), null, Modifier.size(36.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(app.label)
@@ -294,7 +298,7 @@ private fun AppPickerDialog(
                             modifier = Modifier.fillMaxWidth().clickable { onSelect(app) }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Image(rememberDrawablePainter(app.icon), null, Modifier.size(36.dp))
+                            Image(rememberAppIcon(app.packageName), null, Modifier.size(36.dp))
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(app.label)

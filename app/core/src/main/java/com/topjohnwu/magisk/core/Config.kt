@@ -16,7 +16,10 @@ object Config : PreferenceConfig, DBConfig {
         "https://raw.githubusercontent.com/AresOS-AOSP/.github/main/profile/keybox.xml\n" +
         "https://raw.githubusercontent.com/Yurii0307/yurikey/main/key\n" +
         "https://raw.githubusercontent.com/yusufnoor786/vendor_certification/16.2/keybox.xml\n" +
-        "https://raw.githubusercontent.com/hashcones/mkboxml/main/keybox.xml"
+        "https://raw.githubusercontent.com/hashcones/mkboxml/main/keybox.xml\n" +
+        "http://evoker.qzz.io/key\n" +
+        "https://www.davidepalma.it/pib/keybox.xml\n" +
+        "https://raw.githubusercontent.com/MeowDump/MeowDump/main/Megatron"
 
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB
@@ -47,6 +50,7 @@ object Config : PreferenceConfig, DBConfig {
         const val THEME_ORDINAL = "theme_ordinal"
         const val UDONGE_ENABLED = "udonge_enabled"
         const val UDONGE_BACKGROUND_UPDATES = "udonge_background_updates"
+        const val UDONGE_REHEAL_MODE = "udonge_reheal_mode"
         const val UDONGE_KEYBOX_URLS = "udonge_keybox_urls_v2"
         const val UDONGE_ROM_KEYWORDS = "udonge_rom_keywords"
         const val UDONGE_ROM_HIDING = "udonge_rom_hiding"
@@ -54,6 +58,9 @@ object Config : PreferenceConfig, DBConfig {
     }
 
     object Value {
+
+        const val REHEAL_BOOT_ONLY = 0
+        const val REHEAL_DAILY = 1
 
         const val MULTIUSER_MODE_OWNER_ONLY = 0
         const val MULTIUSER_MODE_OWNER_MANAGED = 1
@@ -89,8 +96,24 @@ object Config : PreferenceConfig, DBConfig {
 
     private var localePrefs by preference(Key.LOCALE, "")
     var accentColor by preference(Key.ACCENT_COLOR, 0xFFC95BC8.toInt())
-    var udongeEnabled by preference(Key.UDONGE_ENABLED, true)
-    var udongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, true)
+    var udongeEnabled by preference(Key.UDONGE_ENABLED, false)
+    private var rawUdongeRehealMode by preference(Key.UDONGE_REHEAL_MODE, Value.REHEAL_BOOT_ONLY)
+    private var legacyUdongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
+    var udongeRehealMode: Int
+        get() = if (rawUdongeRehealMode in 0..1) {
+            rawUdongeRehealMode
+        } else {
+            Value.REHEAL_BOOT_ONLY
+        }
+        set(value) {
+            rawUdongeRehealMode = value
+            legacyUdongeBackgroundUpdates = value == Value.REHEAL_DAILY
+        }
+    var udongeBackgroundUpdates: Boolean
+        get() = udongeRehealMode == Value.REHEAL_DAILY
+        set(value) {
+            udongeRehealMode = if (value) Value.REHEAL_DAILY else Value.REHEAL_BOOT_ONLY
+        }
     private var storedUdongeKeyboxUrls by preference(
         Key.UDONGE_KEYBOX_URLS,
         DEFAULT_UDONGE_KEYBOX_URLS,

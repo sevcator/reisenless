@@ -63,6 +63,8 @@ class TerminalRenderer(
         selectionY2: Int,
         selectionX1: Int,
         selectionX2: Int,
+        defaultBackground: Int,
+        defaultForeground: Int,
     ) {
         val reverseVideo = mEmulator.isReverseVideo
         val endRow = topRow + mEmulator.mRows
@@ -71,7 +73,10 @@ class TerminalRenderer(
         val cursorRow = mEmulator.cursorRow
         val cursorVisible = mEmulator.shouldCursorBeVisible()
         val screen = mEmulator.screen
-        val palette = mEmulator.mColors.currentColors
+        val palette = mEmulator.mColors.currentColors.copyOf().apply {
+            this[TextStyle.COLOR_INDEX_BACKGROUND] = defaultBackground
+            this[TextStyle.COLOR_INDEX_FOREGROUND] = defaultForeground
+        }
         val cursorShape = mEmulator.cursorStyle
 
         if (reverseVideo) {

@@ -10,7 +10,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlin.concurrent.thread
 
-/** One deadline covers both the child and its pipes, including inherited pipes. */
 internal object BoundedProcess {
     data class Output(val code: Int, val output: List<String>, val errors: List<String>)
 
@@ -40,7 +39,7 @@ internal object BoundedProcess {
             val stderr = reader(process.errorStream)
             var code: Int
             while (true) {
-                // Propagate reader failures even if the child is still running.
+
                 if (stdout.isDone) stdout.get()
                 if (stderr.isDone) stderr.get()
                 remaining()
@@ -62,10 +61,7 @@ internal object BoundedProcess {
         } catch (e: TimeoutException) {
             throw IOException("command or output pipe timed out", e)
         } finally {
-            // Android's pre-26 Process.destroy() kills the child. Newer APIs also
-            // provide explicit forced termination. Never wait indefinitely here.
-            // A stream close can contend with a blocked read in the JVM. Do not
-            // turn cleanup into a second unbounded wait on the calling thread.
+
             val cleanup = thread(name = "command-cleanup", isDaemon = true) {
                 runCatching {
                     try { process.exitValue() } catch (_: IllegalThreadStateException) {

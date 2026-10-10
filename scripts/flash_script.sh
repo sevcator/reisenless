@@ -1,13 +1,5 @@
 
 
-
-
-
-
-
-
-
-
 umask 022
 
 OUTFD=$2
@@ -19,15 +11,10 @@ if [ ! -f $COMMONDIR/util_functions.sh ]; then
   exit 1
 fi
 
-
 . $COMMONDIR/util_functions.sh
 . $COMMONDIR/app_functions.sh
 
 setup_flashable
-
-
-
-
 
 if echo $MAGISK_VER | grep -q '\.'; then
   PRETTY_VER=$MAGISK_VER
@@ -44,7 +31,6 @@ find_boot_image
 
 [ -z $BOOTIMAGE ] && abort "! unable to detect target image"
 ui_print "- target image: $BOOTIMAGE"
-
 
 api_level_arch_detect
 
@@ -65,9 +51,6 @@ cp -af "$INSTALLER/lib/$ABI32/lib$PACKAGED_MAIN_LIB.so" "$BINDIR/$BIN32_NAME" 2>
 [ -f "$BINDIR/$PACKAGED_INIT_LIB" ] && mv "$BINDIR/$PACKAGED_INIT_LIB" "$BINDIR/minit"
 [ -f "$BINDIR/$PACKAGED_BOOTCTL_LIB" ] && mv "$BINDIR/$PACKAGED_BOOTCTL_LIB" "$BINDIR/bootctl"
 
-
-# Candidate generation must not replace the live payload, migrate durable
-# state, write addon.d, or install runtime hooks. Keep all work in INSTALLER.
 if [ -n "$PATCH_ONLY_OUTPUT" ]; then
   $BOOTMODE || abort "! candidate generation requires a booted device"
   MAGISKBIN="$INSTALLER/staged-payload"
@@ -83,23 +66,16 @@ fi
 
 $BOOTMODE || remove_system_su
 
-
-
-
-
 ui_print "- constructing environment"
-
 
 rm -rf $MAGISKBIN 2>/dev/null
 mkdir -p $MAGISKBIN 2>/dev/null
 cp -af $BINDIR/. $COMMONDIR/. $BBBIN $MAGISKBIN
 
-
 rm -f $MAGISKBIN/bootctl $MAGISKBIN/main.jar \
   $MAGISKBIN/module_installer.sh $MAGISKBIN/uninstaller.sh
 
 chmod -R 755 $MAGISKBIN
-
 
 if [ -d /system/addon.d ]; then
   ui_print "- adding addon.d survival script"
@@ -110,14 +86,10 @@ if [ -d /system/addon.d ]; then
   chmod 755 $ADDOND
 fi
 
-
-
-
 migrate_private_layout || abort "! unable to migrate existing root state"
 migrate_legacy_layout || abort "! unable to migrate legacy root state"
 install_magisk
 refresh_udonge_runtime || abort "! unable to install protection runtime"
-
 
 $BOOTMODE || recovery_cleanup
 rm -rf $TMPDIR

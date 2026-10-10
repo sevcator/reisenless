@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">زیادکراوەکان</string>
     <string name="superuser">سوپەر یوسەر</string>
     <string name="settings">ڕێکخستنەکان</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">ڕووکارەکان</string>
     <string name="denylist">پێڕستی ڕێگەپێنەدراوەکان</string>
 
-    <!--Home-->
     <string name="no_connection">هێڵ بەردەست نییە</string>
     <string name="loading">کردنەوە…</string>
     <string name="update">بەرزکردنەوە</string>
@@ -24,7 +22,6 @@
     <string name="uninstall_magisk_title">سڕینەوەی ماجیسک</string>
     <string name="uninstall_magisk_msg">هەموو زیادکراوەکان دەسڕێنەوە، ڕۆت دەسڕێتەوە، و هەر ڕەمزێنراوێک بەهۆی ماجیسک کرابێ لادەچێت!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">ڕەمزاندنی بەزۆر بهێڵەوە</string>
     <string name="keep_dm_verity">بهێڵەوە avb 2.0/dm-verity</string>
     <string name="recovery_mode">دۆخی ڕیکەڤەڕی</string>
@@ -41,7 +38,6 @@
     <string name="reboot_delay_toast">ڕێستارت کردنەوە لە ماوەی ٥ چرکە…</string>
     <string name="flash_screen_title">ڕێکخستن</string>
 
-    <!--Superuser-->
     <string name="su_request_title">داواکاری سوپەریوسەر</string>
     <string name="touch_filtered_warning">ئەپێک لە سەر شاشەکەیە، ناتوانین دڵنیا بینەوە</string>
     <string name="deny">ڕەتکردنەوە</string>
@@ -69,7 +65,6 @@
     <string name="superuser_toggle_revoke">لابردن</string>
     <string name="superuser_policy_none">هیچ ئەپێک تا ئێستا داوای سوپەریوسەری نەکردووە</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">تۆمارەکان هەڵبگرە</string>
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">ئامانج uid: %1$d</string>
@@ -77,15 +72,11 @@
     <string name="selinux_context">selinux context: %s</string>
     <string name="supp_group">supplementary group: %s</string>
 
-    <!--SafetyNet-->
-
-    <!--MagiskHide-->
     <string name="show_system_app">پیشاندانی ئەپەکانی سیستەم</string>
     <string name="show_os_app">پیشاندانی ئەپەکان</string>
     <string name="hide_filter_hint">پاڵاوتنی بەپێی ناو</string>
     <string name="hide_search">گەڕان</string>
 
-    <!--Module-->
     <string name="no_info_provided">(هیچ زانیارییەک نییە)</string>
     <string name="reboot_userspace">ڕێستارت کردنەوە</string>
     <string name="reboot_recovery">چوونە ناو ڕیکەڤەری</string>
@@ -105,7 +96,6 @@
     <string name="confirm_install">دابەزاندنی زیادکراو %1$s?</string>
     <string name="confirm_install_title">دڵنیابوونەوە لە دابەزاندن</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">جۆری ڕووکار</string>
     <string name="settings_dark_mode_message">حەزت لە کامەی بوو ئەوە هەڵبژێرە</string>
     <string name="settings_dark_mode_light">هەمیشە دۆخی ڕوناک</string>
@@ -160,12 +150,10 @@
     <string name="requester_summary">هەمو ڕۆتەکان ناوی خۆیی بەکار ئەهێنن</string>
     <string name="isolate_summary">هەمو ڕۆتەکان ناوی جیا بەکار ئەهێنن</string>
 
-    <!--Notifications-->
     <string name="progress_channel">ئاگادارییە کاراکان</string>
     <string name="download_complete">داگرتن سەرکەوتووبوو</string>
     <string name="download_file_error">هەڵەیەک رووی دا لەکاتی داگرتنی فایلەکە</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">بەڵێ</string>
     <string name="no">نەخێر</string>
     <string name="repo_install_title">داگرتن %1$s %2$s(%3$d)</string>

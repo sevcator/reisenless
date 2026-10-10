@@ -59,6 +59,5 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)
 
-    // Make sure kapt runs with a proper kotlin-stdlib
     kapt(kotlin("stdlib"))
 }

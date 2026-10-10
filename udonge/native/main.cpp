@@ -4,10 +4,12 @@
 #include "hideapps.hpp"
 #include "hooks.hpp"
 #include "spoof.hpp"
+#include "file_cache.hpp"
 
 #include <cerrno>
 #include <cstdint>
 #include <string>
+#include <mutex>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -132,7 +134,7 @@ std::string find_hide_rule(const std::string &config, const std::string &package
     return "R\t" + package + "\tB\t0\t" + manager + "\t" + hidden + "\t";
 }
 
-} // namespace
+}
 
 class UdongeModule : public zygisk::ModuleBase {
 public:
@@ -152,20 +154,17 @@ public:
         const bool child_zygote = args->is_child_zygote && *args->is_child_zygote;
         std::string process_name = jstr(args->nice_name);
         if (process_name.empty()) return;
-        // Android names a dedicated app zygote after its owner with this
-        // suffix. Resolve the configured Udonge target before asking the
-        // companion for its policy.
+
         static const std::string zygote_suffix = "_zygote";
         if (child_zygote && process_name.size() > zygote_suffix.size() &&
             process_name.compare(process_name.size() - zygote_suffix.size(),
                                   zygote_suffix.size(), zygote_suffix) == 0) {
             process_name.resize(process_name.size() - zygote_suffix.size());
         }
-        // Process names are application-controlled through android:process.
-        // Bind package-hiding policy to the system-owned app data directory so
-        // an ordinary app cannot name itself like an exempt system package.
+
         package_ = package_from_data_dir(jstr(args->app_data_dir));
         if (package_.empty()) package_ = base_package(process_name);
+        cfg_.current_package = package_;
 
         if ((args->uid % 100000) < 10000 ||
             package_ == "com.android.systemui" ||
@@ -181,8 +180,7 @@ public:
         is_pi_target_ = package_ == "com.android.vending"
                 || package_ == "com.google.android.gms";
         if (!fetch_config(process_name, package_)) return;
-        // Only explicit protection targets should lose the su mount. Ordinary
-        // apps must be able to find su and request root from the manager.
+
         if (cfg_.shouldCloak(package_) || cfg_.shouldStealth(package_) || is_pi_target_) {
             api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
         }
@@ -191,8 +189,6 @@ public:
             hide_rule_ = "T\t" + package_ + "\tB\t0\t\t\t";
         }
 
-        // Child zygotes inherit the mount decision, but must not initialize
-        // Binder or app-only Java services before their later forks.
         if (child_zygote) {
             if (cfg_.shouldCloak(package_)) {
                 cloak_ = true;
@@ -202,7 +198,7 @@ public:
         }
 
         if (is_gms_unstable_) return;
-        // Cloak/stealth candidacy comes from the live targets configuration.
+
         if (cfg_.shouldStealth(package_)) {
             return;
         }
@@ -215,12 +211,7 @@ public:
 
     void postAppSpecialize(const AppSpecializeArgs *args) override {
         if (args->is_child_zygote && *args->is_child_zygote) {
-            // ActivityThread.getPackageManager opens /dev/binder. Android's
-            // child-zygote FD audit rejects that descriptor on the next fork,
-            // breaking app-zygote helpers and WebView renderers. Do not bypass
-            // the audit or inherit a Binder connection across a zygote fork.
-            // Native PLT hooks (stat, open, read, selinux_check_access) do not touch
-            // Binder and are safe to install in child_zygote.
+
             if (cloak_) {
                 cloak::install_hooks(api_, &cfg_);
             }
@@ -243,10 +234,10 @@ public:
             hideapps::install(env_, package_, hide_rule_, hide_dex_);
         }
         if (cloak_) {
+            cfg_.current_package = package_;
             cloak::install_hooks(api_, &cfg_);
             cloak::spoof_display(env_, cfg_);
-            // Patch Build.TYPE and Build.TAGS static constants so Java-level
-            // cross-checks (Build.TYPE vs fingerprint tail) see clean values.
+
             cloak::spoof_build_type(env_);
             cloak::spoof_custom_rom(env_);
         }
@@ -317,10 +308,7 @@ private:
         if (is_gms_unstable_ || is_pi_target_) {
             return !cfg_.gms_build.empty() || !hide_rule_.empty() || cfg_.shouldCloak(package_);
         }
-        // Loading the built-in module is not authorization to apply Udonge's
-        // privileged protection profile. Non-target processes may still have a
-        // package-hiding rule; they must otherwise remain untouched and let
-        // postAppSpecialize unload this library.
+
         return true;
     }
 };
@@ -333,32 +321,43 @@ static void companion_handler(int client) {
     std::string package;
     if (!read_str(client, package)) return;
     if (package.empty()) package = base_package(process_name);
+    std::string targets, props, pif, rom_keywords, hide_rule, hide_dex;
+    {
+    static std::mutex mutex;
+    static cloak::FileCache files(cloak::read_file);
+    static std::string parsed_targets;
+    static cloak::Config target_config;
+    std::lock_guard lock(mutex);
     const bool full_enabled = full_udonge_enabled();
-    std::string targets = full_enabled ? read_targets() : std::string();
-    const cloak::Config target_config = cloak::parse_config(targets, {}, {}, {});
+    if (full_enabled) {
+        const auto &first = files.get(std::string(CONF_DIR) + "/targets.conf");
+        const auto &second = files.get(std::string(CONF_DIR) + "/target.txt");
+        targets = first.empty() ? second : second.empty() ? first : first + "\n" + second;
+    }
+    if (targets != parsed_targets) {
+        target_config = cloak::parse_config(targets, {}, {}, {});
+        parsed_targets = targets;
+    }
     const bool gms_unstable = package == "com.google.android.gms"
             && process_name == "com.google.android.gms.unstable";
     const bool is_pi_target = package == "com.android.vending"
             || package == "com.google.android.gms";
     const bool needs_props = full_enabled
             && (gms_unstable || is_pi_target || target_config.shouldCloak(package));
-    std::string props;
-    std::string pif;
     if (needs_props) {
-        props = cloak::read_file(std::string(CONF_DIR) + "/props.conf");
-        pif = cloak::read_file(std::string(CONF_DIR) + "/pif.conf");
+        props = files.get(std::string(CONF_DIR) + "/props.conf");
+        pif = files.get(std::string(CONF_DIR) + "/pif.conf");
     }
-    std::string rom_keywords = full_enabled
-            ? cloak::read_file(std::string(CONF_DIR) + "/rom_keywords.conf") : std::string();
-    std::string hide_config = cloak::read_file(std::string(CONF_DIR) + "/hideapps.conf");
-    std::string hide_rule;
+    rom_keywords = full_enabled
+            ? files.get(std::string(CONF_DIR) + "/rom_keywords.conf") : std::string();
+    const auto &hide_config = files.get(std::string(CONF_DIR) + "/hideapps.conf");
     hide_rule = find_hide_rule(hide_config, package);
-    std::string hide_dex;
     if (!hide_rule.empty() || target_config.shouldCloak(package)) {
-        hide_dex = cloak::read_file(UDONGE_ROOT "/runtime/hideapps.dex");
+        hide_dex = files.get(UDONGE_ROOT "/runtime/hideapps.dex");
         if (hide_rule.empty()) {
             hide_rule = "T\t" + package + "\tB\t0\t\t\t";
         }
+    }
     }
     write_str(client, targets);
     write_str(client, props);

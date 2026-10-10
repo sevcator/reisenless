@@ -38,6 +38,7 @@ android {
         buildConfigField("String", "INIT_LD_NAME", "\"${Config.initLdName}\"")
         buildConfigField("String", "UDONGE_DIR", "\"${Config.udongeDir}\"")
         buildConfigField("String", "UDONGE_ARCHIVE", "\"${Config.udongeArchive}\"")
+        buildConfigField("String", "UDONGE_FILE_TYPE", "\"${Config["udongeFileType"] ?: "udonge_lib_file"}\"")
         buildConfigField("String", "TMP_DIR", "\"${Config.tmpDir}\"")
         buildConfigField("String", "BACKUP_PREFIX", "\"${Config.backupPrefix}\"")
         consumerProguardFile("proguard-rules.pro")
@@ -55,6 +56,7 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito:mockito-core:4.11.0")
     api(project(":shared"))
     coreLibraryDesugaring(libs.jdk.libs)
 

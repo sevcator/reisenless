@@ -57,7 +57,7 @@ object Notifications {
 
     @SuppressLint("InlinedApi")
     fun suNotification(granted: Boolean, appName: String) {
-        // Disabled
+
     }
 
     fun nextId() = nextId.incrementAndGet()

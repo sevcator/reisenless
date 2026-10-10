@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">módulos</string>
     <string name="superuser">superusuário</string>
     <string name="settings">configurações</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">temas</string>
     <string name="denylist">lista de negação</string>
 
-    <!--Home-->
     <string name="no_connection">nenhuma ligação disponível</string>
     <string name="loading">a carregar…</string>
     <string name="update">atualizar</string>
@@ -23,7 +21,6 @@
     <string name="uninstall_magisk_title">desinstalar magisk</string>
     <string name="uninstall_magisk_msg">todos os módulos serão desativados/removidos!\no root será removido!\nos seus dados não encriptados devido à utilização do magisk, serão re-encriptados!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">manter encriptação forçada</string>
     <string name="keep_dm_verity">manter avb 2.0/dm-verity</string>
     <string name="recovery_mode">modo recovery</string>
@@ -40,7 +37,6 @@
     <string name="reboot_delay_toast">a reiniciar em 5 segundos…</string>
     <string name="flash_screen_title">instalação</string>
 
-    <!--Superuser-->
     <string name="su_request_title">solicitação de superusuário</string>
     <string name="touch_filtered_warning">como um app está a ocultar um pedido de superusuário, o magisk não consegue verificar a sua resposta.</string>
     <string name="deny">negar</string>
@@ -68,7 +64,6 @@
     <string name="superuser_toggle_revoke">revogar</string>
     <string name="superuser_policy_none">nenhum app solicitou permissão de superusuário ainda.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">salvar registos</string>
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">alvo uid: %1$d</string>
@@ -76,13 +71,11 @@
     <string name="selinux_context">contexto selinux: %s</string>
     <string name="supp_group">grupo suplementar: %s</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">mostrar apps do sistema</string>
     <string name="show_os_app">mostrar apps do so</string>
     <string name="hide_filter_hint">filtrar pelo nome</string>
     <string name="hide_search">pesquisar</string>
 
-    <!--Module-->
     <string name="no_info_provided">(nenhuma informação fornecida)</string>
     <string name="reboot_userspace">reinicialização suave</string>
     <string name="reboot_recovery">reiniciar em modo recovery</string>
@@ -102,7 +95,6 @@
     <string name="confirm_install">instalar módulo %1$s?</string>
     <string name="confirm_install_title">confirmação de instalação</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">modo do tema</string>
     <string name="settings_dark_mode_message">selecione o modo mais adequado para si!</string>
     <string name="settings_dark_mode_light">sempre claro</string>
@@ -157,12 +149,10 @@
     <string name="requester_summary">as sessões root herdarão o namespace do requerente</string>
     <string name="isolate_summary">cada sessão root terá o seu próprio namespace individual</string>
 
-    <!--Notifications-->
     <string name="progress_channel">notificações de progresso</string>
     <string name="download_complete">download concluído</string>
     <string name="download_file_error">erro ao descarregar ficheiro</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">sim</string>
     <string name="no">não</string>
     <string name="repo_install_title">instalar %1$s %2$s(%3$d)</string>

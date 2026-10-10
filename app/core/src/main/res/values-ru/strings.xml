@@ -233,6 +233,10 @@
     <string name="udonge">udonge</string>
     <string name="udonge_background_updates_title">eirin</string>
     <string name="udonge_background_updates_summary">разрешить udonge регулярно проверять и восстанавливать целостность</string>
+    <string name="udonge_reheal_title">udonge reheal</string>
+    <string name="udonge_reheal_summary">когда udonge восстанавливает отпечатки для прохождения integrity?</string>
+    <string name="udonge_reheal_boot_only">только при загрузке</string>
+    <string name="udonge_reheal_daily">ежедневная проверка</string>
     <string name="udonge_integrity_title">udonge</string>
     <string name="udonge_integrity_summary">make your device as sweet like jelly &gt;w&lt;</string>
     <string name="webui_root_required">для webui требуются root и активная установка reisenless</string>

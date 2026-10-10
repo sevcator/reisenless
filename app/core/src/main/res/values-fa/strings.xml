@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">ماژول ها</string>
     <string name="superuser">کاربر روت</string>
     <string name="settings">تنظیمات</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">تم ها</string>
     <string name="denylist">لیست منع</string>
 
-    <!--Home-->
     <string name="no_connection">هیچ اتصالی وجود ندارد</string>
     <string name="loading">در حال بارگذاری…</string>
     <string name="update">بروزرسانی کردن</string>
@@ -23,7 +21,6 @@
     <string name="uninstall_magisk_title">حذف magisk</string>
     <string name="uninstall_magisk_msg">همه ماژول ها غیرفعال/حذف می شوند!\nروت حذف می شود!\nداده های شما اگر از قبل رمزگذارری نشده بودند رمز نگاری میشوند!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">حفظ رمزگذاری اجباری</string>
     <string name="keep_dm_verity">حفظ avb 2.0/dm-verity</string>
     <string name="recovery_mode">حالت ریکاوری</string>
@@ -40,7 +37,6 @@
     <string name="reboot_delay_toast">راه اندازی مجدد در 5 ثانیه…</string>
     <string name="flash_screen_title">نصب و راه اندازی</string>
 
-    <!--Superuser-->
     <string name="su_request_title">درخواست کاربر روت</string>
     <string name="touch_filtered_warning">به دلیل اینکه یک برنامه در حال پوشاندن درخواست superuser است، magisk نمی‌تواند پاسخ شما را تأیید کند.</string>
     <string name="deny">رد کردن</string>
@@ -68,7 +64,6 @@
     <string name="superuser_toggle_revoke">ابطال</string>
     <string name="superuser_policy_none">هنوز هیچ برنامه ای مجوز روت درخواست نکرده است.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">ذخیره کردن لاگ</string>
     <string name="pid">شناسه پردازش: %1$d</string>
     <string name="target_uid">شناسه کاربر هدف: %1$d</string>
@@ -76,13 +71,11 @@
     <string name="selinux_context">متن selinux: %s</string>
     <string name="supp_group">گروه تکمیلی: %s</string>
 
-    <!-- MagiskHide -->
     <string name="show_system_app">نشان دادن برنامه های سیستمی</string>
     <string name="show_os_app">نمایش برنامه‌های سیستم عامل</string>
     <string name="hide_filter_hint">فیلتر کردن با نام</string>
     <string name="hide_search">سرچ کردن</string>
 
-    <!--Module -->
     <string name="no_info_provided">(هیچ اطلاعاتی ارائه نشده است)</string>
     <string name="reboot_userspace">راه اندازی مججد</string>
     <string name="reboot_recovery">راه اندازی مججد برای رفتن به ریکاوری</string>
@@ -101,8 +94,6 @@
     <string name="confirm_install">نصب ماژول %1$s؟</string>
     <string name="confirm_install_title">تأیید نصب</string>
 
-
-    <!--Settings -->
     <string name="settings_dark_mode_title">حالت تم</string>
     <string name="settings_dark_mode_message">حالت متناسب با سبک زندگی خود را انتخاب کنید!</string>
     <string name="settings_dark_mode_light">همیشه روشن</string>
@@ -157,12 +148,10 @@
     <string name="requester_summary">سشن های روت namespace دراخواست کننده را به ارث می برند</string>
     <string name="isolate_summary">هر سشن روت namespace جداگانه خود را دارد</string>
 
-    <!--Notifications-->
     <string name="progress_channel">اعلان پیشرفت</string>
     <string name="download_complete">دانلود کامل شد</string>
     <string name="download_file_error">خطا در دانلود فایل</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">بله</string>
     <string name="no">نه</string>
     <string name="repo_install_title">نصب %1$s %2$s(%3$d)</string>

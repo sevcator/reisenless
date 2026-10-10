@@ -15,79 +15,6 @@
 
 using namespace std;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 constexpr const char *kZygoteInit = "com.android.internal.os.ZygoteInit";
 constexpr const char *kZygote = "com/android/internal/os/Zygote";
 constexpr const char *kForkApp = "nativeForkAndSpecialize";
@@ -103,10 +30,7 @@ struct HookContext : JniHookDefinitions {
     const NativeBridgeRuntimeCallbacks *runtime_callbacks = nullptr;
     void *self_handle = nullptr;
     bool should_unmap = false;
-    // Guards against hooking the zygote JNI methods more than once. On lazy-native-bridge
-    // devices both the post_native_bridge_load path and the strdup("ZygoteInit") trigger can
-    // fire; a second pass corrupts the JNI registration (nulls fnPtrs) and unregisters
-    // nativeForkSystemServer -> UnsatisfiedLinkError -> zygote dies.
+
     bool jni_hooked = false;
 
     void hook_plt();
@@ -123,16 +47,6 @@ private:
     JNIMethodsDyn get_jni_methods(JNIEnv *env, jclass clazz) const;
 };
 
-
-
-
-
-
-
-
-
-
-
 ZygiskContext *g_ctx;
 static HookContext *g_hook;
 
@@ -140,28 +54,21 @@ static JniHookDefinitions *get_defs() {
     return g_hook;
 }
 
-
-
 #define DCL_HOOK_FUNC(ret, func, ...) \
 ret (*old_##func)(__VA_ARGS__);       \
 ret new_##func(__VA_ARGS__)
 
 DCL_HOOK_FUNC(static char *, strdup, const char * str) {
-    // The runtime hands the "com.android.internal.os.ZygoteInit" class name to strdup at the correct
-    // point (after the Zygote natives are (re)registered, before ZygoteInit#main forks), which is when
-    // hook_zygote_jni() must arm. Match as a substring (rather than exact) so a wrapped/prefixed name
-    // still triggers — harmless on standard devices, and it is what fires reliably on Meta Quest.
+
     if (str && strstr(str, kZygoteInit)) {
         g_hook->hook_zygote_jni();
     }
     return old_strdup(str);
 }
 
-
 DCL_HOOK_FUNC(int, fork) {
     return (g_ctx && g_ctx->pid >= 0) ? g_ctx->pid : old_fork();
 }
-
 
 DCL_HOOK_FUNC(static int, unshare, int flags) {
     int res = old_unshare(flags);
@@ -175,17 +82,14 @@ DCL_HOOK_FUNC(static int, unshare, int flags) {
     return res;
 }
 
-
 DCL_HOOK_FUNC(static int, selinux_android_setcontext,
               uid_t uid, bool isSystemServer, const char *seinfo, const char *pkgname) {
     return old_selinux_android_setcontext(uid, isSystemServer, seinfo, pkgname);
 }
 
-
 DCL_HOOK_FUNC(static void, android_log_close) {
     old_android_log_close();
 }
-
 
 DCL_HOOK_FUNC(static int, dlclose, void *handle) {
     if (!g_hook->self_handle) {
@@ -195,12 +99,8 @@ DCL_HOOK_FUNC(static int, dlclose, void *handle) {
     return 0;
 }
 
-
-
-
 DCL_HOOK_FUNC(static int, pthread_attr_destroy, void *target) {
     int res = old_pthread_attr_destroy((pthread_attr_t *)target);
-
 
     if (gettid() != getpid())
         return res;
@@ -213,9 +113,6 @@ DCL_HOOK_FUNC(static int, pthread_attr_destroy, void *target) {
             void *self_handle = g_hook->self_handle;
             delete g_hook;
 
-
-
-
             [[clang::musttail]] return dlclose(self_handle);
         }
     }
@@ -225,8 +122,6 @@ DCL_HOOK_FUNC(static int, pthread_attr_destroy, void *target) {
 }
 
 #undef DCL_HOOK_FUNC
-
-
 
 static size_t get_fd_max() {
     rlimit r{32768, 32768};
@@ -240,8 +135,6 @@ ZygiskContext::ZygiskContext(JNIEnv *env, void *args) :
 
 ZygiskContext::~ZygiskContext() {
 
-
-
     g_ctx = nullptr;
 
     if (!is_child())
@@ -249,23 +142,18 @@ ZygiskContext::~ZygiskContext() {
 
     android_logging();
 
-
     for (auto &m : modules) {
         m.clearApi();
     }
-
 
     g_hook->should_unmap = true;
     g_hook->restore_zygote_hook(env);
     g_hook->hook_unloader();
 }
 
-
-
 inline void *unwind_get_region_start(_Unwind_Context *ctx) {
     auto fp = _Unwind_GetRegionStart(ctx);
 #if defined(__arm__)
-
 
     auto pc = _Unwind_GetGR(ctx, 15);
     if (pc & 1) {
@@ -275,14 +163,6 @@ inline void *unwind_get_region_start(_Unwind_Context *ctx) {
 #endif
     return reinterpret_cast<void *>(fp);
 }
-
-
-
-
-
-
-
-
 
 static const NativeBridgeRuntimeCallbacks* find_runtime_callbacks(struct _Unwind_Context *ctx) {
 
@@ -315,8 +195,6 @@ static const NativeBridgeRuntimeCallbacks* find_runtime_callbacks(struct _Unwind
 #elif defined(__i386__)
 
     auto ebp = static_cast<uintptr_t>(_Unwind_GetGR(ctx, 5));
-
-
 
     auto val = *reinterpret_cast<uintptr_t *>(ebp + 3 * sizeof(void *));
     ZLOGV("ebp + 3 * ptr_size = %p\n", reinterpret_cast<void *>(val));
@@ -353,7 +231,6 @@ void HookContext::post_native_bridge_load(void *handle) {
     };
     trace_arg arg{};
 
-
     _Unwind_Backtrace(+[](_Unwind_Context *ctx, void *arg) -> _Unwind_Reason_Code {
         void *fp = unwind_get_region_start(ctx);
         Dl_info info{};
@@ -372,21 +249,14 @@ void HookContext::post_native_bridge_load(void *handle) {
     if (!arg.load_native_bridge || !arg.callbacks)
         return;
 
-
     auto nb = get_prop(NBPROP);
     auto len = sizeof(ZYGISKLDR) - 1;
     if (nb.size() > len) {
         arg.load_native_bridge(nb.c_str() + len, arg.callbacks);
     }
     runtime_callbacks = arg.callbacks;
-    // NOTE: do NOT hook the zygote JNI methods here. The native bridge loads before the runtime
-    // finishes registering (and later re-registers) the Zygote natives, so a hook installed now is
-    // overwritten by the runtime and never takes effect. The strdup("com.android.internal.os.ZygoteInit")
-    // PLT hook fires at the correct time (after registration, before ZygoteInit#main forks), and it
-    // does fire on Meta Quest too, so let it arm hook_zygote_jni().
+
 }
-
-
 
 void HookContext::register_hook(
         dev_t dev, ino_t inode, const char *symbol, void *new_func, void **old_func) {
@@ -430,7 +300,6 @@ void HookContext::hook_plt() {
     if (!lsplt::CommitHook())
         ZLOGE("plt_hook failed\n");
 
-
     std::erase_if(plt_backup, [](auto &t) { return *std::get<3>(t) == nullptr; });
 }
 
@@ -465,8 +334,6 @@ void HookContext::restore_plt_hook() {
     }
 }
 
-
-
 JNIMethodsDyn HookContext::get_jni_methods(JNIEnv *env, jclass clazz) const {
     size_t total = runtime_callbacks->getNativeMethodCount(env, clazz);
     auto methods = std::make_unique_for_overwrite<JNINativeMethod[]>(total);
@@ -478,7 +345,6 @@ static void register_jni_methods(JNIEnv *env, jclass clazz, JNIMethods methods) 
     for (auto &method : methods) {
 
         if (!method.fnPtr) continue;
-
 
         if (env->RegisterNatives(clazz, &method, 1) == JNI_ERR || env->ExceptionCheck() == JNI_TRUE) {
             env->ExceptionClear();
@@ -492,17 +358,10 @@ int HookContext::hook_jni_methods(JNIEnv *env, jclass clazz, JNIMethods methods)
     auto o = get_jni_methods(env, clazz);
     const auto old_methods = span(o.first.get(), o.second);
 
-
-
-
-
-
     register_jni_methods(env, clazz, methods);
-
 
     auto n = get_jni_methods(env, clazz);
     const auto new_methods = span(n.first.get(), n.second);
-
 
     int hook_count = 0;
     for (auto &method : methods) {
@@ -527,7 +386,6 @@ int HookContext::hook_jni_methods(JNIEnv *env, jclass clazz, JNIMethods methods)
     return hook_count;
 }
 
-
 void HookContext::hook_jni_methods(JNIEnv *env, const char *clz, JNIMethods methods) const {
     jclass clazz;
     if (!runtime_callbacks || !env || !clz || !((clazz = env->FindClass(clz)))) {
@@ -538,7 +396,7 @@ void HookContext::hook_jni_methods(JNIEnv *env, const char *clz, JNIMethods meth
 }
 
 void HookContext::hook_zygote_jni() {
-    // Idempotent: only replace the zygote JNI methods once per process.
+
     if (jni_hooked) {
         return;
     }
@@ -577,9 +435,6 @@ void HookContext::hook_zygote_jni() {
         return;
     }
 
-    // Contain every JNI local reference we create (FindClass, ExceptionOccurred, ...) in an
-    // explicit frame. Depending on the exact caller/timing this may run outside a managed JNI
-    // transition, and leaking locals trips ART's "non-empty local reference table" check -> abort.
     bool local_frame = env->PushLocalFrame(64) == JNI_OK;
 
     JNINativeMethod missing_method{};
@@ -622,8 +477,7 @@ void HookContext::hook_zygote_jni() {
         ranges::for_each(specialize_app_methods, [](auto &m) { m.fnPtr = nullptr; });
         ranges::for_each(fork_server_methods, [](auto &m) { m.fnPtr = nullptr; });
     }
-    // Only mark as hooked when the full set was replaced cleanly, so that a premature/failed
-    // call does not permanently block a later well-timed trigger from installing the hooks.
+
     if (missing_method.name == nullptr && replaced_fork_app && replaced_specialize_app &&
         replaced_fork_server) {
         jni_hooked = true;
@@ -637,8 +491,6 @@ void HookContext::restore_zygote_hook(JNIEnv *env) {
     register_jni_methods(env, clazz, specialize_app_methods);
     register_jni_methods(env, clazz, fork_server_methods);
 }
-
-
 
 void hook_entry() {
     default_new(g_hook);

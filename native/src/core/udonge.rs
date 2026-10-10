@@ -26,8 +26,7 @@ const HIDEAPPS_GLOBAL_LOADER: &str =
     concatcp!(UDONGE_ROOT, "/state/hideapps-global-loader-v2");
 
 pub fn is_requested() -> bool {
-    // The compact Hide Apps runtime is mandatory: it conceals the build-time
-    // randomized manager package from ordinary application UIDs.
+
     true
 }
 
@@ -110,6 +109,7 @@ fn runtime_complete(root: &str) -> bool {
         "service.sh",
         "stop.sh",
         "keybox_heal.sh",
+        "worker.sh",
         "defaults/keybox.xml",
         "defaults/keybox_urls.conf",
         "defaults/pif.conf",

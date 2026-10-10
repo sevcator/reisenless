@@ -69,6 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.topjohnwu.magisk.ui.component.rememberAppIcon
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import com.topjohnwu.magisk.ui.component.verticalScrollbar
 import com.topjohnwu.magisk.core.R as CoreR
@@ -83,7 +84,6 @@ fun SuperuserScreen(
     val installableApps by viewModel.installableApps.collectAsStateWithLifecycle()
     val showAddDialog = remember { mutableStateOf(false) }
 
-    // Track which card is expanded (by UID); null = all collapsed
     var expandedUid by rememberSaveable { mutableStateOf<Int?>(null) }
 
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
@@ -105,6 +105,7 @@ fun SuperuserScreen(
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     if (showAddDialog.value) {
+        androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.loadInstallableApps() }
         AddAppDialog(
             apps = installableApps,
             onSelect = { app ->
@@ -308,7 +309,7 @@ private fun PolicyCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
-        // --- Header row (tap = toggle expand)
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -323,7 +324,7 @@ private fun PolicyCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
-                    painter = rememberDrawablePainter(item.icon),
+                    painter = rememberAppIcon(item.packageName),
                     contentDescription = item.appName,
                     modifier = Modifier.size(40.dp)
                 )
@@ -362,7 +363,6 @@ private fun PolicyCard(
             }
         }
 
-        // --- Expanded section
         AnimatedVisibility(visible = expanded) {
             Column(
                 modifier = Modifier
@@ -370,7 +370,7 @@ private fun PolicyCard(
                     .padding(horizontal = 12.dp)
                     .padding(bottom = 12.dp)
             ) {
-                // Revoke button
+
                 FilledTonalButton(
                     onClick = onRevoke,
                     colors = ButtonDefaults.filledTonalButtonColors(
@@ -502,7 +502,7 @@ private fun AddAppDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Image(
-                                    painter = rememberDrawablePainter(app.icon),
+                                    painter = rememberAppIcon(app.packageName),
                                     contentDescription = null,
                                     modifier = Modifier.size(38.dp)
                                 )

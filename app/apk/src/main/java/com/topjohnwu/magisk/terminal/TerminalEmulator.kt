@@ -25,6 +25,7 @@ class TerminalEmulator(
     cellHeightPixels: Int,
     transcriptRows: Int?,
 ) {
+    internal var pendingOutput: com.topjohnwu.magisk.core.utils.BlockingBatch<ByteArray>? = null
 
     companion object {
 

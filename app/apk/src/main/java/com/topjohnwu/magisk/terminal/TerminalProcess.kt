@@ -3,15 +3,34 @@ package com.topjohnwu.magisk.terminal
 import android.os.Handler
 import android.os.Looper
 import com.topjohnwu.magisk.core.Const
+import com.topjohnwu.magisk.core.utils.BlockingBatch
+import java.util.concurrent.CountDownLatch
 
 private val busyboxPath = "${Const.DATABIN}/${Const.BUSYBOX_NAME}"
 
 private val mainHandler = Handler(Looper.getMainLooper())
 
 fun TerminalEmulator.appendOnMain(bytes: ByteArray, len: Int) {
-    mainHandler.post {
-        append(bytes, len)
-        onScreenUpdate?.invoke()
+    val output = outputBatch()
+    if (Looper.myLooper() == Looper.getMainLooper()) output.drain()
+    output.put(bytes.copyOf(len))
+}
+
+private fun TerminalEmulator.outputBatch(): BlockingBatch<ByteArray> = synchronized(this) {
+    pendingOutput ?: BlockingBatch<ByteArray>(64,
+        { drain -> mainHandler.postDelayed({ drain() }, 16) },
+        { chunks ->
+            chunks.forEach { append(it, it.size) }
+            onScreenUpdate?.invoke()
+        }).also { pendingOutput = it }
+}
+
+fun TerminalEmulator.flushOnMain() {
+    if (Looper.myLooper() == Looper.getMainLooper()) outputBatch().drain()
+    else {
+        val done = CountDownLatch(1)
+        mainHandler.post { try { outputBatch().drain() } finally { done.countDown() } }
+        done.await()
     }
 }
 
@@ -52,7 +71,7 @@ fun runSuCommand(emulator: TerminalEmulator, command: String): Boolean {
             while (true) {
                 val n = input.read(buffer)
                 if (n == -1) break
-                emulator.appendOnMain(buffer.copyOf(n), n)
+                emulator.appendOnMain(buffer, n)
             }
         }
 
@@ -60,5 +79,7 @@ fun runSuCommand(emulator: TerminalEmulator, command: String): Boolean {
     } catch (e: Exception) {
         emulator.appendLineOnMain("! error: ${e.message?.lowercase()}")
         false
+    } finally {
+        emulator.flushOnMain()
     }
 }

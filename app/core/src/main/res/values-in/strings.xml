@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">modul</string>
     <string name="superuser">superuser</string>
     <string name="settings">setelan</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">tema</string>
     <string name="denylist">denylist</string>
 
-    <!--Home-->
     <string name="no_connection">koneksi tidak tersedia</string>
     <string name="loading">memuat…</string>
     <string name="update">perbarui</string>
@@ -25,7 +23,6 @@
     <string name="uninstall_magisk_title">copot magisk</string>
     <string name="uninstall_magisk_msg">semua modul akan dinonaktifkan/dihapus!\nroot akan dihapus!\nsemua data internal yang tidak dienkripsi melalui penggunaan magisk akan dienkripsi ulang!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">pertahankan enkripsi paksa</string>
     <string name="keep_dm_verity">pertahankan avb 2.0/dm-verity</string>
     <string name="recovery_mode">mode recovery</string>
@@ -45,7 +42,6 @@
     <string name="reboot_delay_toast">memulai ulang dalam 5 detik…</string>
     <string name="flash_screen_title">pemasangan</string>
 
-    <!--Superuser-->
     <string name="su_request_title">aplikasi ini meminta izin root. ini memberikan akses penuh ke perangkat anda. tolak jika anda tidak yakin!</string>
     <string name="touch_filtered_warning">magisk tidak dapat memverifikasi respons anda, karena ada aplikasi yang menutupi permintaan superuser.</string>
     <string name="deny">tolak</string>
@@ -74,7 +70,6 @@
     <string name="superuser_toggle_revoke">cabut</string>
     <string name="superuser_policy_none">belum ada aplikasi yang meminta izin superuser.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">simpan log</string>
     <string name="back">kembali</string>
     <string name="enabled">aktif</string>
@@ -87,7 +82,6 @@
     <string name="granted">diizinkan</string>
     <string name="denied">ditolak</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">tampilkan aplikasi sistem</string>
     <string name="show_os_app">tampilkan aplikasi os</string>
     <string name="hide_filter_hint">saring berdasarkan nama</string>
@@ -99,7 +93,6 @@
     <string name="menu_sort">urutkan</string>
     <string name="hide_search">telusuri</string>
 
-    <!--Module-->
     <string name="no_info_provided">(info tidak tersedia)</string>
     <string name="reboot_userspace">mulai ulang cepat</string>
     <string name="reboot_recovery">mulai ulang ke recovery</string>
@@ -119,7 +112,6 @@
     <string name="confirm_install">pasang modul %1$s?</string>
     <string name="confirm_install_title">konfirmasi pemasangan</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">mode tema</string>
     <string name="settings_dark_mode_message">pilih mode tema yang paling sesuai dengan gaya anda!</string>
     <string name="settings_dark_mode_light">selalu terang</string>
@@ -181,12 +173,10 @@
     <string name="requester_summary">sesi root akan mewarisi ruang nama dari pemintanya</string>
     <string name="isolate_summary">setiap sesi root akan memiliki ruang nama tersendiri</string>
 
-    <!--Notifications-->
     <string name="progress_channel">notifikasi kemajuan</string>
     <string name="download_complete">unduhan selesai</string>
     <string name="download_file_error">kesalahan saat mengunduh berkas</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">ya</string>
     <string name="no">tidak</string>
     <string name="repo_install_title">pasang %1$s %2$s(%3$d)</string>

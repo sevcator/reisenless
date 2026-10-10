@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
@@ -52,6 +53,10 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refreshHideApps()
+        onPauseOrDispose { }
+    }
     val scrollState = rememberScrollState()
     Scaffold(
         modifier = modifier,
@@ -77,8 +82,6 @@ fun SettingsScreen(
         }
     }
 }
-
-// --- Customization ---
 
 @Composable
 private fun CustomizationSection(
@@ -120,7 +123,6 @@ private fun CustomizationSection(
             )
         }
 
-        // Color Mode
         val isDynamicColorSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         val resources = LocalResources.current
         val rawColorModeEntries = remember {
@@ -150,8 +152,6 @@ private fun CustomizationSection(
     }
 }
 
-// --- Reisenless ---
-
 @Composable
 private fun ReisenlessSection(
     viewModel: SettingsViewModel,
@@ -163,7 +163,7 @@ private fun ReisenlessSection(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
-        // 1. Systemless Hosts (Button)
+
         SettingsArrow(
             title = stringResource(CoreR.string.settings_hosts_title),
             summary = stringResource(CoreR.string.settings_hosts_summary),
@@ -171,7 +171,7 @@ private fun ReisenlessSection(
         )
 
         if (Const.Version.atLeast_24_0()) {
-            // 2. Zygisk (Switch)
+
             var zygisk by remember { mutableStateOf(Config.zygisk) }
             SettingsSwitch(
                 title = stringResource(CoreR.string.zygisk),
@@ -184,7 +184,6 @@ private fun ReisenlessSection(
                 }
             )
 
-            // 4. Hide Apps (Switch)
             val hideAppsEnabled by viewModel.hideAppsEnabled.collectAsStateWithLifecycle()
             SettingsSwitchAction(
                 title = stringResource(CoreR.string.hide_apps_title),
@@ -194,7 +193,6 @@ private fun ReisenlessSection(
                 onCheckedChange = viewModel::toggleHideApps,
             )
 
-            // 5. Udonge (Switch)
             val udongeEnabled by viewModel.udongeEnabled.collectAsStateWithLifecycle()
             SettingsSwitch(
                 title = stringResource(CoreR.string.udonge_integrity_title),
@@ -203,20 +201,30 @@ private fun ReisenlessSection(
                 onCheckedChange = { viewModel.toggleUdonge(it) },
             )
 
-            // 7. Eirin (Switch)
-            val eirinEnabled by viewModel.eirinEnabled.collectAsStateWithLifecycle()
-            SettingsSwitch(
-                title = stringResource(CoreR.string.udonge_background_updates_title),
-                summary = stringResource(CoreR.string.udonge_background_updates_summary),
-                checked = eirinEnabled,
+            val rehealMode by viewModel.udongeRehealMode.collectAsStateWithLifecycle()
+            val rehealBootOnly = stringResource(CoreR.string.udonge_reheal_boot_only)
+            val rehealDaily = stringResource(CoreR.string.udonge_reheal_daily)
+            val rehealEntries = remember(rehealBootOnly, rehealDaily) {
+                listOf(rehealBootOnly, rehealDaily)
+            }
+            val rehealSummary = stringResource(CoreR.string.udonge_reheal_summary)
+            val selectedRehealText = rehealEntries.getOrNull(rehealMode).orEmpty()
+            val displaySummary = if (selectedRehealText.isNotEmpty()) {
+                "$rehealSummary ($selectedRehealText)"
+            } else {
+                rehealSummary
+            }
+            SettingsDropdown(
+                title = stringResource(CoreR.string.udonge_reheal_title),
+                summary = displaySummary,
+                items = rehealEntries,
+                selectedIndex = rehealMode.coerceIn(0, rehealEntries.lastIndex),
                 enabled = udongeEnabled,
-                onCheckedChange = { viewModel.toggleEirin(it) },
+                onSelectedIndexChange = { viewModel.setUdongeRehealMode(it) },
             )
         }
     }
 }
-
-// --- Superuser ---
 
 @Composable
 private fun SuperuserSection(
@@ -231,7 +239,7 @@ private fun SuperuserSection(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
-        // Tapjack (SDK < S)
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             var tapjack by remember { mutableStateOf(Config.suTapjack) }
             SettingsSwitch(
@@ -245,7 +253,6 @@ private fun SuperuserSection(
             )
         }
 
-        // Authentication
         var suAuth by remember { mutableStateOf(Config.suAuth) }
         SettingsSwitch(
             title = stringResource(CoreR.string.settings_su_auth_title),
@@ -263,7 +270,6 @@ private fun SuperuserSection(
             }
         )
 
-        // Multiuser Mode
         val multiuserEntries = remember {
             resources.getStringArray(CoreR.array.multiuser_mode).toList()
         }
@@ -283,7 +289,6 @@ private fun SuperuserSection(
             }
         )
 
-        // Mount Namespace Mode
         val namespaceEntries = remember {
             resources.getStringArray(CoreR.array.namespace).toList()
         }
@@ -302,7 +307,6 @@ private fun SuperuserSection(
             }
         )
 
-        // Reauthenticate (SDK < O)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             var reAuth by remember { mutableStateOf(Config.suReAuth) }
             SettingsSwitch(
@@ -316,7 +320,6 @@ private fun SuperuserSection(
             )
         }
 
-        // Restrict (version >= 30.1)
         if (Const.Version.atLeast_30_1()) {
             var restrict by remember { mutableStateOf(Config.suRestrict) }
             SettingsSwitch(

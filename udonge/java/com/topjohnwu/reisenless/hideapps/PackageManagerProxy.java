@@ -12,6 +12,7 @@ import android.os.Process;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -24,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Process-local IPackageManager filter for exact configured package identities. */
 public final class PackageManagerProxy implements InvocationHandler {
     private static final String PACKAGE_DESCRIPTOR = "android.content.pm.IPackageManager";
     private static final Set<String> NEVER_HIDE = new HashSet<>();
@@ -71,6 +71,65 @@ public final class PackageManagerProxy implements InvocationHandler {
     private final Set<String> selected;
     private final Set<String> systemPackages;
 
+    static final class ReflectionCache {
+        private final Map<String, Field> fields = new LinkedHashMap<>();
+        private final Map<String, Method> methods = new LinkedHashMap<>();
+        private Constructor<?> listConstructor;
+        private boolean constructorResolved;
+        private static final Map<Class<?>, ReflectionCache> classes =
+                new LinkedHashMap<Class<?>, ReflectionCache>(32, 0.75f, true) {
+                    @Override protected boolean removeEldestEntry(Map.Entry<Class<?>, ReflectionCache> entry) {
+                        return size() > 32;
+                    }
+                };
+
+        private static ReflectionCache metadata(Class<?> type) {
+            ReflectionCache cache = classes.get(type);
+            if (cache == null) { cache = new ReflectionCache(); classes.put(type, cache); }
+            return cache;
+        }
+
+        static synchronized Field field(Class<?> type, String name) throws NoSuchFieldException {
+            ReflectionCache cache = metadata(type);
+            if (!cache.fields.containsKey(name)) {
+                Field field = null;
+                try { field = type.getDeclaredField(name); field.setAccessible(true); }
+                catch (NoSuchFieldException ignored) { }
+                cache.fields.put(name, field);
+            }
+            Field field = cache.fields.get(name);
+            if (field == null) throw new NoSuchFieldException(name);
+            return field;
+        }
+
+        static synchronized Method method(Class<?> type, String name, boolean declared) throws NoSuchMethodException {
+            ReflectionCache cache = metadata(type);
+            String key = (declared ? "D:" : "P:") + name;
+            if (!cache.methods.containsKey(key)) {
+                Method method = null;
+                try {
+                    method = declared ? type.getDeclaredMethod(name) : type.getMethod(name);
+                    method.setAccessible(true);
+                } catch (NoSuchMethodException ignored) { }
+                cache.methods.put(key, method);
+            }
+            Method method = cache.methods.get(key);
+            if (method == null) throw new NoSuchMethodException(name);
+            return method;
+        }
+
+        static synchronized Constructor<?> listConstructor(Class<?> type) throws NoSuchMethodException {
+            ReflectionCache cache = metadata(type);
+            if (!cache.constructorResolved) {
+                try { cache.listConstructor = type.getConstructor(List.class); }
+                catch (NoSuchMethodException ignored) { }
+                cache.constructorResolved = true;
+            }
+            if (cache.listConstructor == null) throw new NoSuchMethodException("List constructor");
+            return cache.listConstructor;
+        }
+    }
+
     private PackageManagerProxy(Object delegate, String caller, String rule) {
         this.delegate = delegate;
         this.caller = caller;
@@ -113,7 +172,7 @@ public final class PackageManagerProxy implements InvocationHandler {
                 if (thread != null) installContextCache(invoke(thread, "getSystemContext"), packageManager);
                 installContextCache(invokeStatic(activityThread, "currentApplication"), packageManager);
             } catch (ReflectiveOperationException ignored) {
-                // Framework layouts differ by release; each cache is best effort.
+
             }
         }
 
@@ -172,7 +231,7 @@ public final class PackageManagerProxy implements InvocationHandler {
                 sSmField.set(null, smProxy);
             }
         } catch (Throwable ignored) {
-            // ActivityThread remains protected if ServiceManager internals change.
+
         }
     }
 
@@ -283,29 +342,25 @@ public final class PackageManagerProxy implements InvocationHandler {
         if (!(context instanceof Context)) return;
         Object local = ((Context) context).getPackageManager();
         if (local == null) return;
-        Field field = local.getClass().getDeclaredField("mPM");
-        field.setAccessible(true);
+        Field field = ReflectionCache.field(local.getClass(), "mPM");
         field.set(local, packageManager);
     }
 
     private static void setStaticField(Class<?> type, String name, Object value)
             throws ReflectiveOperationException {
-        Field field = type.getDeclaredField(name);
-        field.setAccessible(true);
+        Field field = ReflectionCache.field(type, name);
         field.set(null, value);
     }
 
     private static Object invokeStatic(Class<?> type, String name)
             throws ReflectiveOperationException {
-        Method method = type.getDeclaredMethod(name);
-        method.setAccessible(true);
+        Method method = ReflectionCache.method(type, name, true);
         return method.invoke(null);
     }
 
     private static Object invoke(Object target, String name) throws ReflectiveOperationException {
         if (target == null) return null;
-        Method method = target.getClass().getMethod(name);
-        method.setAccessible(true);
+        Method method = ReflectionCache.method(target.getClass(), name, false);
         return method.invoke(target);
     }
 
@@ -344,14 +399,21 @@ public final class PackageManagerProxy implements InvocationHandler {
     }
 
     private void filterOutParameters(String method, Object[] args) {
-        if (!"querySyncProviders".equals(method) || args == null) return;
-        for (Object arg : args) {
-            if (!(arg instanceof List<?>)) continue;
-            try {
-                ((List<?>) arg).removeIf(item -> shouldHide(packageNameOf(item, true)));
-            } catch (UnsupportedOperationException ignored) {
-                // Unknown immutable framework implementation.
+        if (!"querySyncProviders".equals(method) || args == null || args.length < 2
+                || !(args[0] instanceof List<?>) || !(args[1] instanceof List<?>)) return;
+        List<?> names = (List<?>) args[0];
+        List<?> providers = (List<?>) args[1];
+        if (names.size() != providers.size()) return;
+        try {
+
+            for (int i = providers.size() - 1; i >= 0; --i) {
+                if (shouldHide(packageNameOf(providers.get(i), false))) {
+                    names.remove(i);
+                    providers.remove(i);
+                }
             }
+        } catch (UnsupportedOperationException ignored) {
+
         }
     }
 
@@ -394,19 +456,19 @@ public final class PackageManagerProxy implements InvocationHandler {
         }
         if (value.getClass().getName().endsWith("ParceledListSlice")) {
             try {
-                Method getList = value.getClass().getMethod("getList");
+                Method getList = ReflectionCache.method(value.getClass(), "getList", false);
                 Object list = getList.invoke(value);
                 if (list instanceof List<?>) {
                     List<?> filtered = filterList((List<?>) list, stringsArePackages);
                     try {
-                        return value.getClass().getConstructor(List.class).newInstance(filtered);
+                        return ReflectionCache.listConstructor(value.getClass()).newInstance(filtered);
                     } catch (ReflectiveOperationException ignored) {
                         ((List<?>) list).removeIf(
                                 item -> shouldHide(packageNameOf(item, stringsArePackages)));
                     }
                 }
             } catch (ReflectiveOperationException | UnsupportedOperationException ignored) {
-                // Unknown framework revision: leave the original result intact.
+
             }
         }
         return value;
@@ -472,13 +534,16 @@ public final class PackageManagerProxy implements InvocationHandler {
         if ("checkSignatures".equals(method)) {
             return shouldHide(stringAt(args, 0)) || shouldHide(stringAt(args, 1));
         }
+        if ("getProperty".equals(method)) return shouldHide(stringAt(args, 1));
+        if ("setInstallerPackageName".equals(method)) {
+            return shouldHide(stringAt(args, 0)) || shouldHide(stringAt(args, 1));
+        }
         if (method.contains("Package") || method.contains("Application")
                 || method.contains("Installer") || method.contains("InstallSource")
                 || method.contains("Component") || method.startsWith("isPackage")
                 || PACKAGE_ARGUMENT_METHODS.contains(method)) {
-            for (Object arg : args) {
-                if (arg instanceof String && shouldHide((String) arg)) return true;
-            }
+
+            return shouldHide(stringAt(args, 0));
         }
         return false;
     }
@@ -522,7 +587,7 @@ public final class PackageManagerProxy implements InvocationHandler {
                 Object packageName = value.getClass().getField(fieldName).get(value);
                 if (packageName instanceof String) return (String) packageName;
             } catch (ReflectiveOperationException ignored) {
-                // Try the next framework-version field.
+
             }
         }
         return null;

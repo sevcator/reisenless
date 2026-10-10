@@ -85,8 +85,6 @@ impl FileFormat {
     }
 }
 
-
-
 pub fn fmt2name(fmt: FileFormat) -> *const libc::c_char {
     fmt.as_cstr().as_ptr()
 }
@@ -117,9 +115,7 @@ const TEGRABLOB_MAGIC: &[u8] = b"-SIGNED-BY-SIGNBLOB-";
 const ZIMAGE_MAGIC: &[u8] = b"\x18\x28\x6f\x01";
 
 fn guess_lzma(buf: &[u8]) -> bool {
-    // 0     : (pb * 5 + lp) * 9 + lc
-    // 1 - 4 : dict size, must be 2^n
-    // 5 - 12: all 0xFF
+
     if buf.len() <= 13 || buf[0] != 0x5d {
         return false;
     }

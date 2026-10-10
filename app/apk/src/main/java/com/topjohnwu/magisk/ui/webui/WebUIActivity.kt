@@ -28,6 +28,8 @@ import java.io.File
 
 class WebUIActivity : ComponentActivity() {
     private lateinit var webView: WebView
+    private var bridge: WebViewInterface? = null
+    private val preparation = WebCommandSession()
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,6 +48,7 @@ class WebUIActivity : ComponentActivity() {
 
         try {
             webView = WebView(this).apply {
+                settings.userAgentString = WebUiUserAgent.normalize(settings.userAgentString)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.allowFileAccess = false
@@ -66,8 +69,12 @@ class WebUIActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             val webRoot = withContext(Dispatchers.IO) {
-                if (!Info.isRooted || !Info.env.isActive) null
-                else prepareWebRoot(moduleId)
+                runCatching {
+
+                    val shell = Shell.getShell()
+                    if (!shell.isRoot || !Info.env.isActive) null
+                    else prepareWebRoot(moduleId)
+                }.getOrNull()
             }
             if (webRoot == null) {
                 toast(CoreR.string.webui_root_required, Toast.LENGTH_SHORT)
@@ -84,7 +91,7 @@ class WebUIActivity : ComponentActivity() {
             .addPathHandler("/", RootFsPathHandler(webRoot))
             .build()
 
-        val bridge = WebViewInterface(this, webView, moduleId, moduleName, lifecycleScope)
+        val bridge = WebViewInterface(this, webView, moduleId, moduleName, lifecycleScope).also { bridge = it }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView,
@@ -124,7 +131,7 @@ class WebUIActivity : ComponentActivity() {
             cp -r ${shellQuote(source.path)}/. ${shellQuote(target.path)}/ &&
             chmod -R a+rX ${shellQuote(target.path)}
         """.trimIndent()
-        val result = runCatching { Shell.cmd(command).exec() }.getOrNull() ?: return null
+        val result = runCatching { preparation.run(command) }.getOrNull() ?: return null
         return target.takeIf { result.code == 0 && File(it, "index.html").isFile }
     }
 
@@ -152,7 +159,12 @@ class WebUIActivity : ComponentActivity() {
         addCategory(Intent.CATEGORY_BROWSABLE)
     }
 
+    override fun onPause() { if (::webView.isInitialized) webView.onPause(); super.onPause() }
+    override fun onResume() { super.onResume(); if (::webView.isInitialized) webView.onResume() }
+
     override fun onDestroy() {
+        bridge?.close()
+        preparation.close()
         if (::webView.isInitialized) {
             webView.removeJavascriptInterface("ksu")
             webView.stopLoading()

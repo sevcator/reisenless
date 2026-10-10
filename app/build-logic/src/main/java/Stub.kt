@@ -1,7 +1,6 @@
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.named
 
-/** Builds a code-free APK whose signing certificate anchors manager trust. */
 fun Project.setupStubApk() {
     setupAppCommon()
     androidAppComponents {

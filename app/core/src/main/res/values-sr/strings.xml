@@ -1,7 +1,5 @@
 <resources>
-    <!--Author: Radoš Milićev (https://github.com/rammba)-->
 
-    <!--Sections-->
     <string name="modules">модули</string>
     <string name="superuser">супер-корисник</string>
     <string name="settings">подешавања</string>
@@ -10,7 +8,6 @@
     <string name="section_theme">теме</string>
     <string name="denylist">листа забрана</string>
 
-    <!--Home-->
     <string name="no_connection">недоступна конекција</string>
     <string name="loading">учитавање…</string>
     <string name="update">ажурирање</string>
@@ -23,7 +20,6 @@
 <string name="uninstall_magisk_title">деинсталирај magisk</string>
     <string name="uninstall_magisk_msg">сви модули ће бити онемогућени/уклоњени!\nкорен ће бити уклоњен!\nсвако неенкриптовано интерно складиште ће употребом magisk-а бити поново енкриптовано!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">задржи форсирану енкрипцију</string>
     <string name="keep_dm_verity">задржи avb 2.0/dm-verity</string>
     <string name="recovery_mode">режим опоравка</string>
@@ -41,7 +37,6 @@
     <string name="reboot_delay_toast">поново покретање за 5 секунди…</string>
     <string name="flash_screen_title">инсталација</string>
 
-    <!--Superuser-->
     <string name="su_request_title">ова апликација захтева коренску пермисију. пружа потпун приступ вашем уређају. забраните ако нисте сигурни!</string>
     <string name="touch_filtered_warning">magisk не може да верификује ваш одговор, јер апликација прикрива супер-кориснички захтев.</string>
     <string name="deny">забрани</string>
@@ -73,7 +68,6 @@
     <string name="superuser_toggle_revoke">опозови</string>
     <string name="superuser_policy_none">ниједна апликација није тражила пермисије за супер-корисника још увек.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">сачувај лог</string>
     <string name="back">назад</string>    <string name="enabled">омогућено</string>
     <string name="disabled">онемогућено</string>
@@ -85,7 +79,6 @@
     <string name="granted">одобрено</string>
     <string name="denied">одбијено</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">прикажи системске апл.</string>
     <string name="show_os_app">прикажи апл. ос-а</string>
     <string name="hide_filter_hint">филтрирај по имену</string>
@@ -97,7 +90,6 @@
     <string name="menu_sort">сортирање</string>
     <string name="hide_search">претрага</string>
 
-    <!--Module-->
     <string name="no_info_provided">(без информација)</string>
     <string name="reboot_userspace">лако поново покретање</string>
     <string name="reboot_recovery">поново покрени за опоравак</string>
@@ -117,7 +109,6 @@
     <string name="confirm_install">инсталирај модул %1$s?</string>
     <string name="confirm_install_title">потврда инсталације</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">тема</string>
     <string name="settings_dark_mode_message">изаберите тему која вам највише одговара!</string>
     <string name="settings_dark_mode_light">увек светло</string>
@@ -179,12 +170,10 @@
     <string name="requester_summary">коренске сесије ће наследити namespace од подносиоца захтева</string>
     <string name="isolate_summary">свака коренска сесија ће имати свој изоловани namespace</string>
 
-    <!--Notifications-->
     <string name="progress_channel">нотификације о прогресу</string>
     <string name="download_complete">преузимање завршено</string>
     <string name="download_file_error">грешка при преузимању фајла</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">да</string>
     <string name="no">не</string>
     <string name="repo_install_title">инсталирај %1$s %2$s(%3$d)</string>

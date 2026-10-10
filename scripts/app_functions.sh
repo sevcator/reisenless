@@ -1,19 +1,7 @@
 : SECURE_DIR_STUB
 : BUILD_IDENTITY_STUB
 
-# The app uses a neutral transport variable so DEX identity rewriting cannot
-# rename one half of this interface. Retain the canonical name for scripts and
-# modules, and leave standalone installer environments unchanged.
 [ -n "$ROOT_TMP" ] && export MAGISKTMP="$ROOT_TMP"
-
-
-
-
-
-
-
-
-
 
 run_busybox() (
   local binary="$1"
@@ -181,13 +169,9 @@ transactional_migrate_layout() {
   return 0
 }
 
-
-
 run_delay() {
   (sleep $1; $2)&
 }
-
-
 
 env_check() {
   for file in "$MAIN_BIN_NAME" "$BUSYBOX_NAME" mboot minit util_functions.sh boot_patch.sh "$UDONGE_ARCHIVE"; do
@@ -203,8 +187,6 @@ env_check() {
   grep -xqF "MAGISK_VER_CODE=$2" "$MAGISKBIN/util_functions.sh" || return 3
   return 0
 }
-
-
 
 cp_readlink() {
   if [ -z $2 ]; then
@@ -223,7 +205,6 @@ cp_readlink() {
   chmod -R 755 .
   cd /
 }
-
 
 fix_env() {
 
@@ -330,8 +311,6 @@ refresh_udonge_runtime() {
   return 1
 }
 
-
-
 direct_install() {
   echo "- flashing new boot image"
   flash_image $1/new-boot.img $2
@@ -352,7 +331,6 @@ direct_install() {
   fix_env $1
   refresh_udonge_runtime || return 3
 
-
   rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh"
   rm -f "$SECURE_DIR/post-fs-data.d/$STAGE_SCRIPT" "$SECURE_DIR/service.d/$STAGE_SCRIPT"
   run_migrations
@@ -360,14 +338,12 @@ direct_install() {
   return 0
 }
 
-
 run_uninstaller() {
   rm -rf "$BUILD_TMPDIR"
   mkdir -p "$BUILD_TMPDIR/install"
   unzip -o "$1" "assets/*" "lib/*" -d "$BUILD_TMPDIR/install"
   INSTALLER="$BUILD_TMPDIR/install" sh "$BUILD_TMPDIR/install/assets/uninstaller.sh" dummy 1 "$1"
 }
-
 
 restore_imgs() {
   local SHA1=$(grep_prop SHA1 $MAGISKTMP/$INTERNAL_DIR/config)
@@ -398,17 +374,10 @@ EOF
   cd /
 }
 
-
-
 adb_pm_install() {
   local tmp=/data/local/tmp/temp.apk
   cp -f "$1" $tmp
   chmod 644 $tmp
-
-
-
-
-
 
   pm install -g $tmp || su 2000 -c pm install -g $tmp || su 1000 -c pm install -g $tmp
   local res=$?
@@ -424,9 +393,7 @@ check_boot_ramdisk() {
   ISAB=true
   [ -z $SLOT ] && ISAB=false
 
-
   $ISAB && return 0
-
 
   if $LEGACYSAR; then
 
@@ -473,10 +440,6 @@ run_action() {
   return $RES
 }
 
-
-
-
-
 mount_partitions() {
   [ "$(getprop ro.build.ab_update)" = "true" ] && SLOT=$(getprop ro.boot.slot_suffix)
 
@@ -507,10 +470,6 @@ run_migrations() { return; }
 
 grep_prop() { return; }
 
-
-
-
-
 app_init() {
   mount_partitions >/dev/null
   RAMDISKEXIST=false
@@ -518,7 +477,6 @@ app_init() {
   get_flags >/dev/null
   run_migrations >/dev/null
   check_encryption
-
 
   printvar SLOT
   printvar SYSTEM_AS_ROOT

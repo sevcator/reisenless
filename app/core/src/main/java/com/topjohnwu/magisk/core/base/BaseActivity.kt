@@ -23,7 +23,7 @@ import com.topjohnwu.magisk.core.utils.RequestInstall
 interface ContentResultCallback: ActivityResultCallback<Uri>, Parcelable {
     fun onActivityLaunch() {}
     fun onActivityCancel() {}
-    // Make the result type explicitly non-null
+
     override fun onActivityResult(result: Uri)
 }
 

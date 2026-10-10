@@ -1,57 +1,4 @@
-//! ARM 32-bit Linux zImage Parsing and Piggy Resizing / Relocation
-//!
-//! # Background & Overview
-//!
-//! A 32-bit ARM Linux kernel image (`zImage`) is a self-extracting executable wrapper containing:
-//! 1. `head`: Decompressor startup code (`head.o`), runtime decompression routines (`misc.o`,
-//!    `decompress.o`), and the `piggy.o` wrapper header. It starts with the standard ARM `zimage_hdr`
-//!    (magic `0x016f2818` at offset `0x24`, start/end execution addresses at offsets `0x28`/`0x2c`).
-//! 2. `piggy`: The compressed kernel payload (`vmlinux.bin.gz`, `.xz`, `.lz4`, etc.), with an
-//!    optional appended 4-byte LE uncompressed size (`size_append`) for non-gzip algorithms.
-//! 3. `tail`: Trailing data following the compressed piggy, containing padding, the decompressor's
-//!    Global Offset Table (`.got` from `_got_start` to `_got_end`), decompressor stack, and optional
-//!    appended Device Tree Blobs (DTBs).
-//!
-//! # The Resizing & Relocation Problem
-//!
-//! When modifying or patching the kernel (e.g., patching kernel instructions or data),
-//! the re-compressed payload size almost certainly changes. In traditional repack workflows, resizing
-//! the `piggy` blob breaks the zImage because the decompressor code in `head` and the data in `tail`
-//! contain hardcoded absolute and relative offsets that assume a fixed `piggy` length.
-//!
-//! Rather than requiring exact compression size matches (e.g., brute-forcing compression parameters or
-//! using zopfli) or needing full kernel source and toolchains to rebuild the wrapper, we parse the
-//! internal metadata of the zImage and dynamically patch all relocated offsets:
-//!
-//! 1. **`zimage_hdr.end`**:
-//!    The total image end address in the zImage header (`offset 0x2c`) is adjusted by `+ delta_got`.
-//!
-//! 2. **Header Relocation Tables**:
-//!    - `.Linflated_image_size_offset`: The pointer offset locating the uncompressed image size.
-//!    - `LC0` Table: Position-independent relocation table in `arch/arm/boot/compressed/head.S` containing
-//!      addresses for `_start`, `_got_start`, `_got_end`, `_edata`, `__bss_start`, and `_end`. Any entry
-//!      pointing to `orig_piggy_end` is updated to `new_piggy_end`, and any entry pointing past `head`
-//!      is adjusted by `+ delta_got`.
-//!    - `LC1` Table: Additional relocation table entries in newer kernels adjusted by `+ delta_got`.
-//!    - `_magic_table` (`.table` / `0x45454545` or `0x45455358`): Tagged kernel size entry adjusted.
-//!
-//! 3. **Trailing GOT & Stack (`new_tail`)**:
-//!    - The `tail` is realigned to 4 bytes after `new_piggy_end` with zero padding.
-//!    - Internal GOT pointers matching `orig_piggy_end` or referencing GOT symbols `>= orig_got_start - 4`
-//!      are shifted by `+ delta_got`.
-//!
-//! 4. **R_ARM_GOTPC Literals in Decompressor `.text` (`new_head`)**:
-//!    - Decompressor code calculates the GOT base address relative to PC using patterns like:
-//!      `ldr rX, [pc, #imm]` followed by `add rY, pc, rX`.
-//!    - The literal loaded from the constant pool represents `_GLOBAL_OFFSET_TABLE_ - (. + 8)`.
-//!      Because the GOT in `tail` shifts by `delta_got` while `.text` in `head` stays fixed, these
-//!      literal offsets must be adjusted by `+ delta_got`.
-//!
-//! # Reference
-//!
-//! - "Modifying Embedded Filesystems in ARM Linux zImages" by jamchamb:
-//!   <https://jamchamb.net/2022/01/02/modify-vmlinuz-arm.html>
-
+#![doc = " ARM 32-bit Linux zImage Parsing and Piggy Resizing / Relocation"]#![doc = ""]#![doc = " # Background & Overview"]#![doc = ""]#![doc = " A 32-bit ARM Linux kernel image (`zImage`) is a self-extracting executable wrapper containing:"]#![doc = " 1. `head`: Decompressor startup code (`head.o`), runtime decompression routines (`misc.o`,"]#![doc = "    `decompress.o`), and the `piggy.o` wrapper header. It starts with the standard ARM `zimage_hdr`"]#![doc = "    (magic `0x016f2818` at offset `0x24`, start/end execution addresses at offsets `0x28`/`0x2c`)."]#![doc = " 2. `piggy`: The compressed kernel payload (`vmlinux.bin.gz`, `.xz`, `.lz4`, etc.), with an"]#![doc = "    optional appended 4-byte LE uncompressed size (`size_append`) for non-gzip algorithms."]#![doc = " 3. `tail`: Trailing data following the compressed piggy, containing padding, the decompressor's"]#![doc = "    Global Offset Table (`.got` from `_got_start` to `_got_end`), decompressor stack, and optional"]#![doc = "    appended Device Tree Blobs (DTBs)."]#![doc = ""]#![doc = " # The Resizing & Relocation Problem"]#![doc = ""]#![doc = " When modifying or patching the kernel (e.g., patching kernel instructions or data),"]#![doc = " the re-compressed payload size almost certainly changes. In traditional repack workflows, resizing"]#![doc = " the `piggy` blob breaks the zImage because the decompressor code in `head` and the data in `tail`"]#![doc = " contain hardcoded absolute and relative offsets that assume a fixed `piggy` length."]#![doc = ""]#![doc = " Rather than requiring exact compression size matches (e.g., brute-forcing compression parameters or"]#![doc = " using zopfli) or needing full kernel source and toolchains to rebuild the wrapper, we parse the"]#![doc = " internal metadata of the zImage and dynamically patch all relocated offsets:"]#![doc = ""]#![doc = " 1. **`zimage_hdr.end`**:"]#![doc = "    The total image end address in the zImage header (`offset 0x2c`) is adjusted by `+ delta_got`."]#![doc = ""]#![doc = " 2. **Header Relocation Tables**:"]#![doc = "    - `.Linflated_image_size_offset`: The pointer offset locating the uncompressed image size."]#![doc = "    - `LC0` Table: Position-independent relocation table in `arch/arm/boot/compressed/head.S` containing"]#![doc = "      addresses for `_start`, `_got_start`, `_got_end`, `_edata`, `__bss_start`, and `_end`. Any entry"]#![doc = "      pointing to `orig_piggy_end` is updated to `new_piggy_end`, and any entry pointing past `head`"]#![doc = "      is adjusted by `+ delta_got`."]#![doc = "    - `LC1` Table: Additional relocation table entries in newer kernels adjusted by `+ delta_got`."]#![doc = "    - `_magic_table` (`.table` / `0x45454545` or `0x45455358`): Tagged kernel size entry adjusted."]#![doc = ""]#![doc = " 3. **Trailing GOT & Stack (`new_tail`)**:"]#![doc = "    - The `tail` is realigned to 4 bytes after `new_piggy_end` with zero padding."]#![doc = "    - Internal GOT pointers matching `orig_piggy_end` or referencing GOT symbols `>= orig_got_start - 4`"]#![doc = "      are shifted by `+ delta_got`."]#![doc = ""]#![doc = " 4. **R_ARM_GOTPC Literals in Decompressor `.text` (`new_head`)**:"]#![doc = "    - Decompressor code calculates the GOT base address relative to PC using patterns like:"]#![doc = "      `ldr rX, [pc, #imm]` followed by `add rY, pc, rX`."]#![doc = "    - The literal loaded from the constant pool represents `_GLOBAL_OFFSET_TABLE_ - (. + 8)`."]#![doc = "      Because the GOT in `tail` shifts by `delta_got` while `.text` in `head` stays fixed, these"]#![doc = "      literal offsets must be adjusted by `+ delta_got`."]#![doc = ""]#![doc = " # Reference"]#![doc = ""]#![doc = " - \"Modifying Embedded Filesystems in ARM Linux zImages\" by jamchamb:"]#![doc = "   <https://jamchamb.net/2022/01/02/modify-vmlinuz-arm.html>"]
 use crate::ffi::{FileFormat, ZImage};
 use crate::format::check_fmt;
 
@@ -78,17 +25,11 @@ fn write_u32(buf: &mut [u8], off: usize, val: u32) {
     }
 }
 
-/// Validates whether a candidate piggy_end offset is structurally consistent with the zImage layout.
-/// Checks that the candidate lies strictly past the header and within total kernel bounds.
-/// If GOT boundaries are known from the LC0 table, verifies that the candidate's 4-byte aligned
-/// boundary matches the start of the Global Offset Table (got_start), as defined in vmlinux.lds.S:
-///     . = ALIGN(4);
-///     _got_start = .;
-fn is_valid_piggy_end(kernel: &[u8], hdr_sz: usize, candidate_end: usize, got_start: usize) -> bool {
+#[doc = " Validates whether a candidate piggy_end offset is structurally consistent with the zImage layout."]#[doc = " Checks that the candidate lies strictly past the header and within total kernel bounds."]#[doc = " If GOT boundaries are known from the LC0 table, verifies that the candidate's 4-byte aligned"]#[doc = " boundary matches the start of the Global Offset Table (got_start), as defined in vmlinux.lds.S:"]#[doc = "     . = ALIGN(4);"]#[doc = "     _got_start = .;"]fn is_valid_piggy_end(kernel: &[u8], hdr_sz: usize, candidate_end: usize, got_start: usize) -> bool {
     if candidate_end <= hdr_sz.saturating_add(4) || candidate_end > kernel.len() {
         return false;
     }
-    // When got_start is known from LC0, candidate_end aligned to 4 bytes must equal got_start
+
     if got_start != 0 && (candidate_end.saturating_add(3) & !3) != got_start {
         return false;
     }
@@ -105,7 +46,7 @@ impl<'a> ZImage<'a> {
     }
 
     fn parse_impl(zimg: &'a [u8]) -> Option<Self> {
-        // Step 1: Validate 32-bit ARM zImage header (magic 0x016f2818 at offset 0x24)
+
         if zimg.len() < 0x28 {
             return None;
         }
@@ -120,7 +61,6 @@ impl<'a> ZImage<'a> {
         let table_magic = read_u32(zimg, 0x34);
         let table_offset = read_u32(zimg, 0x38);
 
-        // Step 2: Locate the start of compressed piggy payload by scanning forward from 0x28
         let mut piggy_ptr = None;
         for curr in 0x28..zimg.len() {
             if check_fmt(&zimg[curr..]) != FileFormat::UNKNOWN {
@@ -140,9 +80,6 @@ impl<'a> ZImage<'a> {
         let head = &zimg[..piggy_off];
         let fmt = check_fmt(&zimg[piggy_off..]);
 
-        // Step 3: Scan for the LC0 position table (arch/arm/boot/compressed/head.S)
-        // LC0 contains position-independent runtime pointers: _start, _got_start, _got_end, _edata, etc.
-        // We match: p0 == off + start (pointer to _start), with p1 >= head.len() and p2 >= p1
         let mut off_lc0 = 0u32;
         let mut got_start = 0usize;
         let mut got_end = 0usize;
@@ -180,10 +117,6 @@ impl<'a> ZImage<'a> {
         let mut piggy_end = zimg.len();
         let mut off_table = 0u32;
 
-        // Step 4: Determine piggy_end using a 3-tier heuristic strategy
-
-        // Strategy 4.1: Check .table (_magic_table) TagKernelSize (0x5a534c4b) if present at offset 0x38.
-        // The table is tagged with 0x45454545 ("EEEE"), 0x45455358 ("XSEE"), or 0x20425444 ("DTB ").
         if (table_magic == 0x45454545 || table_magic == 0x45455358 || table_magic == 0x20425444)
             && table_offset > 0
             && (table_offset as usize) < head.len()
@@ -217,7 +150,6 @@ impl<'a> ZImage<'a> {
             }
         }
 
-        // Strategy 4.2 (Fallback): Derive GOT bounds from LC0 entries and scan for pointer to input_data_end
         if piggy_end == zimg.len() {
             let min_piggy_end = if total_zimage_sz > 0x200 {
                 total_zimage_sz - 0x200
@@ -234,7 +166,6 @@ impl<'a> ZImage<'a> {
                 }
             }
 
-            // Strategy 4.3 (Fallback): Scan the last 16 dwords of the zImage tail for input_data_end pointer
             if piggy_end == zimg.len() && total_zimage_sz > 64 {
                 let min_tail_end = if total_zimage_sz > 0xFF {
                     total_zimage_sz - 0xFF
@@ -252,8 +183,6 @@ impl<'a> ZImage<'a> {
             }
         }
 
-        // Step 5: Locate .Linflated_image_size_offset matching known piggy_end
-        // This is a literal in head matching: off + val + 4 == piggy_end
         let mut off_inflated_size = 0u32;
         if piggy_end != zimg.len() && head.len() >= 4 {
             for off in (0x20..=head.len() - 4).step_by(4) {
@@ -272,7 +201,6 @@ impl<'a> ZImage<'a> {
 
         let piggy = &zimg[head.len()..piggy_end];
 
-        // Step 6: Scan for LC1 relocation table in newer kernels (where p1 + off + start == end)
         let mut off_lc1 = 0u32;
         if head.len() >= 8 {
             for off in (0x20..=head.len() - 8).step_by(4) {
@@ -290,7 +218,6 @@ impl<'a> ZImage<'a> {
             return None;
         }
 
-        // Step 7: Construct zero-copy ZImage struct slicing head, piggy, and tail
         Some(ZImage {
             head,
             piggy,
@@ -309,7 +236,6 @@ impl<'a> ZImage<'a> {
             return head_stub;
         }
 
-        // Step 1: Calculate offset delta for GOT and trailing sections based on 4-byte realignment
         let start = read_u32(self.head, 0x28);
         let orig_piggy_end = (self.head.len() as u32).wrapping_add(self.piggy.len() as u32).wrapping_add(start);
         let orig_got_start = (orig_piggy_end + 3) & !3;
@@ -317,20 +243,15 @@ impl<'a> ZImage<'a> {
         let new_got_start = (new_piggy_end + 3) & !3;
         let delta_got = new_got_start.wrapping_sub(orig_got_start);
 
-        // Step 2: Patch zimage_hdr->end (offset 0x2C) with new total image end address
         let end = read_u32(&head_stub, 0x2C);
         write_u32(&mut head_stub, 0x2C, end.wrapping_add(delta_got));
 
-        // Step 3: Patch .Linflated_image_size_offset pointer table entry
         if self.off_inflated_size != 0 {
             let off = self.off_inflated_size as usize;
             let val = read_u32(&head_stub, off);
             write_u32(&mut head_stub, off, val.wrapping_add(delta_got));
         }
 
-        // Step 4: Patch the LC0 position table (arch/arm/boot/compressed/head.S)
-        // Entry pointing to input_data_end - 4 (uncompressed size word) is updated to new_piggy_end - 4.
-        // Entries pointing into tail (>= head.len() + start) are shifted by + delta_got.
         if self.off_lc0 != 0 {
             let off = self.off_lc0 as usize;
             for i in 1..8 {
@@ -344,7 +265,6 @@ impl<'a> ZImage<'a> {
             }
         }
 
-        // Step 5: Patch LC1 relocation table in newer kernels
         if self.off_lc1 != 0 {
             let off = self.off_lc1 as usize;
             let val0 = read_u32(&head_stub, off);
@@ -353,20 +273,12 @@ impl<'a> ZImage<'a> {
             write_u32(&mut head_stub, off + 4, val1.wrapping_add(delta_got));
         }
 
-        // Step 6: Patch .table (_magic_table) TagKernelSize entry
         if self.off_table != 0 {
             let off = self.off_table as usize;
             let val = read_u32(&head_stub, off);
             write_u32(&mut head_stub, off, val.wrapping_add(delta_got));
         }
 
-        // Step 7: Disassemble and patch R_ARM_GOTPC PC-relative literal pool entries in .text
-        // In -fPIC, ARM code accesses GOT via:
-        //   ldr rX, [pc, #imm]   ; loads (_GLOBAL_OFFSET_TABLE_ - (. + 8)) from constant pool
-        //   add rY, pc, rX       ; rY = &GOT
-        // When the tail shifts by delta_got, the constant pool literals must be adjusted by + delta_got.
-
-        // Locate GOT bounds from LC0
         let mut got_start = 0u32;
         let mut got_end = 0u32;
         if self.off_lc0 != 0 {
@@ -385,12 +297,12 @@ impl<'a> ZImage<'a> {
         }
 
         if got_start != 0 && got_end != 0 {
-            // Scan for ARM: add rd, pc, rm (opcode: cond 0000 100S rn=1111 rd 0000 0000 rm)
+
             for off in (0..=head_stub.len().saturating_sub(4)).step_by(4) {
                 let insn = read_u32(&head_stub, off);
                 if (insn & 0x0fe00000) == 0x00800000 && ((insn >> 16) & 0xf) == 0xf {
                     let rm = insn & 0xf;
-                    // Look back up to 128 bytes for preceding: ldr rt, [pc, #imm]
+
                     let lookback = off.saturating_sub(128);
                     for prev_off in (lookback..off).step_by(4) {
                         let prev_insn = read_u32(&head_stub, prev_off);
@@ -409,7 +321,7 @@ impl<'a> ZImage<'a> {
                                 {
                                     let val = read_u32(&head_stub, lit_addr);
                                     let target = (off as u32 + 8).wrapping_add(val).wrapping_add(start);
-                                    // Verify that computed target falls within GOT range
+
                                     if target >= got_start.saturating_sub(0x20)
                                         && target <= got_end.wrapping_add(0x20)
                                     {
@@ -441,15 +353,11 @@ impl<'a> ZImage<'a> {
         let new_pad_sz = (new_got_start - new_piggy_end) as usize;
         let delta_got = new_got_start.wrapping_sub(orig_got_start);
 
-        // Step 1: Re-pad leading gap before the GOT with zeros to maintain 4-byte alignment
         let mut result = vec![0u8; new_pad_sz];
         if orig_pad_sz < self.tail.len() {
             result.extend_from_slice(&self.tail[orig_pad_sz..]);
         }
 
-        // Step 2: Relocate internal GOT pointers (arch/arm/boot/compressed/vmlinux.lds.S)
-        // Pointers matching orig_piggy_end (input_data_end) are updated to new_piggy_end.
-        // Pointers to GOT symbols (>= orig_got_start - 4) are shifted by + delta_got.
         if self.off_lc0 != 0 {
             for i in (new_pad_sz..=result.len().saturating_sub(4)).step_by(4) {
                 let mut val = read_u32(&result, i);

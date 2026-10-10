@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.app.Notification
 import android.app.job.JobParameters
+import android.os.Build
 import com.topjohnwu.magisk.core.base.BaseJobService
 import com.topjohnwu.magisk.core.download.DownloadEngine
 import com.topjohnwu.magisk.core.download.DownloadSession
@@ -11,39 +12,53 @@ import com.topjohnwu.magisk.core.download.Subject
 
 class JobService : BaseJobService() {
 
-    private var mSession: Session? = null
+    private data class JobKey(val namespace: String?, val id: Int)
+    private val sessions = mutableMapOf<JobKey, Session>()
+
+    @SuppressLint("NewApi")
+    private fun key(params: JobParameters) = JobKey(
+        if (Build.VERSION.SDK_INT >= 34) params.jobNamespace else null,
+        params.jobId,
+    )
 
     @TargetApi(value = 34)
-    inner class Session(
-        private var params: JobParameters
+    private inner class Session(
+        private val params: JobParameters
     ) : DownloadSession {
 
         override val context get() = this@JobService
         val engine = DownloadEngine(this)
-
-        fun updateParams(params: JobParameters) {
-            this.params = params
-            engine.reattach()
-        }
+        private val key = key(params)
 
         override fun attachNotification(id: Int, builder: Notification.Builder) {
             setNotification(params, id, builder.build(), JOB_END_NOTIFICATION_POLICY_REMOVE)
         }
 
         override fun onDownloadComplete() {
-            jobFinished(params, false)
+            android.os.Handler(mainLooper).post {
+                if (sessions[key] === this && engine.isIdle) {
+                    sessions.remove(key)
+                    jobFinished(params, false)
+                }
+            }
         }
     }
 
     @SuppressLint("NewApi")
     override fun onStartJob(params: JobParameters): Boolean {
-        return when (params.jobId) {
-            Const.ID.DOWNLOAD_JOB_ID -> downloadFile(params)
-            else -> false
-        }
+        return downloadFile(params)
     }
 
-    override fun onStopJob(params: JobParameters?) = false
+    override fun onStopJob(params: JobParameters?): Boolean {
+        params?.let { sessions.remove(key(it))?.engine?.cancel() }
+        return false
+    }
+
+    override fun onDestroy() {
+        sessions.values.forEach { it.engine.cancel() }
+        sessions.clear()
+        super.onDestroy()
+    }
 
     @TargetApi(value = 34)
     private fun downloadFile(params: JobParameters): Boolean {
@@ -52,11 +67,9 @@ class JobService : BaseJobService() {
             .getParcelable(DownloadEngine.SUBJECT_KEY, Subject::class.java) ?:
             return false
 
-        val session = mSession?.also {
-            it.updateParams(params)
-        } ?: run {
-            Session(params).also { mSession = it }
-        }
+        val key = key(params)
+        sessions.remove(key)?.engine?.cancel()
+        val session = Session(params).also { sessions[key] = it }
 
         session.engine.download(subject)
         return true

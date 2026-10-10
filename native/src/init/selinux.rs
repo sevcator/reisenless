@@ -24,28 +24,12 @@ const SELINUX_REQPROT: &Utf8CStr = cstr!(concatcp!(SELINUX_MNT, "/checkreqprot")
 
 enum SePatchStrategy {
 
-
-
-
     LdPreload,
-
-
 
     SelinuxFs,
 
-
-
-
     Legacy,
 }
-
-
-
-
-
-
-
-
 
 fn mock_fifo(target: &Utf8CStr, mock: &Utf8CStr) -> LoggedResult<()> {
     debug!("Hijack [{}]", target);
@@ -76,12 +60,10 @@ impl MagiskInit {
         sepol.load_rules(rules);
         sepol.to_file(SELINUX_LOAD);
 
-
         cstr!("/init")
             .follow_link()
             .set_secontext(cstr!("u:object_r:init_exec:s0"))
             .ok();
-
 
         self.restore_overlay_contexts();
     }
@@ -98,8 +80,6 @@ impl MagiskInit {
                 .open(OFlag::O_RDONLY)?
                 .read_to_string(&mut rules)?;
         }
-
-
 
         let strat: SePatchStrategy;
 
@@ -123,8 +103,6 @@ impl MagiskInit {
             }
         }
 
-
-
         match strat {
             SePatchStrategy::LdPreload => {
                 info!("SePatchStrategy: LD_PRELOAD");
@@ -140,13 +118,9 @@ impl MagiskInit {
 
                 if !SELINUX_ENFORCE.exists() {
 
-
-
                     cstr!("/proc").remount_with_data(cstr!("hidepid=2,gid=3009"))?;
 
-
                     self.mount_list.retain(|s| s != "/proc" && s != "/sys");
-
 
                     unsafe {
                         libc::mount(
@@ -171,20 +145,14 @@ impl MagiskInit {
                     drop(policy_ver.create(OFlag::O_RDONLY, 0o666)?);
                 }
 
-
-
-
                 mock_fifo(policy_ver, MOCK_VERSION)?;
             }
         }
-
 
         let pid = unsafe { libc::fork() };
         if pid != 0 {
             return Ok(());
         }
-
-
 
         let wait = Duration::from_millis(100);
 
@@ -195,28 +163,14 @@ impl MagiskInit {
                 sleep(wait);
             }
 
-
-
-
-
-
-
-
-
             mock_file(SELINUX_LOAD, MOCK_LOAD)?;
             mock_fifo(SELINUX_REQPROT, MOCK_REQPROT)?;
-
 
             drop(MOCK_VERSION.open(OFlag::O_WRONLY)?);
 
             policy_ver.unmount()?;
 
-
-
-
         }
-
-
 
         match strat {
             SePatchStrategy::LdPreload => {
@@ -225,10 +179,8 @@ impl MagiskInit {
 
                 let mut sepol = SePolicy::from_file(preload_policy());
 
-                // Keep a copy of the original policy for future use
                 preload_policy().copy_to(MOCK_LOAD)?;
 
-                // Remove the files before loading the policy
                 preload_policy().remove()?;
                 preload_ack().remove()?;
 
@@ -238,7 +190,6 @@ impl MagiskInit {
 
                 self.restore_overlay_contexts();
 
-
                 ack_fd.write_all("0".as_bytes())?;
             }
             SePatchStrategy::SelinuxFs => {
@@ -246,7 +197,6 @@ impl MagiskInit {
                 let mut mock_enforce = MOCK_ENFORCE.open(OFlag::O_WRONLY)?;
 
                 self.cleanup_and_load(&rules);
-
 
                 let mut data = vec![];
                 SELINUX_ENFORCE
@@ -269,8 +219,6 @@ impl MagiskInit {
 
                 self.cleanup_and_load(&rules);
 
-
-
                 SELINUX_REQPROT
                     .open(OFlag::O_WRONLY)?
                     .write_all("0".as_bytes())?;
@@ -278,10 +226,6 @@ impl MagiskInit {
                 MOCK_REQPROT.open(OFlag::O_RDONLY)?.read_to_end(&mut v)?;
             }
         }
-
-
-
-
 
         std::process::exit(0);
     }

@@ -23,8 +23,7 @@ class ShellInit : Shell.Initializer() {
             ).absolutePath
 
             if (shell.isRoot) {
-                // Keep the app-to-script variable neutral: DEX branding is not
-                // applied to the scripts' canonical module environment names.
+
                 add("export ROOT_TMP=\$(${Const.MAIN_BIN} --path)")
 
                 Info.noDataExec = !shell.newJob()
@@ -43,8 +42,7 @@ class ShellInit : Shell.Initializer() {
                     "fi"
                 )
             } else {
-                // BusyBox dispatches on argv[0]; a randomized .so filename is
-                // not an applet. Preserve its internal dispatcher name.
+
                 add("exec -a busybox '$localBB' sh")
             }
 
@@ -55,8 +53,6 @@ class ShellInit : Shell.Initializer() {
         }.exec()
 
         Info.init(shell)
-
-
 
         if (shell.isRoot) {
             Udonge.syncState(context, shell)

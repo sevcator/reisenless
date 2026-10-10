@@ -24,16 +24,9 @@ fn is_application_uid(uid: i32) -> bool {
     uid.rem_euclid(100_000) >= 10_000
 }
 
-/// Returns whether Udonge is eligible to enter a denylisted process.
-///
-/// This policy deliberately lives in the Udonge source tree. Reisenless only
-/// consumes the boolean at its built-in-module transport boundary.
-pub fn should_load(uid: i32, process: &str) -> bool {
+#[doc = " Returns whether Udonge is eligible to enter a denylisted process."]#[doc = ""]#[doc = " This policy deliberately lives in the Udonge source tree. Reisenless only"]#[doc = " consumes the boolean at its built-in-module transport boundary."]pub fn should_load(uid: i32, process: &str) -> bool {
     let package = base_package(process);
-    // Manager hiding is mandatory, so every ordinary application UID needs
-    // the tiny built-in filter. This avoids reading hideapps.conf during every
-    // app specialization. The manager is excluded by ProcessIsMagiskApp and
-    // Udonge binds policy to Android's system-provided app data directory.
+
     if is_application_uid(uid) {
         return true;
     }

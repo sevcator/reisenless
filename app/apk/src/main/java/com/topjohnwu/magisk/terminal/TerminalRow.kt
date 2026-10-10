@@ -2,61 +2,26 @@ package com.topjohnwu.magisk.terminal
 
 import java.util.Arrays
 
-
-
-
-
-
 class TerminalRow(private val columns: Int, style: Long) {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     companion object {
         private const val SPARE_CAPACITY_FACTOR = 1.5f
         private const val MAX_COMBINING_CHARACTERS_PER_COLUMN = 15
     }
 
-
     var text: CharArray = CharArray((SPARE_CAPACITY_FACTOR * columns).toInt())
-
 
     private var _spaceUsed: Short = 0
 
-
     var lineWrap: Boolean = false
 
-
     val styles: LongArray = LongArray(columns)
-
 
     var hasNonOneWidthOrSurrogateChars: Boolean = false
 
     init {
         clear(style)
     }
-
 
     fun copyInterval(line: TerminalRow, sourceX1: Int, sourceX2: Int, destinationX: Int) {
         hasNonOneWidthOrSurrogateChars = hasNonOneWidthOrSurrogateChars or line.hasNonOneWidthOrSurrogateChars
@@ -120,7 +85,6 @@ class TerminalRow(private val columns: Int, style: Long) {
             return col
         }
 
-    /** Note that the column may end of second half of wide character. */
     fun findStartOfColumn(column: Int): Int {
         if (column == columns) return spaceUsed
 
@@ -180,7 +144,6 @@ class TerminalRow(private val columns: Int, style: Long) {
         hasNonOneWidthOrSurrogateChars = false
     }
 
-
     fun setChar(columnToSet: Int, codePoint: Int, style: Long) {
         if (columnToSet < 0 || columnToSet >= styles.size)
             throw IllegalArgumentException("TerminalRow.setChar(): columnToSet=$columnToSet, codePoint=$codePoint, style=$style")
@@ -188,7 +151,6 @@ class TerminalRow(private val columns: Int, style: Long) {
         styles[columnToSet] = style
 
         val newCodePointDisplayWidth = WcWidth.width(codePoint)
-
 
         if (!hasNonOneWidthOrSurrogateChars) {
             if (codePoint >= Character.MIN_SUPPLEMENTARY_CODE_POINT || newCodePointDisplayWidth != 1) {

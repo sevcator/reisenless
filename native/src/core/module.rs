@@ -671,19 +671,36 @@ fn for_each_module(mut func: impl FnMut(&DirEntry) -> LoggedResult<()>) -> Logge
     Ok(())
 }
 
-fn has_external_module_work() -> bool {
+fn has_external_module_work(zygisk_enabled: bool) -> bool {
     if cstr!(MODULEUPGRADE).exists() {
         return true;
     }
     let Ok(mut root) = Directory::open(cstr!(MODULEROOT)) else {
         return false;
     };
-    while let Ok(Some(entry)) = root.read() {
-        if entry.is_dir() && entry.name() != ".core" {
+    loop {
+        let entry = match root.read() {
+            Ok(Some(entry)) => entry,
+            Ok(None) => return false,
+            Err(_) => return true,
+        };
+        if !entry.is_dir() || entry.name() == ".core" {
+            continue;
+        }
+        let Ok(dir) = entry.open_as_dir() else {
+            return true;
+        };
+        if dir.contains_path(cstr!("remove")) || dir.contains_path(cstr!("update")) {
             return true;
         }
+        if dir.contains_path(cstr!("disable")) {
+            continue;
+        }
+        if !zygisk_enabled && dir.contains_path(cstr!("zygisk")) {
+            continue;
+        }
+        return true;
     }
-    false
 }
 
 pub fn disable_modules() {
@@ -875,7 +892,7 @@ impl MagiskD {
     pub fn handle_modules(&self) {
         let zygisk = self.zygisk_enabled.load(Ordering::Acquire);
         let inject_builtins = self.zygote_injection_enabled.load(Ordering::Acquire);
-        if !has_external_module_work() {
+        if !has_external_module_work(zygisk) {
             let mut modules = Vec::new();
             let needs_core_mount = inject_builtins
                 || get_magisk_tmp() != "/sbin"

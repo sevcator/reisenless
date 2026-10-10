@@ -68,7 +68,6 @@ wait_emu() {
   timeout $boot_timeout bash -c wait_for_boot &
   local wait_pid=$!
 
-
   wait -p which_pid -n $emu_pid $wait_pid
   [ $which_pid -eq $wait_pid ]
 }
@@ -79,7 +78,7 @@ dump_vars() {
     eval val=\$$name
     echo $name=\"$val\"\;
   done
-  # Always export AVD_TEST_LOG
+
   echo export AVD_TEST_LOG=\"$AVD_TEST_LOG\";
 }
 
@@ -121,7 +120,7 @@ resolve_vars() {
         exit 1
         ;;
       : )
-        # Missing a required argument is fine as we perform validations later
+
         ;;
     esac
   done
@@ -131,7 +130,6 @@ resolve_vars() {
     exit 1
   fi
 
-  # Determine default arch
   if [ -z "$arch" ]; then
     case $(uname -m) in
       'arm64'|'aarch64')
@@ -143,7 +141,6 @@ resolve_vars() {
     esac
   fi
 
-  # Determine API level
   local api
   case $ver in
     +([0-9])?(\.+([0-9]))*) api="${ver%%[^0-9.]*}";;
@@ -178,7 +175,6 @@ resolve_vars() {
 
   emu_args="$emu_args_base -memory $memory"
 
-  # System image variable and paths
   local avd_pkg="system-images/android-$ver/$type/$arch"
   local ramdisk="$ANDROID_HOME/$avd_pkg/ramdisk.img"
 
@@ -295,17 +291,15 @@ dl_main() {
 live_test_main() {
   local apks=($(print_apks "$@"))
   for apk in "${apks[@]}"; do
-    # Cleanup
+
     adb shell pm uninstall com.topjohnwu.magisk || true
     adb shell /system/xbin/su 0 rm -rf /data/adb/modules
 
-    # "Install" Magisk
     ./build.py -v emulator $apk
     wait_for_boot
 
     run_setup $apk
 
-    # Trigger Magisk soft reboot
     ./build.py -v emulator $apk
     wait_for_boot
 

@@ -30,8 +30,8 @@ class SettingsViewModel : BaseViewModel() {
     private val _udongeEnabled = MutableStateFlow(Config.udongeEnabled)
     val udongeEnabled: StateFlow<Boolean> = _udongeEnabled.asStateFlow()
 
-    private val _eirinEnabled = MutableStateFlow(Config.udongeBackgroundUpdates)
-    val eirinEnabled: StateFlow<Boolean> = _eirinEnabled.asStateFlow()
+    private val _udongeRehealMode = MutableStateFlow(Config.udongeRehealMode)
+    val udongeRehealMode: StateFlow<Int> = _udongeRehealMode.asStateFlow()
 
     val zygiskMismatch get() = Config.zygisk != Info.isZygiskEnabled
 
@@ -62,7 +62,7 @@ class SettingsViewModel : BaseViewModel() {
             }
             if (success) {
                 _udongeEnabled.value = enabled
-                if (!enabled) _eirinEnabled.value = false
+                if (!enabled) _udongeRehealMode.value = Config.Value.REHEAL_BOOT_ONLY
             } else {
                 _udongeEnabled.value = Config.udongeEnabled
                 showSnackbar(R.string.failure)
@@ -70,15 +70,15 @@ class SettingsViewModel : BaseViewModel() {
         }
     }
 
-    fun toggleEirin(enabled: Boolean) {
+    fun setUdongeRehealMode(mode: Int) {
         viewModelScope.launch {
             val success = withContext(Dispatchers.IO) {
-                Udonge.setBackgroundUpdates(enabled)
+                Udonge.setRehealMode(mode)
             }
             if (success) {
-                _eirinEnabled.value = enabled
+                _udongeRehealMode.value = mode
             } else {
-                _eirinEnabled.value = Config.udongeBackgroundUpdates
+                _udongeRehealMode.value = Config.udongeRehealMode
                 showSnackbar(R.string.failure)
             }
         }

@@ -1,22 +1,18 @@
 #!/system/bin/sh
-#
-# Reisenless Udonge Keybox Checker & Healing Engine
-# Validates keybox XML schema, extracts certificate serials,
-# verifies against Google Attestation CRL / offline blacklist,
-# and heals compromised keyboxes automatically.
-#
 
 umask 077
 
 find_root() {
-    # 1. If called from within runtime or root
+
     local parent
     parent="$(cd "$(dirname "$0")/.." && pwd 2>/dev/null)"
-    if [ -d "$parent/state" ] && [ -f "$parent/state/keybox.xml" ]; then
+
+    if [ -f "$parent/runtime/service.sh" ] ||
+       { [ -d "$parent/state" ] && [ -f "$parent/state/keybox.xml" ]; }; then
         printf '%s' "$parent"
         return 0
     fi
-    # 2. Check running TEESimulator / supervisor cwd
+
     local p cwd
     for p in $(pidof TEESimulator supervisor 2>/dev/null); do
         cwd="$(readlink "/proc/$p/cwd" 2>/dev/null)"
@@ -27,7 +23,7 @@ find_root() {
                 ;;
         esac
     done
-    # 3. Check nested directories (both visible and hidden)
+
     local base sub
     for base in /data/.* /data/*; do
         [ -d "$base" ] || continue
@@ -64,8 +60,10 @@ root="$(find_root)"
 runtime="$root/runtime"
 state="$root/state"
 tee_state="$state"
-work="$root/keybox-heal-work"
+work="$root/keybox-heal-work.$$"
 crl_cache="$state/.crl_status.json"
+boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
+. "$runtime/worker.sh" || exit 1
 
 log() {
     printf '[KeyboxHeal] %s\n' "$*"
@@ -75,8 +73,76 @@ log_err() {
     printf '[KeyboxHeal:ERROR] %s\n' "$*" >&2
 }
 
-# Offline blacklist of known compromised / revoked keybox certificate serials
-# (lowercase hex without leading zeros, and decimal)
+candidate_urls() {
+    awk '/^https?:\/\// && !seen[$0]++ { print; if (++count == 16) exit }' "$1"
+}
+
+fetch_candidate() {
+    local url destination cache key raw headers temp code etag status
+    url="$1"
+    destination="$2"
+    cache="$state/.candidate-cache"
+    key="$(printf '%s' "$url" | sha256sum | awk '{print $1}')"
+    [ -n "$key" ] || return 1
+    mkdir -p "$cache" "$work"
+    raw="$cache/$key.raw"
+    headers="$work/$key.headers"
+    temp="$work/$key.download"
+    set -- -sSL --connect-timeout 8 -m 15 --max-filesize 1048576
+    if [ -s "$raw" ]; then
+        set -- "$@" -z "$raw"
+        etag="$(cat "$cache/$key.etag" 2>/dev/null)"
+        [ -z "$etag" ] || set -- "$@" -H "If-None-Match: $etag"
+    fi
+    code="$(curl "$@" -D "$headers" -o "$temp" -w '%{http_code}' "$url" 2>/dev/null)"
+    status=$?
+    [ "$status" -eq 0 ] || code=000
+    case "$code" in
+        200)
+            if [ -s "$temp" ]; then
+                mv -f "$temp" "$raw"
+                etag="$(sed -n 's/^[Ee][Tt][Aa][Gg]:[[:space:]]*//p' "$headers" 2>/dev/null | tr -d '\r' | tail -n 1)"
+                printf '%s' "$etag" > "$cache/$key.etag"
+            fi
+            ;;
+        304) ;;
+        *) rm -f "$temp" ;;
+    esac
+    rm -f "$temp" "$headers"
+    [ -s "$raw" ] && cp -f "$raw" "$destination"
+}
+
+verification_cache_hit() {
+    local hash recorded context verdict now age lifetime
+    hash="$1"
+    if [ -z "${verification_context:-}" ]; then
+        verification_context="$(
+            { sha256sum "$state/pif.conf" "$state/props.conf" "$runtime/payload.id" 2>/dev/null;
+              dumpsys package gr.nikolasspyr.integritycheck 2>/dev/null | grep 'versionCode='; } |
+                sha256sum | awk '{print $1}'
+        )"
+    fi
+    read -r recorded context verdict 2>/dev/null < "$state/.verification-cache/$hash" || return 1
+    [ "$context" = "$verification_context" ] || return 1
+    case "$recorded" in ''|*[!0-9]*) return 1 ;; esac
+    case "$verdict" in DEVICE) lifetime=86400 ;; ERROR|LAUNCH_FAIL) lifetime=1800 ;; *) return 1 ;; esac
+    now="$(date +%s)"
+    age=$((now - recorded))
+    cached_verdict="$verdict"
+    [ "$age" -ge 0 ] && [ "$age" -lt "$lifetime" ]
+}
+
+remember_verification() {
+    local hash verdict temp
+    hash="$1"
+    verdict="$2"
+    case "$verdict" in DEVICE|ERROR|LAUNCH_FAIL) ;; *) return 0 ;; esac
+    mkdir -p "$state/.verification-cache"
+    temp="$state/.verification-cache/.$hash.$$"
+    printf '%s %s %s\n' "$(date +%s)" "$verification_context" "$verdict" > "$temp"
+    mv -f "$temp" "$state/.verification-cache/$hash"
+}
+
 is_offline_blacklisted() {
     case "$1" in
         *3207438651777393527*|*03207438651777393527*|*10843619390107158798*|*14765769813626195621159*)
@@ -90,7 +156,7 @@ is_offline_blacklisted() {
 
 update_crl_cache() {
     [ -d "$state" ] || mkdir -p "$state"
-    # Update cache if older than 24 hours (86400s) or missing
+
     local now last_mod
     now=$(date +%s 2>/dev/null || echo 0)
     if [ -f "$crl_cache" ] && [ -s "$crl_cache" ]; then
@@ -99,7 +165,9 @@ update_crl_cache() {
             return 0
         fi
     fi
-    
+
+    [ "${crl_attempted:-0}" = 0 ] || return 1
+    crl_attempted=1
     if command -v curl >/dev/null 2>&1; then
         curl -sSL --connect-timeout 5 -m 10 "https://android.googleapis.com/attestation/status" -o "$crl_cache.tmp" 2>/dev/null
         if [ -s "$crl_cache.tmp" ] && grep -q '"status"' "$crl_cache.tmp" 2>/dev/null; then
@@ -112,12 +180,10 @@ update_crl_cache() {
     return 1
 }
 
-# Extract certificate serial numbers from an XML keybox file
-# Output: list of serial numbers in hex and decimal
 extract_serials() {
     local file="$1"
     [ -f "$file" ] || return 1
-    
+
     awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/ {
         if ($0 ~ /BEGIN CERTIFICATE/) { b64 = ""; next }
         if ($0 ~ /END CERTIFICATE/) {
@@ -132,9 +198,7 @@ extract_serials() {
         local hex idx b b_val num_bytes tag slen_hex slen serial clean_serial
         hex=$(printf '%s' "$b64_cert" | base64 -d 2>/dev/null | xxd -p -c 256 | tr -d '\r\n ')
         [ -n "$hex" ] || continue
-        
-        # Parse DER hex string:
-        # byte 0 (chars 1-2): 30 (SEQUENCE)
+
         idx=3
         b=$(printf '%s' "$hex" | cut -c $idx-$((idx+1)))
         b_val=$((0x$b))
@@ -144,8 +208,7 @@ extract_serials() {
         else
             idx=$((idx + 2))
         fi
-        
-        # TBSCertificate SEQUENCE (tag 30)
+
         idx=$((idx + 2))
         b=$(printf '%s' "$hex" | cut -c $idx-$((idx+1)))
         b_val=$((0x$b))
@@ -155,8 +218,7 @@ extract_serials() {
         else
             idx=$((idx + 2))
         fi
-        
-        # Optional version [0] EXPLICIT tag a0
+
         tag=$(printf '%s' "$hex" | cut -c $idx-$((idx+1)))
         if [ "$tag" = "a0" ]; then
             idx=$((idx + 2))
@@ -170,8 +232,7 @@ extract_serials() {
             fi
             tag=$(printf '%s' "$hex" | cut -c $idx-$((idx+1)))
         fi
-        
-        # SerialNumber tag (must be 02)
+
         if [ "$tag" = "02" ]; then
             idx=$((idx + 2))
             slen_hex=$(printf '%s' "$hex" | cut -c $idx-$((idx+1)))
@@ -181,60 +242,54 @@ extract_serials() {
             clean_serial=$(printf '%s' "$serial" | sed 's/^00*//')
             [ -n "$clean_serial" ] || clean_serial="0"
             printf '%s\n' "$clean_serial"
-            # Also emit decimal form so is_serial_revoked() matches decimal CRL entries.
-            # Google CRL has ~979 decimal-format entries vs ~780 hex-format.
+
             local dec_val
-            dec_val=$(printf '%d' "0x${clean_serial}" 2>/dev/null) && \
-                [ -n "$dec_val" ] && printf '%s\n' "$dec_val"
+            dec_val=$(printf '%u' "0x${clean_serial}" 2>/dev/null) && \
+                [ -n "$dec_val" ] && [ "$dec_val" != "$clean_serial" ] && printf '%s\n' "$dec_val"
         fi
     done
 }
 
-# Checks if a serial is revoked in CRL or blacklist
 is_serial_revoked() {
     local s="$1"
     [ -n "$s" ] || return 1
-    
+
     if is_offline_blacklisted "$s"; then
         return 0
     fi
-    
+
     if [ -f "$crl_cache" ] && [ -s "$crl_cache" ]; then
-        if grep -qiE "\"${s}\"[[:space:]]*:[[:space:]]*\{[^}]*\"status\"[[:space:]]*:[[:space:]]*\"REVOKED\"" "$crl_cache"; then
+        if grep -qiE "\"${s}\"[[:space:]]*:" "$crl_cache"; then
             return 0
         fi
     fi
     return 1
 }
 
-# Multi-layer de-obfuscator for nested base64, Specter cipher, MeowDump, and raw XML
 unwrap_payload() {
     local src="$1" dst="$2"
     [ -f "$src" ] || return 1
-    
+
     mkdir -p "$work"
     local cur="$work/unw_cur.$$" nxt="$work/unw_nxt.$$"
     cp -f "$src" "$cur"
-    
+
     local iter=0
     while [ "$iter" -lt 15 ]; do
         iter=$((iter + 1))
-        
-        # 1. Direct XML match
+
         if grep -q '<AndroidAttestation' "$cur" 2>/dev/null || grep -q '<Keybox' "$cur" 2>/dev/null; then
             cp -f "$cur" "$dst"
             rm -f "$cur" "$nxt"
             return 0
         fi
-        
-        # 2. Check for ROT13 XML
+
         if tr 'A-Za-z' 'N-ZA-Mn-za-m' < "$cur" 2>/dev/null | grep -q '<AndroidAttestation' 2>/dev/null; then
             tr 'A-Za-z' 'N-ZA-Mn-za-m' < "$cur" > "$dst" 2>/dev/null
             rm -f "$cur" "$nxt"
             return 0
         fi
-        
-        # 3. Try Hex decode
+
         if command -v xxd >/dev/null 2>&1; then
             if xxd -r -p "$cur" > "$nxt" 2>/dev/null && [ -s "$nxt" ] && [ "$(wc -c < "$nxt" 2>/dev/null || echo 0)" -ge 80 ]; then
                 if grep -q '<AndroidAttestation' "$nxt" 2>/dev/null || grep -q '<Keybox' "$nxt" 2>/dev/null; then
@@ -247,8 +302,7 @@ unwrap_payload() {
             fi
             rm -f "$nxt"
         fi
-        
-        # 4. Try standard Base64 decode
+
         if (tr -d '\r\n ' < "$cur" | base64 -d > "$nxt" 2>/dev/null || base64 -d "$cur" > "$nxt" 2>/dev/null) && [ -s "$nxt" ]; then
             if grep -q '<AndroidAttestation' "$nxt" 2>/dev/null || grep -q '<Keybox' "$nxt" 2>/dev/null; then
                 cp -f "$nxt" "$dst"
@@ -259,8 +313,7 @@ unwrap_payload() {
             continue
         fi
         rm -f "$nxt"
-        
-        # 5. Try Specter substitution cipher
+
         if tr '1dgWnocayqxU3r6vA5lCIPYfHmkV08b4tz+KMsp2NQ9LRXihODwSj7BEFJ/ZuGTe' \
               'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/' < "$cur" 2>/dev/null | \
               tr -d '\r\n ' | base64 -d > "$nxt" 2>/dev/null && [ -s "$nxt" ]; then
@@ -273,52 +326,44 @@ unwrap_payload() {
             continue
         fi
         rm -f "$nxt"
-        
+
         break
     done
-    
+
     rm -f "$cur" "$nxt"
     return 1
 }
 
-# Sanitize XML keybox content (supports raw XML, nested Base64, Specter, MeowDump)
 sanitize_keybox() {
     local src="$1" dst="$2"
     [ -f "$src" ] || return 1
     mkdir -p "$work"
     local raw_unwrapped="$work/san_raw.$$"
-    
+
     if ! unwrap_payload "$src" "$raw_unwrapped"; then
         cp -f "$src" "$raw_unwrapped"
     fi
-    
-    # Remove XML declaration and comments/directives, normalize variant tags, normalize CRLF to LF
+
     sed -e '/^[[:space:]]*<[?]xml[^>]*[?]>[[:space:]]*$/d' \
         -e 's/<Private>/<PrivateKey format="pem">/g' \
         -e 's/<\/Private>/<\/PrivateKey>/g' \
         -e 's/<Certificate>/<Certificate format="pem">/g' "$raw_unwrapped" | \
         tr -d '\r' > "$dst" 2>/dev/null || { rm -f "$raw_unwrapped"; return 1; }
     rm -f "$raw_unwrapped"
-    
+
     if grep -Fq '<!' "$dst" 2>/dev/null || grep -Fq '<?' "$dst" 2>/dev/null; then
         return 1
     fi
     return 0
 }
 
-# Validate keybox file:
-# Returns:
-#   0: VALID (clean schema, valid keys, unrevoked certs)
-#   1: REVOKED (one or more certificate serials in CRL)
-#   2: CORRUPTED / INVALID SCHEMA
 check_keybox() {
     local file="$1"
     if [ ! -f "$file" ] || [ ! -s "$file" ]; then
         log_err "Keybox file does not exist or is empty: $file"
         return 2
     fi
-    
-    # 1. Structural checks
+
     if ! grep -q '<AndroidAttestation>' "$file" || \
        ! grep -q '<NumberOfKeyboxes>' "$file" || \
        ! grep -q '<Keybox' "$file" || \
@@ -330,27 +375,21 @@ check_keybox() {
         return 2
     fi
 
-    # 1b. Reject AOSP/Mock test cert chains — they never pass Strong Integrity.
-    # Google's Play Integrity validation requires the root CA to be a real hardware
-    # attestation CA, not an AOSP test or synthetic mock root.
-    if grep -qE '(Mock Google RKP|Mock RKP KeyMint|AOSP Software Attestation|CN=Mock)' "$file" 2>/dev/null; then
+    if grep -qiE '(Mock Google RKP|Mock RKP KeyMint|MOCK_RKP|MOCK|AOSP Software Attestation|CN=Mock)' "$file" 2>/dev/null; then
         log_err "Keybox $file uses AOSP/Mock test cert chain — cannot pass Strong Integrity."
         return 1
     fi
 
-    # 1c. Fast expiration check on leaf cert (most-common failure after 2026-09-28 mass expiry).
-    # Avoids wasting a Play Integrity API call on obviously expired certs.
     local today_ymd
     today_ymd=$(date +%Y%m%d 2>/dev/null || echo 20261001)
     local leaf_score
     leaf_score=$(score_keybox "$file")
-    # score_keybox returns 0 when expired (see score_keybox implementation)
+
     if [ "${leaf_score:-1}" -eq 0 ] 2>/dev/null; then
         log_err "Keybox $file leaf certificate is expired — rejecting."
         return 1
     fi
 
-    # 2. Check for revoked certificates
     update_crl_cache 2>/dev/null || true
     local serials count=0 revoked=0
     serials=$(extract_serials "$file")
@@ -358,7 +397,7 @@ check_keybox() {
         log_err "Could not extract certificate serials from: $file"
         return 2
     fi
-    
+
     for s in $serials; do
         count=$((count + 1))
         if is_serial_revoked "$s"; then
@@ -366,17 +405,16 @@ check_keybox() {
             revoked=$((revoked + 1))
         fi
     done
-    
+
     if [ "$revoked" -gt 0 ]; then
         log_err "Keybox $file contains $revoked revoked certificate(s)!"
         return 1
     fi
-    
+
     log "Keybox $file is VALID: $count certificate(s), 0 revoked."
     return 0
 }
 
-# Flush GMS and Play Integrity attestation caches
 flush_gms_cache() {
     log "Flushing GMS and Play Integrity attestation caches..."
     am force-stop com.google.android.gms 2>/dev/null || true
@@ -388,38 +426,53 @@ flush_gms_cache() {
     find /data/data/com.google.android.gms/databases -name 'dg.db*' -delete 2>/dev/null || true
 }
 
-# Reload TEESimulator process cleanly
 reload_tee() {
     log "Reloading TEESimulator..."
-    local child sup
-    for child in $(pidof TEESimulator 2>/dev/null); do
-        kill -9 "$child" 2>/dev/null || true
-    done
-    for sup in $(pidof supervisor 2>/dev/null); do
-        kill -9 "$sup" 2>/dev/null || true
-    done
-    
-    # Wait for processes to exit
+    local child sup start tee_run args
+    tee_run="$root/tee-runtime"
+    sup="$(cat "$tee_run/.pid" 2>/dev/null)"
+    start="$(cat "$tee_run/.pid-start" 2>/dev/null)"
+    if ! worker_is_current "$sup" "$start" "$(cat "$tee_run/.pid-boot" 2>/dev/null)"; then
+        sup=""
+        for child in $(pidof supervisor 2>/dev/null); do
+            [ "$(readlink "/proc/$child/cwd" 2>/dev/null)" = "$tee_run" ] || continue
+            args="$(tr '\000' ' ' < "/proc/$child/cmdline" 2>/dev/null)"
+            case "$args" in *"./daemon $tee_run"*) sup="$child"; break ;; esac
+        done
+        start="$(worker_process_start "$sup")"
+    fi
+    if worker_is_current "$sup" "$start" "$boot_id"; then
+        args="$(tr '\000' ' ' < "/proc/$sup/cmdline" 2>/dev/null)"
+        case "$args" in *"./daemon $tee_run"*) worker_stop_tree "$sup" "$start" ;; esac
+    fi
+
     sleep 1
-    
-    # Relaunch supervisor/daemon directly from tee-runtime if available
-    local tee_run="$root/tee-runtime"
+
     if [ -x "$tee_run/supervisor" ] && [ -x "$tee_run/daemon" ]; then
-        (cd "$tee_run" && exec ./supervisor ./daemon "$tee_run" </dev/null >/dev/null 2>&1) &
+
+        (
+            (cd "$tee_run" && exec ./supervisor ./daemon "$tee_run" </dev/null >/dev/null 2>&1) &
+            sup=$!
+            printf '%s\n' "$sup" > "$tee_run/.pid"
+            worker_process_start "$sup" > "$tee_run/.pid-start"
+            printf '%s\n' "$boot_id" > "$tee_run/.pid-boot"
+        )
+        sup="$(cat "$tee_run/.pid" 2>/dev/null)"
     elif [ -x "$runtime/service.sh" ]; then
-        rm -rf "$root/.service-lock" 2>/dev/null || true
         "$runtime/service.sh" </dev/null >/dev/null 2>&1 &
     fi
-    
-    # Poll up to 6s for TEESimulator process to spawn
+
     local waited=0 alive=""
     while [ "$waited" -lt 6 ]; do
-        alive=$(pidof TEESimulator 2>/dev/null)
+        alive=""
+        for child in $(worker_children "$sup"); do
+            [ "$(cat "/proc/$child/comm" 2>/dev/null)" != TEESimulator ] || alive="$child"
+        done
         [ -n "$alive" ] && break
         sleep 1
         waited=$((waited + 1))
     done
-    
+
     if [ -n "$alive" ]; then
         log "TEESimulator successfully restarted (PID: $alive)."
         return 0
@@ -429,15 +482,10 @@ reload_tee() {
     fi
 }
 
-# Score a keybox by the NotBefore date of its leaf certificate.
-# Returns an integer YYYYMMDD (higher = newer cert = preferred).
-# Real hardware keys are given priority over synthetic MOCK_RKP keys.
-# Falls back to 0 if parsing fails so any valid box still wins over nothing.
 score_keybox() {
     local file="$1"
     [ -f "$file" ] || { printf '0'; return; }
 
-    # Extract the FIRST certificate's base64 from the XML
     local b64
     b64=$(awk '
         /-----BEGIN CERTIFICATE-----/ { collecting=1; buf=""; next }
@@ -446,13 +494,12 @@ score_keybox() {
     ' "$file")
     [ -n "$b64" ] || { printf '0'; return; }
 
-    # Decode to raw bytes then hex
     local hex
     hex=$(printf '%s' "$b64" | base64 -d 2>/dev/null | xxd -p -c 256 2>/dev/null | tr -d '\r\n ')
     [ -n "$hex" ] || { printf '0'; return; }
 
     local base_score=0
-    # Search for UTCTIME (tag 17, len 0d -> "170d") or GENERALIZEDTIME (tag 18, len 0f -> "180f")
+
     case "$hex" in
         *170d*)
             local prefix="${hex%%170d*}"
@@ -460,8 +507,7 @@ score_keybox() {
             local data_start=$(( pos + 4 ))
             local found_val
             found_val=$(printf '%s' "$hex" | cut -c$(( data_start + 1 ))-$(( data_start + 12 )))
-            # In ASCII hex: '0'=30, '1'=31 ... '9'=39.
-            # Digits are at even positions: 2, 4, 6, 8, 10, 12
+
             local y1 y2 m1 m2 d1 d2
             y1=$(printf '%s' "$found_val" | cut -c2)
             y2=$(printf '%s' "$found_val" | cut -c4)
@@ -500,7 +546,6 @@ score_keybox() {
             ;;
     esac
 
-    # Extract notAfter from subsequent 170d tag to detect expired certificates
     local not_after=""
     local rem="${hex#*170d}"
     case "$rem" in
@@ -528,7 +573,6 @@ score_keybox() {
             ;;
     esac
 
-    # Discard expired certificates (score = 0)
     local today
     today=$(date +%Y%m%d 2>/dev/null || echo 20261001)
     if [ -n "$not_after" ] && [ "$not_after" -lt "$today" ] 2>/dev/null; then
@@ -536,18 +580,19 @@ score_keybox() {
         return
     fi
 
-    # Real hardware keyboxes (e.g. from real manufacturers) pass Strong Integrity.
-    # Synthetic MOCK_RKP / test keyboxes fail Strong Integrity on Google servers.
-    # Penalize mock/test keys so genuine hardware keys are strongly prioritized.
+    if grep -qiE '(MOCK|AOSP Software Attestation|CN=Mock)' "$file" 2>/dev/null; then
+        printf '0'
+        return
+    fi
     local dev_id
     dev_id=$(sed -n 's/.*<Keybox DeviceID="\([^"]*\)".*/\1/p' "$file" 2>/dev/null | head -n 1)
     case "$dev_id" in
         *MOCK*|*mock*|*Test*|*test*)
-            base_score=$((base_score - 100000000))
+            printf '0'
+            return
             ;;
     esac
 
-    # Prioritize keyboxes with ECDSA (or dual ECDSA + RSA), needed by Android 15 DroidGuard
     local has_ecdsa=0 has_rsa=0
     grep -qi 'algorithm="ecdsa"' "$file" 2>/dev/null && has_ecdsa=1
     grep -qi 'algorithm="rsa"' "$file" 2>/dev/null && has_rsa=1
@@ -561,12 +606,10 @@ score_keybox() {
     printf '%s' "$base_score"
 }
 
-# Main healing logic
 heal_keybox() {
     log "Starting keybox health evaluation and selection..."
     local active="$tee_state/keybox.xml"
-    
-    # 1. Check active keybox
+
     local active_valid=0 active_score=0
     if [ -f "$active" ]; then
         if check_keybox "$active"; then
@@ -579,11 +622,11 @@ heal_keybox() {
     else
         log "Active keybox is missing. Healing required."
     fi
-    
+
     rm -rf "$work"
     mkdir -p "$work" "$tee_state"
     chmod 700 "$work" "$tee_state"
-    
+
     local healed=0
     local best_file="" best_score=0
     if [ "$active_valid" -eq 1 ]; then
@@ -591,7 +634,7 @@ heal_keybox() {
     fi
 
     local urls_file="$state/keybox_urls.conf"
-    if [ ! -s "$urls_file" ] || ! grep -q '^https://' "$urls_file" 2>/dev/null; then
+    if [ ! -s "$urls_file" ] || ! grep -Eq '^(https?://)' "$urls_file" 2>/dev/null; then
         if [ -f "$runtime/defaults/keybox_urls.conf" ]; then
             cp -f "$runtime/defaults/keybox_urls.conf" "$state/keybox_urls.conf" 2>/dev/null || true
             chmod 600 "$state/keybox_urls.conf" 2>/dev/null || true
@@ -599,12 +642,11 @@ heal_keybox() {
         fi
     fi
 
-    # 2. Download all candidates, validate each, select the one with the freshest cert
     if [ -f "$urls_file" ] && command -v curl >/dev/null 2>&1; then
         local candidate_url count=0
         while IFS= read -r candidate_url; do
             case "$candidate_url" in
-                https://*) ;;
+                http://*|https://*) ;;
                 *) continue ;;
             esac
             count=$((count + 1))
@@ -614,13 +656,13 @@ heal_keybox() {
             local raw="$work/cand_$count.raw"
             local safe="$work/cand_$count.xml"
 
-            curl -sSL --connect-timeout 8 -m 12 -o "$raw" "$candidate_url" 2>/dev/null
+            fetch_candidate "$candidate_url" "$raw" || continue
             if [ -s "$raw" ] && sanitize_keybox "$raw" "$safe"; then
                 if check_keybox "$safe"; then
                     local score
                     score=$(score_keybox "$safe")
                     log "Candidate $count validated (score=$score): $candidate_url"
-                    # Pick this candidate if it has a higher score (fresher cert)
+
                     if [ "${score:-0}" -gt "${best_score:-0}" ] 2>/dev/null; then
                         best_score="$score"
                         best_file="$safe"
@@ -632,10 +674,11 @@ heal_keybox() {
             else
                 log_err "Candidate $count download/parse failed: $candidate_url"
             fi
-        done < "$urls_file"
+        done <<EOF
+$(candidate_urls "$urls_file")
+EOF
     fi
 
-    # 3. Install the best candidate if a newer/better one was found
     if [ -n "$best_file" ] && [ -f "$best_file" ]; then
         log "Installing best keybox candidate (score=$best_score)..."
         local temp="$tee_state/.keybox.$$"
@@ -643,13 +686,15 @@ heal_keybox() {
             healed=1
         else
             log_err "Failed to install best keybox candidate."
+            rm -f "$temp"
+            rm -rf "$work"
+            return 1
         fi
     elif [ "$active_valid" -eq 1 ]; then
         log "Active keybox is already the best available (score=$active_score). Keeping it."
         healed=1
     fi
 
-    # 4. Fallback to clean built-in default if active was invalid and no remote candidate was valid
     if [ "$healed" -eq 0 ]; then
         local def="$runtime/defaults/keybox.xml"
         if [ -f "$def" ]; then
@@ -657,8 +702,12 @@ heal_keybox() {
             local safe_def="$work/default_safe.xml"
             if sanitize_keybox "$def" "$safe_def" && check_keybox "$safe_def"; then
                 local temp="$tee_state/.keybox.$$"
-                cp "$safe_def" "$temp" && chmod 600 "$temp" && mv -f "$temp" "$active"
-                healed=1
+                if cp "$safe_def" "$temp" && chmod 600 "$temp" && mv -f "$temp" "$active"; then
+                    healed=1
+                else
+                    rm -f "$temp"
+                    log_err "Failed to install built-in default keybox."
+                fi
             else
                 log_err "Built-in default keybox also failed validation!"
             fi
@@ -687,9 +736,6 @@ heal_keybox() {
         return 1
     fi
 }
-
-
-# --- Keybox Hunter & Strong Integrity Verification Engine ---
 
 is_softbanned() {
     local hash="$1"
@@ -737,28 +783,25 @@ is_known_softbanned_serial() {
 }
 
 run_play_integrity_test() {
+    verification_allowed || { printf 'DEFERRED'; return 0; }
     local dump="/data/local/tmp/pi_dump.$$.xml"
     rm -f "$dump"
-    
-    # Ensure device is awake and keyguard dismissed
-    input keyevent KEYCODE_WAKEUP 2>/dev/null || true
-    wm dismiss-keyguard 2>/dev/null || true
-    
-    # Stop existing instance and start Play Integrity check app cleanly
+
     am force-stop gr.nikolasspyr.integritycheck 2>/dev/null || true
     am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n gr.nikolasspyr.integritycheck/.MainActivity >/dev/null 2>&1 || \
         monkey -p gr.nikolasspyr.integritycheck -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
-    
+
     sleep 3
-    # Tap "CHECK" button at center coordinates (540, 1513)
+    verification_allowed || { printf 'DEFERRED'; return 0; }
+
     input tap 540 1513 >/dev/null 2>&1
-    
-    # Wait for Play Integrity network request to complete and poll JSON modal
+
     local waited=0 found=0
     while [ "$waited" -lt 14 ]; do
         sleep 2
         waited=$((waited + 2))
-        # Tap JSON code view icon in toolbar
+        verification_allowed || { rm -f "$dump"; printf 'DEFERRED'; return 0; }
+
         input tap 888 158 >/dev/null 2>&1
         sleep 1
         uiautomator dump "$dump" >/dev/null 2>&1
@@ -767,10 +810,10 @@ run_play_integrity_test() {
             break
         fi
     done
-    
+
     local verdict="ERROR"
     if [ "$found" -eq 1 ] && [ -s "$dump" ]; then
-        # Search specifically inside the JSON text (which has literal double quotes)
+
         if grep -Fq '"MEETS_STRONG_INTEGRITY"' "$dump"; then
             verdict="STRONG"
         elif grep -Fq '"MEETS_DEVICE_INTEGRITY"' "$dump"; then
@@ -779,16 +822,14 @@ run_play_integrity_test() {
             verdict="BASIC"
         fi
     elif [ "$found" -eq 0 ]; then
-        # The Play Integrity app never showed a result. Distinguish two cases:
-        # LAUNCH_FAIL = app never appeared in foreground (Android binder crash / system busy)
-        # ERROR       = app launched but network/attestation call failed
+
         local win_info
         win_info=$(dumpsys window windows 2>/dev/null | grep -c 'gr.nikolasspyr.integritycheck' 2>/dev/null || echo 0)
         if [ "${win_info:-0}" -eq 0 ] 2>/dev/null; then
-            # App window never appeared — this is a system/binder failure, not a keybox issue
+
             verdict="LAUNCH_FAIL"
         fi
-        # else: app was visible but no result appeared → genuine ERROR (network/attestation failure)
+
     fi
 
     rm -f "$dump"
@@ -799,17 +840,21 @@ run_play_integrity_test() {
 test_candidate_for_strong() {
     local cand_xml="$1" source_label="$2"
     [ -f "$cand_xml" ] || return 1
-    
+    verification_allowed || return 4
+
     local hash
     hash=$(sha256sum "$cand_xml" 2>/dev/null | awk '{print $1}')
     [ -n "$hash" ] || return 1
-    
+    if verification_cache_hit "$hash"; then
+        [ "$cached_verdict" != DEVICE ] || return 2
+        return 3
+    fi
+
     if is_softbanned "$hash"; then
         log "[Hunter] Candidate from $source_label (${hash:0:12}) previously tested and softbanned. Skipping."
         return 2
     fi
 
-    # Pre-check serials against known community softban list
     local serials s is_known_bad=0 bad_s=""
     serials=$(extract_serials "$cand_xml")
     for s in $serials; do
@@ -824,13 +869,15 @@ test_candidate_for_strong() {
         record_softban "$hash" "KNOWN_SOFTBANNED_SERIAL_$bad_s from $source_label"
         return 2
     fi
-    
+
     log "=========================================================="
     log "[Hunter] Testing candidate from: $source_label (hash: ${hash:0:12})"
-    
-    # Deploy to active keybox
-    local temp="$tee_state/.keybox.$$"
-    if cp -f "$cand_xml" "$temp" && chmod 600 "$temp" && mv -f "$temp" "$tee_state/keybox.xml"; then
+
+    local temp="$tee_state/.keybox.$$" active_hash
+    active_hash="$(sha256sum "$tee_state/keybox.xml" 2>/dev/null | awk '{print $1}')"
+    if [ "$hash" = "$active_hash" ]; then
+        :
+    elif cp -f "$cand_xml" "$temp" && chmod 600 "$temp" && mv -f "$temp" "$tee_state/keybox.xml"; then
         reload_tee
         flush_gms_cache
         sleep 2
@@ -838,12 +885,13 @@ test_candidate_for_strong() {
         log_err "[Hunter] Failed to deploy candidate: $source_label"
         return 1
     fi
-    
+
     log "[Hunter] Running on-device Play Integrity verification..."
     local verdict
     verdict=$(run_play_integrity_test)
+    remember_verification "$hash" "$verdict"
     log "[Hunter] Play Integrity Verdict: $verdict"
-    
+
     if [ "$verdict" = "STRONG" ]; then
         log "🎉🎉🎉 SUCCESS: MEETS_STRONG_INTEGRITY PASSED! 🎉🎉🎉"
         cp -f "$cand_xml" "$state/golden_keybox.xml" 2>/dev/null && chmod 600 "$state/golden_keybox.xml"
@@ -853,9 +901,7 @@ test_candidate_for_strong() {
         cmd notification post -S bigtext -t "Reisenless Keybox Hunter" "reisen_hunter" "🎉 MEETS_STRONG_INTEGRITY achieved and locked!" >/dev/null 2>&1 || true
         return 0
     elif [ "$verdict" = "DEVICE" ]; then
-        # DEVICE means the keybox is valid (not revoked/expired) but does NOT achieve STRONG.
-        # This is usually because the cert chain root isn't a Google hardware attestation CA.
-        # We do NOT permanently ban it — it stays usable for DEVICE-level integrity.
+
         log "[Hunter] Candidate achieves MEETS_DEVICE_INTEGRITY only (not STRONG). Recording but NOT banning."
         printf '%s # %s DEVICE_ONLY from %s\n' "$hash" "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo '2026-10-03')" "$source_label" \
             >> "$state/.device_only_keys.txt" 2>/dev/null || true
@@ -863,18 +909,19 @@ test_candidate_for_strong() {
         log "[Hunter] Cooling down 15s to prevent API rate limits..."
         sleep 15
         return 2
-    elif [ "$verdict" = "LAUNCH_FAIL" ]; then
-        # App launch failed due to Android binder crash / system busy — not a keybox problem.
-        # Do NOT softban. Just log and exit so the daemon retries next cycle.
+    elif [ "$verdict" = "DEFERRED" ]; then
+        return 4
+    elif [ "$verdict" = "LAUNCH_FAIL" ] || [ "$verdict" = "ERROR" ]; then
+
         log "[Hunter] Play Integrity app failed to launch (system busy or binder error). NOT banning. Will retry next cycle."
         sleep 10
         return 3
     else
-        # Genuine ERROR or BASIC: cert was rejected by Google (expired, revoked, invalid chain).
+
         log "[Hunter] Candidate failed verification ($verdict). Softbanning."
         record_softban "$hash" "FAILED_${verdict} from $source_label"
         sleep 30
-        return 3
+        return 2
     fi
 }
 
@@ -883,25 +930,28 @@ process_queue_directory() {
     [ -d "$qdir" ] || return 1
     local pdir="$qdir/processed"
     mkdir -p "$pdir" 2>/dev/null || true
-    
+
     local file
     for file in "$qdir"/*; do
         [ -f "$file" ] || continue
         case "$file" in */processed/*) continue ;; esac
-        
+
         log "[Hunter:Queue] Found candidate file: $file"
         local safe="$work/q_cand.$$.xml"
         if sanitize_keybox "$file" "$safe" && check_keybox "$safe"; then
             test_candidate_for_strong "$safe" "queue/$(basename "$file")"
             local ret=$?
-            mv -f "$file" "$pdir/" 2>/dev/null || rm -f "$file"
+            case "$ret" in
+                3|4) rm -f "$safe"; return "$ret" ;;
+            esac
+            mv -f "$file" "$pdir/" 2>/dev/null || log_err "Failed to archive queued file: $file"
             rm -f "$safe"
             if [ "$ret" -eq 0 ]; then
                 return 0
             fi
         else
             log_err "[Hunter:Queue] File failed validation: $file"
-            mv -f "$file" "$pdir/" 2>/dev/null || rm -f "$file"
+            mv -f "$file" "$pdir/" 2>/dev/null || log_err "Failed to archive queued file: $file"
             rm -f "$safe"
         fi
     done
@@ -913,7 +963,7 @@ harvest_remote_candidates() {
     [ -s "$urls_file" ] || urls_file="$runtime/defaults/keybox_urls.conf"
     [ -f "$urls_file" ] || return 1
     command -v curl >/dev/null 2>&1 || return 1
-    
+
     mkdir -p "$work"
     local url count=0
     while IFS= read -r url; do
@@ -925,8 +975,8 @@ harvest_remote_candidates() {
         log "[Hunter:Remote] Fetching candidate $count from: $url"
         local raw="$work/rem_$count.raw"
         local safe="$work/rem_$count.xml"
-        
-        curl -sSL --connect-timeout 8 -m 15 -o "$raw" "$url" 2>/dev/null
+
+        fetch_candidate "$url" "$raw" || continue
         if [ -s "$raw" ] && sanitize_keybox "$raw" "$safe"; then
             if check_keybox "$safe"; then
                 test_candidate_for_strong "$safe" "$url"
@@ -935,16 +985,21 @@ harvest_remote_candidates() {
                 if [ "$ret" -eq 0 ]; then
                     return 0
                 fi
+                [ "$ret" -ne 4 ] || return 4
             else
                 log_err "[Hunter:Remote] Candidate $count failed CRL / schema: $url"
             fi
         fi
         rm -f "$raw" "$safe"
-    done < "$urls_file"
+    done <<EOF
+$(candidate_urls "$urls_file")
+EOF
     return 1
 }
 
 hunt_keybox() {
+    crl_attempted=0
+    verification_context=
     if [ -f "$state/.strong_locked" ] && [ -f "$tee_state/keybox.xml" ]; then
         if check_keybox "$tee_state/keybox.xml" >/dev/null 2>&1; then
             log "[Hunter] MEETS_STRONG_INTEGRITY is already locked with valid keybox. No hunt needed."
@@ -954,36 +1009,52 @@ hunt_keybox() {
             rm -f "$state/.strong_locked"
         fi
     fi
-    
+
     mkdir -p "$work"
-    # 1. Process local queues
-    process_queue_directory "/sdcard/keybox_queue" && return 0
-    process_queue_directory "$state/queue" && return 0
-    
-    # 2. Process remote sources
+
+    local result
+    process_queue_directory "/sdcard/keybox_queue"
+    result=$?
+    case "$result" in 0|4) return "$result" ;; esac
+    process_queue_directory "$state/queue"
+    result=$?
+    case "$result" in 0|4) return "$result" ;; esac
+
     harvest_remote_candidates && return 0
-    
+
     rm -rf "$work"
     log "[Hunter] Hunt cycle concluded. No Strong keybox found this round."
     return 1
 }
 
 hunt_daemon() {
+    background_allowed || return 0
+    worker_acquire hunter || return 0
+    trap 'rm -rf "$work"; worker_release keybox; worker_release hunter' EXIT
+    trap 'exit 0' INT TERM
     log "[Hunter] Starting background hunting daemon..."
-    local interval=1800 # 30 minutes
+    local interval=1800
+    sleep 20
     while true; do
+        background_allowed || break
         if [ -f "$state/.strong_locked" ]; then
             log "[Hunter] MEETS_STRONG_INTEGRITY achieved and locked. Halting daemon."
             break
         fi
-        hunt_keybox
-        if [ $? -eq 0 ]; then
+        local result=1
+        if worker_acquire keybox; then
+            hunt_keybox
+            result=$?
+            worker_release keybox
+        fi
+        if [ "$result" -eq 0 ]; then
             log "[Hunter] Hunting succeeded and locked! Exiting daemon."
             break
         fi
         log "[Hunter] Sleeping ${interval}s until next hunt cycle..."
         sleep "$interval"
     done
+    worker_release hunter
 }
 
 status_keybox() {
@@ -995,13 +1066,13 @@ status_keybox() {
         printf 'Status           : MISSING\n'
         return 1
     fi
-    
+
     local dev_id algo
     dev_id=$(sed -n 's/.*<Keybox DeviceID="\([^"]*\)".*/\1/p' "$active" | head -n 1)
     algo=$(sed -n 's/.*<Key algorithm="\([^"]*\)".*/\1/p' "$active" | head -n 1)
     printf 'DeviceID         : %s\n' "${dev_id:-Unknown}"
     printf 'Algorithm        : %s\n' "${algo:-Unknown}"
-    
+
     printf 'Certificate Serials:\n'
     local serials
     serials=$(extract_serials "$active")
@@ -1012,7 +1083,7 @@ status_keybox() {
             printf '  • %s [CLEAN]\n' "$s"
         fi
     done
-    
+
     check_keybox "$active" >/dev/null 2>&1
     local ret=$?
     if [ "$ret" -eq 0 ]; then
@@ -1042,16 +1113,28 @@ case "$1" in
         check_keybox "${1:-$tee_state/keybox.xml}"
         ;;
     heal)
+        worker_acquire keybox || exit 1
+        trap 'rm -rf "$work"; worker_release keybox' EXIT
+        trap 'exit 1' INT TERM
         heal_keybox
         ;;
     hunt)
+        worker_acquire keybox || exit 1
+        trap 'rm -rf "$work"; worker_release keybox' EXIT
+        trap 'exit 1' INT TERM
         hunt_keybox
         ;;
     hunt_daemon)
         hunt_daemon
         ;;
+    stop_daemon)
+        worker_stop hunter
+        ;;
     test_strong)
         shift
+        worker_acquire keybox || exit 1
+        trap 'rm -rf "$work"; worker_release keybox' EXIT
+        trap 'exit 1' INT TERM
         test_candidate_for_strong "${1:-$tee_state/keybox.xml}" "manual"
         ;;
     test_check)

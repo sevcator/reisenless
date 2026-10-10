@@ -340,7 +340,6 @@ impl Cpio {
 
         let mut buf = cstr::buf::default();
 
-
         if let Some(dir) = out.parent_dir() {
             buf.push_str(dir);
             buf.mkdirs(0o755)?;
@@ -402,7 +401,6 @@ impl Cpio {
         let mut content = Vec::<u8>::new();
         let rdevmajor: dev_t;
         let rdevminor: dev_t;
-
 
         let mode = if attr.is_file() || attr.is_symlink() {
             rdevmajor = 0;
@@ -560,12 +558,7 @@ impl Cpio {
                 return MAGISK_PATCHED;
             }
         }
-        // Randomized builds use a generated backup marker. Older installs may
-        // have been created with a different marker that is no longer present
-        // in the current build configuration. Any hidden marker in the
-        // backup directory still identifies a Magisk-style patched ramdisk;
-        // report it as patched so the patch script can restore it before
-        // installing the current payload.
+
         if self.entries.keys().any(|name| {
             name.strip_prefix(".backup/.").is_some_and(|marker| {
                 !marker.is_empty()
@@ -645,7 +638,6 @@ impl Cpio {
                 Record(&'a String),
                 Noop,
             }
-
 
             if lhs.is_none() {
                 lhs = left_iter.next();

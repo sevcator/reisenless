@@ -36,17 +36,12 @@ object HideAppsRootClient {
         if (!result.isSuccess) return false
 
         restartPackage?.takeIf(::isPackageName)?.let { packageName ->
-            // Suppress errors — force-stop can fail for system packages or kill Udonge's shell session
+
             Shell.cmd("am force-stop --user current '$packageName' 2>/dev/null; true").exec()
         }
         return true
     }
 
-    /**
-     * Publish the private app configuration on every manager start. The default
-     * configuration hides the live (possibly randomized) manager package from
-     * every non-exempt app, so protection does not depend on opening Settings.
-     */
     fun syncCurrentConfig(): Boolean {
         return sync(
             HideAppsRepository(AppContext).config,

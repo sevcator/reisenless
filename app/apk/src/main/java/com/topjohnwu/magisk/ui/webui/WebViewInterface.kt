@@ -25,6 +25,9 @@ internal class WebViewInterface(
     private val moduleName: String,
     private val scope: CoroutineScope,
 ) {
+    private val commands = WebCommandSession()
+    @Volatile private var closed = false
+    fun close() { closed = true; commands.close() }
     @JavascriptInterface
     fun exec(command: String): String = runCommand(command).output
 
@@ -106,7 +109,7 @@ internal class WebViewInterface(
 
 
         val commandLine = timeoutSeconds?.let { "timeout $it sh -c ${shellQuote(command)}" } ?: command
-        val result = Shell.cmd(commandLine).exec()
+        val result = commands.run(commandLine) ?: return CommandResult(130, "", "")
         return CommandResult(
             code = result.code,
             output = result.out.joinToString("\n"),
@@ -123,7 +126,7 @@ internal class WebViewInterface(
                 catch (e) { console.error(e); }
             })();
         """.trimIndent()
-        webView.post { webView.evaluateJavascript(js, null) }
+        webView.post { if (!closed) webView.evaluateJavascript(js, null) }
     }
 
     private fun postSpawnCallback(callback: String, result: CommandResult) {
@@ -137,7 +140,7 @@ internal class WebViewInterface(
                 } catch (e) { console.error(e); }
             })();
         """.trimIndent()
-        webView.post { webView.evaluateJavascript(js, null) }
+        webView.post { if (!closed) webView.evaluateJavascript(js, null) }
     }
 
     private data class CommandResult(val code: Int, val output: String, val error: String)

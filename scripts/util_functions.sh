@@ -1,12 +1,5 @@
 
 
-
-
-
-
-
-
-
 : MAGISK_VERSION_STUB
 : SECURE_DIR_STUB
 : MAIN_BIN_NAME_STUB
@@ -18,31 +11,11 @@
 [ -n "$BUILD_TMPDIR" ] || BUILD_TMPDIR=/dev/tmp
 [ -n "$BACKUP_PREFIX" ] || BACKUP_PREFIX=/data/ms_backup_
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 run_busybox() (
   local binary="$1"
   shift
   exec -a busybox "$binary" "$@"
 )
-
-
-
-
 
 ui_print() {
   if $BOOTMODE; then
@@ -117,10 +90,6 @@ print_title() {
   ui_print "$bar"
 }
 
-
-
-
-
 setup_flashable() {
   ensure_bb
   $BOOTMODE && return
@@ -145,7 +114,6 @@ ensure_bb() {
     return
   fi
 
-
   local bb
   if [ -f $TMPDIR/busybox ]; then
     bb=$TMPDIR/busybox
@@ -156,7 +124,6 @@ ensure_bb() {
   fi
   chmod 755 $bb
 
-
   if [ ! -f /system/bin/sh ]; then
     umount -l /system 2>/dev/null
     mkdir -p /system/bin
@@ -164,9 +131,6 @@ ensure_bb() {
   fi
 
   export ASH_STANDALONE=1
-
-
-
 
   local cmds="$(run_busybox "$bb" sh -c "
   for arg in \$(tr '\0' '\n' < /proc/$$/cmdline); do
@@ -216,9 +180,6 @@ recovery_cleanup() {
   [ -z $OLD_LD_PRE ] || export LD_PRELOAD=$OLD_LD_PRE
   [ -z $OLD_LD_CFG ] || export LD_CONFIG_FILE=$OLD_LD_CFG
 }
-
-#######################
-#######################
 
 find_block() {
   local BLOCK DEV DEVICE DEVNAME PARTNAME UEVENT
@@ -531,9 +492,7 @@ check_data() {
   DATA_DE=false
   if grep ' /data ' /proc/mounts | grep -vq 'tmpfs'; then
     touch /data/.rw && rm /data/.rw && DATA=true
-    # A newly randomized release has no secure root yet. Create it before
-    # selecting MAGISKBIN; otherwise first install incorrectly falls back to a
-    # sibling under /data and the booted daemon looks in a different location.
+
     $DATA && mkdir -p "${SECURE_DIR}" 2>/dev/null && \
       touch "${SECURE_DIR}/.rw" && rm "${SECURE_DIR}/.rw" && DATA_DE=true
     $DATA_DE && { [ -d "${SECURE_DIR}/${DATA_DIR}" ] || mkdir -p "${SECURE_DIR}/${DATA_DIR}"; } || DATA_DE=false
@@ -596,9 +555,6 @@ copy_preinit_files() {
   done > $PREINITDIR/sepolicy.rule
 }
 
-#################
-#################
-
 set_perm() {
   chown $2:$3 $1 || return 1
   chmod $4 $1 || return 1
@@ -637,10 +593,6 @@ set_default_perm() {
   set_perm_recursive $1/system/vendor/bin 0 2000 0755 0755 u:object_r:vendor_file:s0
 }
 
-# Rewrite legacy Magisk storage paths in every text file while preserving the
-# original inode, permissions, ownership, and SELinux label. Binary files are
-# deliberately left intact because changing string lengths would corrupt most
-# executable and archive formats; they can use NVBASE/MAGISKBIN instead.
 fix_module_paths() {
   local root="$1"
   local file replacement temp failed
@@ -654,8 +606,7 @@ fix_module_paths() {
   find "$root" -type f ! -name '.module-path-fix.*' 2>/dev/null |
   while IFS= read -r file; do
     grep -Fq '/data/adb' "$file" 2>/dev/null || continue
-    # NUL bytes identify binary payloads without relying on the optional
-    # `file` utility. Rewriting them with a longer randomized path is unsafe.
+
     od -An -v -N 8192 -tx1 "$file" 2>/dev/null | grep -q ' 00' && continue
     if ! sed "s|/data/adb|$replacement|g" "$file" > "$temp" ||
        ! cat "$temp" > "$file"; then
@@ -693,8 +644,7 @@ install_module() {
   local MODDIRNAME=modules
   $BOOTMODE && MODDIRNAME=modules_update
   local MODULEROOT=${SECURE_DIR}/$MODDIRNAME
-  # Standard module variables must point at the randomized
-  # storage root so well-behaved installers do not need hard-coded paths.
+
   NVBASE=$SECURE_DIR
   export NVBASE MAGISKBIN
   MODID=$(grep_prop id $TMPDIR/module.prop)
@@ -743,8 +693,6 @@ install_module() {
     [ -f $MODPATH/customize.sh ] && . $MODPATH/customize.sh
   fi
 
-  # Install hooks can create additional scripts and configuration after the
-  # initial extraction, so perform a final complete text-file pass.
   fix_module_paths "$MODPATH"
 
   for TARGET in $REPLACE; do
@@ -781,9 +729,6 @@ install_module() {
 
   ui_print "- done"
 }
-
-##########
-##########
 
 [ -z $BOOTMODE ] && ps | grep zygote | grep -qv grep && BOOTMODE=true
 [ -z $BOOTMODE ] && ps -A 2>/dev/null | grep zygote | grep -qv grep && BOOTMODE=true

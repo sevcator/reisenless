@@ -2,7 +2,6 @@ if [ -z $ANDROID_HOME ]; then
   export ANDROID_HOME=$ANDROID_SDK_ROOT
 fi
 
-
 export ANDROID_USER_HOME="$HOME/.android"
 export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
 export ANDROID_AVD_HOME="$ANDROID_EMULATOR_HOME/avd"
@@ -29,10 +28,10 @@ print_error() {
 ensure_android_cli() {
   local sdk="$cmdline_tools/bin/sdkmanager"
   if [ ! -x "$android" ]; then
-    # Update to the latest cmdline-tools
+
     yes | "$sdk" --licenses > /dev/null 2>&1
     "$sdk" 'cmdline-tools;latest'
-    # Rename cmdline-tools if updated
+
     if [ -e "${cmdline_tools}-2" ]; then
       rm -rf "$cmdline_tools"
       mv "${cmdline_tools}-2" "$cmdline_tools"
@@ -40,8 +39,6 @@ ensure_android_cli() {
   fi
 }
 
-# $1 = TestClass#method
-# $2 = component
 am_instrument() {
   set +x
   local out=$(adb shell am instrument -w --user 0 -e class "$1" "$2")
@@ -55,7 +52,6 @@ am_instrument() {
   fi
 }
 
-
 wait_for_pm() {
   sleep 5
   adb shell pm uninstall $1 || true
@@ -65,14 +61,11 @@ run_setup() {
   local variant=$1
   adb shell 'PATH=$PATH:/debug_ramdisk ms -v'
 
-
   adb install -r -g out/app-${variant}.apk
-
 
   adb install -r -g out/test.apk
 
   local app='com.topjohnwu.magisk.test/com.topjohnwu.magisk.test.AppTestRunner'
-
 
   am_instrument '.Environment#setupEnvironment' $app
 }
@@ -80,7 +73,6 @@ run_setup() {
 run_tests() {
   local pkg='com.topjohnwu.magisk.test'
   local app="$pkg/$pkg.AppTestRunner"
-
 
   am_instrument '.MagiskAppTest,.AdditionalTest' $app
 }

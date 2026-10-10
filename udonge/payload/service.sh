@@ -5,11 +5,15 @@ root=/data/adb/udonge
 [ -d "$root" ] || root="$(cd "$(dirname "$0")/.." && pwd)"
 runtime=$root/runtime
 state=$root/state
+[ -f "$state/enabled" ] && [ ! -f "$state/disabled" ] &&
+    [ ! -f "$state/pending-reboot" ] || exit 0
 tee_state=$state
 legacy_tee_state=$root/tee-state
 lock=$root/.service-lock
 work=$root/keybox-check
 boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
+. "$runtime/worker.sh" || exit 1
+worker_clean_previous_boot
 
 process_is_current() {
     local pid expected_start expected_boot current_start
@@ -25,7 +29,7 @@ process_is_current() {
 tee_child_is_current() {
     local supervisor child name
     supervisor="$1"
-    for child in $(cat "/proc/$supervisor/task/$supervisor/children" 2>/dev/null); do
+    for child in $(worker_children "$supervisor"); do
         name="$(cat "/proc/$child/comm" 2>/dev/null)"
         [ "$name" = TEESimulator ] && return 0
     done
@@ -63,6 +67,18 @@ remember_tee_supervisor() {
 }
 
 sync_vbmeta_digest() {
+    if [ ! -f "$state/boot_hash.bin" ] || [ "$(wc -c < "$state/boot_hash.bin" 2>/dev/null)" != 32 ]; then
+        local cur_digest
+        cur_digest="$(resetprop ro.boot.vbmeta.digest 2>/dev/null || getprop ro.boot.vbmeta.digest 2>/dev/null)"
+        cur_digest="$(printf '%s' "$cur_digest" | tr -d '[:space:]')"
+        if [ "${#cur_digest}" = 64 ] && [ "$cur_digest" != "0000000000000000000000000000000000000000000000000000000000000000" ] && command -v xxd >/dev/null 2>&1; then
+            printf '%s' "$cur_digest" | xxd -r -p > "$state/boot_hash.bin" 2>/dev/null
+        fi
+        if [ ! -f "$state/boot_hash.bin" ] || [ "$(wc -c < "$state/boot_hash.bin" 2>/dev/null)" != 32 ]; then
+            head -c 32 /dev/urandom > "$state/boot_hash.bin" 2>/dev/null || true
+        fi
+        chmod 600 "$state/boot_hash.bin" 2>/dev/null || true
+    fi
     local digest temp
     [ "$(wc -c < "$state/boot_hash.bin" 2>/dev/null)" = 32 ] || return 1
     digest="$(od -An -tx1 -v "$state/boot_hash.bin" 2>/dev/null | tr -d ' \n')"
@@ -75,53 +91,20 @@ sync_vbmeta_digest() {
 }
 
 lock_wait=0
-while ! mkdir "$lock" 2>/dev/null; do
-    owner="$(cat "$lock/pid" 2>/dev/null)"
-    owner_start="$(cat "$lock/start" 2>/dev/null)"
-    owner_boot="$(cat "$lock/boot" 2>/dev/null)"
-    if process_is_current "$owner" "$owner_start" "$owner_boot"; then
-        # A scheduled refresh may set its marker after the current owner has
-        # already passed refresh_keybox. Wait, acquire the lock, and run again
-        # so JobScheduler observes completion of its own request.
-        [ "$lock_wait" -ge 420 ] && exit 1
-        sleep 1
-        lock_wait=$((lock_wait + 1))
-    else
-        rm -rf "$lock"
-    fi
+while ! worker_acquire service; do
+
+    [ "$lock_wait" -ge 420 ] && exit 1
+    sleep 1
+    lock_wait=$((lock_wait + 1))
 done
-printf '%s\n' "$$" > "$lock/pid"
-awk '{print $22}' "/proc/$$/stat" > "$lock/start" 2>/dev/null
-printf '%s\n' "$boot_id" > "$lock/boot"
 cleanup() {
-    rm -rf "$work" "$root/tee-runtime.new" "$lock"
+    rm -rf "$work" "$root/tee-runtime.new"
+    worker_release service
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 1' INT TERM
 
-ensure_usb_debugging() {
-    for i in $(seq 1 30); do
-        cfg="$(getprop persist.sys.usb.config 2>/dev/null)"
-        case "$cfg" in
-            *adb*) ;;
-            none|""|mtp) setprop persist.sys.usb.config mtp,adb 2>/dev/null ;;
-            *) setprop persist.sys.usb.config "${cfg},adb" 2>/dev/null ;;
-        esac
-        setprop persist.sys.oppo.usbactive 1 2>/dev/null
-
-        if command -v settings >/dev/null 2>&1; then
-            settings put global adb_enabled 1 2>/dev/null
-            settings put secure adb_enabled 1 2>/dev/null
-            settings put global usb_debugging_auto_disabled 0 2>/dev/null
-            settings put secure usb_turn_off_time 0 2>/dev/null
-            settings put system oppo_settings_manager_fingerprint_auto_disable_usb 0 2>/dev/null
-            settings put secure oppo_settings_manager_fingerprint_auto_disable_usb 0 2>/dev/null
-        fi
-
-        [ "$(getprop init.svc.adbd 2>/dev/null)" = "running" ] || start adbd 2>/dev/null
-        sleep 2
-    done
-}
-ensure_usb_debugging &
+[ -f "$state/disabled" ] && exit 0
 
 boot_wait=0
 
@@ -146,7 +129,6 @@ if [ -d "$legacy_tee_state" ]; then
 fi
 chmod 700 "$root" "$state"
 
-# Prevent MIUI ThemeCompatibilityLoader crash in app_process/TEESimulator
 if [ ! -f /data/system/theme_config/theme_compatibility.xml ]; then
     mkdir -p /data/system/theme_config 2>/dev/null
     touch /data/system/theme_config/theme_compatibility.xml 2>/dev/null
@@ -164,6 +146,7 @@ refresh_keybox() {
 
 start_tee() {
     local sdk abi source run next old target patch version current pid pid_start pid_boot healthy
+    local health health_start health_boot args
     sdk="$(getprop ro.build.version.sdk 2>/dev/null)"
     [ "$sdk" -ge 29 ] 2>/dev/null || return 0
     abi="$(getprop ro.product.cpu.abi 2>/dev/null)"
@@ -194,6 +177,23 @@ start_tee() {
         chmod 700 "$next/inject" "$next/supervisor" "$next/daemon"
         printf '%s\n' "$version" > "$next/.version"
         printf '%s\n' "$payload_id" > "$next/.payload_id"
+
+        health="$(cat "$run/.health-pid" 2>/dev/null)"
+        health_start="$(cat "$run/.health-start" 2>/dev/null)"
+        health_boot="$(cat "$run/.health-boot" 2>/dev/null)"
+        if worker_is_current "$health" "$health_start" "$health_boot"; then
+            args="$(tr '\000' ' ' < "/proc/$health/cmdline" 2>/dev/null)"
+            case "$args" in *"$runtime/service.sh"*) worker_stop_tree "$health" "$health_start" ;; esac
+        fi
+        healthy="$(find_tee_supervisor "$run")"
+        [ -z "$healthy" ] || remember_tee_supervisor "$run" "$healthy"
+        pid="$(cat "$run/.pid" 2>/dev/null)"
+        pid_start="$(cat "$run/.pid-start" 2>/dev/null)"
+        pid_boot="$(cat "$run/.pid-boot" 2>/dev/null)"
+        if worker_is_current "$pid" "$pid_start" "$pid_boot" &&
+            { [ "$pid" = "$healthy" ] || worker_is_persistent_tee "$pid"; }; then
+            worker_stop_tree "$pid" "$pid_start"
+        fi
         [ ! -d "$run" ] || mv "$run" "$old"
         if mv "$next" "$run"; then
             rm -rf "$old"
@@ -229,8 +229,6 @@ start_tee() {
         fi
     done
 
-    # Broken TEE handling: for devices with Keymaster <= 3 on Android 12+ or broken TEE HAL,
-    # force GENERATE mode (!) for Google Play Services and Store so hardware leaf generation is bypassed.
     local tee_broken=0
     if [ "$sdk" -ge 31 ] 2>/dev/null; then
         if [ -f "$state/tee-broken" ] || [ -f "$state/tee-unavailable" ] || \
@@ -243,36 +241,30 @@ start_tee() {
         fi
     fi
 
-    # Deduplicate and ensure '!' mode takes precedence over non-'!' entries
     temp_target="$tee_state/.target.$$"
     awk '{
         line = $0
         gsub(/[ \r\t]/, "", line)
         if (line == "" || line ~ /^#/) next
-        if (line ~ /!$/) {
-            base = substr(line, 1, length(line) - 1)
-            is_gen[base] = 1
-        } else {
-            has_plain[line] = 1
+        clean = line
+        gsub(/[!?]+$/, "", clean)
+        if (!seen[clean]++) {
+            order[count++] = clean
+            mode[clean] = (line ~ /!$/) ? "!" : ((line ~ /\?$/) ? "?" : "")
+        } else if (line ~ /!$/) {
+            mode[clean] = "!"
         }
-        order[count++] = line
     }
     END {
         for (i = 0; i < count; i++) {
-            l = order[i]
-            if (l ~ /!$/) {
-                print l
-            } else if (!is_gen[l]) {
-                print l
-            }
+            c = order[i]
+            print c mode[c]
         }
     }' "$target" > "$temp_target" 2>/dev/null && mv -f "$temp_target" "$target"
 
-    # If tee_broken (e.g. sdm845 / OnePlus with Keymaster <= 3 on Android 12+),
-    # ensure '!' is appended so hardware leaf generation is bypassed.
     if [ "$tee_broken" = 1 ]; then
-        for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation; do
-            sed -i "s/^${p}\$/${p}!/" "$target" 2>/dev/null || true
+        for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation io.github.qwq233.keyattestation; do
+            sed -i "s/^${p}[!?]*\$/${p}!/" "$target" 2>/dev/null || true
         done
     else
         sed -i 's/^com\.android\.vending!$/com.android.vending/' "$target" 2>/dev/null || true
@@ -280,26 +272,28 @@ start_tee() {
         sed -i 's/^com\.google\.android\.gsf!$/com.google.android.gsf/' "$target" 2>/dev/null || true
         sed -i 's/^gr\.nikolasspyr\.integritycheck[!?]*$/gr.nikolasspyr.integritycheck/' "$target" 2>/dev/null || true
         sed -i 's/^io\.github\.vvb2060\.keyattestation[!?]*$/io.github.vvb2060.keyattestation/' "$target" 2>/dev/null || true
+        sed -i 's/^io\.github\.qwq233\.keyattestation[!?]*$/io.github.qwq233.keyattestation/' "$target" 2>/dev/null || true
     fi
-    # Always keep com.eltavine.duckdetector clean without '!' or '?'
+
     sed -i 's/^com\.eltavine\.duckdetector[!?]*$/com.eltavine.duckdetector/' "$target" 2>/dev/null || true
 
-    # Force boot_props_mode to ensure BootStateManager does not skip Oplus-family devices (e.g. OnePlus 6)
     printf 'force\n' > "$tee_state/boot_props_mode"
     chmod 600 "$tee_state/boot_props_mode"
 
     patch="$(sed -n 's/^SECURITY_PATCH=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
     [ -n "$patch" ] || patch="$(getprop ro.build.version.security_patch 2>/dev/null)"
-    if [ -n "$patch" ]; then
-        cat > "$tee_state/security_patch.txt" <<EOF
+    if [ -z "$patch" ]; then
+        c_year=$(date +%Y 2>/dev/null || echo 2026)
+        c_month=$(date +%m 2>/dev/null || echo 09)
+        patch="${c_year}-${c_month}-05"
+    fi
+    cat > "$tee_state/security_patch.txt" <<EOF
 system=prop
 boot=$patch
 vendor=$patch
 EOF
-        chmod 600 "$tee_state/security_patch.txt"
-    fi
+    chmod 600 "$tee_state/security_patch.txt"
 
-    # Compatibility symlink for TrickyStore / YuriKey / IntegrityBox modules
     mkdir -p /data/adb 2>/dev/null
     ln -sfn "$tee_state" /data/adb/tricky_store 2>/dev/null || true
 
@@ -367,7 +361,6 @@ refresh_keybox
 start_tee
 sync_vbmeta_digest || true
 
-# AVB and verified boot state hardening (from IntegrityBox & YuriKey)
 RP="resetprop"
 if command -v resetprop >/dev/null 2>&1; then
     $RP -n ro.boot.vbmeta.device_state locked
@@ -393,6 +386,9 @@ if command -v resetprop >/dev/null 2>&1; then
     $RP -n sys.oem_unlock_allowed 0
     $RP -n ro.boot.selinux enforcing
     $RP -n ro.boot.avb_version 1.3
+    $RP -n ro.boot.vbmeta.avb_version 1.0
+    $RP -n ro.boot.vbmeta.hash_alg sha256
+    $RP -n ro.boot.vbmeta.size 4096
     $RP -n ro.is_ever_orange 0
     $RP -n ro.crypto.state encrypted
     $RP -n ro.oem_unlock_supported 0
@@ -402,7 +398,7 @@ if command -v resetprop >/dev/null 2>&1; then
     $RP -n ro.boot.bootmode unknown
     $RP -n vendor.boot.bootmode unknown
     for part in system vendor product system_ext odm; do
-        $RP -n "partition.${part}.verified" 0
+        $RP -n "partition.${part}.verified" 1
     done
     $RP -d ro.boot.verifiedbooterror 2>/dev/null || true
     $RP -d ro.boot.verifyerrorpart 2>/dev/null || true
@@ -412,7 +408,6 @@ if command -v resetprop >/dev/null 2>&1; then
         $RP -n ro.vendor.build.security_patch "$patch"
     fi
 
-    # Sync product identity from pif.conf for Device ID Attestation consistency
     if [ -f "$state/pif.conf" ]; then
         brand="$(sed -n 's/^BRAND=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
         model="$(sed -n 's/^MODEL=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
@@ -459,7 +454,6 @@ if command -v resetprop >/dev/null 2>&1; then
         [ -n "$product" ] && $RP -n ro.build.flavor "${product}-user"
     fi
 
-    # Strip custom ROM and OEM test residue properties (keep hardware platform props intact for Keymaster HAL)
     for rom_prop in ro.lineage.build.version \
                      ro.lineage.device \
                      ro.lineage.display.version \
@@ -471,15 +465,11 @@ if command -v resetprop >/dev/null 2>&1; then
         $RP -n -d "$rom_prop" 2>/dev/null || true
     done
 
-    # Clean up leftover root artifacts in /data/local/tmp that trigger DroidGuard AVC denials
-    rm -f /data/local/tmp/su /data/local/tmp/su-old-apk /data/local/tmp/*su* 2>/dev/null || true
 fi
 
-# Disable broken vendor Soter HAL service and daemon that trigger attestation anomalies on unlocked bootloaders
 stop soter-1-0 2>/dev/null || true
 setprop ctl.stop soter-1-0 2>/dev/null || true
 pm disable com.tencent.soter.soterserver >/dev/null 2>&1 || true
-
 
 version="$(cat "$runtime/version" 2>/dev/null)"
 pif_hash="$(sha256sum "$state/pif.conf" 2>/dev/null | awk '{print $1}')"
@@ -493,10 +483,6 @@ if [ -f "$state/pif.conf" ] && [ "${version}_${pif_hash}" != "$certified" ]; the
     chmod 600 "$state/.certified"
 fi
 
-# Launch Keybox Hunter background worker if Strong Integrity is not yet locked
-if [ ! -f "$state/.strong_locked" ] && [ -x "$runtime/keybox_heal.sh" ]; then
-    (
-        sleep 20
-        "$runtime/keybox_heal.sh" hunt_daemon </dev/null >/dev/null 2>&1
-    ) &
+if background_allowed && [ ! -f "$state/.strong_locked" ] && [ -x "$runtime/keybox_heal.sh" ]; then
+    "$runtime/keybox_heal.sh" hunt_daemon </dev/null >/dev/null 2>&1 &
 fi

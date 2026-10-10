@@ -2,7 +2,6 @@
 
     <string name="not_installed" tools:ignore="MissingTranslation">not installed</string>
 
-
     <string name="no_connection">no connection available</string>
     <string name="loading">loading…</string>
     <string name="update">update</string>
@@ -19,7 +18,6 @@
     <string name="root_reinstall" tools:ignore="MissingTranslation">reinstall root</string>
     <string name="uninstall_magisk_title">uninstall reisenless</string>
     <string name="uninstall_magisk_msg">all modules will be disabled/removed!\nroot will be removed!\nany internal storage unencrypted through the use of reisenless will be re-encrypted!</string>
-
 
     <string name="keep_force_encryption">preserve force encryption</string>
     <string name="keep_dm_verity">preserve avb 2.0/dm-verity</string>
@@ -42,7 +40,6 @@
     <string name="patch_file_msg">select a raw image (*.img) or an odin tarfile (*.tar) or a payload.bin (*.bin)</string>
     <string name="reboot_delay_toast">rebooting in 5 seconds…</string>
     <string name="flash_screen_title">installation</string>
-
 
     <string name="su_request_title">superuser request</string>
     <string name="touch_filtered_warning">because an app is obscuring a superuser request, reisenless can\'t verify your response.</string>
@@ -71,19 +68,16 @@
     <string name="superuser_toggle_revoke">revoke</string>
     <string name="superuser_policy_none">no apps have asked for superuser permission yet.</string>
 
-
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">target uid: %1$d</string>
     <string name="target_pid">target pid: %s</string>
     <string name="selinux_context">selinux context: %s</string>
     <string name="supp_group">supplementary group: %s</string>
 
-
     <string name="show_system_app">show system apps</string>
     <string name="show_os_app">show os apps</string>
     <string name="hide_filter_hint">filter by name</string>
     <string name="hide_search">search</string>
-
 
     <string name="no_info_provided">(no info provided)</string>
     <string name="reboot_userspace">soft reboot</string>
@@ -104,7 +98,6 @@
     <string name="confirm_install">install module %1$s?</string>
     <string name="confirm_install_title">install confirmation</string>
 
-
     <string name="settings_theme_mode" tools:ignore="MissingTranslation">theme</string>
     <string name="theme_light" tools:ignore="MissingTranslation">light</string>
     <string name="theme_dark" tools:ignore="MissingTranslation">dark</string>
@@ -112,6 +105,10 @@
     <string name="udonge" tools:ignore="MissingTranslation">udonge</string>
     <string name="udonge_background_updates_title" tools:ignore="MissingTranslation">eirin</string>
     <string name="udonge_background_updates_summary" tools:ignore="MissingTranslation">allow udonge to regularly check and restore your integrity</string>
+    <string name="udonge_reheal_title" tools:ignore="MissingTranslation">udonge reheal</string>
+    <string name="udonge_reheal_summary" tools:ignore="MissingTranslation">when udonge reheal the fingerprints to pass integrity?</string>
+    <string name="udonge_reheal_boot_only" tools:ignore="MissingTranslation">only when booted</string>
+    <string name="udonge_reheal_daily" tools:ignore="MissingTranslation">daily check</string>
     <string name="udonge_integrity_title" tools:ignore="MissingTranslation">udonge</string>
     <string name="udonge_integrity_summary" tools:ignore="MissingTranslation">make your device as sweet like jelly &gt;w&lt;</string>
     <string name="udonge_keybox_list_title" tools:ignore="MissingTranslation">keybox list</string>
@@ -180,8 +177,6 @@
     <string name="requester_summary">root sessions will inherit their requester\'s namespace</string>
     <string name="isolate_summary">each root session will have its own isolated namespace</string>
 
-
-    <!--Toasts, Dialogs-->
     <string name="yes">yes</string>
     <string name="no">no</string>
     <string name="repo_install_title" tools:ignore="MissingTranslation">install %1$s %2$s(%3$d)</string>
@@ -252,7 +247,6 @@
     <string name="webui_webview_required_summary" tools:ignore="MissingTranslation">this device does not have a usable android webview provider. install or enable android system webview, then try again.</string>
     <string name="webui_install_webview" tools:ignore="MissingTranslation">install webview</string>
 
-    <!-- Upstream application compatibility -->
     <string name="modules">modules</string>
     <string name="superuser">superuser</string>
     <string name="settings">settings</string>

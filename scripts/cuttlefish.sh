@@ -78,11 +78,10 @@ test_cf() {
 }
 
 test_main() {
-  # Launch stock cuttlefish
+
   run_cvd_bin launch_cvd $cvd_args -resume=false
   adb wait-for-device
 
-  # Patch images
   local apks=($(print_apks))
   local images=()
   for apk in "${apks[@]}"; do
@@ -95,7 +94,6 @@ test_main() {
     test_cf ${apks[i]} ${images[i]}
   done
 
-  # Cleanup
   run_cvd_bin stop_cvd || true
   rm -f magisk-*.img
 }

@@ -1,0 +1,3094 @@
+Removed first-party source comments and documentation strings.
+Each entry records its original path and line before removal.
+Executable shebangs and compiler-consumed Rust doc attributes are retained.
+External submodules, local source downloads, binary assets and Markdown documents are outside this archive.
+
+--- .gitattributes:13 (comment) ---
+# Denote all files that are truly binary and should not be modified.
+
+--- .gitignore:1 (comment) ---
+# Artifacts
+
+--- .gitignore:9 (comment) ---
+# Local device-test exports and UI hierarchy dumps
+
+--- .gitignore:34 (comment) ---
+# This local helper stages the repository and must never stage itself
+
+--- .gitignore:38 (comment) ---
+# Python cache files created by local build/test helpers
+
+--- .gitignore:42 (comment) ---
+# Local configs
+
+--- .gitignore:50 (comment) ---
+# Android Studio
+
+--- .gitignore:55 (comment) ---
+# Ignore all skills by default, as random skills may be installed
+
+--- .gitignore:58 (comment) ---
+# Keep Magisk custom skills in repository
+
+--- app/apk-legacy/build.gradle.kts:62 (comment) ---
+// Make sure kapt runs with a proper kotlin-stdlib
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/arch/AsyncLoadViewModel.kt:15 (comment) ---
+// Prevent multiple jobs from running at the same time
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/arch/ViewModelHolder.kt:23 (comment) ---
+/**
+     * Called for all [ViewEvent]s published by associated viewModel.
+     */
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/MainActivity.kt:103 (comment) ---
+// https://issuetracker.google.com/issues/124538620
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/MainActivity.kt:150 (comment) ---
+//binding.mainToolbar.startAnimations()
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/home/HomeViewModel.kt:104 (comment) ---
+/* Entry point to trigger test events within the app */
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/install/InstallViewModel.kt:71 (comment) ---
+// Launch only from a user click, not from binding/state restoration.
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/install/InstallViewModel.kt:72 (comment) ---
+// Clicking the already-selected row also lets the user replace the file.
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/install/InstallViewModel.kt:102 (comment) ---
+// A foreign build must never use this manager's direct-install helpers.
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsItems.kt:25 (comment) ---
+// --- Customization
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsItems.kt:61 (comment) ---
+// --- Magisk
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsItems.kt:90 (comment) ---
+// Filled by the guarded runtime refresh, never query the daemon on class initialization.
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsItems.kt:210 (comment) ---
+// --- Superuser
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsViewModel.kt:39 (comment) ---
+// Customization
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsViewModel.kt:45 (comment) ---
+// Magisk
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsViewModel.kt:60 (comment) ---
+// Superuser
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsViewModel.kt:67 (comment) ---
+// Re-authenticate is not feasible on 8.0+
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsViewModel.kt:71 (comment) ---
+// Can hide overlay windows on 12.0+
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/superuser/SuperuserViewModel.kt:107 (comment) ---
+// ---
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/surequest/SuRequestViewModel.kt:61 (comment) ---
+// Filter obscured touches by consuming them.
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/surequest/SuRequestViewModel.kt:110 (comment) ---
+// The request is not coming from an app process, and the UID is a
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/surequest/SuRequestViewModel.kt:111 (comment) ---
+// shared UID. We have no way to know where this request comes from.
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/surequest/SuRequestViewModel.kt:124 (comment) ---
+// Set timer
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/surequest/SuRequestViewModel.kt:127 (comment) ---
+// Actually show the UI
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/surequest/SuRequestViewModel.kt:134 (comment) ---
+// ignore the response until showDialog done
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/surequest/SuRequestViewModel.kt:145 (comment) ---
+// Kill activity after response
+
+--- app/apk-legacy/src/main/java/com/topjohnwu/magisk/ui/surequest/SuRequestViewModel.kt:186 (comment) ---
+// Invisible for accessibility services
+
+--- app/apk-legacy/src/main/res/values/attrs.xml:3 (comment) ---
+<!--region Colors-->
+
+--- app/apk/build.gradle.kts:46 (comment) ---
+// Compose
+
+--- app/apk/build.gradle.kts:57 (comment) ---
+// Navigation3
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/terminal/TerminalRow.kt:123 (comment) ---
+/** Note that the column may end of second half of wide character. */
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/MainActivity.kt:91 (comment) ---
+// Publish the manager visibility policy at every authenticated start.
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/flash/FlashViewModel.kt:55 (comment) ---
+// --- TerminalScreen mode (FLASH_ZIP) ---
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/flash/FlashViewModel.kt:65 (comment) ---
+// --- LazyColumn mode (MagiskInstaller) ---
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/flash/FlashViewModel.kt:82 (comment) ---
+// --- Shared ---
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/hideapps/HideAppsRootClient.kt:39 (comment) ---
+// Suppress errors — force-stop can fail for system packages or kill Udonge's shell session
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/hideapps/HideAppsRootClient.kt:45 (comment) ---
+/**
+     * Publish the private app configuration on every manager start. The default
+     * configuration hides the live (possibly randomized) manager package from
+     * every non-exempt app, so protection does not depend on opening Settings.
+     */
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/module/ModuleViewModel.kt:102 (comment) ---
+// Network requests must not run in StateFlow's retryable CAS lambda.
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:86 (comment) ---
+// --- Customization ---
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:128 (comment) ---
+// Color Mode
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:158 (comment) ---
+// --- Reisenless ---
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:171 (comment) ---
+// 1. Systemless Hosts (Button)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:179 (comment) ---
+// 2. Zygisk (Switch)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:192 (comment) ---
+// 4. Hide Apps (Switch)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:202 (comment) ---
+// 5. Udonge (Switch)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:211 (comment) ---
+// 6. Udonge Reheal (Dropdown)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:237 (comment) ---
+// --- Superuser ---
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:252 (comment) ---
+// Tapjack (SDK < S)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:266 (comment) ---
+// Authentication
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:284 (comment) ---
+// Multiuser Mode
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:304 (comment) ---
+// Mount Namespace Mode
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:323 (comment) ---
+// Reauthenticate (SDK < O)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/settings/SettingsScreen.kt:337 (comment) ---
+// Restrict (version >= 30.1)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/superuser/SuperuserScreen.kt:87 (comment) ---
+// Track which card is expanded (by UID); null = all collapsed
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/superuser/SuperuserScreen.kt:313 (comment) ---
+// --- Header row (tap = toggle expand)
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/superuser/SuperuserScreen.kt:367 (comment) ---
+// --- Expanded section
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/superuser/SuperuserScreen.kt:375 (comment) ---
+// Revoke button
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/RootFsPathHandler.kt:18 (comment) ---
+// URLDecoder applies form-encoding rules and turns literal '+' into a space.
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/WebCommandSession.kt:7 (comment) ---
+/** Cancels this WebUI's process groups without closing the app's shared shell. */
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/WebCommandSession.kt:38 (comment) ---
+// The shared shell may be blocked by the command being stopped.
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/WebUIActivity.kt:73 (comment) ---
+// A direct launch can precede MainActivity's shell setup.
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/WebUIActivity.kt:74 (comment) ---
+// The shell initializer populates Info.env before this check.
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/WebUiUserAgent.kt:4 (comment) ---
+// Device properties can contain CRLF remnants. Chromium validates this
+
+--- app/apk/src/main/java/com/topjohnwu/magisk/ui/webui/WebUiUserAgent.kt:5 (comment) ---
+// header in native code and aborts the process on control characters.
+
+--- app/apk/src/test/java/com/topjohnwu/magisk/ui/webui/OwnedCommandBuilderTest.kt:64 (comment) ---
+// stdin keeps quoting identical on Windows and Unix.
+
+--- app/apk/src/test/java/com/topjohnwu/magisk/ui/webui/OwnedCommandDeviceTest.kt:9 (comment) ---
+/** Opt-in integration regression against temporary processes on an ADB device. */
+
+--- app/build-logic/src/main/java/Plugin.kt:22 (comment) ---
+// Properties from config.prop and flags.prop, may be null
+
+--- app/build-logic/src/main/java/Plugin.kt:82 (comment) ---
+// Properties from gradle.properties, should always exist
+
+--- app/build-logic/src/main/java/Plugin.kt:99 (comment) ---
+// Get gradle properties relevant to Magisk
+
+--- app/build-logic/src/main/java/Plugin.kt:102 (comment) ---
+// Load config.prop
+
+--- app/build-logic/src/main/java/Setup.kt:325 (comment) ---
+// These .so entries include CLI executables launched by path.
+
+--- app/build-logic/src/main/java/Setup.kt:326 (comment) ---
+// They must be extracted by PackageManager; APK-backed library
+
+--- app/build-logic/src/main/java/Setup.kt:327 (comment) ---
+// paths can be dlopen'ed but cannot be passed to execve.
+
+--- app/build-logic/src/main/java/Stub.kt:4 (comment) ---
+/** Builds a code-free APK whose signing certificate anchors manager trust. */
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:58 (comment) ---
+// Renaming changes string/type/member ordering. Recalculating the checksum
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:59 (comment) ---
+// alone leaves an invalid DEX. Re-intern every definition and reference so
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:60 (comment) ---
+// the writer sorts all ID tables and remaps instructions and annotations.
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:166 (comment) ---
+// Data Binding layout tags must match their rewritten DEX strings.
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:178 (comment) ---
+// The user-facing product/status names are not internal identities.
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:179 (comment) ---
+// Protect only complete Android string-pool values, not substrings in
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:180 (comment) ---
+// resource keys, class names, paths, scripts, or other text.
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:181 (comment) ---
+// All product and component names are internal identities in a
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:182 (comment) ---
+// release build. Let the branding map rewrite their visible strings
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:183 (comment) ---
+// too; only the app label remains intentionally user-facing.
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:184 (comment) ---
+// Keep feature names readable in the UI while still rewriting the
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:185 (comment) ---
+// same identifiers everywhere else in the packaged application.
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:186 (comment) ---
+// Placeholders preserve the byte length required by in-place pool
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:187 (comment) ---
+// replacement and are restored after branding has been applied.
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:280 (comment) ---
+// Profiles contain DEX indexes from before the namespace rewrite.
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:289 (comment) ---
+// Request extraction in the manifest while retaining stored,
+
+--- app/build-logic/src/main/java/TransformApkTask.kt:290 (comment) ---
+// page-aligned entries in the signed release archive.
+
+--- app/core/src/main/AndroidManifest.xml:12 (comment) ---
+<!-- Superuser must enumerate installed apps, including Android's Shell package. -->
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/AppContext.kt:114 (comment) ---
+// Request callbacks can start the provider/activity directly without
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/AppContext.kt:115 (comment) ---
+// ever opening MainActivity. Create channels during application setup
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/AppContext.kt:116 (comment) ---
+// so status-bar notifications are always deliverable.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/AppContext.kt:151 (comment) ---
+// Explicit commands bypass libsu's built-in non-root fallback.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/AppContext.kt:152 (comment) ---
+// Keep a usable local shell when a different/missing daemon denies
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/AppContext.kt:153 (comment) ---
+// this manager, otherwise getShell never delivers its callback.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/base/BaseActivity.kt:26 (comment) ---
+// Make the result type explicitly non-null
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/download/DownloadTransfers.kt:5 (comment) ---
+/** Owns transfer streams across service/job shutdown and late network replies. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/su/SuRequestHandler.kt:60 (comment) ---
+// A stale or unavailable daemon must not prevent the request UI
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/su/SuRequestHandler.kt:61 (comment) ---
+// from answering the native FIFO. Start with a query policy and
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/su/SuRequestHandler.kt:62 (comment) ---
+// let the user make the decision.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/sulist/SulistController.kt:23 (comment) ---
+/** Returns null when the daemon could not report an authoritative state. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/sulist/SulistController.kt:35 (comment) ---
+/** Returns the authoritative post-command state, or null on transport failure. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/sulist/SulistController.kt:78 (comment) ---
+/**
+     * One-time upgrade migration. A fresh installation only has the manager's
+     * policy, which is deliberately skipped and therefore starts with an empty
+     * ordinary-app allowlist.
+     */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/sulist/SulistController.kt:120 (comment) ---
+// A concurrent insert is harmless; verify it before retrying
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/sulist/SulistController.kt:121 (comment) ---
+// the whole migration on the next manager start.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/InstallSession.kt:6 (comment) ---
+/** Shared by launched-APK and selected-APK operations; held through cleanup. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/InstallerArchive.kt:9 (comment) ---
+/** Reads literal build metadata, never evaluates shell assignments. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/InstallerArchive.kt:64 (comment) ---
+// The archive-variable prefix is build-specific. Normalize the one archive
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/InstallerArchive.kt:65 (comment) ---
+// declaration rather than embedding a prefix rewritten by APK branding/R8.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/MagiskInstaller.kt:154 (comment) ---
+// Modern Android denies execution of files written into
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/MagiskInstaller.kt:155 (comment) ---
+// app data. Execute the package-installed, read-only copy.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/MagiskInstaller.kt:484 (comment) ---
+// Closing/finalizing the provider stream is part of success.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/MagiskInstaller.kt:622 (comment) ---
+// Only this operation's unique staging directory, never a
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/MagiskInstaller.kt:623 (comment) ---
+// shared cache/root directory. Finish before releasing the lease.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:26 (comment) ---
+/** File-only patching in an unprivileged child, with the selected build's complete payload. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:78 (comment) ---
+// Only adapt invocation syntax, never replace payload bytes or identity values.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:79 (comment) ---
+// Android disallows executing imported static binaries from writable app data.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:80 (comment) ---
+// Use package-installed tools only after exact byte-for-byte digest comparison.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:121 (comment) ---
+// The launched APK supplies only the generic shell interpreter, not root payload/tools.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:122 (comment) ---
+// Android may preserve the ELF path as argv[0] despite `exec -a`.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:123 (comment) ---
+// BusyBox dispatches from argv[0], so execute a link whose basename
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:124 (comment) ---
+// is actually `busybox`.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/tasks/SelectedApkPatcher.kt:131 (comment) ---
+// The console's CallbackList also owns the saved log; do not append twice.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/AppCatalog.kt:24 (comment) ---
+/** Process/user-local metadata, with icons loaded separately for visible rows. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/BlockingBatch.kt:5 (comment) ---
+/** Bounded producer queue. Drain and consume run on the scheduler's thread. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/BoundedProcess.kt:13 (comment) ---
+/** One deadline covers both the child and its pipes, including inherited pipes. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/BoundedProcess.kt:43 (comment) ---
+// Propagate reader failures even if the child is still running.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/BoundedProcess.kt:65 (comment) ---
+// Android's pre-26 Process.destroy() kills the child. Newer APIs also
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/BoundedProcess.kt:66 (comment) ---
+// provide explicit forced termination. Never wait indefinitely here.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/BoundedProcess.kt:67 (comment) ---
+// A stream close can contend with a blocked read in the JVM. Do not
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/BoundedProcess.kt:68 (comment) ---
+// turn cleanup into a second unbounded wait on the calling thread.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/ManagerCli.kt:15 (comment) ---
+/** Runs privileged management requests as the signed Android manager UID. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/MediaStoreUtils.kt:23 (comment) ---
+// Providers can report storage/URI failures as runtime exceptions. Keep the
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/MediaStoreUtils.kt:24 (comment) ---
+// file API's IOException contract so callers can display a failed operation.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/MediaStoreUtils.kt:110 (comment) ---
+// Scoped storage allows Downloads/Documents, not arbitrary top-level
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/MediaStoreUtils.kt:111 (comment) ---
+// directories. Keep the neutral names inside Downloads on every API.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/ShellInit.kt:26 (comment) ---
+// Keep the app-to-script variable neutral: DEX branding is not
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/ShellInit.kt:27 (comment) ---
+// applied to the scripts' canonical module environment names.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/ShellInit.kt:46 (comment) ---
+// BusyBox dispatches on argv[0]; a randomized .so filename is
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/ShellInit.kt:47 (comment) ---
+// not an applet. Preserve its internal dispatcher name.
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/utils/SnapshotCache.kt:7 (comment) ---
+/** Coalesces loads; invalidation during a load forces a fresh snapshot. */
+
+--- app/core/src/main/java/com/topjohnwu/magisk/core/view/Notifications.kt:60 (comment) ---
+// Disabled
+
+--- app/core/src/main/res/values-ar/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-ar/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-ar/strings.xml:25 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-ar/strings.xml:43 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-ar/strings.xml:75 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-ar/strings.xml:87 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-ar/strings.xml:99 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-ar/strings.xml:119 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-ar/strings.xml:181 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-ar/strings.xml:186 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-ast/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-ast/strings.xml:11 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-ast/strings.xml:24 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-ast/strings.xml:40 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-ast/strings.xml:66 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-ast/strings.xml:73 (comment) ---
+<!--SafetyNet-->
+
+--- app/core/src/main/res/values-ast/strings.xml:74 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-ast/strings.xml:79 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-ast/strings.xml:98 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-ast/strings.xml:150 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-ast/strings.xml:154 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:2 (comment) ---
+<!--Author: Radoš Milićev (https://github.com/rammba)-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:4 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:13 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:26 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:44 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:76 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:88 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:100 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:120 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:182 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-b+sr+Latn/strings.xml:187 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-cs/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-cs/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-cs/strings.xml:25 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-cs/strings.xml:40 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-cs/strings.xml:72 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-cs/strings.xml:82 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-cs/strings.xml:94 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-cs/strings.xml:114 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-cs/strings.xml:176 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-cs/strings.xml:181 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-fa/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-fa/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-fa/strings.xml:26 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-fa/strings.xml:43 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-fa/strings.xml:71 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-fa/strings.xml:79 (comment) ---
+<!-- MagiskHide -->
+
+--- app/core/src/main/res/values-fa/strings.xml:85 (comment) ---
+<!--Module -->
+
+--- app/core/src/main/res/values-fa/strings.xml:105 (comment) ---
+<!--Settings -->
+
+--- app/core/src/main/res/values-fa/strings.xml:160 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-fa/strings.xml:165 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-hn/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-hn/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-hn/strings.xml:26 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-hn/strings.xml:43 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-hn/strings.xml:71 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-hn/strings.xml:79 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-hn/strings.xml:85 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-hn/strings.xml:105 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-hn/strings.xml:160 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-hn/strings.xml:165 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-in/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-in/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-in/strings.xml:28 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-in/strings.xml:48 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-in/strings.xml:77 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-in/strings.xml:90 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-in/strings.xml:102 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-in/strings.xml:122 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-in/strings.xml:184 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-in/strings.xml:189 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-it/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-it/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-it/strings.xml:25 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-it/strings.xml:43 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-it/strings.xml:75 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-it/strings.xml:87 (comment) ---
+<!-- MagiskHide -->
+
+--- app/core/src/main/res/values-it/strings.xml:99 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-it/strings.xml:117 (comment) ---
+<!--Settings -->
+
+--- app/core/src/main/res/values-it/strings.xml:183 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-it/strings.xml:188 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-iw/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-iw/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-iw/strings.xml:26 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-iw/strings.xml:43 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-iw/strings.xml:70 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-iw/strings.xml:78 (comment) ---
+<!--SafetyNet-->
+
+--- app/core/src/main/res/values-iw/strings.xml:80 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-iw/strings.xml:86 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-iw/strings.xml:106 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-iw/strings.xml:159 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-iw/strings.xml:164 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-ku/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-ku/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-ku/strings.xml:27 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-ku/strings.xml:44 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-ku/strings.xml:72 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-ku/strings.xml:80 (comment) ---
+<!--SafetyNet-->
+
+--- app/core/src/main/res/values-ku/strings.xml:82 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-ku/strings.xml:88 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-ku/strings.xml:108 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-ku/strings.xml:163 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-ku/strings.xml:168 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:26 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:43 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:71 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:79 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:85 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:105 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:160 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-pt-rBR/strings.xml:165 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:26 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:43 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:71 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:79 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:85 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:105 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:160 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-pt-rPT/strings.xml:165 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-sq/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-sq/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-sq/strings.xml:25 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-sq/strings.xml:40 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-sq/strings.xml:72 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-sq/strings.xml:82 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-sq/strings.xml:94 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-sq/strings.xml:114 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-sq/strings.xml:176 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-sq/strings.xml:181 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-sr/strings.xml:2 (comment) ---
+<!--Author: Radoš Milićev (https://github.com/rammba)-->
+
+--- app/core/src/main/res/values-sr/strings.xml:4 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-sr/strings.xml:13 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-sr/strings.xml:26 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-sr/strings.xml:44 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-sr/strings.xml:76 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-sr/strings.xml:88 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-sr/strings.xml:100 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-sr/strings.xml:120 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-sr/strings.xml:182 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-sr/strings.xml:187 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-tr/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-tr/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-tr/strings.xml:25 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-tr/strings.xml:40 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-tr/strings.xml:72 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-tr/strings.xml:82 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-tr/strings.xml:94 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-tr/strings.xml:114 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-tr/strings.xml:176 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-tr/strings.xml:181 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values-uk/strings.xml:3 (comment) ---
+<!--Sections-->
+
+--- app/core/src/main/res/values-uk/strings.xml:12 (comment) ---
+<!--Home-->
+
+--- app/core/src/main/res/values-uk/strings.xml:25 (comment) ---
+<!--Install-->
+
+--- app/core/src/main/res/values-uk/strings.xml:43 (comment) ---
+<!--Superuser-->
+
+--- app/core/src/main/res/values-uk/strings.xml:75 (comment) ---
+<!--Logs-->
+
+--- app/core/src/main/res/values-uk/strings.xml:87 (comment) ---
+<!--MagiskHide-->
+
+--- app/core/src/main/res/values-uk/strings.xml:99 (comment) ---
+<!--Module-->
+
+--- app/core/src/main/res/values-uk/strings.xml:119 (comment) ---
+<!--Settings-->
+
+--- app/core/src/main/res/values-uk/strings.xml:181 (comment) ---
+<!--Notifications-->
+
+--- app/core/src/main/res/values-uk/strings.xml:186 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values/strings.xml:188 (comment) ---
+<!--Toasts, Dialogs-->
+
+--- app/core/src/main/res/values/strings.xml:259 (comment) ---
+<!-- Upstream application compatibility -->
+
+--- app/gradle/libs.versions.toml:28 (comment) ---
+# AndroidX
+
+--- app/gradle/libs.versions.toml:46 (comment) ---
+# topjohnwu
+
+--- app/gradle/libs.versions.toml:53 (comment) ---
+# Rikka
+
+--- app/gradle/libs.versions.toml:58 (comment) ---
+# Compose
+
+--- app/gradle/libs.versions.toml:73 (comment) ---
+# For build-logic
+
+--- app/hideapps/src/main/java/com/topjohnwu/magisk/hideapps/HideAppsRepository.kt:9 (comment) ---
+// Screens own separate repository instances. Read and update the same file
+
+--- app/hideapps/src/main/java/com/topjohnwu/magisk/hideapps/HideAppsRepository.kt:10 (comment) ---
+// under one lock so an older screen cannot overwrite a newer selection.
+
+--- build.py:83 (comment) ---
+# Common constants
+
+--- build.py:154 (documentation string) ---
+"""Repair permissions and retry the exact operation that failed."""
+
+--- build.py:166 (comment) ---
+# CPython's Windows walker can observe a directory as empty just before
+
+--- build.py:167 (comment) ---
+# delayed compiler outputs become visible. Remove the late entries and
+
+--- build.py:168 (comment) ---
+# retry the directory itself.
+
+--- build.py:198 (comment) ---
+# Detach the tree first so no compiler helper can recreate children at
+
+--- build.py:199 (comment) ---
+# the path while it is being removed.
+
+--- build.py:209 (comment) ---
+# Rust incremental object names can push the absolute path beyond the
+
+--- build.py:210 (comment) ---
+# legacy Win32 MAX_PATH limit. Python's walker needs the verbatim prefix
+
+--- build.py:211 (comment) ---
+# to unlink those entries reliably.
+
+--- build.py:227 (comment) ---
+# Rescan the entire tree on the next attempt. Antivirus and compiler
+
+--- build.py:228 (comment) ---
+# helpers can create or release files while Windows walks it.
+
+--- build.py:343 (comment) ---
+# Override the relative .cargo target-dir with one canonical absolute path.
+
+--- build.py:344 (comment) ---
+# This prevents duplicate build-std artifacts through normal and verbatim
+
+--- build.py:345 (comment) ---
+# Windows path spellings.
+
+--- build.py:562 (comment) ---
+# These replace source namespaces byte-for-byte in DEX and binary XML.
+
+--- build.py:563 (comment) ---
+# Equal encoded lengths avoid rebuilding Android binary string pools.
+
+--- build.py:572 (comment) ---
+# User-facing application label randomized per seed
+
+--- build.py:621 (comment) ---
+# APK native-library entry names are public to every package that can
+
+--- build.py:622 (comment) ---
+# inspect the installed APK. Keep their identities build-generated too.
+
+--- build.py:805 (documentation string) ---
+"""Emit identity flags and run Rust build scripts without linking native APKs."""
+
+--- build.py:1120 (documentation string) ---
+"""Prove the actual daemon parser accepts each signed release artifact.
+
+    This supplements, never replaces, apksigner cryptographic verification.
+    Synthetic parser tests alone missed an apksig signed-data format change.
+    """
+
+--- build.py:1130 (comment) ---
+# The host MinGW linker also needs the bundled Rust runtime DLLs on Windows.
+
+--- build.py:1493 (comment) ---
+# An explicit custom/stub install must not deploy an unrelated
+
+--- build.py:1494 (comment) ---
+# runtime left in out/ by a previous build.
+
+--- build.py:1765 (documentation string) ---
+"""Reject corrupted post-processing output before APK installation."""
+
+--- build.py:1797 (comment) ---
+# DEX uses modified UTF-8 and orders strings by UTF-16 code units.
+
+--- build.py:1813 (documentation string) ---
+"""Allow only the requested complete string-pool display values in resources.arsc.
+
+    This is a UI exception, not a claim that the APK has no visible branding.
+    Internal identifiers and embedded occurrences remain subject to scanning.
+    Keep these names synchronized with TransformApkTask's display labels.
+    """
+
+--- build.py:1827 (documentation string) ---
+"""Reject public identities and malformed/alignment-unsafe release APKs."""
+
+--- build.py:1828 (comment) ---
+# Reisenless is the intentional user-facing product label. Other legacy
+
+--- build.py:1829 (comment) ---
+# identities remain forbidden throughout release APK contents.
+
+--- build.py:1866 (comment) ---
+# Compatibility vocabulary is allowed only in the exact privileged entries
+
+--- build.py:1867 (comment) ---
+# that implement the inherited module/boot protocol. It is never allowed by
+
+--- build.py:1868 (comment) ---
+# file type alone, so adding a new occurrence requires an explicit review.
+
+--- build.py:1995 (documentation string) ---
+"""Generate the R8 dictionary from the same build identity as every other name."""
+
+--- build.py:2220 (documentation string) ---
+"""Run authorization and APK trust-parser tests with the host compiler."""
+
+--- build.py:2245 (documentation string) ---
+"""Prove private identity derivation is deterministic and seed-separated."""
+
+--- build.py:2399 (comment) ---
+# 1. Python
+
+--- build.py:2406 (comment) ---
+# 2. Git
+
+--- build.py:2422 (comment) ---
+# 3. Android SDK
+
+--- build.py:2434 (comment) ---
+# 4. ADB
+
+--- build.py:2442 (comment) ---
+# 5. Android NDK
+
+--- build.py:2448 (comment) ---
+# 6. JDK
+
+--- build.py:2458 (comment) ---
+# 7. Rust & Android Targets
+
+--- build.py:2479 (comment) ---
+# 8. Connected Devices (if install requested)
+
+--- config.prop.sample:15 (comment) ---
+# Manager appearance: classic Magisk interface (default), or compose.
+
+--- config.prop.sample:16 (comment) ---
+# Both variants use the same release identity and shared native/core fixes.
+
+--- config.prop.sample:17 (comment) ---
+# managerUi=classic
+
+--- config.prop.sample:19 (comment) ---
+# Optional exact marker used by a previous randomized installation. Supplying
+
+--- config.prop.sample:20 (comment) ---
+# it lets the installer restore the predecessor's saved stock init before
+
+--- config.prop.sample:21 (comment) ---
+# applying a newly rotated identity.
+
+--- config.prop.sample:22 (comment) ---
+# legacyBackupConfig=.previous-marker
+
+--- config.prop.sample:47 (comment) ---
+# Release builds must use a private signing identity. build.py generates and
+
+--- config.prop.sample:48 (comment) ---
+# preserves one under .private/release-signing for local builds. CI builds must
+
+--- config.prop.sample:49 (comment) ---
+# provide REISENLESS_IDENTITY_SEED and the four REISENLESS_KEYSTORE_* secrets
+
+--- config.prop.sample:50 (comment) ---
+# shown in build.yml; optionally also provide REISENLESS_CERT_SHA256 to pin the
+
+--- config.prop.sample:51 (comment) ---
+# public certificate digest.
+
+--- native/.gitignore:9 (comment) ---
+# Auto generated
+
+--- native/src/boot/bootimg.cpp:625 (comment) ---
+// Copy zImage headers stub
+
+--- native/src/boot/bootimg.cpp:635 (comment) ---
+// For non-gzip compression in zImage, size_append appends the 4-byte LE uncompressed size
+
+--- native/src/boot/bootimg.cpp:824 (comment) ---
+// zImage header stub
+
+--- native/src/boot/bootimg.cpp:831 (comment) ---
+// Make sure header size matches
+
+--- native/src/boot/bootimg.hpp:10 (comment) ---
+/******************
+ * Special Headers
+ *****************/
+
+--- native/src/boot/bootimg.hpp:46 (comment) ---
+/**************
+ * AVB Headers
+ **************/
+
+--- native/src/boot/cpio.rs:563 (comment) ---
+// Randomized builds use a generated backup marker. Older installs may
+
+--- native/src/boot/cpio.rs:564 (comment) ---
+// have been created with a different marker that is no longer present
+
+--- native/src/boot/cpio.rs:565 (comment) ---
+// in the current build configuration. Any hidden marker in the
+
+--- native/src/boot/cpio.rs:566 (comment) ---
+// backup directory still identifies a Magisk-style patched ramdisk;
+
+--- native/src/boot/cpio.rs:567 (comment) ---
+// report it as patched so the patch script can restore it before
+
+--- native/src/boot/cpio.rs:568 (comment) ---
+// installing the current payload.
+
+--- native/src/boot/dtb.rs:146 (comment) ---
+// Size of the flattened device tree produced by this source (132 bytes / 0x84).
+
+--- native/src/boot/dtb.rs:147 (comment) ---
+//
+
+--- native/src/boot/dtb.rs:148 (comment) ---
+// https://github.com/torvalds/linux/blob/master/drivers/of/empty_root.dts
+
+--- native/src/boot/dtb.rs:149 (comment) ---
+// - 40 bytes: standard FDT header
+
+--- native/src/boot/dtb.rs:150 (comment) ---
+// - 16 bytes: empty memory reserve map (null terminator entry)
+
+--- native/src/boot/dtb.rs:151 (comment) ---
+// - 48 bytes: root node structure block (BEGIN_NODE, empty name, two 32-bit
+
+--- native/src/boot/dtb.rs:152 (comment) ---
+//   properties, END_NODE, FDT_END)
+
+--- native/src/boot/dtb.rs:153 (comment) ---
+// - 28 bytes: strings block (#address-cells and #size-cells, padded to 4 bytes)
+
+--- native/src/boot/format.rs:120 (comment) ---
+// 0     : (pb * 5 + lp) * 9 + lc
+
+--- native/src/boot/format.rs:121 (comment) ---
+// 1 - 4 : dict size, must be 2^n
+
+--- native/src/boot/format.rs:122 (comment) ---
+// 5 - 12: all 0xFF
+
+--- native/src/boot/zimage.rs:1 (comment) ---
+//! ARM 32-bit Linux zImage Parsing and Piggy Resizing / Relocation
+
+
+--- native/src/boot/zimage.rs:2 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:3 (comment) ---
+//! # Background & Overview
+
+
+--- native/src/boot/zimage.rs:4 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:5 (comment) ---
+//! A 32-bit ARM Linux kernel image (`zImage`) is a self-extracting executable wrapper containing:
+
+
+--- native/src/boot/zimage.rs:6 (comment) ---
+//! 1. `head`: Decompressor startup code (`head.o`), runtime decompression routines (`misc.o`,
+
+
+--- native/src/boot/zimage.rs:7 (comment) ---
+//!    `decompress.o`), and the `piggy.o` wrapper header. It starts with the standard ARM `zimage_hdr`
+
+
+--- native/src/boot/zimage.rs:8 (comment) ---
+//!    (magic `0x016f2818` at offset `0x24`, start/end execution addresses at offsets `0x28`/`0x2c`).
+
+
+--- native/src/boot/zimage.rs:9 (comment) ---
+//! 2. `piggy`: The compressed kernel payload (`vmlinux.bin.gz`, `.xz`, `.lz4`, etc.), with an
+
+
+--- native/src/boot/zimage.rs:10 (comment) ---
+//!    optional appended 4-byte LE uncompressed size (`size_append`) for non-gzip algorithms.
+
+
+--- native/src/boot/zimage.rs:11 (comment) ---
+//! 3. `tail`: Trailing data following the compressed piggy, containing padding, the decompressor's
+
+
+--- native/src/boot/zimage.rs:12 (comment) ---
+//!    Global Offset Table (`.got` from `_got_start` to `_got_end`), decompressor stack, and optional
+
+
+--- native/src/boot/zimage.rs:13 (comment) ---
+//!    appended Device Tree Blobs (DTBs).
+
+
+--- native/src/boot/zimage.rs:14 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:15 (comment) ---
+//! # The Resizing & Relocation Problem
+
+
+--- native/src/boot/zimage.rs:16 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:17 (comment) ---
+//! When modifying or patching the kernel (e.g., patching kernel instructions or data),
+
+
+--- native/src/boot/zimage.rs:18 (comment) ---
+//! the re-compressed payload size almost certainly changes. In traditional repack workflows, resizing
+
+
+--- native/src/boot/zimage.rs:19 (comment) ---
+//! the `piggy` blob breaks the zImage because the decompressor code in `head` and the data in `tail`
+
+
+--- native/src/boot/zimage.rs:20 (comment) ---
+//! contain hardcoded absolute and relative offsets that assume a fixed `piggy` length.
+
+
+--- native/src/boot/zimage.rs:21 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:22 (comment) ---
+//! Rather than requiring exact compression size matches (e.g., brute-forcing compression parameters or
+
+
+--- native/src/boot/zimage.rs:23 (comment) ---
+//! using zopfli) or needing full kernel source and toolchains to rebuild the wrapper, we parse the
+
+
+--- native/src/boot/zimage.rs:24 (comment) ---
+//! internal metadata of the zImage and dynamically patch all relocated offsets:
+
+
+--- native/src/boot/zimage.rs:25 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:26 (comment) ---
+//! 1. **`zimage_hdr.end`**:
+
+
+--- native/src/boot/zimage.rs:27 (comment) ---
+//!    The total image end address in the zImage header (`offset 0x2c`) is adjusted by `+ delta_got`.
+
+
+--- native/src/boot/zimage.rs:28 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:29 (comment) ---
+//! 2. **Header Relocation Tables**:
+
+
+--- native/src/boot/zimage.rs:30 (comment) ---
+//!    - `.Linflated_image_size_offset`: The pointer offset locating the uncompressed image size.
+
+
+--- native/src/boot/zimage.rs:31 (comment) ---
+//!    - `LC0` Table: Position-independent relocation table in `arch/arm/boot/compressed/head.S` containing
+
+
+--- native/src/boot/zimage.rs:32 (comment) ---
+//!      addresses for `_start`, `_got_start`, `_got_end`, `_edata`, `__bss_start`, and `_end`. Any entry
+
+
+--- native/src/boot/zimage.rs:33 (comment) ---
+//!      pointing to `orig_piggy_end` is updated to `new_piggy_end`, and any entry pointing past `head`
+
+
+--- native/src/boot/zimage.rs:34 (comment) ---
+//!      is adjusted by `+ delta_got`.
+
+
+--- native/src/boot/zimage.rs:35 (comment) ---
+//!    - `LC1` Table: Additional relocation table entries in newer kernels adjusted by `+ delta_got`.
+
+
+--- native/src/boot/zimage.rs:36 (comment) ---
+//!    - `_magic_table` (`.table` / `0x45454545` or `0x45455358`): Tagged kernel size entry adjusted.
+
+
+--- native/src/boot/zimage.rs:37 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:38 (comment) ---
+//! 3. **Trailing GOT & Stack (`new_tail`)**:
+
+
+--- native/src/boot/zimage.rs:39 (comment) ---
+//!    - The `tail` is realigned to 4 bytes after `new_piggy_end` with zero padding.
+
+
+--- native/src/boot/zimage.rs:40 (comment) ---
+//!    - Internal GOT pointers matching `orig_piggy_end` or referencing GOT symbols `>= orig_got_start - 4`
+
+
+--- native/src/boot/zimage.rs:41 (comment) ---
+//!      are shifted by `+ delta_got`.
+
+
+--- native/src/boot/zimage.rs:42 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:43 (comment) ---
+//! 4. **R_ARM_GOTPC Literals in Decompressor `.text` (`new_head`)**:
+
+
+--- native/src/boot/zimage.rs:44 (comment) ---
+//!    - Decompressor code calculates the GOT base address relative to PC using patterns like:
+
+
+--- native/src/boot/zimage.rs:45 (comment) ---
+//!      `ldr rX, [pc, #imm]` followed by `add rY, pc, rX`.
+
+
+--- native/src/boot/zimage.rs:46 (comment) ---
+//!    - The literal loaded from the constant pool represents `_GLOBAL_OFFSET_TABLE_ - (. + 8)`.
+
+
+--- native/src/boot/zimage.rs:47 (comment) ---
+//!      Because the GOT in `tail` shifts by `delta_got` while `.text` in `head` stays fixed, these
+
+
+--- native/src/boot/zimage.rs:48 (comment) ---
+//!      literal offsets must be adjusted by `+ delta_got`.
+
+
+--- native/src/boot/zimage.rs:49 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:50 (comment) ---
+//! # Reference
+
+
+--- native/src/boot/zimage.rs:51 (comment) ---
+//!
+
+
+--- native/src/boot/zimage.rs:52 (comment) ---
+//! - "Modifying Embedded Filesystems in ARM Linux zImages" by jamchamb:
+
+
+--- native/src/boot/zimage.rs:53 (comment) ---
+//!   <https://jamchamb.net/2022/01/02/modify-vmlinuz-arm.html>
+
+
+--- native/src/boot/zimage.rs:81 (comment) ---
+/// Validates whether a candidate piggy_end offset is structurally consistent with the zImage layout.
+
+
+--- native/src/boot/zimage.rs:82 (comment) ---
+/// Checks that the candidate lies strictly past the header and within total kernel bounds.
+
+
+--- native/src/boot/zimage.rs:83 (comment) ---
+/// If GOT boundaries are known from the LC0 table, verifies that the candidate's 4-byte aligned
+
+
+--- native/src/boot/zimage.rs:84 (comment) ---
+/// boundary matches the start of the Global Offset Table (got_start), as defined in vmlinux.lds.S:
+
+
+--- native/src/boot/zimage.rs:85 (comment) ---
+///     . = ALIGN(4);
+
+
+--- native/src/boot/zimage.rs:86 (comment) ---
+///     _got_start = .;
+
+
+--- native/src/boot/zimage.rs:91 (comment) ---
+// When got_start is known from LC0, candidate_end aligned to 4 bytes must equal got_start
+
+--- native/src/boot/zimage.rs:108 (comment) ---
+// Step 1: Validate 32-bit ARM zImage header (magic 0x016f2818 at offset 0x24)
+
+--- native/src/boot/zimage.rs:123 (comment) ---
+// Step 2: Locate the start of compressed piggy payload by scanning forward from 0x28
+
+--- native/src/boot/zimage.rs:143 (comment) ---
+// Step 3: Scan for the LC0 position table (arch/arm/boot/compressed/head.S)
+
+--- native/src/boot/zimage.rs:144 (comment) ---
+// LC0 contains position-independent runtime pointers: _start, _got_start, _got_end, _edata, etc.
+
+--- native/src/boot/zimage.rs:145 (comment) ---
+// We match: p0 == off + start (pointer to _start), with p1 >= head.len() and p2 >= p1
+
+--- native/src/boot/zimage.rs:183 (comment) ---
+// Step 4: Determine piggy_end using a 3-tier heuristic strategy
+
+--- native/src/boot/zimage.rs:185 (comment) ---
+// Strategy 4.1: Check .table (_magic_table) TagKernelSize (0x5a534c4b) if present at offset 0x38.
+
+--- native/src/boot/zimage.rs:186 (comment) ---
+// The table is tagged with 0x45454545 ("EEEE"), 0x45455358 ("XSEE"), or 0x20425444 ("DTB ").
+
+--- native/src/boot/zimage.rs:220 (comment) ---
+// Strategy 4.2 (Fallback): Derive GOT bounds from LC0 entries and scan for pointer to input_data_end
+
+--- native/src/boot/zimage.rs:237 (comment) ---
+// Strategy 4.3 (Fallback): Scan the last 16 dwords of the zImage tail for input_data_end pointer
+
+--- native/src/boot/zimage.rs:255 (comment) ---
+// Step 5: Locate .Linflated_image_size_offset matching known piggy_end
+
+--- native/src/boot/zimage.rs:256 (comment) ---
+// This is a literal in head matching: off + val + 4 == piggy_end
+
+--- native/src/boot/zimage.rs:275 (comment) ---
+// Step 6: Scan for LC1 relocation table in newer kernels (where p1 + off + start == end)
+
+--- native/src/boot/zimage.rs:293 (comment) ---
+// Step 7: Construct zero-copy ZImage struct slicing head, piggy, and tail
+
+--- native/src/boot/zimage.rs:312 (comment) ---
+// Step 1: Calculate offset delta for GOT and trailing sections based on 4-byte realignment
+
+--- native/src/boot/zimage.rs:320 (comment) ---
+// Step 2: Patch zimage_hdr->end (offset 0x2C) with new total image end address
+
+--- native/src/boot/zimage.rs:324 (comment) ---
+// Step 3: Patch .Linflated_image_size_offset pointer table entry
+
+--- native/src/boot/zimage.rs:331 (comment) ---
+// Step 4: Patch the LC0 position table (arch/arm/boot/compressed/head.S)
+
+--- native/src/boot/zimage.rs:332 (comment) ---
+// Entry pointing to input_data_end - 4 (uncompressed size word) is updated to new_piggy_end - 4.
+
+--- native/src/boot/zimage.rs:333 (comment) ---
+// Entries pointing into tail (>= head.len() + start) are shifted by + delta_got.
+
+--- native/src/boot/zimage.rs:347 (comment) ---
+// Step 5: Patch LC1 relocation table in newer kernels
+
+--- native/src/boot/zimage.rs:356 (comment) ---
+// Step 6: Patch .table (_magic_table) TagKernelSize entry
+
+--- native/src/boot/zimage.rs:363 (comment) ---
+// Step 7: Disassemble and patch R_ARM_GOTPC PC-relative literal pool entries in .text
+
+--- native/src/boot/zimage.rs:364 (comment) ---
+// In -fPIC, ARM code accesses GOT via:
+
+--- native/src/boot/zimage.rs:365 (comment) ---
+//   ldr rX, [pc, #imm]   ; loads (_GLOBAL_OFFSET_TABLE_ - (. + 8)) from constant pool
+
+--- native/src/boot/zimage.rs:366 (comment) ---
+//   add rY, pc, rX       ; rY = &GOT
+
+--- native/src/boot/zimage.rs:367 (comment) ---
+// When the tail shifts by delta_got, the constant pool literals must be adjusted by + delta_got.
+
+--- native/src/boot/zimage.rs:369 (comment) ---
+// Locate GOT bounds from LC0
+
+--- native/src/boot/zimage.rs:388 (comment) ---
+// Scan for ARM: add rd, pc, rm (opcode: cond 0000 100S rn=1111 rd 0000 0000 rm)
+
+--- native/src/boot/zimage.rs:393 (comment) ---
+// Look back up to 128 bytes for preceding: ldr rt, [pc, #imm]
+
+--- native/src/boot/zimage.rs:412 (comment) ---
+// Verify that computed target falls within GOT range
+
+--- native/src/boot/zimage.rs:444 (comment) ---
+// Step 1: Re-pad leading gap before the GOT with zeros to maintain 4-byte alignment
+
+--- native/src/boot/zimage.rs:450 (comment) ---
+// Step 2: Relocate internal GOT pointers (arch/arm/boot/compressed/vmlinux.lds.S)
+
+--- native/src/boot/zimage.rs:451 (comment) ---
+// Pointers matching orig_piggy_end (input_data_end) are updated to new_piggy_end.
+
+--- native/src/boot/zimage.rs:452 (comment) ---
+// Pointers to GOT symbols (>= orig_got_start - 4) are shifted by + delta_got.
+
+--- native/src/core/apk_cert.rs:95 (comment) ---
+// AOSP apksig's V2SchemeSigner emits one extra empty length-prefixed
+
+--- native/src/core/apk_cert.rs:96 (comment) ---
+// field after additionalAttributes. Accept exactly that encoding as well
+
+--- native/src/core/apk_cert.rs:97 (comment) ---
+// as the three-field format; do not silently ignore arbitrary trailing data.
+
+--- native/src/core/apk_cert.rs:211 (comment) ---
+// Bound the read as well as the initial allocation if the file grows.
+
+--- native/src/core/applets.cpp:49 (comment) ---
+// The installer and shell helpers execute the multi-call binary through
+
+--- native/src/core/applets.cpp:50 (comment) ---
+// the conventional `busybox` argv[0]. Accept that alias as well as the
+
+--- native/src/core/applets.cpp:51 (comment) ---
+// packaged library basename so randomized filenames do not break applets.
+
+--- native/src/core/bootstages.rs:162 (comment) ---
+// Safe mode disables user modules and optional Udonge behavior,
+
+--- native/src/core/bootstages.rs:163 (comment) ---
+// but the minimal manager-visibility filter remains mandatory.
+
+--- native/src/core/bootstages.rs:175 (comment) ---
+// User scripts may change feature settings, so take one feature snapshot
+
+--- native/src/core/bootstages.rs:176 (comment) ---
+// after they finish and use it for the rest of this boot stage.
+
+--- native/src/core/bootstages.rs:183 (comment) ---
+// Built-in Hide Apps/Udonge use the private zygote transport but must
+
+--- native/src/core/bootstages.rs:184 (comment) ---
+// not enable user-facing Zygisk or load third-party Zygisk modules.
+
+--- native/src/core/deny/logcat.cpp:144 (comment) ---
+// Unlike app zygote, webview zygote UID is fixed. This means we don't have to
+
+--- native/src/core/deny/logcat.cpp:145 (comment) ---
+// handle edge cases where apps print logs themselves and lead us into a honeycomb
+
+--- native/src/core/deny/utils.cpp:18 (comment) ---
+// For the following data structures:
+
+--- native/src/core/deny/utils.cpp:19 (comment) ---
+// If package name == ISOLATED_MAGIC, or app ID == -1, it means isolated service
+
+--- native/src/core/deny/utils.cpp:20 (comment) ---
+// If package name == WEBVIEW_ZYGOTE_MAGIC, or app ID == 1053, it means webview zygote
+
+--- native/src/core/lib.rs:239 (comment) ---
+// File::from_raw_fd(-1) aborts even in release builds. A failed
+
+--- native/src/core/lib.rs:240 (comment) ---
+// connection is a normal client error, not a valid owned descriptor.
+
+--- native/src/core/manager_auth.rs:65 (comment) ---
+// A manager child must retain the same real/effective/saved/fs UID.
+
+--- native/src/core/package.rs:240 (comment) ---
+// The embedded trust-anchor stub has its own low versionCode and
+
+--- native/src/core/package.rs:241 (comment) ---
+// is not versioned like the randomized full manager release APK.
+
+--- native/src/core/package.rs:263 (comment) ---
+/// Authenticate a direct manager client with Android's package identity.
+
+
+--- native/src/core/package.rs:264 (comment) ---
+///
+
+
+--- native/src/core/package.rs:265 (comment) ---
+/// The embedded APK certificate establishes the trusted installed package,
+
+
+--- native/src/core/package.rs:266 (comment) ---
+/// the kernel-provided UID binds the socket peer to that package, and the
+
+
+--- native/src/core/package.rs:267 (comment) ---
+/// SELinux MLS/MCS level binds the process to the package data domain.
+
+
+--- native/src/core/udonge.rs:29 (comment) ---
+// The compact Hide Apps runtime is mandatory: it conceals the build-time
+
+--- native/src/core/udonge.rs:30 (comment) ---
+// randomized manager package from ordinary application UIDs.
+
+--- native/src/core/zygisk/daemon.rs:122 (comment) ---
+// boot-complete: reset the crash counter but KEEP the native bridge prop set, so that
+
+--- native/src/core/zygisk/daemon.rs:123 (comment) ---
+// zygote partitions that spawn lazily AFTER boot-complete (e.g. Meta Quest's
+
+--- native/src/core/zygisk/daemon.rs:124 (comment) ---
+// per-trust-level partition zygotes, which fork untrusted apps) still load the zygisk
+
+--- native/src/core/zygisk/daemon.rs:125 (comment) ---
+// loader. Clearing it here is why untrusted apps were never injected on such devices.
+
+--- native/src/core/zygisk/daemon.rs:246 (comment) ---
+// Reisenless only transports its built-in component here.
+
+--- native/src/core/zygisk/daemon.rs:247 (comment) ---
+// Udonge owns all per-process policy and self-unloads when
+
+--- native/src/core/zygisk/daemon.rs:248 (comment) ---
+// the process has no Udonge configuration.
+
+--- native/src/core/zygisk/gen_jni_hooks.py:172 (comment) ---
+# q running on xr
+
+--- native/src/core/zygisk/gen_jni_hooks.py:186 (comment) ---
+# b qpr2
+
+--- native/src/core/zygisk/gen_jni_hooks.py:189 (comment) ---
+# c qpr2
+
+--- native/src/core/zygisk/hook.cpp:106 (comment) ---
+// Guards against hooking the zygote JNI methods more than once. On lazy-native-bridge
+
+--- native/src/core/zygisk/hook.cpp:107 (comment) ---
+// devices both the post_native_bridge_load path and the strdup("ZygoteInit") trigger can
+
+--- native/src/core/zygisk/hook.cpp:108 (comment) ---
+// fire; a second pass corrupts the JNI registration (nulls fnPtrs) and unregisters
+
+--- native/src/core/zygisk/hook.cpp:109 (comment) ---
+// nativeForkSystemServer -> UnsatisfiedLinkError -> zygote dies.
+
+--- native/src/core/zygisk/hook.cpp:150 (comment) ---
+// The runtime hands the "com.android.internal.os.ZygoteInit" class name to strdup at the correct
+
+--- native/src/core/zygisk/hook.cpp:151 (comment) ---
+// point (after the Zygote natives are (re)registered, before ZygoteInit#main forks), which is when
+
+--- native/src/core/zygisk/hook.cpp:152 (comment) ---
+// hook_zygote_jni() must arm. Match as a substring (rather than exact) so a wrapped/prefixed name
+
+--- native/src/core/zygisk/hook.cpp:153 (comment) ---
+// still triggers — harmless on standard devices, and it is what fires reliably on Meta Quest.
+
+--- native/src/core/zygisk/hook.cpp:382 (comment) ---
+// NOTE: do NOT hook the zygote JNI methods here. The native bridge loads before the runtime
+
+--- native/src/core/zygisk/hook.cpp:383 (comment) ---
+// finishes registering (and later re-registers) the Zygote natives, so a hook installed now is
+
+--- native/src/core/zygisk/hook.cpp:384 (comment) ---
+// overwritten by the runtime and never takes effect. The strdup("com.android.internal.os.ZygoteInit")
+
+--- native/src/core/zygisk/hook.cpp:385 (comment) ---
+// PLT hook fires at the correct time (after registration, before ZygoteInit#main forks), and it
+
+--- native/src/core/zygisk/hook.cpp:386 (comment) ---
+// does fire on Meta Quest too, so let it arm hook_zygote_jni().
+
+--- native/src/core/zygisk/hook.cpp:541 (comment) ---
+// Idempotent: only replace the zygote JNI methods once per process.
+
+--- native/src/core/zygisk/hook.cpp:580 (comment) ---
+// Contain every JNI local reference we create (FindClass, ExceptionOccurred, ...) in an
+
+--- native/src/core/zygisk/hook.cpp:581 (comment) ---
+// explicit frame. Depending on the exact caller/timing this may run outside a managed JNI
+
+--- native/src/core/zygisk/hook.cpp:582 (comment) ---
+// transition, and leaking locals trips ART's "non-empty local reference table" check -> abort.
+
+--- native/src/core/zygisk/hook.cpp:625 (comment) ---
+// Only mark as hooked when the full set was replaced cleanly, so that a premature/failed
+
+--- native/src/core/zygisk/hook.cpp:626 (comment) ---
+// call does not permanently block a later well-timed trigger from installing the hooks.
+
+--- native/src/core/zygisk/jni_hooks.hpp:10 (comment) ---
+// nativeForkAndSpecialize_c
+
+--- native/src/core/zygisk/jni_hooks.hpp:13 (comment) ---
+// IIIILILILLLLZLLZZLLZZZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:37 (comment) ---
+// IIILILILLLLZLLZZLLZZZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:58 (comment) ---
+// nativeForkAndSpecialize_u
+
+--- native/src/core/zygisk/jni_hooks.hpp:61 (comment) ---
+// IIILILILLLLZLLZLLZZZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:82 (comment) ---
+// nativeForkAndSpecialize_r
+
+--- native/src/core/zygisk/jni_hooks.hpp:85 (comment) ---
+// IIILILILLLLZLLZLLZZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:105 (comment) ---
+// nativeForkAndSpecialize_q_alt
+
+--- native/src/core/zygisk/jni_hooks.hpp:108 (comment) ---
+// IIILILILLLLZLLZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:124 (comment) ---
+// nativeForkAndSpecialize_p
+
+--- native/src/core/zygisk/jni_hooks.hpp:127 (comment) ---
+// IIILILILLLLZLL
+
+--- native/src/core/zygisk/jni_hooks.hpp:142 (comment) ---
+// nativeForkAndSpecialize_o
+
+--- native/src/core/zygisk/jni_hooks.hpp:145 (comment) ---
+// IIILILILLLLLL
+
+--- native/src/core/zygisk/jni_hooks.hpp:159 (comment) ---
+// nativeForkAndSpecialize_l
+
+--- native/src/core/zygisk/jni_hooks.hpp:162 (comment) ---
+// IIILILILLLLL
+
+--- native/src/core/zygisk/jni_hooks.hpp:178 (comment) ---
+// IIILILILLLLZLLZZLLZZZL
+
+--- native/src/core/zygisk/jni_hooks.hpp:199 (comment) ---
+// nativeForkAndSpecialize_samsung_p
+
+--- native/src/core/zygisk/jni_hooks.hpp:202 (comment) ---
+// IIILILILIILLLZLL
+
+--- native/src/core/zygisk/jni_hooks.hpp:217 (comment) ---
+// nativeForkAndSpecialize_samsung_o
+
+--- native/src/core/zygisk/jni_hooks.hpp:220 (comment) ---
+// IIILILILIILLLLL
+
+--- native/src/core/zygisk/jni_hooks.hpp:234 (comment) ---
+// nativeForkAndSpecialize_samsung_n
+
+--- native/src/core/zygisk/jni_hooks.hpp:237 (comment) ---
+// IIILILILIILLLLI
+
+--- native/src/core/zygisk/jni_hooks.hpp:250 (comment) ---
+// nativeForkAndSpecialize_samsung_m
+
+--- native/src/core/zygisk/jni_hooks.hpp:253 (comment) ---
+// IIILILILIILLLL
+
+--- native/src/core/zygisk/jni_hooks.hpp:269 (comment) ---
+// nativeSpecializeAppProcess_c
+
+--- native/src/core/zygisk/jni_hooks.hpp:272 (comment) ---
+// VIIILILILLZLLZLLZZZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:291 (comment) ---
+// nativeSpecializeAppProcess_u
+
+--- native/src/core/zygisk/jni_hooks.hpp:294 (comment) ---
+// VIILILILLZLLZLLZZZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:316 (comment) ---
+// VIILILILLZLLZLLZZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:334 (comment) ---
+// nativeSpecializeAppProcess_q
+
+--- native/src/core/zygisk/jni_hooks.hpp:337 (comment) ---
+// VIILILILLZLL
+
+--- native/src/core/zygisk/jni_hooks.hpp:353 (comment) ---
+// VIILILILLZLLZLLZZZL
+
+--- native/src/core/zygisk/jni_hooks.hpp:372 (comment) ---
+// nativeSpecializeAppProcess_xr_u
+
+--- native/src/core/zygisk/jni_hooks.hpp:375 (comment) ---
+// VIILILILLZLLZZLLZZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:393 (comment) ---
+// nativeSpecializeAppProcess_samsung_q
+
+--- native/src/core/zygisk/jni_hooks.hpp:396 (comment) ---
+// VIILILILIILZLL
+
+--- native/src/core/zygisk/jni_hooks.hpp:409 (comment) ---
+// nativeSpecializeAppProcess_q_alt
+
+--- native/src/core/zygisk/jni_hooks.hpp:412 (comment) ---
+// VIILILILLZLLZ
+
+--- native/src/core/zygisk/jni_hooks.hpp:432 (comment) ---
+// IIILILJJ
+
+--- native/src/core/zygisk/jni_hooks.hpp:448 (comment) ---
+// IIILIIILJJ
+
+--- native/src/init/init.rs:153 (comment) ---
+// Charger (off-mode charging) must abort before any normal-boot path
+
+--- native/src/init/init.rs:154 (comment) ---
+// (skip_initramfs / force_normal_boot). Some devices (e.g. Motorola) set
+
+--- native/src/init/init.rs:155 (comment) ---
+// androidboot.force_normal_boot=1 during off-mode charging, which would otherwise
+
+--- native/src/init/init.rs:156 (comment) ---
+// route to first_stage() and load Magisk in charger mode, bumping the never-reset
+
+--- native/src/init/init.rs:157 (comment) ---
+// bootloop counter until safe mode trips. AOSP likewise treats charger first.
+
+--- native/src/init/selinux.rs:228 (comment) ---
+// Keep a copy of the original policy for future use
+
+--- native/src/init/selinux.rs:231 (comment) ---
+// Remove the files before loading the policy
+
+--- scripts/app_functions.sh:4 (comment) ---
+# The app uses a neutral transport variable so DEX identity rewriting cannot
+
+--- scripts/app_functions.sh:5 (comment) ---
+# rename one half of this interface. Retain the canonical name for scripts and
+
+--- scripts/app_functions.sh:6 (comment) ---
+# modules, and leave standalone installer environments unchanged.
+
+--- scripts/avd.sh:82 (comment) ---
+# Always export AVD_TEST_LOG
+
+--- scripts/avd.sh:124 (comment) ---
+# Missing a required argument is fine as we perform validations later
+
+--- scripts/avd.sh:134 (comment) ---
+# Determine default arch
+
+--- scripts/avd.sh:146 (comment) ---
+# Determine API level
+
+--- scripts/avd.sh:181 (comment) ---
+# System image variable and paths
+
+--- scripts/avd.sh:298 (comment) ---
+# Cleanup
+
+--- scripts/avd.sh:302 (comment) ---
+# "Install" Magisk
+
+--- scripts/avd.sh:308 (comment) ---
+# Trigger Magisk soft reboot
+
+--- scripts/boot_patch.sh:125 (comment) ---
+# A randomized predecessor may use a backup marker that is not listed in
+
+--- scripts/boot_patch.sh:126 (comment) ---
+# this build's configuration. Locate that marker so the restore path below
+
+--- scripts/boot_patch.sh:127 (comment) ---
+# can remove the old payload before installing the current one.
+
+--- scripts/boot_patch.sh:141 (comment) ---
+# A randomized predecessor is invisible to the current cpio test marker.
+
+--- scripts/boot_patch.sh:142 (comment) ---
+# Treat it as patched so its saved stock init is restored before repatching.
+
+--- scripts/cuttlefish.sh:81 (comment) ---
+# Launch stock cuttlefish
+
+--- scripts/cuttlefish.sh:85 (comment) ---
+# Patch images
+
+--- scripts/cuttlefish.sh:98 (comment) ---
+# Cleanup
+
+--- scripts/flash_script.sh:69 (comment) ---
+# Candidate generation must not replace the live payload, migrate durable
+
+--- scripts/flash_script.sh:70 (comment) ---
+# state, write addon.d, or install runtime hooks. Keep all work in INSTALLER.
+
+--- scripts/release.sh:83 (comment) ---
+# Publish release
+
+--- scripts/test_common.sh:32 (comment) ---
+# Update to the latest cmdline-tools
+
+--- scripts/test_common.sh:35 (comment) ---
+# Rename cmdline-tools if updated
+
+--- scripts/test_common.sh:43 (comment) ---
+# $1 = TestClass#method
+
+--- scripts/test_common.sh:44 (comment) ---
+# $2 = component
+
+--- scripts/update_binary.sh:29 (comment) ---
+# Extract a fresh copy of every packaged library into the installer tree. The
+
+--- scripts/update_binary.sh:30 (comment) ---
+# bootstrap copy above is deliberately named "busybox" so its applet dispatch
+
+--- scripts/update_binary.sh:31 (comment) ---
+# works before generated build variables are sourced; the installer still needs
+
+--- scripts/update_binary.sh:32 (comment) ---
+# the original packaged filename so it can promote it to $BUSYBOX_NAME.
+
+--- scripts/util_functions.sh:220 (comment) ---
+#######################
+
+--- scripts/util_functions.sh:221 (comment) ---
+#######################
+
+--- scripts/util_functions.sh:534 (comment) ---
+# A newly randomized release has no secure root yet. Create it before
+
+--- scripts/util_functions.sh:535 (comment) ---
+# selecting MAGISKBIN; otherwise first install incorrectly falls back to a
+
+--- scripts/util_functions.sh:536 (comment) ---
+# sibling under /data and the booted daemon looks in a different location.
+
+--- scripts/util_functions.sh:599 (comment) ---
+#################
+
+--- scripts/util_functions.sh:600 (comment) ---
+#################
+
+--- scripts/util_functions.sh:640 (comment) ---
+# Rewrite legacy Magisk storage paths in every text file while preserving the
+
+--- scripts/util_functions.sh:641 (comment) ---
+# original inode, permissions, ownership, and SELinux label. Binary files are
+
+--- scripts/util_functions.sh:642 (comment) ---
+# deliberately left intact because changing string lengths would corrupt most
+
+--- scripts/util_functions.sh:643 (comment) ---
+# executable and archive formats; they can use NVBASE/MAGISKBIN instead.
+
+--- scripts/util_functions.sh:657 (comment) ---
+# NUL bytes identify binary payloads without relying on the optional
+
+--- scripts/util_functions.sh:658 (comment) ---
+# `file` utility. Rewriting them with a longer randomized path is unsafe.
+
+--- scripts/util_functions.sh:696 (comment) ---
+# Standard module variables must point at the randomized
+
+--- scripts/util_functions.sh:697 (comment) ---
+# storage root so well-behaved installers do not need hard-coded paths.
+
+--- scripts/util_functions.sh:746 (comment) ---
+# Install hooks can create additional scripts and configuration after the
+
+--- scripts/util_functions.sh:747 (comment) ---
+# initial extraction, so perform a final complete text-file pass.
+
+--- scripts/util_functions.sh:785 (comment) ---
+##########
+
+--- scripts/util_functions.sh:786 (comment) ---
+##########
+
+--- tools/test_build_commands.py:36 (comment) ---
+# Exec with the legacy argv while reading a stand-in outside the
+
+--- tools/test_build_commands.py:37 (comment) ---
+# runtime: Windows otherwise prevents renaming an open script.
+
+--- tools/test_download_jobs.py:1 (documentation string) ---
+"""Real download entry points and JobService, with a fake Android job boundary.
+
+Run through scripts/env.py. The service uses a recording engine so cancellation
+and deferred completion can be exercised without a network or Android device.
+DownloadEngine's companion is compiled verbatim for scheduling/PendingIntent
+tests; instance networking/notification dependencies are outside this boundary.
+"""
+
+--- tools/test_download_jobs.py:261 (comment) ---
+# The recording engine's list shares the real companion's namespace.
+
+--- tools/test_superuser_auth.py:1 (documentation string) ---
+"""Exercise the real grantApp method with fake Android/database boundaries.
+
+Run through scripts/env.py. Kotlin and coroutine jars come from the same local
+Gradle cache used by the app; no new toolchain or Android runtime is required.
+"""
+
+--- tools/test_udonge_device.py:1 (documentation string) ---
+"""Isolated Android shell lifecycle regressions; no live runtime/state changes."""
+
+--- tools/test_udonge_hooks.py:1 (documentation string) ---
+"""Run production hook behavior against isolated Android files and pipes."""
+
+--- tools/test_udonge_hooks.py:42 (comment) ---
+# Caller forwarding must work even when clang cannot turn a wrapper into
+
+--- tools/test_udonge_hooks.py:43 (comment) ---
+# a tail call; otherwise RTLD_NEXT resolves relative to the hook itself.
+
+--- tools/test_udonge_native.py:1 (documentation string) ---
+"""Compile portable Udonge regression harnesses and run on the selected ADB device.
+
+Run via scripts/env.py; nothing is installed and no boot state is modified.
+"""
+
+--- tools/test_udonge_workers.py:1 (documentation string) ---
+"""Run production shell functions with isolated state and Android command doubles."""
+
+--- udonge/eligibility.rs:27 (comment) ---
+/// Returns whether Udonge is eligible to enter a denylisted process.
+
+
+--- udonge/eligibility.rs:28 (comment) ---
+///
+
+
+--- udonge/eligibility.rs:29 (comment) ---
+/// This policy deliberately lives in the Udonge source tree. Reisenless only
+
+
+--- udonge/eligibility.rs:30 (comment) ---
+/// consumes the boolean at its built-in-module transport boundary.
+
+
+--- udonge/eligibility.rs:33 (comment) ---
+// Manager hiding is mandatory, so every ordinary application UID needs
+
+--- udonge/eligibility.rs:34 (comment) ---
+// the tiny built-in filter. This avoids reading hideapps.conf during every
+
+--- udonge/eligibility.rs:35 (comment) ---
+// app specialization. The manager is excluded by ProcessIsMagiskApp and
+
+--- udonge/eligibility.rs:36 (comment) ---
+// Udonge binds policy to Android's system-provided app data directory.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:28 (comment) ---
+/** Process-local IPackageManager filter for exact configured package identities. */
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:75 (comment) ---
+// Cache only class metadata, never app instances or live package results.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:76 (comment) ---
+// Bound classes to avoid retaining arbitrary vendor class loaders forever.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:178 (comment) ---
+// Framework layouts differ by release; each cache is best effort.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:237 (comment) ---
+// ActivityThread remains protected if ServiceManager internals change.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:411 (comment) ---
+// outNames holds authorities, not package identities. Both lists
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:412 (comment) ---
+// describe the same providers and must retain matching indexes.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:420 (comment) ---
+// Unknown immutable framework implementation.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:475 (comment) ---
+// Unknown framework revision: leave the original result intact.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:549 (comment) ---
+// These APIs take the target package first. Later strings may be
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:550 (comment) ---
+// MIME groups, theme names, properties or other non-package data.
+
+--- udonge/java/com/topjohnwu/reisenless/hideapps/PackageManagerProxy.java:595 (comment) ---
+// Try the next framework-version field.
+
+--- udonge/java/tests/ReflectionCacheTest.java:24 (comment) ---
+// android.jar contains throwing constructor stubs; instantiate data-only
+
+--- udonge/java/tests/ReflectionCacheTest.java:25 (comment) ---
+// framework fixtures without calling those stubs on the host JVM.
+
+--- udonge/native/file_cache.hpp:10 (comment) ---
+// Owned by the companion, never used for volatile /proc data. Callers serialize
+
+--- udonge/native/file_cache.hpp:11 (comment) ---
+// access and copy response data before releasing their lock.
+
+--- udonge/native/file_cache.hpp:44 (comment) ---
+// Do not cache a read spanning an atomic replacement or in-place write.
+
+--- udonge/native/file_cache.hpp:57 (comment) ---
+// namespace cloak
+
+--- udonge/native/hideapps.cpp:48 (comment) ---
+// namespace
+
+--- udonge/native/hideapps.cpp:157 (comment) ---
+// namespace hideapps
+
+--- udonge/native/hideapps.hpp:11 (comment) ---
+// namespace hideapps
+
+--- udonge/native/hooks.cpp:33 (comment) ---
+// memfd_create syscall numbers
+
+--- udonge/native/hooks.cpp:75 (comment) ---
+// Static buffers for root solution tokens (obfuscated so forbidden release identifiers do not appear in .rodata)
+
+--- udonge/native/hooks.cpp:91 (comment) ---
+// ---- path blocklist ----
+
+--- udonge/native/hooks.cpp:93 (comment) ---
+// Magisk / Zygisk core
+
+--- udonge/native/hooks.cpp:94 (comment) ---
+// NOTE: "zygisk" intentionally omitted — the linker reads /proc/self/maps to
+
+--- udonge/native/hooks.cpp:95 (comment) ---
+// locate libzygisk.so for self-cleanup (dlclose), and filtering that line out
+
+--- udonge/native/hooks.cpp:96 (comment) ---
+// causes Zygisk's destructor to access freed memory → SIGSEGV at 0x569a8.
+
+--- udonge/native/hooks.cpp:97 (comment) ---
+// "/data/adb" below also hides the boot-owned Udonge runtime.
+
+--- udonge/native/hooks.cpp:103 (comment) ---
+// Root solution tokens (obfuscated pointers)
+
+--- udonge/native/hooks.cpp:108 (comment) ---
+// Extra patterns only applied to /proc/*/mounts and mountinfo.
+
+--- udonge/native/hooks.cpp:109 (comment) ---
+// More aggressive — "worker" and "mirror" are Magisk-internal but too generic
+
+--- udonge/native/hooks.cpp:110 (comment) ---
+// to block in the global file-access hooks.
+
+--- udonge/native/hooks.cpp:112 (comment) ---
+// Magisk's debug ramfs mount point
+
+--- udonge/native/hooks.cpp:113 (comment) ---
+// Magisk overlay worker bind mounts
+
+--- udonge/native/hooks.cpp:114 (comment) ---
+// Magisk mirror bind mounts
+
+--- udonge/native/hooks.cpp:115 (comment) ---
+// /sbin/.core or similar Magisk paths
+
+--- udonge/native/hooks.cpp:132 (comment) ---
+// Return true if the path contains any user-configured ROM keyword.
+
+--- udonge/native/hooks.cpp:133 (comment) ---
+// Called from is_blocked(), which is already guarded by a !path check.
+
+--- udonge/native/hooks.cpp:145 (comment) ---
+// Duck Detector's ROM framework/recovery catalog also contains neutral
+
+--- udonge/native/hooks.cpp:146 (comment) ---
+// path names that cannot be matched by a ROM keyword.
+
+--- udonge/native/hooks.cpp:183 (comment) ---
+// Fast check for real/exempt interfaces
+
+--- udonge/native/hooks.cpp:271 (comment) ---
+// ---- originals ----
+
+--- udonge/native/hooks.cpp:339 (comment) ---
+// Calling the public dlopen from this wrapper changes the linker caller to
+
+--- udonge/native/hooks.cpp:340 (comment) ---
+// our trampoline. Android then chooses the wrong linker namespace and may
+
+--- udonge/native/hooks.cpp:341 (comment) ---
+// reject vendor EGL/HAL dependencies. Forward the real call-site address
+
+--- udonge/native/hooks.cpp:342 (comment) ---
+// to the linker's exported entry point so namespace selection is unchanged.
+
+--- udonge/native/hooks.cpp:384 (comment) ---
+// RTLD_NEXT and linker namespaces depend on the real library caller.
+
+--- udonge/native/hooks.cpp:385 (comment) ---
+// Do not rely on the compiler tail-calling the public dlsym wrapper.
+
+--- udonge/native/hooks.cpp:445 (comment) ---
+// Check if the path ends with "mountinfo"
+
+--- udonge/native/hooks.cpp:496 (comment) ---
+// ---- file-existence hiding ----
+
+--- udonge/native/hooks.cpp:582 (comment) ---
+// ---- /proc self-file filtering helpers ----
+
+--- udonge/native/hooks.cpp:625 (comment) ---
+// Remove lines that reference blocked root paths (maps, mounts, etc.)
+
+--- udonge/native/hooks.cpp:643 (comment) ---
+// Also filter lines containing ROM keywords (e.g. lineage framework files in maps)
+
+--- udonge/native/hooks.cpp:683 (comment) ---
+// Normalize mountinfo lines by removing blocked entries and renumbering peer groups
+
+--- udonge/native/hooks.cpp:684 (comment) ---
+// (shared:X, master:X, propagate_from:X) into a contiguous gapless sequence to defeat
+
+--- udonge/native/hooks.cpp:685 (comment) ---
+// DuckDetector's detect_peer_group_gap probe.
+
+--- udonge/native/hooks.cpp:695 (comment) ---
+// Step 1: Collect non-blocked lines
+
+--- udonge/native/hooks.cpp:722 (comment) ---
+// Step 2: Extract all shared:X, master:X, propagate_from:X IDs and collect unique IDs in order
+
+--- udonge/native/hooks.cpp:748 (comment) ---
+// Step 3: Build a gapless remap table: 1, 2, 3, ... N
+
+--- udonge/native/hooks.cpp:757 (comment) ---
+// Step 4: Stream rewritten lines into output buffer
+
+--- udonge/native/hooks.cpp:771 (comment) ---
+// Rewrite optional fields before " - "
+
+--- udonge/native/hooks.cpp:801 (comment) ---
+// Append remainder of line (" - ...\n")
+
+--- udonge/native/hooks.cpp:891 (comment) ---
+// Zero out TracerPid in /proc/self/status to hide debugger/tracer
+
+--- udonge/native/hooks.cpp:1022 (comment) ---
+// Create a memory-backed seekable fd containing `content`.
+
+--- udonge/native/hooks.cpp:1023 (comment) ---
+// Prefers memfd_create (API 23+); falls back to a pipe.
+
+--- udonge/native/hooks.cpp:1150 (comment) ---
+// ---- open / openat hooks ----
+
+--- udonge/native/hooks.cpp:1251 (comment) ---
+// Reads may come from arbitrary files, sockets or pipes. Buffer contents do
+
+--- udonge/native/hooks.cpp:1252 (comment) ---
+// not identify a getprop subprocess, so preserve every byte returned by libc.
+
+--- udonge/native/hooks.cpp:1257 (comment) ---
+// ---- readlink hooks — also filter symlink targets ----
+
+--- udonge/native/hooks.cpp:1258 (comment) ---
+// Catches /proc/self/fd/N → /data/adb/magisk/... symlinks
+
+--- udonge/native/hooks.cpp:1286 (comment) ---
+// ---- directory listing hiding ----
+
+--- udonge/native/hooks.cpp:1333 (comment) ---
+// ---- exec filtering ----
+
+--- udonge/native/hooks.cpp:1371 (comment) ---
+// ---- getenv hook — hide LD_PRELOAD / LD_LIBRARY_PATH injections ----
+
+--- udonge/native/hooks.cpp:1372 (comment) ---
+// Some apps call getenv("LD_PRELOAD") to detect injected libraries.
+
+--- udonge/native/hooks.cpp:1373 (comment) ---
+// We return nullptr for loader env vars and filter results containing root paths.
+
+--- udonge/native/hooks.cpp:1376 (comment) ---
+// Block LD_PRELOAD so apps can't detect our injected library.
+
+--- udonge/native/hooks.cpp:1377 (comment) ---
+// LD_LIBRARY_PATH is NOT blocked — apps legitimately read it for native lib loading.
+
+--- udonge/native/hooks.cpp:1384 (comment) ---
+// ---- hardcoded boot-state props ----
+
+--- udonge/native/hooks.cpp:1415 (comment) ---
+// Hide USB debugging state (single-source checks only — no divergence risk)
+
+--- udonge/native/hooks.cpp:1423 (comment) ---
+// Override OEM- or release-specific properties only when that property exists.
+
+--- udonge/native/hooks.cpp:1424 (comment) ---
+// This avoids inventing Samsung and legacy partition flags on unrelated devices.
+
+--- udonge/native/hooks.cpp:1460 (comment) ---
+// Props that should appear absent (return empty string / not found)
+
+--- udonge/native/hooks.cpp:1461 (comment) ---
+// These props are suspicious when present on a "clean" device
+
+--- udonge/native/hooks.cpp:1471 (comment) ---
+// Return the pif.conf "ID" value for props that should show the device build ID
+
+--- udonge/native/hooks.cpp:1472 (comment) ---
+// (e.g. ro.build.display.id — native callers bypass our JNI Build.DISPLAY spoof).
+
+--- udonge/native/hooks.cpp:1477 (comment) ---
+// Prefer DISPLAY key; fall back to ID (same value on stock Pixel user builds)
+
+--- udonge/native/hooks.cpp:1504 (comment) ---
+// Keep all *.api_level properties consistent with DEVICE_INITIAL_SDK_INT.
+
+--- udonge/native/hooks.cpp:1532 (comment) ---
+// Exact property signatures in Duck Detector's current ROM catalog.
+
+--- udonge/native/hooks.cpp:1542 (comment) ---
+// Props whose VALUE is checked against ROM keywords and suppressed if it matches.
+
+--- udonge/native/hooks.cpp:1543 (comment) ---
+// Used for props that carry the ROM name in their value rather than their key.
+
+--- udonge/native/hooks.cpp:1555 (comment) ---
+// Returns true if value contains a user-configured ROM keyword.
+
+--- udonge/native/hooks.cpp:1591 (comment) ---
+// Dynamic: any prop whose NAME contains a ROM keyword is suppressed
+
+--- udonge/native/hooks.cpp:1612 (comment) ---
+// ---- property hooks (classic API) ----
+
+--- udonge/native/hooks.cpp:1615 (comment) ---
+// Suppress "deleted" suspicious props
+
+--- udonge/native/hooks.cpp:1618 (comment) ---
+// Spoof display ID from pif.conf before any other check
+
+--- udonge/native/hooks.cpp:1671 (comment) ---
+// Suppress props whose value exposes a configured ROM keyword.
+
+--- udonge/native/hooks.cpp:1692 (comment) ---
+// ---- property hooks (modern callback API) ----
+
+--- udonge/native/hooks.cpp:1822 (comment) ---
+// ---- VPN concealment hooks ----
+
+--- udonge/native/hooks.cpp:1847 (comment) ---
+// Bionic allocates each ifaddrs node with its data in one block.
+
+--- udonge/native/hooks.cpp:1848 (comment) ---
+// Unlinked nodes are no longer reachable by the caller's freeifaddrs.
+
+--- udonge/native/hooks.cpp:1951 (comment) ---
+// ldr x16, #8
+
+--- udonge/native/hooks.cpp:1952 (comment) ---
+// br x16
+
+--- udonge/native/hooks.cpp:1962 (comment) ---
+/* __NR_truncate */
+
+--- udonge/native/hooks.cpp:2035 (comment) ---
+// ---- hook table ----
+
+--- udonge/native/hooks.cpp:2140 (comment) ---
+// A later dlclose may unmap this image. Commit the patched GOT to its
+
+--- udonge/native/hooks.cpp:2141 (comment) ---
+// original mapping now, while it is alive, so no unload-time backup
+
+--- udonge/native/hooks.cpp:2142 (comment) ---
+// restoration can dereference an unmapped library.
+
+--- udonge/native/hooks.cpp:2150 (comment) ---
+// Copy into static storage: survives DLCLOSE_MODULE_LIBRARY which may
+
+--- udonge/native/hooks.cpp:2151 (comment) ---
+// destroy the caller's Config before the library is actually unmapped.
+
+--- udonge/native/hooks.cpp:2158 (comment) ---
+// These linker exports accept the original call-site explicitly. Resolve
+
+--- udonge/native/hooks.cpp:2159 (comment) ---
+// them before registering dlopen/dlsym hooks.
+
+--- udonge/native/hooks.cpp:2177 (comment) ---
+// APK-embedded native libraries share the base APK's device/inode. Track
+
+--- udonge/native/hooks.cpp:2178 (comment) ---
+// each executable ELF mapping base as well, otherwise an earlier APK/Dex
+
+--- udonge/native/hooks.cpp:2179 (comment) ---
+// mapping makes a library loaded later look "already hooked".
+
+--- udonge/native/hooks.cpp:2180 (comment) ---
+// A dedicated app zygote may preload the target's native library after a
+
+--- udonge/native/hooks.cpp:2181 (comment) ---
+// narrow hook profile has been installed. Its child then needs the full
+
+--- udonge/native/hooks.cpp:2182 (comment) ---
+// profile on the same inherited mapping. Track symbols independently so a
+
+--- udonge/native/hooks.cpp:2183 (comment) ---
+// previously installed dlsym hook does not suppress every other hook.
+
+--- udonge/native/hooks.cpp:2198 (comment) ---
+// Never patch libzygisk.so: Zygisk dlcloses itself after specializeApp,
+
+--- udonge/native/hooks.cpp:2199 (comment) ---
+// its destructor calls __system_property_get through the patched PLT, and
+
+--- udonge/native/hooks.cpp:2200 (comment) ---
+// our hook then accesses the already-freed UdongeModule's g_cfg → SIGSEGV.
+
+--- udonge/native/hooks.cpp:2202 (comment) ---
+// Skip ioctl hook for libbinder.so: Duck Detector TEE native probe checks that
+
+--- udonge/native/hooks.cpp:2203 (comment) ---
+// libbinder.so's ioctl GOT entry resolves to the real libc ioctl. Binder ioctl
+
+--- udonge/native/hooks.cpp:2204 (comment) ---
+// codes (BINDER_WRITE_READ etc.) are never VPN/network-interface-related, so
+
+--- udonge/native/hooks.cpp:2205 (comment) ---
+// excluding libbinder from the ioctl hook is safe and avoids false detection.
+
+--- udonge/native/hooks.cpp:2220 (comment) ---
+// namespace cloak
+
+--- udonge/native/hooks.hpp:2 (comment) ---
+// dev_t / ino_t used by zygisk.hpp
+
+--- udonge/native/hooks.hpp:13 (comment) ---
+// Hook Runtime.nativeLoad before specialization so every app JNI library gets
+
+--- udonge/native/hooks.hpp:14 (comment) ---
+// its PLT hooks immediately after loading and before Java can call into it.
+
+--- udonge/native/hooks.hpp:17 (comment) ---
+// Install the selected PLT-hook profile for the current process.
+
+--- udonge/native/hooks.hpp:21 (comment) ---
+// namespace cloak
+
+--- udonge/native/main.cpp:137 (comment) ---
+// namespace
+
+--- udonge/native/main.cpp:157 (comment) ---
+// Android names a dedicated app zygote after its owner with this
+
+--- udonge/native/main.cpp:158 (comment) ---
+// suffix. Resolve the configured Udonge target before asking the
+
+--- udonge/native/main.cpp:159 (comment) ---
+// companion for its policy.
+
+--- udonge/native/main.cpp:166 (comment) ---
+// Process names are application-controlled through android:process.
+
+--- udonge/native/main.cpp:167 (comment) ---
+// Bind package-hiding policy to the system-owned app data directory so
+
+--- udonge/native/main.cpp:168 (comment) ---
+// an ordinary app cannot name itself like an exempt system package.
+
+--- udonge/native/main.cpp:187 (comment) ---
+// Only explicit protection targets should lose the su mount. Ordinary
+
+--- udonge/native/main.cpp:188 (comment) ---
+// apps must be able to find su and request root from the manager.
+
+--- udonge/native/main.cpp:197 (comment) ---
+// Child zygotes inherit the mount decision, but must not initialize
+
+--- udonge/native/main.cpp:198 (comment) ---
+// Binder or app-only Java services before their later forks.
+
+--- udonge/native/main.cpp:208 (comment) ---
+// Cloak/stealth candidacy comes from the live targets configuration.
+
+--- udonge/native/main.cpp:221 (comment) ---
+// ActivityThread.getPackageManager opens /dev/binder. Android's
+
+--- udonge/native/main.cpp:222 (comment) ---
+// child-zygote FD audit rejects that descriptor on the next fork,
+
+--- udonge/native/main.cpp:223 (comment) ---
+// breaking app-zygote helpers and WebView renderers. Do not bypass
+
+--- udonge/native/main.cpp:224 (comment) ---
+// the audit or inherit a Binder connection across a zygote fork.
+
+--- udonge/native/main.cpp:225 (comment) ---
+// Native PLT hooks (stat, open, read, selinux_check_access) do not touch
+
+--- udonge/native/main.cpp:226 (comment) ---
+// Binder and are safe to install in child_zygote.
+
+--- udonge/native/main.cpp:252 (comment) ---
+// Patch Build.TYPE and Build.TAGS static constants so Java-level
+
+--- udonge/native/main.cpp:253 (comment) ---
+// cross-checks (Build.TYPE vs fingerprint tail) see clean values.
+
+--- udonge/native/main.cpp:324 (comment) ---
+// Loading the built-in module is not authorization to apply Udonge's
+
+--- udonge/native/main.cpp:325 (comment) ---
+// privileged protection profile. Non-target processes may still have a
+
+--- udonge/native/main.cpp:326 (comment) ---
+// package-hiding rule; they must otherwise remain untouched and let
+
+--- udonge/native/main.cpp:327 (comment) ---
+// postAppSpecialize unload this library.
+
+--- udonge/native/spoof.cpp:35 (comment) ---
+// Build.VERSION must describe the framework that is actually
+
+--- udonge/native/spoof.cpp:36 (comment) ---
+// running. Pretending this framework is a future Android
+
+--- udonge/native/spoof.cpp:37 (comment) ---
+// release makes Cronet select unavailable Java APIs and aborts
+
+--- udonge/native/spoof.cpp:38 (comment) ---
+// com.google.android.gms.unstable, taking app networking with it.
+
+--- udonge/native/spoof.cpp:119 (comment) ---
+// namespace cloak
+
+--- udonge/native/spoof.hpp:7 (comment) ---
+// Overwrite android.os.Build / Build.VERSION fields in the current process with
+
+--- udonge/native/spoof.hpp:10 (comment) ---
+// Overwrite only Build.DISPLAY using the DISPLAY (or ID) value from cfg.gms_build.
+
+--- udonge/native/spoof.hpp:11 (comment) ---
+// Targeted variant for cloaked non-GMS apps — avoids changing MODEL/BRAND/etc.
+
+--- udonge/native/spoof.hpp:12 (comment) ---
+// which could break payment apps that validate device identity.
+
+--- udonge/native/spoof.hpp:15 (comment) ---
+// Overwrite Build.TYPE → "user" and Build.TAGS → "release-keys" unconditionally.
+
+--- udonge/native/spoof.hpp:16 (comment) ---
+// Keep Java Build constants consistent with the sanitized native properties.
+
+--- udonge/native/spoof.hpp:19 (comment) ---
+// Overwrite Custom ROM reflection fields like AssetManager.LINEAGE_APK_PATH to nullptr.
+
+--- udonge/native/spoof.hpp:22 (comment) ---
+// namespace cloak
+
+--- udonge/native/tests/cache_test.cpp:25 (comment) ---
+// Same length and second, differing nanosecond timestamp.
+
+--- udonge/native/tests/hooks_test.cpp:21 (comment) ---
+// Exercise the production wrappers with real Android file and pipe operations.
+
+--- udonge/native/tests/late_hooks_test.cpp:11 (comment) ---
+// Only the package-manager-owned path is simulated. ELF addresses,
+
+--- udonge/native/tests/late_hooks_test.cpp:12 (comment) ---
+// offsets, inode and permissions come from the real loaded test .so.
+
+--- udonge/native/tests/late_hooks_test.cpp:63 (comment) ---
+// Android may retain global-group dependencies once symbols are bound.
+
+--- udonge/native/tests/late_hooks_test.cpp:64 (comment) ---
+// Keep this fixture separate from the reserved-address unload fixture.
+
+--- udonge/native/tests/service_standin.cpp:1 (comment) ---
+// Process names and hierarchy only; no TEE, Binder, attestation or live state.
+
+--- udonge/payload/keybox_heal.sh:2 (comment) ---
+#
+
+--- udonge/payload/keybox_heal.sh:3 (comment) ---
+# Reisenless Udonge Keybox Checker & Healing Engine
+
+--- udonge/payload/keybox_heal.sh:4 (comment) ---
+# Validates keybox XML schema, extracts certificate serials,
+
+--- udonge/payload/keybox_heal.sh:5 (comment) ---
+# verifies against Google Attestation CRL / offline blacklist,
+
+--- udonge/payload/keybox_heal.sh:6 (comment) ---
+# and heals compromised keyboxes automatically.
+
+--- udonge/payload/keybox_heal.sh:7 (comment) ---
+#
+
+--- udonge/payload/keybox_heal.sh:12 (comment) ---
+# 1. If called from within runtime or root
+
+--- udonge/payload/keybox_heal.sh:15 (comment) ---
+# The invoking runtime owns recovery even when its active file is missing.
+
+--- udonge/payload/keybox_heal.sh:16 (comment) ---
+# Falling through to process discovery could select another build's state.
+
+--- udonge/payload/keybox_heal.sh:22 (comment) ---
+# 2. Check running TEESimulator / supervisor cwd
+
+--- udonge/payload/keybox_heal.sh:33 (comment) ---
+# 3. Check nested directories (both visible and hidden)
+
+--- udonge/payload/keybox_heal.sh:153 (comment) ---
+# Offline blacklist of known compromised / revoked keybox certificate serials
+
+--- udonge/payload/keybox_heal.sh:154 (comment) ---
+# (lowercase hex without leading zeros, and decimal)
+
+--- udonge/payload/keybox_heal.sh:168 (comment) ---
+# Update cache if older than 24 hours (86400s) or missing
+
+--- udonge/payload/keybox_heal.sh:192 (comment) ---
+# Extract certificate serial numbers from an XML keybox file
+
+--- udonge/payload/keybox_heal.sh:193 (comment) ---
+# Output: list of serial numbers in hex and decimal
+
+--- udonge/payload/keybox_heal.sh:213 (comment) ---
+# Parse DER hex string:
+
+--- udonge/payload/keybox_heal.sh:214 (comment) ---
+# byte 0 (chars 1-2): 30 (SEQUENCE)
+
+--- udonge/payload/keybox_heal.sh:225 (comment) ---
+# TBSCertificate SEQUENCE (tag 30)
+
+--- udonge/payload/keybox_heal.sh:236 (comment) ---
+# Optional version [0] EXPLICIT tag a0
+
+--- udonge/payload/keybox_heal.sh:251 (comment) ---
+# SerialNumber tag (must be 02)
+
+--- udonge/payload/keybox_heal.sh:261 (comment) ---
+# Also emit decimal form so is_serial_revoked() matches decimal CRL entries.
+
+--- udonge/payload/keybox_heal.sh:262 (comment) ---
+# Google CRL has ~979 decimal-format entries vs ~780 hex-format.
+
+--- udonge/payload/keybox_heal.sh:270 (comment) ---
+# Checks if a serial is revoked in CRL or blacklist
+
+--- udonge/payload/keybox_heal.sh:287 (comment) ---
+# Multi-layer de-obfuscator for nested base64, Specter cipher, MeowDump, and raw XML
+
+--- udonge/payload/keybox_heal.sh:300 (comment) ---
+# 1. Direct XML match
+
+--- udonge/payload/keybox_heal.sh:307 (comment) ---
+# 2. Check for ROT13 XML
+
+--- udonge/payload/keybox_heal.sh:314 (comment) ---
+# 3. Try Hex decode
+
+--- udonge/payload/keybox_heal.sh:328 (comment) ---
+# 4. Try standard Base64 decode
+
+--- udonge/payload/keybox_heal.sh:340 (comment) ---
+# 5. Try Specter substitution cipher
+
+--- udonge/payload/keybox_heal.sh:361 (comment) ---
+# Sanitize XML keybox content (supports raw XML, nested Base64, Specter, MeowDump)
+
+--- udonge/payload/keybox_heal.sh:372 (comment) ---
+# Remove XML declaration and comments/directives, normalize variant tags, normalize CRLF to LF
+
+--- udonge/payload/keybox_heal.sh:386 (comment) ---
+# Validate keybox file:
+
+--- udonge/payload/keybox_heal.sh:387 (comment) ---
+# Returns:
+
+--- udonge/payload/keybox_heal.sh:388 (comment) ---
+#   0: VALID (clean schema, valid keys, unrevoked certs)
+
+--- udonge/payload/keybox_heal.sh:389 (comment) ---
+#   1: REVOKED (one or more certificate serials in CRL)
+
+--- udonge/payload/keybox_heal.sh:390 (comment) ---
+#   2: CORRUPTED / INVALID SCHEMA
+
+--- udonge/payload/keybox_heal.sh:398 (comment) ---
+# 1. Structural checks
+
+--- udonge/payload/keybox_heal.sh:410 (comment) ---
+# 1b. Reject AOSP/Mock test cert chains — they never pass Strong Integrity.
+
+--- udonge/payload/keybox_heal.sh:411 (comment) ---
+# Google's Play Integrity validation requires the root CA to be a real hardware
+
+--- udonge/payload/keybox_heal.sh:412 (comment) ---
+# attestation CA, not an AOSP test or synthetic mock root.
+
+--- udonge/payload/keybox_heal.sh:418 (comment) ---
+# 1c. Fast expiration check on leaf cert (most-common failure after 2026-09-28 mass expiry).
+
+--- udonge/payload/keybox_heal.sh:419 (comment) ---
+# Avoids wasting a Play Integrity API call on obviously expired certs.
+
+--- udonge/payload/keybox_heal.sh:424 (comment) ---
+# score_keybox returns 0 when expired (see score_keybox implementation)
+
+--- udonge/payload/keybox_heal.sh:430 (comment) ---
+# 2. Check for revoked certificates
+
+--- udonge/payload/keybox_heal.sh:456 (comment) ---
+# Flush GMS and Play Integrity attestation caches
+
+--- udonge/payload/keybox_heal.sh:468 (comment) ---
+# Reload TEESimulator process cleanly
+
+--- udonge/payload/keybox_heal.sh:489 (comment) ---
+# Wait for processes to exit
+
+--- udonge/payload/keybox_heal.sh:492 (comment) ---
+# Relaunch supervisor/daemon directly from tee-runtime if available
+
+--- udonge/payload/keybox_heal.sh:494 (comment) ---
+# A short-lived parent reparents the persistent service independently
+
+--- udonge/payload/keybox_heal.sh:495 (comment) ---
+# of the hunter. Its PID records still belong to stop.sh/service.sh.
+
+--- udonge/payload/keybox_heal.sh:508 (comment) ---
+# Poll up to 6s for TEESimulator process to spawn
+
+--- udonge/payload/keybox_heal.sh:529 (comment) ---
+# Score a keybox by the NotBefore date of its leaf certificate.
+
+--- udonge/payload/keybox_heal.sh:530 (comment) ---
+# Returns an integer YYYYMMDD (higher = newer cert = preferred).
+
+--- udonge/payload/keybox_heal.sh:531 (comment) ---
+# Real hardware keys are given priority over synthetic MOCK_RKP keys.
+
+--- udonge/payload/keybox_heal.sh:532 (comment) ---
+# Falls back to 0 if parsing fails so any valid box still wins over nothing.
+
+--- udonge/payload/keybox_heal.sh:537 (comment) ---
+# Extract the FIRST certificate's base64 from the XML
+
+--- udonge/payload/keybox_heal.sh:546 (comment) ---
+# Decode to raw bytes then hex
+
+--- udonge/payload/keybox_heal.sh:552 (comment) ---
+# Search for UTCTIME (tag 17, len 0d -> "170d") or GENERALIZEDTIME (tag 18, len 0f -> "180f")
+
+--- udonge/payload/keybox_heal.sh:560 (comment) ---
+# In ASCII hex: '0'=30, '1'=31 ... '9'=39.
+
+--- udonge/payload/keybox_heal.sh:561 (comment) ---
+# Digits are at even positions: 2, 4, 6, 8, 10, 12
+
+--- udonge/payload/keybox_heal.sh:600 (comment) ---
+# Extract notAfter from subsequent 170d tag to detect expired certificates
+
+--- udonge/payload/keybox_heal.sh:628 (comment) ---
+# Discard expired certificates (score = 0)
+
+--- udonge/payload/keybox_heal.sh:636 (comment) ---
+# Real hardware keyboxes (e.g. from real manufacturers) pass Strong Integrity.
+
+--- udonge/payload/keybox_heal.sh:637 (comment) ---
+# Synthetic MOCK_RKP / test keyboxes fail Strong Integrity on Google servers.
+
+--- udonge/payload/keybox_heal.sh:638 (comment) ---
+# Reject mock/test keys completely so genuine hardware keys are used.
+
+--- udonge/payload/keybox_heal.sh:652 (comment) ---
+# Prioritize keyboxes with ECDSA (or dual ECDSA + RSA), needed by Android 15 DroidGuard
+
+--- udonge/payload/keybox_heal.sh:666 (comment) ---
+# Main healing logic
+
+--- udonge/payload/keybox_heal.sh:671 (comment) ---
+# 1. Check active keybox
+
+--- udonge/payload/keybox_heal.sh:704 (comment) ---
+# 2. Download all candidates, validate each, select the one with the freshest cert
+
+--- udonge/payload/keybox_heal.sh:725 (comment) ---
+# Pick this candidate if it has a higher score (fresher cert)
+
+--- udonge/payload/keybox_heal.sh:742 (comment) ---
+# 3. Install the best candidate if a newer/better one was found
+
+--- udonge/payload/keybox_heal.sh:759 (comment) ---
+# 4. Fallback to clean built-in default if active was invalid and no remote candidate was valid
+
+--- udonge/payload/keybox_heal.sh:803 (comment) ---
+# --- Keybox Hunter & Strong Integrity Verification Engine ---
+
+--- udonge/payload/keybox_heal.sh:855 (comment) ---
+# Stop existing instance and start Play Integrity check app cleanly
+
+--- udonge/payload/keybox_heal.sh:862 (comment) ---
+# Tap "CHECK" button at center coordinates (540, 1513)
+
+--- udonge/payload/keybox_heal.sh:865 (comment) ---
+# Wait for Play Integrity network request to complete and poll JSON modal
+
+--- udonge/payload/keybox_heal.sh:871 (comment) ---
+# Tap JSON code view icon in toolbar
+
+--- udonge/payload/keybox_heal.sh:883 (comment) ---
+# Search specifically inside the JSON text (which has literal double quotes)
+
+--- udonge/payload/keybox_heal.sh:892 (comment) ---
+# The Play Integrity app never showed a result. Distinguish two cases:
+
+--- udonge/payload/keybox_heal.sh:893 (comment) ---
+# LAUNCH_FAIL = app never appeared in foreground (Android binder crash / system busy)
+
+--- udonge/payload/keybox_heal.sh:894 (comment) ---
+# ERROR       = app launched but network/attestation call failed
+
+--- udonge/payload/keybox_heal.sh:898 (comment) ---
+# App window never appeared — this is a system/binder failure, not a keybox issue
+
+--- udonge/payload/keybox_heal.sh:901 (comment) ---
+# else: app was visible but no result appeared → genuine ERROR (network/attestation failure)
+
+--- udonge/payload/keybox_heal.sh:927 (comment) ---
+# Pre-check serials against known community softban list
+
+--- udonge/payload/keybox_heal.sh:946 (comment) ---
+# Deploy to active keybox
+
+--- udonge/payload/keybox_heal.sh:975 (comment) ---
+# DEVICE means the keybox is valid (not revoked/expired) but does NOT achieve STRONG.
+
+--- udonge/payload/keybox_heal.sh:976 (comment) ---
+# This is usually because the cert chain root isn't a Google hardware attestation CA.
+
+--- udonge/payload/keybox_heal.sh:977 (comment) ---
+# We do NOT permanently ban it — it stays usable for DEVICE-level integrity.
+
+--- udonge/payload/keybox_heal.sh:988 (comment) ---
+# App launch failed due to Android binder crash / system busy — not a keybox problem.
+
+--- udonge/payload/keybox_heal.sh:989 (comment) ---
+# Do NOT softban. Just log and exit so the daemon retries next cycle.
+
+--- udonge/payload/keybox_heal.sh:994 (comment) ---
+# BASIC: cert was rejected by Google (expired, revoked, invalid chain).
+
+--- udonge/payload/keybox_heal.sh:1088 (comment) ---
+# 1. Process local queues
+
+--- udonge/payload/keybox_heal.sh:1097 (comment) ---
+# 2. Process remote sources
+
+--- udonge/payload/keybox_heal.sh:1111 (comment) ---
+# 30 minutes
+
+--- udonge/payload/post-fs-data.sh:152 (comment) ---
+# Sync product identity from pif.conf for Device ID Attestation consistency
+
+--- udonge/payload/post-fs-data.sh:198 (comment) ---
+# Clean up leftover root artifacts in /data/local/tmp that trigger DroidGuard AVC denials
+
+--- udonge/payload/post-fs-data.sh:201 (comment) ---
+# Keep safe mtp value for persist.sys.usb.config to avoid detection while maintaining adb
+
+--- udonge/payload/post-fs-data.sh:212 (comment) ---
+# Clear VPN-revealing properties early
+
+--- udonge/payload/post-fs-data.sh:220 (comment) ---
+# Disable broken vendor Soter HAL service that triggers attestation anomalies on unlocked bootloaders
+
+--- udonge/payload/post-fs-data.sh:226 (comment) ---
+# Prevent MIUI ThemeCompatibilityLoader crash in app_process/TEESimulator
+
+--- udonge/payload/service.sh:93 (comment) ---
+# A scheduled refresh may arrive after the owner passed refresh_keybox.
+
+--- udonge/payload/service.sh:94 (comment) ---
+# Wait for that owner, including its metadata publication, and run again.
+
+--- udonge/payload/service.sh:158 (comment) ---
+# Prevent MIUI ThemeCompatibilityLoader crash in app_process/TEESimulator
+
+--- udonge/payload/service.sh:207 (comment) ---
+# Retire the old health watcher before it can overwrite the new PID
+
+--- udonge/payload/service.sh:208 (comment) ---
+# records, and stop the service while its ownership is still recorded.
+
+--- udonge/payload/service.sh:260 (comment) ---
+# Broken TEE handling: for devices with Keymaster <= 3 on Android 12+ or broken TEE HAL,
+
+--- udonge/payload/service.sh:261 (comment) ---
+# force GENERATE mode (!) for Google Play Services and Store so hardware leaf generation is bypassed.
+
+--- udonge/payload/service.sh:274 (comment) ---
+# Deduplicate and ensure '!' mode takes precedence over non-'!' entries
+
+--- udonge/payload/service.sh:296 (comment) ---
+# If tee_broken (e.g. sdm845 / OnePlus with Keymaster <= 3 on Android 12+),
+
+--- udonge/payload/service.sh:297 (comment) ---
+# ensure '!' is appended so hardware leaf generation is bypassed.
+
+--- udonge/payload/service.sh:310 (comment) ---
+# Always keep com.eltavine.duckdetector clean without '!' or '?'
+
+--- udonge/payload/service.sh:313 (comment) ---
+# Force boot_props_mode to ensure BootStateManager does not skip Oplus-family devices (e.g. OnePlus 6)
+
+--- udonge/payload/service.sh:331 (comment) ---
+# Compatibility symlink for TrickyStore / YuriKey / IntegrityBox modules
+
+--- udonge/payload/service.sh:399 (comment) ---
+# AVB and verified boot state hardening (from IntegrityBox & YuriKey)
+
+--- udonge/payload/service.sh:448 (comment) ---
+# Sync product identity from pif.conf for Device ID Attestation consistency
+
+--- udonge/payload/service.sh:495 (comment) ---
+# Strip custom ROM and OEM test residue properties (keep hardware platform props intact for Keymaster HAL)
+
+--- udonge/payload/service.sh:507 (comment) ---
+# Clean up leftover root artifacts in /data/local/tmp that trigger DroidGuard AVC denials
+
+--- udonge/payload/service.sh:511 (comment) ---
+# Disable broken vendor Soter HAL service and daemon that trigger attestation anomalies on unlocked bootloaders
+
+--- udonge/payload/service.sh:529 (comment) ---
+# Launch Keybox Hunter background worker if Strong Integrity is not yet locked
+
+--- udonge/payload/worker.sh:2 (comment) ---
+# Shared ownership checks. A PID alone is never sufficient after a restart.
+
+--- udonge/payload/worker.sh:5 (comment) ---
+# $$ still names the parent in a POSIX background subshell. A builtin read
+
+--- udonge/payload/worker.sh:6 (comment) ---
+# of /proc/self identifies the shell that actually owns the lock.
+
+--- udonge/payload/worker.sh:26 (comment) ---
+# Serialize metadata publication/reclamation when toybox provides flock.
+
+--- udonge/payload/worker.sh:27 (comment) ---
+# Older systems retain the mkdir ownership protocol below.
+
+--- udonge/payload/worker.sh:56 (comment) ---
+# Do not steal a directory while its new owner is publishing metadata.
+
+--- udonge/payload/worker.sh:80 (comment) ---
+# Atomic rename to a NONEMPTY tombstone prevents a delayed stale contender
+
+--- udonge/payload/worker.sh:81 (comment) ---
+# from renaming a newly published owner. Keep tombstones for this boot: an
+
+--- udonge/payload/worker.sh:82 (comment) ---
+# in-flight contender may still reference them after an arbitrary delay.
+
+--- udonge/payload/worker.sh:122 (comment) ---
+# Some supported Android kernels omit CONFIG_CHECKPOINT_RESTORE.
+
+--- udonge/payload/worker.sh:142 (comment) ---
+# Stop the parent first so it cannot create children during shutdown.
+
+--- udonge/payload/worker.sh:209 (comment) ---
+# Older payloads published no ownership lock. Match their exact script and
+
+--- udonge/payload/worker.sh:210 (comment) ---
+# action; cwd is authoritative only for a relative script argument.
+
+--- udonge/payload/worker.sh:217 (comment) ---
+# The tree helper rechecks this captured start before sending a signal.
+
+--- udonge/payload/worker.sh:218 (comment) ---
+# Keep a persistent service that an older hunter may have parented.
+
+--- build.py:1355 (embedded shell comment) ---
+# Only the runtime belonging to this APK identity may be replaced.
+
+--- tools/bootctl.patch:1 (build instructions) ---
+##################################################################################
+# How to build the prebuilt bootctl executable:
+#
+# 1. Checkout and sync the AOSP tree with the tag android-14.0.0_r1:
+#    https://source.android.com/setup/build/downloading
+# 2. Apply patches:
+#    `patch -p1 -d system/extras -i bootctl.patch`
+# 3. Build for arm, arm64, x86, and x86_64:
+#    `lunch aosp_<abi>-eng`
+# 4. Build the executable:
+#    `m bootctl`
+#
+# Despite built from the Android 14 branch, the executable is usable on API 31+.
+##################################################################################

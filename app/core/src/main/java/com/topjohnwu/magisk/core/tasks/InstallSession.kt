@@ -3,7 +3,6 @@ package com.topjohnwu.magisk.core.tasks
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Shared by launched-APK and selected-APK operations; held through cleanup. */
 internal object InstallSession {
     private val active = AtomicBoolean(false)
 

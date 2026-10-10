@@ -23,7 +23,6 @@ import java.security.MessageDigest
 import java.util.UUID
 import java.util.zip.ZipFile
 
-/** File-only patching in an unprivileged child, with the selected build's complete payload. */
 class SelectedApkPatcher(
     private val apk: Uri,
     private val image: Uri,
@@ -75,9 +74,7 @@ class SelectedApkPatcher(
                 }
                 bootTool = installedTool(installed.nativeLibraryDir, source.name("PACKAGED_BOOT_LIB"), File(payload, "source-tool"))
                 mainTool = installedTool(installed.nativeLibraryDir, source.name("PACKAGED_MAIN_LIB"), File(payload, mainName))
-                // Only adapt invocation syntax, never replace payload bytes or identity values.
-                // Android disallows executing imported static binaries from writable app data.
-                // Use package-installed tools only after exact byte-for-byte digest comparison.
+
                 val patch = File(payload, "boot_patch.sh")
                 val text = source.readText("assets/boot_patch.sh")
                 if (!text.contains("./mboot ") || !text.contains("./\$MAIN_BIN_NAME --preinit-device"))
@@ -118,17 +115,14 @@ class SelectedApkPatcher(
             """.trimIndent())
             val busybox = File(context.applicationInfo.nativeLibraryDir, "lib${BuildConfig.BUSYBOX_LIB_NAME}.so")
             console.add("- patching with the selected apk (file only)")
-            // The launched APK supplies only the generic shell interpreter, not root payload/tools.
-            // Android may preserve the ELF path as argv[0] despite `exec -a`.
-            // BusyBox dispatches from argv[0], so execute a link whose basename
-            // is actually `busybox`.
+
             val dispatcher = File(stage, "busybox")
             if (!dispatcher.exists()) Os.symlink(busybox.path, dispatcher.path)
             val command = "${quote(dispatcher.path)} timeout -s KILL 120 sh ${quote(bootstrap.path)}"
             val process = ProcessBuilder("/system/bin/sh", "-c", command)
                 .redirectErrorStream(true).apply { environment()["ASH_STANDALONE"] = "1" }.start()
             val result = BoundedProcess.capture(process, 130_000, 2 * 1024 * 1024)
-            // The console's CallbackList also owns the saved log; do not append twice.
+
             result.output.forEach { console.add(it) }
             if (result.code != 0) throw IOException("selected apk tools could not complete patching (exit ${result.code})")
             val patched = File(payload, "new-boot.img")

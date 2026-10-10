@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!--Sections-->
+
     <string name="modules">módulos</string>
     <string name="superuser">superusuariu</string>
     <string name="settings">configuración</string>
@@ -8,7 +8,7 @@
     <string name="section_home">aniciu</string>
     <string name="section_theme">estilos</string>
     <string name="denylist">llista d\'esclusión</string>
-    <!--Home-->
+
     <string name="no_connection">l\'accesu a internet nun ta disponible</string>
     <string name="loading">cargando…</string>
     <string name="update">anovar</string>
@@ -21,7 +21,7 @@
     <string name="home_latest_version">última versión</string>
     <string name="uninstall_magisk_title">desinstalar magisk</string>
     <string name="uninstall_magisk_msg">¡van quitase y desactivase tolos módulos y l\'accesu root!\ncualesquier almacenamientu internu ensin cifrar pente l\'usu de magisk va volver cifrase.</string>
-    <!--Install-->
+
     <string name="keep_force_encryption">caltener el cifráu forciáu</string>
     <string name="keep_dm_verity">caltener l\'avb 2.0/dm-verity</string>
     <string name="recovery_mode">mou de recuperación</string>
@@ -37,7 +37,7 @@
     <string name="patch_file_msg">seleiciona una imaxe en bruto (*.img), un archivu d\'odin (*.tar) o un ficheru payload.bin (*.bin)</string>
     <string name="reboot_delay_toast">reaniciando en 5 segundos…</string>
     <string name="flash_screen_title">instalación</string>
-    <!--Superuser-->
+
     <string name="su_request_title">solicitú de superusuariu</string>
     <string name="touch_filtered_warning">como una aplicación torga la solicitú de superusuariu, magisk nun pue verificar la to rempuesta</string>
     <string name="deny">negar</string>
@@ -63,20 +63,19 @@
     <string name="superuser_toggle_notification">avisos</string>
     <string name="superuser_toggle_revoke">revocar</string>
     <string name="superuser_policy_none">pel momentu, nenguna aplicación pidió\'l permisu de superusuariu.</string>
-    <!--Logs-->
+
     <string name="menuSaveLog">guardar el rexistru</string>
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">uid de destín: %1$d</string>
     <string name="target_pid">mount ns target pid: %s</string>
     <string name="selinux_context">contestu de selinux: %s</string>
     <string name="supp_group">grupu suplementariu: %s</string>
-    <!--SafetyNet-->
-    <!--MagiskHide-->
+
     <string name="show_system_app">aplicaciones del sistema</string>
     <string name="show_os_app">aplicaciones del so</string>
     <string name="hide_filter_hint">peñerar pol nome</string>
     <string name="hide_search">buscar</string>
-    <!--Module-->
+
     <string name="no_info_provided">(nun s\'apurrió nenguna información)</string>
     <string name="reboot_userspace">reaniciu del sistema</string>
     <string name="reboot_recovery">reaniciar al recovery</string>
@@ -95,7 +94,7 @@
     <string name="module_empty">nun hai nengún módulu instaláu</string>
     <string name="confirm_install">¿quies instalar el módulu «%1$s»?</string>
     <string name="confirm_install_title">confirmación de la instalación</string>
-    <!--Settings-->
+
     <string name="settings_dark_mode_title">mou del estilu</string>
     <string name="settings_dark_mode_message">¡seleiciona\'l mou que meyor s\'adaute al to estilu!</string>
     <string name="settings_dark_mode_light">claridá</string>
@@ -147,11 +146,11 @@
     <string name="global_summary">toles sesiones de root usen l\'espaciu de nomes global</string>
     <string name="requester_summary">les sesiones de root herieden l\'espaciu de nomes de los solicitantes</string>
     <string name="isolate_summary">cada sesión de root tien el so espaciu de nomes propiu</string>
-    <!--Notifications-->
+
     <string name="progress_channel">avisos de progresos</string>
     <string name="download_complete">completóse la descarga</string>
     <string name="download_file_error">hebo un fallu al baxar el ficheru</string>
-    <!--Toasts, Dialogs-->
+
     <string name="yes">sí</string>
     <string name="no">non</string>
     <string name="repo_install_title">instalación de: %1$s %2$s (%3$d)</string>

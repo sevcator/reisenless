@@ -65,12 +65,21 @@ object Udonge {
         }
         return success
     }
+    fun setRehealMode(mode: Int): Boolean {
+        val enabled = mode == Config.Value.REHEAL_DAILY
+        val success = setBackgroundUpdates(enabled)
+        if (success) {
+            Config.udongeRehealMode = mode
+        }
+        return success
+    }
 
     fun setBackgroundUpdates(enabled: Boolean): Boolean {
         val action = if (enabled) {
-            "mkdir -p '$state' && : > '$state/background-updates'"
+            UdongeCommands.enableBackground(root)
         } else {
-            "rm -f '$state/background-updates' '$state/.keybox-refresh'"
+            "rm -f '$state/background-updates' '$state/.keybox-refresh' && " +
+                "if [ -x '$runtime/keybox_heal.sh' ]; then '$runtime/keybox_heal.sh' stop_daemon; fi"
         }
         val success = Shell.cmd(action).exec().isSuccess
         if (success) {
@@ -84,9 +93,10 @@ object Udonge {
         val action = if (
             Config.udongeEnabled && Config.udongeBackgroundUpdates
         ) {
-            "mkdir -p '$state' && : > '$state/background-updates'"
+            UdongeCommands.enableBackground(root)
         } else {
-            "rm -f '$state/background-updates' '$state/.keybox-refresh'"
+            "rm -f '$state/background-updates' '$state/.keybox-refresh' && " +
+                "if [ -x '$runtime/keybox_heal.sh' ]; then '$runtime/keybox_heal.sh' stop_daemon; fi"
         }
         return shell.newJob().add(action).exec().isSuccess
     }
@@ -94,9 +104,11 @@ object Udonge {
     @Volatile
     private var cachedAssetId: String? = null
 
+    @Synchronized
     fun syncRuntime(context: Context, shell: Shell) {
         runCatching {
-            val installedId = com.topjohnwu.superuser.ShellUtils.fastCmd("cat '$runtime/payload.id' 2>/dev/null").trim()
+            val installedId = shell.newJob().add("cat '$runtime/payload.id' 2>/dev/null")
+                .exec().out.firstOrNull().orEmpty().trim()
 
             var targetId = cachedAssetId
             if (targetId == null) {
@@ -148,20 +160,12 @@ object Udonge {
 
                 val tempExtractPath = tempDir.absolutePath
                 val targetArchive = "${Const.DATABIN}/${Const.UDONGE_ARCHIVE}"
-                val cmd = "mkdir -p '${Const.DATABIN}' '$root/runtime.new' '$state' && " +
-                    "cp -af '$tempExtractPath/.' '$root/runtime.new/' && " +
-                    "if [ -f '$root/runtime.new/service.sh' ] && [ -f '$root/runtime.new/hideapps.dex' ]; then " +
-                    "printf '%s\\n' '$targetId' > '$root/runtime.new/payload.id' && " +
-                    "rm -rf '$root/runtime.old' && " +
-                    "[ ! -d '$root/runtime' ] || mv '$root/runtime' '$root/runtime.old' && " +
-                    "mv '$root/runtime.new' '$root/runtime' && " +
-                    "chmod -R 700 '$root' && " +
-                    "chcon -R u:object_r:system_file:s0 '$root/runtime' 2>/dev/null; " +
-                    "chcon u:object_r:udonge_lib_file:s0 '$root/runtime/tee/'*'/libTEESimulator.so' 2>/dev/null; " +
-                    "fi; " +
-                    "rm -rf '$tempExtractPath'"
-                shell.newJob().add(cmd).exec()
+                val cmd = UdongeRuntimeCommands.install(
+                    root, tempExtractPath, targetId.orEmpty(), BuildConfig.UDONGE_FILE_TYPE,
+                    Const.BUSYBOX_NAME)
+                val installed = shell.newJob().add(cmd).exec().isSuccess
                 tempDir.deleteRecursively()
+                if (!installed) return@runCatching
 
                 val tempArchive = java.io.File(context.cacheDir, "udonge.tmp")
                 context.assets.open(Const.UDONGE_ARCHIVE).use { input ->
@@ -170,7 +174,7 @@ object Udonge {
                     }
                 }
                 val tempArchiveStr = tempArchive.absolutePath
-                shell.newJob().add("cp -f '$tempArchiveStr' '$targetArchive' && rm -f '$tempArchiveStr'").exec()
+                shell.newJob().add("mkdir -p '${Const.DATABIN}' && cp -f '$tempArchiveStr' '$targetArchive'").exec()
                 tempArchive.delete()
             }
         }
@@ -185,17 +189,19 @@ object Udonge {
             val keyboxCmd = buildKeyboxUrlsCommand(Config.udongeKeyboxUrls)
             if (keyboxCmd.isNotEmpty()) job.add(keyboxCmd)
             val bgUpdatesCmd = if (Config.udongeBackgroundUpdates) {
-                "mkdir -p '$state' && : > '$state/background-updates'"
+                UdongeCommands.enableBackground(root)
             } else {
-                "rm -f '$state/background-updates' '$state/.keybox-refresh'"
+                "rm -f '$state/background-updates' '$state/.keybox-refresh' && " +
+                    "if [ -x '$runtime/keybox_heal.sh' ]; then '$runtime/keybox_heal.sh' stop_daemon; fi"
             }
             job.add(bgUpdatesCmd)
-            if (Config.udongeRomHidingEnabled) {
-                val romCmd = buildRomKeywordsCommand(Config.udongeRomKeywords)
-                if (romCmd.isNotEmpty()) job.add(romCmd)
-            }
+            job.add(buildRomKeywordsCommand(
+                if (Config.udongeRomHidingEnabled) Config.udongeRomKeywords else ""
+            ))
         } else {
-            job.add("mkdir -p '$state' && rm -f '$state/enabled' && : > '$state/disabled' && rm -f '$state/background-updates' '$state/.keybox-refresh'")
+            job.add("mkdir -p '$state' && rm -f '$state/enabled' && : > '$state/disabled' && " +
+                "rm -f '$state/background-updates' '$state/.keybox-refresh' && " +
+                "if [ -x '$runtime/stop.sh' ]; then '$runtime/stop.sh' </dev/null >/dev/null 2>&1; fi")
         }
         job.exec()
     }
@@ -203,7 +209,7 @@ object Udonge {
     fun setKeyboxUrls(value: String): Boolean {
         val normalized = value.lineSequence()
             .map(String::trim)
-            .filter { it.startsWith("https://") && it.length <= 2048 }
+            .filter { (it.startsWith("https://") || it.startsWith("http://")) && it.length <= 2048 }
             .distinct()
             .take(16)
             .joinToString("\n")
@@ -235,7 +241,7 @@ object Udonge {
     private fun buildKeyboxUrlsCommand(value: String): String {
         val normalized = value.lineSequence()
             .map(String::trim)
-            .filter { it.startsWith("https://") && it.length <= 2048 }
+            .filter { (it.startsWith("https://") || it.startsWith("http://")) && it.length <= 2048 }
             .distinct()
             .take(16)
             .joinToString("\n")

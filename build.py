@@ -33,7 +33,6 @@ import zlib
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZIP_STORED, BadZipFile, ZipFile, ZipInfo
 
-
 def color_print(code, str):
     if no_color:
         print(str)
@@ -41,21 +40,16 @@ def color_print(code, str):
         str = str.replace("\n", f"\033[0m\n{code}")
         print(f"{code}{str}\033[0m")
 
-
 def error(str):
     color_print("\033[41;39m", f"\n! {str}\n")
     sys.exit(1)
 
-
 def header(str):
     color_print("\033[44;39m", f"\n{str}\n")
-
 
 def vprint(str):
     if args.verbose > 0:
         print(str)
-
-
 
 os_name = platform.system().lower()
 is_windows = False
@@ -75,12 +69,11 @@ if is_windows:
 
         no_color = True
 
-if not sys.version_info >= (3, 8):
-    error("Requires Python 3.8+")
+if not sys.version_info >= (3, 12):
+    error("Requires Python 3.12+")
 
 cpu_count = multiprocessing.cpu_count()
 
-# Common constants
 support_abis = {
     "armeabi-v7a": "thumbv7neon-linux-androideabi",
     "x86": "i686-linux-android",
@@ -103,7 +96,6 @@ rust_crate_map = {"minit": "magiskinit", "mboot": "magiskboot", "mpol": "magiskp
 clean_targets = {"native", "cpp", "rust", "app"}
 ondk_version = "r30.1"
 
-
 config = {}
 args: argparse.Namespace
 build_abis: dict[str, str]
@@ -121,18 +113,12 @@ ANDROID_DEBUG_CERT_SHA256 = (
     "fd28057fa1910c30ba7cf6c6a69812da92fc270596942e4dbdcdb5857decf5e"
 )
 
-
-
-
-
-
 def mv(source: Path, target: Path):
     try:
         shutil.move(source, target)
         vprint(f"mv {source} -> {target}")
     except:
         pass
-
 
 def cp(source: Path, target: Path):
     try:
@@ -141,7 +127,6 @@ def cp(source: Path, target: Path):
     except:
         pass
 
-
 def rm(file: Path):
     try:
         os.remove(file)
@@ -149,9 +134,8 @@ def rm(file: Path):
     except FileNotFoundError as e:
         pass
 
-
 def rm_on_error(func, path, exc_info):
-    """Repair permissions and retry the exact operation that failed."""
+
     try:
         os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
         func(path)
@@ -163,9 +147,7 @@ def rm_on_error(func, path, exc_info):
         )
         if not is_nonempty_dir:
             raise
-        # CPython's Windows walker can observe a directory as empty just before
-        # delayed compiler outputs become visible. Remove the late entries and
-        # retry the directory itself.
+
         for attempt in range(10):
             for entry in os.scandir(path):
                 child = Path(entry.path)
@@ -190,13 +172,11 @@ def rm_on_error(func, path, exc_info):
                     raise
                 time.sleep(0.05 * (attempt + 1))
 
-
 def rm_rf(path: Path):
     vprint(f"rm -rf {path}")
     delete_path = path
     if is_windows and path.exists():
-        # Detach the tree first so no compiler helper can recreate children at
-        # the path while it is being removed.
+
         delete_path = path.with_name(f".{path.name}.delete-{secrets.token_hex(6)}")
         os.replace(path, delete_path)
         if not delete_path.is_dir():
@@ -206,9 +186,7 @@ def rm_rf(path: Path):
             except FileNotFoundError:
                 pass
             return
-        # Rust incremental object names can push the absolute path beyond the
-        # legacy Win32 MAX_PATH limit. Python's walker needs the verbatim prefix
-        # to unlink those entries reliably.
+
         delete_path = Path("\\\\?\\" + str(delete_path.absolute()))
     for attempt in range(5):
         try:
@@ -224,16 +202,13 @@ def rm_rf(path: Path):
             transient = transient or getattr(exc, "winerror", None) in {5, 32, 145}
             if not transient or attempt == 4:
                 raise
-            # Rescan the entire tree on the next attempt. Antivirus and compiler
-            # helpers can create or release files while Windows walks it.
-            time.sleep(0.1 * (attempt + 1))
 
+            time.sleep(0.1 * (attempt + 1))
 
 def execv(cmds: list, env=None):
     out = None if force_out or args.verbose > 0 else subprocess.DEVNULL
 
     return subprocess.run(cmds, stdout=out, env=env, shell=is_windows)
-
 
 def cmd_out(cmds: list):
     return (
@@ -247,12 +222,6 @@ def cmd_out(cmds: list):
         .decode("utf-8")
     )
 
-
-
-
-
-
-
 def clean_elf():
     cargo_toml = Path("tools", "elf-cleaner", "Cargo.toml")
     cmds = ["run", "--release", "--manifest-path", cargo_toml]
@@ -265,7 +234,6 @@ def clean_elf():
     cmds.extend(glob.glob("native/out/*/mpol"))
     run_cargo(cmds)
 
-
 def collect_ndk_build():
     for arch in build_abis.keys():
         arch_dir = Path("native", "libs", arch)
@@ -273,7 +241,6 @@ def collect_ndk_build():
         for source in arch_dir.iterdir():
             target = out_dir / source.name
             mv(source, target)
-
 
 def run_ndk_build(cmds: list[str]):
     os.chdir("native")
@@ -289,7 +256,6 @@ def run_ndk_build(cmds: list[str]):
     if proc.returncode != 0:
         error("Build binary failed!")
     os.chdir("..")
-
 
 def build_cpp_src(targets: set[str]):
     cmds = []
@@ -326,7 +292,6 @@ def build_cpp_src(targets: set[str]):
     if clean:
         clean_elf()
 
-
 def _cargo_target_dir() -> Path:
     repo = Path(__file__).absolute().parent
     if not is_windows:
@@ -334,15 +299,12 @@ def _cargo_target_dir() -> Path:
     repo_id = hashlib.sha256(str(repo).lower().encode()).hexdigest()[:12]
     return Path.home() / ".cache" / "cargo-targets" / repo_id
 
-
 def run_cargo(cmds: list[str]):
     ensure_paths()
     env = os.environ.copy()
     env["PATH"] = f"{rust_sysroot / "bin"}{os.pathsep}{env["PATH"]}"
     env["CARGO_BUILD_RUSTFLAGS"] = f"-Z threads={min(8, cpu_count)}"
-    # Override the relative .cargo target-dir with one canonical absolute path.
-    # This prevents duplicate build-std artifacts through normal and verbatim
-    # Windows path spellings.
+
     cargo_target = _cargo_target_dir()
     cargo_target.mkdir(mode=0o755, parents=True, exist_ok=True)
     env["CARGO_TARGET_DIR"] = os.path.normpath(str(cargo_target))
@@ -367,8 +329,6 @@ def run_cargo(cmds: list[str]):
         key = f"CARGO_TARGET_{triple.upper().replace('-', '_')}_LINKER"
         env[key] = str(tool_bin / f"{prefix}23-clang{driver_ext}")
 
-
-
     if os_name == "darwin":
         env["DYLD_FALLBACK_LIBRARY_PATH"] = str(rust_sysroot / "lib")
     elif os_name == "linux":
@@ -378,7 +338,6 @@ def run_cargo(cmds: list[str]):
         error(f"Cargo command failed with exit code {proc.returncode}")
     return proc
 
-
 def build_rust_src(targets: set[str]):
     targets = targets.copy()
     targets = targets & rust_targets
@@ -386,7 +345,6 @@ def build_rust_src(targets: set[str]):
         return
 
     os.chdir(Path("native", "src"))
-
 
     cmds = ["build", "-p", ""]
     if args.release:
@@ -423,7 +381,6 @@ def build_rust_src(targets: set[str]):
             target = arch_out / f"lib{cargo_tgt}-rs.a"
             mv(source, target)
 
-
 def write_if_diff(file_name: Path, text: str):
     do_write = True
     if file_name.exists():
@@ -433,7 +390,6 @@ def write_if_diff(file_name: Path, text: str):
     if do_write:
         with open(file_name, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
-
 
 def _repository_namespace() -> str:
     namespace = config.get("identityNamespace", "").strip()
@@ -446,7 +402,6 @@ def _repository_namespace() -> str:
     if not namespace:
         namespace = cmd_out(["git", "rev-list", "--max-parents=0", "HEAD"]).strip()
     return namespace.lower()
-
 
 def _build_identity() -> dict[str, str]:
     enabled = config.get("randomizeBuild", "true").lower() == "true"
@@ -496,9 +451,6 @@ def _build_identity() -> dict[str, str]:
             "preloadLib": "/dev/preload.so", "preloadPolicy": "/dev/sepolicy",
             "preloadAck": "/dev/ack", "stageScript": "udonge.sh",
         }
-
-
-
 
     configured_seed = (
         os.environ.get("REISENLESS_IDENTITY_SEED", "").strip()
@@ -559,8 +511,7 @@ def _build_identity() -> dict[str, str]:
         "buildId": main_binary,
         "appPackageName": "com." + token("app-package-owner", 6, 9)
             + "." + token("app-package", 6, 10),
-        # These replace source namespaces byte-for-byte in DEX and binary XML.
-        # Equal encoded lengths avoid rebuilding Android binary string pools.
+
         "classNamespace": class_namespace,
         "sharedNamespace": "com." + token("shared-owner", 9, 9)
             + "." + token("shared-package", 6, 6),
@@ -569,7 +520,7 @@ def _build_identity() -> dict[str, str]:
         "widgetNamespace": "com." + token("widget-owner", 9, 9)
             + "." + token("widget-package", 6, 6),
         "vendorNamespace": "com." + token("vendor-namespace", 9, 9),
-        # User-facing application label randomized per seed
+
         "appLabel": random_label(),
         "appVersionName": token("app-version", 8, 12),
         "artifactName": token("release-artifact", 10, 16) + ".apk",
@@ -618,8 +569,7 @@ def _build_identity() -> dict[str, str]:
         "policyName": token("policy-binary", 5, 9),
         "bin32Name": token("bin32-databin", 5, 9),
         "busyboxName": token("toolbox-binary", 6, 10),
-        # APK native-library entry names are public to every package that can
-        # inspect the installed APK. Keep their identities build-generated too.
+
         "mainLibName": token("packaged-main-binary", 6, 10),
         "busyboxLibName": token("packaged-toolbox-binary", 6, 10),
         "policyLibName": token("packaged-policy-binary", 6, 10),
@@ -647,7 +597,6 @@ def _build_identity() -> dict[str, str]:
         "stageScript": "." + token("udonge-stage", 6, 10) + ".sh",
     }
 
-
 def _build_flag_metadata():
     return {
         "version": config["version"],
@@ -657,7 +606,6 @@ def _build_flag_metadata():
         "identityNamespace": _repository_namespace(),
         "identity": _build_identity(),
     }
-
 
 def _validate_generated_flags(action: str):
     native_gen_path = Path("native", "out", "generated")
@@ -680,7 +628,6 @@ def _validate_generated_flags(action: str):
     if not re.fullmatch(r"[a-z]{2,16}", build_id) or not secure_dir:
         error(f"Native build identity is invalid. {action}")
 
-
 def _validate_legacy_identity_config():
     values = {
         "legacySecureDir": config.get("legacySecureDir", "").strip(),
@@ -700,14 +647,12 @@ def _validate_legacy_identity_config():
     if values["legacyBackupConfig"] == _build_identity()["backupConfig"]:
         error("Legacy and current boot markers must be different")
 
-
 def _escape_flag_string(value: str) -> str:
     return (
         value.replace("\\", "\\\\")
         .replace('"', '\\"')
         .replace("\t", "\\t")
     )
-
 
 def dump_flag_header():
     identity = _build_identity()
@@ -719,7 +664,6 @@ def dump_flag_header():
         or secure_dir.endswith("/")
     ):
         error(f'Invalid secureDir: "{secure_dir}"')
-
 
     spoof_fp = config.get("spoofFingerprint", "")
     spoof_mfr = config.get("spoofManufacturer", "")
@@ -782,10 +726,8 @@ def dump_flag_header():
         json.dumps(_build_flag_metadata(), indent=2, sort_keys=True) + "\n",
     )
 
-
 def ensure_toolchain():
     ensure_paths()
-
 
     try:
         with open(Path(ndk_path, "ONDK_VERSION"), "r") as ondk_ver:
@@ -800,6 +742,17 @@ def ensure_toolchain():
     if ccache := shutil.which("ccache"):
         os.environ["NDK_CCACHE"] = ccache
 
+def generate_native():
+
+    ensure_toolchain()
+    dump_flag_header()
+    previous = Path.cwd()
+    try:
+        os.chdir(Path("native", "src"))
+        triple = build_abis.get("arm64-v8a", next(iter(build_abis.values())))
+        run_cargo(["check", "--workspace", "--target", triple])
+    finally:
+        os.chdir(previous)
 
 def build_native():
     ensure_toolchain()
@@ -813,9 +766,6 @@ def build_native():
 
     header("* Building: " + " ".join(targets))
 
-
-
-
     if default_targets.issubset(targets):
         dump_flag_header()
     else:
@@ -828,12 +778,6 @@ def build_native():
             dump_flag_header()
     build_rust_src(targets)
     build_cpp_src(targets)
-
-
-
-
-
-
 
 def find_jdk():
     env = os.environ.copy()
@@ -883,7 +827,6 @@ def find_jdk():
 
     return env
 
-
 def _keystore_certificate_sha256(
     store: Path, password: str, alias: str, env: dict[str, str]
 ) -> str:
@@ -914,7 +857,6 @@ def _keystore_certificate_sha256(
         if proc.returncode != 0 or not certificate.is_file():
             error(f"Unable to read manager signing certificate: {proc.stdout}")
         return hashlib.sha256(certificate.read_bytes()).hexdigest()
-
 
 def _generate_local_signing_secrets(
     secrets_file: Path, store: Path, env: dict[str, str]
@@ -972,7 +914,6 @@ def _generate_local_signing_secrets(
     secrets_file.write_text(json.dumps(values, indent=2) + "\n", encoding="utf-8")
     header(f"Generated private manager signing key: {store}")
     return values
-
 
 def _prepare_signing_config(env: dict[str, str]) -> dict[str, str]:
     global signing_config
@@ -1052,7 +993,6 @@ def _prepare_signing_config(env: dict[str, str]) -> dict[str, str]:
     }
     return signing_config
 
-
 def _validate_packaged_signing(apk: Path, expected_digest: str, env: dict[str, str]):
     candidates = sorted((sdk_path / "build-tools").glob("*/apksigner*"), reverse=True)
     apksigner = next((path for path in candidates if path.suffix in {"", ".bat"}), None)
@@ -1085,7 +1025,6 @@ def _validate_packaged_signing(apk: Path, expected_digest: str, env: dict[str, s
         error(f"Signing metadata exposes a project identity: {apk}")
     header(f"Verified private signing identity: {expected_digest}")
 
-
 def _validate_embedded_trust_anchor(
     apk: Path, expected_digest: str, env: dict[str, str]
 ):
@@ -1101,20 +1040,15 @@ def _validate_embedded_trust_anchor(
         _validate_packaged_signing(stub_apk, expected_digest, env)
         _validate_native_certificates((apk, stub_apk), expected_digest, env)
 
-
 def _validate_native_certificates(apks: tuple[Path, ...], expected_digest: str,
                                   env: dict[str, str]):
-    """Prove the actual daemon parser accepts each signed release artifact.
 
-    This supplements, never replaces, apksigner cryptographic verification.
-    Synthetic parser tests alone missed an apksig signed-data format change.
-    """
     package_source = Path("native", "src", "core", "package.rs").read_text(encoding="utf-8")
     if "info.trusted_cert = read_certificate(&mut fd, -1);" not in package_source:
         error("Daemon must parse the embedded stub trust anchor independently of manager versionCode")
     ensure_paths()
     env = env.copy()
-    # The host MinGW linker also needs the bundled Rust runtime DLLs on Windows.
+
     env["PATH"] = f"{rust_sysroot / 'bin'}{os.pathsep}{env.get('PATH', '')}"
     with tempfile.TemporaryDirectory(prefix="native-cert-check-") as temp_dir:
         checker = Path(temp_dir, f"check-apk-certificate{EXE_EXT}")
@@ -1146,7 +1080,6 @@ def _validate_native_certificates(apks: tuple[Path, ...], expected_digest: str,
             error(f"Native certificate verification could not complete: {exc}")
     header("Verified daemon certificate parser against manager and embedded trust anchor")
 
-
 def _read_generated_flag(name: str, fallback: str) -> str:
     flags_h = Path("native", "out", "generated", "flags.h")
     if flags_h.exists():
@@ -1155,7 +1088,6 @@ def _read_generated_flag(name: str, fallback: str) -> str:
             if match:
                 return match.group(1)
     return fallback
-
 
 def _latest_android_tool(path: Path) -> Path:
     def key(item: Path):
@@ -1166,22 +1098,17 @@ def _latest_android_tool(path: Path) -> Path:
         error(f"No Android SDK tools found in {path}")
     return max(entries, key=key)
 
-
 def _zip_bytes(zf: ZipFile, name: str, data: bytes, mode: int = 0o644):
     info = ZipInfo(name, (1980, 1, 1, 0, 0, 0))
     info.compress_type = ZIP_DEFLATED
     info.external_attr = (stat.S_IFREG | mode) << 16
     zf.writestr(info, data)
 
-
 def _patch_tee_dex(data: bytes, udonge_root: str) -> bytes:
     def fit_path(path: str, size: int, pad_after: str | None = None) -> bytes:
         encoded = path.encode()
         if len(encoded) > size:
             error(f"Generated Udonge path is too long for TEE DEX: {path}")
-
-
-
 
         if pad_after is not None:
             prefix = (pad_after.rstrip("/") + "/").encode()
@@ -1228,15 +1155,24 @@ def _patch_tee_dex(data: bytes, udonge_root: str) -> bytes:
     if device_id_stores_src in data:
         data = data.replace(device_id_stores_src, device_id_stores_dst)
 
-
-
-
+    patch_src = bytes.fromhex("140411d83401")
+    patch_target = 20260905
+    pif_conf = Path("udonge", "payload", "defaults", "pif.conf")
+    if pif_conf.exists():
+        for line in pif_conf.read_text(encoding="utf-8").splitlines():
+            if line.startswith("SECURITY_PATCH="):
+                sval = line.split("=", 1)[1].strip().replace("-", "")
+                if sval.isdigit() and len(sval) >= 8:
+                    patch_target = int(sval[:8])
+                break
+    patch_dst = b"\x14\x04" + struct.pack("<i", patch_target)
+    if patch_src in data:
+        data = data.replace(patch_src, patch_dst)
 
     patched = bytearray(data)
     patched[12:32] = hashlib.sha1(patched[32:]).digest()
     patched[8:12] = struct.pack("<I", zlib.adler32(patched[12:]) & 0xFFFFFFFF)
     return bytes(patched)
-
 
 def _patch_hideapps_dex(data: bytes, namespace: str) -> bytes:
     source = "com.topjohnwu.reisenless.hideapps"
@@ -1257,7 +1193,6 @@ def _patch_hideapps_dex(data: bytes, namespace: str) -> bytes:
     patched[12:32] = hashlib.sha1(patched[32:]).digest()
     patched[8:12] = struct.pack("<I", zlib.adler32(patched[12:]) & 0xFFFFFFFF)
     return bytes(patched)
-
 
 def build_udonge():
     global udonge_built
@@ -1292,8 +1227,7 @@ def build_udonge():
     proc = execv(
         [
             "javac",
-            "-source", "8",
-            "-target", "8",
+            "--release", "8",
             "-classpath", android_jar,
             "-d", java_out,
             java_source,
@@ -1408,75 +1342,94 @@ def build_udonge():
     rm_rf(work)
     udonge_built = True
     header(f"Output: {output}")
-    _sync_udonge_to_device(output)
 
+def _udonge_sync_script(identity: dict[str, str]) -> str:
+    root = f"{identity['secureDir'].rstrip('/')}/{identity['udongeDir']}"
+    bb_name = identity["busyboxName"]
+    secure = identity["secureDir"].rstrip("/")
+    file_type = identity["udongeFileType"]
+    return f'''#!/system/bin/sh
+set -e
+root={root}
+[ -d "$root/runtime" ] || {{ echo UDONGE_NOT_INITIALIZED; exit 0; }}
+work=/data/local/tmp/reisenless-unpack
+mkdir -p "$work"
+trap 'rm -rf "$work"; rm -f /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh' EXIT
+rm -rf "$root/runtime.new"
+mkdir -p "$root/runtime.new"
+unpacked=0
+for bb in {secure}/{bb_name} {secure}/*/{bb_name} /data/adb/magisk/busybox /system/bin/busybox; do
+    if [ -x "$bb" ]; then
+        ln -sf "$bb" "$work/busybox"
+        if "$work/busybox" unzip -oq /data/local/tmp/udonge.bin -d "$root/runtime.new"; then
+            unpacked=1
+            break
+        fi
+    fi
+done
+[ "$unpacked" = 1 ] || unzip -oq /data/local/tmp/udonge.bin -d "$root/runtime.new"
+for required in service.sh worker.sh hideapps.dex payload.id; do
+    [ -s "$root/runtime.new/$required" ] || {{ rm -rf "$root/runtime.new"; exit 1; }}
+done
+if [ -x "$root/runtime/keybox_heal.sh" ] && [ -f "$root/runtime/worker.sh" ]; then
+    "$root/runtime/keybox_heal.sh" stop_daemon || true
+fi
+runtime="$root/runtime"
+state="$root/state"
+boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
+worker_busybox_name={bb_name}
+. "$root/runtime.new/worker.sh"
+worker_stop_legacy_hunters
+chmod -R 700 "$root/runtime.new"
+chcon -R u:object_r:system_file:s0 "$root/runtime.new" 2>/dev/null || true
+chcon u:object_r:{file_type}:s0 "$root/runtime.new/tee/"*"/libTEESimulator.so" 2>/dev/null || true
+rm -rf "$root/runtime.old"
+mv "$root/runtime" "$root/runtime.old"
+if ! mv "$root/runtime.new" "$root/runtime"; then
+    mv "$root/runtime.old" "$root/runtime"
+    exit 1
+fi
+echo UDONGE_SYNCED
+'''
 
-def _sync_udonge_to_device(udonge_bin: Path):
-    if not udonge_bin.exists():
+def _sync_udonge_to_device(udonge_bin: Path, *, installed_apk: Path = None):
+    if installed_apk is None or not udonge_bin.exists():
         return
     try:
+        identity = _build_identity()
+        with ZipFile(installed_apk) as apk:
+
+            archive = f"assets/{identity['udongeArchive']}"
+            if archive not in apk.namelist() or apk.read(archive) != udonge_bin.read_bytes():
+                color_print("\033[36m", "* Installed APK has a different payload; runtime unchanged.\n")
+                return
         ensure_adb()
-        target_device_args = ["-s", args.serial] if hasattr(args, "serial") and args.serial else []
+        device = ["-s", args.serial] if getattr(args, "serial", None) else []
         su_check = subprocess.run(
-            [str(adb_path), *target_device_args, "shell", "su -c id"],
+            [str(adb_path), *device, "shell", "su -c id"],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, shell=is_windows, timeout=15
         )
-        if "uid=0" in su_check.stdout:
-            color_print("\033[36m", "* Updating active Udonge runtime on device via root ADB...")
-            execv([str(adb_path), *target_device_args, "push", str(udonge_bin), "/data/local/tmp/udonge.bin"])
-            identity = _build_identity()
-            bb_name = identity.get("busybox", "busybox")
-            script_path = config["outdir"] / "unpack_udonge.sh"
-            script_content = (
-                "#!/system/bin/sh\n"
-                "roots=\"/data/adb/udonge\"\n"
-                "for rd in $(find /data -maxdepth 3 -name runtime -type d 2>/dev/null); do\n"
-                "  roots=\"$roots $(dirname \"$rd\")\"\n"
-                "done\n"
-                "for root in $roots; do\n"
-                "  mkdir -p \"$root/runtime.new\" \"$root/state\"\n"
-                "  unpacked=0\n"
-                f"  for bb in /data/adb/magisk/busybox /data/*/*/{bb_name} /data/*/{bb_name} /data/*/*busybox* busybox; do\n"
-                "    if [ -x \"$bb\" ]; then\n"
-                "      ln -sf \"$bb\" /data/local/tmp/bb_unpacker 2>/dev/null\n"
-                "      if /data/local/tmp/bb_unpacker unzip -oq /data/local/tmp/udonge.bin -d \"$root/runtime.new\" 2>/dev/null; then\n"
-                "        rm -f /data/local/tmp/bb_unpacker\n"
-                "        unpacked=1\n"
-                "        break\n"
-                "      fi\n"
-                "      rm -f /data/local/tmp/bb_unpacker\n"
-                "    fi\n"
-                "  done\n"
-                "  if [ \"$unpacked\" = 0 ]; then\n"
-                "    unzip -oq /data/local/tmp/udonge.bin -d \"$root/runtime.new\" 2>/dev/null\n"
-                "  fi\n"
-                "  if [ -f \"$root/runtime.new/service.sh\" ] && [ -f \"$root/runtime.new/hideapps.dex\" ]; then\n"
-                "    rm -rf \"$root/runtime.old\"\n"
-                "    [ ! -d \"$root/runtime\" ] || mv \"$root/runtime\" \"$root/runtime.old\"\n"
-                "    mv \"$root/runtime.new\" \"$root/runtime\"\n"
-                "    chmod -R 700 \"$root\"\n"
-                "    chcon -R u:object_r:system_file:s0 \"$root/runtime\" 2>/dev/null\n"
-                "    chcon u:object_r:udonge_lib_file:s0 \"$root/runtime/tee/\"*\"/libTEESimulator.so\" 2>/dev/null\n"
-                "  else\n"
-                "    rm -rf \"$root/runtime.new\"\n"
-                "  fi\n"
-                "done\n"
-                "rm -f /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh /data/local/tmp/bb_unpacker\n"
-                "echo UDONGE_SYNCED\n"
-            )
-            script_path.write_bytes(script_content.encode("utf-8"))
-            execv([str(adb_path), *target_device_args, "push", str(script_path), "/data/local/tmp/unpack_udonge.sh"])
-            res_unpack = subprocess.run(
-                [str(adb_path), *target_device_args, "shell", "su -c sh /data/local/tmp/unpack_udonge.sh"],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=is_windows, timeout=25
-            )
-            if "UDONGE_SYNCED" in res_unpack.stdout:
-                color_print("\033[32;1m", "[+] Successfully updated active Udonge runtime on device!\n")
-            else:
-                color_print("\033[33m", f"[*] Udonge runtime sync output: {res_unpack.stdout.strip()} {res_unpack.stderr.strip()}\n")
-    except Exception as e:
-        color_print("\033[33m", f"[*] Note on runtime sync: {e}\n")
-
+        if "uid=0" not in su_check.stdout:
+            return
+        color_print("\033[36m", "* Updating this build's Udonge runtime via root ADB...")
+        script_path = config["outdir"] / "unpack_udonge.sh"
+        script_path.write_bytes(_udonge_sync_script(identity).encode("utf-8"))
+        for source, target in ((udonge_bin, "udonge.bin"), (script_path, "unpack_udonge.sh")):
+            result = execv([str(adb_path), *device, "push", str(source), f"/data/local/tmp/{target}"])
+            if result.returncode != 0:
+                error("Unable to stage Udonge runtime update")
+        result = subprocess.run(
+            [str(adb_path), *device, "shell", "su -c sh /data/local/tmp/unpack_udonge.sh"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=is_windows, timeout=180
+        )
+        if result.returncode == 0 and "UDONGE_SYNCED" in result.stdout:
+            color_print("\033[32;1m", "[+] Updated this build's Udonge runtime!\n")
+        elif result.returncode == 0 and "UDONGE_NOT_INITIALIZED" in result.stdout:
+            color_print("\033[36m", "* Runtime will be initialized by the app.\n")
+        else:
+            error(f"Udonge runtime update failed: {result.stdout.strip()} {result.stderr.strip()}")
+    except Exception as exc:
+        error(f"Udonge runtime update failed: {exc}")
 
 def _validate_packaged_udonge(apk: Path):
     identity = _build_identity()
@@ -1530,7 +1483,6 @@ def _validate_packaged_udonge(apk: Path):
         error(f"Invalid packaged Udonge payload in {apk}: {exc}")
 
     header(f"Verified randomized Udonge payload: {archive_path}")
-
 
 def _validate_packaged_binary_identity(apk: Path):
     identity = _build_identity()
@@ -1590,7 +1542,6 @@ def _validate_packaged_binary_identity(apk: Path):
 
     header("Verified randomized packaged binary identities")
 
-
 def _namespace_encodings(value: str) -> tuple[bytes, ...]:
     path = value.replace(".", "/")
     return (
@@ -1598,7 +1549,6 @@ def _namespace_encodings(value: str) -> tuple[bytes, ...]:
         value.encode("utf-16le"), path.encode("utf-16le"),
         value.encode("utf-16be"), path.encode("utf-16be"),
     )
-
 
 def _validate_packaged_app_identity(apk: Path):
     identity = _build_identity()
@@ -1700,7 +1650,6 @@ def _validate_packaged_app_identity(apk: Path):
         f"{identity['appPackageName']} / {identity['classNamespace']}"
     )
 
-
 def _contains_encoded_token(data: bytes, token: str) -> bool:
     lower = data.lower()
     value = token.lower()
@@ -1713,9 +1662,8 @@ def _contains_encoded_token(data: bytes, token: str) -> bool:
         )
     )
 
-
 def _validate_dex(data: bytes, label: str):
-    """Reject corrupted post-processing output before APK installation."""
+
     def fail(reason):
         raise ValueError(f"Invalid DEX {label}: {reason}")
 
@@ -1747,7 +1695,7 @@ def _validate_dex(data: bytes, label: str):
         end = data.find(b"\x00", offset)
         if end < 0:
             fail("unterminated string")
-        # DEX uses modified UTF-8 and orders strings by UTF-16 code units.
+
         try:
             text = data[offset:end].replace(b"\xc0\x80", b"\x00").decode(
                 "utf-8", errors="surrogatepass"
@@ -1761,25 +1709,16 @@ def _validate_dex(data: bytes, label: str):
             fail(f"unsorted or duplicate string_ids at index {index}")
         previous = key
 
-
 def _without_ui_display_labels(contents: bytes) -> bytes:
-    """Allow only the requested complete string-pool display values in resources.arsc.
 
-    This is a UI exception, not a claim that the APK has no visible branding.
-    Internal identifiers and embedded occurrences remain subject to scanning.
-    Keep these names synchronized with TransformApkTask's display labels.
-    """
     for label in ("zygisk", "Zygisk", "udonge", "Udonge"):
         for encoding in ("utf-8", "utf-16le", "utf-16be"):
             value = label.encode(encoding)
             contents = contents.replace(value, ("_" * len(label)).encode(encoding))
     return contents
 
-
 def _validate_release_artifact(apk: Path):
-    """Reject public identities and malformed/alignment-unsafe release APKs."""
-    # Reisenless is the intentional user-facing product label. Other legacy
-    # identities remain forbidden throughout release APK contents.
+
     public_tokens = ("topjohnwu", "magisk", "zygisk", "udonge")
     global_tokens = ("topjohnwu",)
     forbidden_identifiers = (
@@ -1816,9 +1755,7 @@ def _validate_release_artifact(apk: Path):
 
     identity = _build_identity()
     payload_prefix = re.escape(f"assets/{identity['udongeArchive']}!/")
-    # Compatibility vocabulary is allowed only in the exact privileged entries
-    # that implement the inherited module/boot protocol. It is never allowed by
-    # file type alone, so adding a new occurrence requires an explicit review.
+
     compatibility_allowlist = {
         "magisk": (
             re.compile(r"META-INF/com/google/android/updater-script"),
@@ -1943,9 +1880,8 @@ def _validate_release_artifact(apk: Path):
         error("Manager CLI executables require extractNativeLibs=true")
     header("Verified release artifact (readable UI labels explicitly allowed)")
 
-
 def _generate_obfuscation_dictionary(identity: dict[str, str]):
-    """Generate the R8 dictionary from the same build identity as every other name."""
+
     first = string.ascii_lowercase + string.ascii_uppercase
     rest = first + string.digits
     names = []
@@ -1957,6 +1893,14 @@ def _generate_obfuscation_dictionary(identity: dict[str, str]):
             names.extend(a + b + c for c in rest)
 
     seed = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+    salt = hashlib.sha256(seed + b"\0r8-salt\0").digest()
+    for i, a in enumerate(first):
+        if (salt[i % len(salt)] & 1) == 0:
+            continue
+        for b in rest[::2]:
+            names.extend(a + b + c + d for c in rest[::3] for d in rest[::4])
+
+    names = list(dict.fromkeys(names))
     names.sort(
         key=lambda name: hashlib.shake_256(
             seed + b"\0r8-dictionary\0" + name.encode()
@@ -1964,14 +1908,12 @@ def _generate_obfuscation_dictionary(identity: dict[str, str]):
     )
     write_if_diff(Path("app", "dict.txt"), "\n".join(names) + "\n")
 
-
 def build_apk(module: str):
     ensure_paths()
     _validate_legacy_identity_config()
     env = find_jdk()
     signing = _prepare_signing_config(env)
     props = args.config.resolve()
-
 
     gradle_build_dir = Path("app", "build")
     gradle_build_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
@@ -2043,7 +1985,6 @@ def build_apk(module: str):
             _validate_release_artifact(target)
     return target
 
-
 def build_app():
     _validate_generated_flags(
         "Build native binaries with the same mode and configuration first."
@@ -2063,12 +2004,10 @@ def build_app():
     if getattr(args, "install", False):
         install_apk(target)
 
-
 def build_stub():
     header("* Building the signed manager trust anchor")
     apk = build_apk(":stub")
     header(f"Output: {apk}")
-
 
 def cleanup():
     ensure_paths()
@@ -2105,7 +2044,6 @@ def cleanup():
         execv([gradlew, ":clean"], env=find_jdk())
         os.chdir("..")
 
-
 def install_apk(apk_path: Path = None):
     ensure_paths()
     ensure_adb()
@@ -2141,15 +2079,13 @@ def install_apk(apk_path: Path = None):
         error(f"Failed to install {apk_path.name} on device!")
     color_print("\033[32;1m", f"\n[+] Successfully installed {apk_path.name} on device ({online_devices[0]})!\n")
 
-    _sync_udonge_to_device(config["outdir"] / "udonge.bin")
-
+    _sync_udonge_to_device(config["outdir"] / "udonge.bin", installed_apk=apk_path)
 
 def build_all():
     check_environment()
     build_native()
     build_app()
     build_legacy()
-
 
 def build_legacy():
     _validate_generated_flags(
@@ -2160,9 +2096,8 @@ def build_legacy():
     apk = build_apk(":apk-legacy")
     header(f"Output: {apk}")
 
-
 def test_native_auth():
-    """Run authorization and APK trust-parser tests with the host compiler."""
+
     ensure_paths()
     env = os.environ.copy()
     env["PATH"] = f"{rust_sysroot / 'bin'}{os.pathsep}{env['PATH']}"
@@ -2185,9 +2120,8 @@ def test_native_auth():
             if test_result.returncode != 0:
                 error(f"Host {stem} tests failed with exit code {test_result.returncode}")
 
-
 def test_identity_generation():
-    """Prove private identity derivation is deterministic and seed-separated."""
+
     saved_env_seed = os.environ.pop("REISENLESS_IDENTITY_SEED", None)
     saved_seed = config.get("identitySeed")
     saved_randomize = config.get("randomizeBuild")
@@ -2225,7 +2159,6 @@ def test_identity_generation():
         else:
             config["randomizeSecureDir"] = saved_secure
 
-
 def clippy_cli():
     ensure_toolchain()
     global force_out
@@ -2249,7 +2182,6 @@ def clippy_cli():
             run_cargo(cmds + [triple, "--release"])
     os.chdir(Path("..", ".."))
 
-
 def cargo_cli():
     global force_out
     force_out = True
@@ -2258,7 +2190,6 @@ def cargo_cli():
     os.chdir(Path("native", "src"))
     run_cargo(args.commands)
     os.chdir(Path("..", ".."))
-
 
 def setup_ndk():
     ensure_paths()
@@ -2269,7 +2200,6 @@ def setup_ndk():
     header(f"* Downloading and extracting {ndk_archive}")
     try:
         with urllib.request.urlopen(url) as response:
-
 
             with tempfile.TemporaryFile() as archive:
                 shutil.copyfileobj(response, archive)
@@ -2292,7 +2222,6 @@ def setup_ndk():
         if staging_dir.exists():
             rm_rf(staging_dir)
 
-
 def setup_rustup():
     wrapper_dir = Path(args.wrapper_dir)
     rm_rf(wrapper_dir)
@@ -2306,7 +2235,6 @@ def setup_rustup():
         tgt = wrapper_dir / src.name
         tgt.symlink_to(f"rustup{EXE_EXT}")
 
-
     wrapper_src = Path("tools", "rustup-wrapper")
     cargo_toml = wrapper_src / "Cargo.toml"
     cmds = ["build", "--release", f"--manifest-path={cargo_toml}"]
@@ -2314,17 +2242,10 @@ def setup_rustup():
         cmds.append("--verbose")
     run_cargo(cmds)
 
-
     wrapper = wrapper_dir / (f"rustup{EXE_EXT}")
     wrapper.unlink(missing_ok=True)
     cp(wrapper_src / "target" / "release" / (f"rustup-wrapper{EXE_EXT}"), wrapper)
     wrapper.chmod(0o755)
-
-
-
-
-
-
 
 def check_environment(fatal: bool = True) -> bool:
     header("* Checking environment & build toolchains")
@@ -2341,14 +2262,12 @@ def check_environment(fatal: bool = True) -> bool:
         all_ok = False
         color_print("\033[31m", f"  [-] {msg}")
 
-    # 1. Python
     py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-    if sys.version_info >= (3, 8):
+    if sys.version_info >= (3, 12):
         ok(f"Python: {py_ver}")
     else:
-        fail(f"Python: {py_ver} (Requires Python 3.8+)")
+        fail(f"Python: {py_ver} (Requires Python 3.12+)")
 
-    # 2. Git
     git_bin = shutil.which("git")
     if not git_bin and is_windows:
         cand = Path("C:/Program Files/Git/cmd/git.exe")
@@ -2364,7 +2283,6 @@ def check_environment(fatal: bool = True) -> bool:
     else:
         fail("Git: Not found in PATH")
 
-    # 3. Android SDK
     ensure_paths()
     if sdk_path and sdk_path.exists():
         platforms = [p.name for p in (sdk_path / "platforms").glob("android-*")]
@@ -2376,7 +2294,6 @@ def check_environment(fatal: bool = True) -> bool:
     else:
         fail("Android SDK: Not found. Set ANDROID_HOME environment variable.")
 
-    # 4. ADB
     if adb_path and adb_path.exists():
         ok(f"ADB: {adb_path}")
     elif shutil.which("adb"):
@@ -2384,13 +2301,11 @@ def check_environment(fatal: bool = True) -> bool:
     else:
         warn("ADB: Not found (required only for device install)")
 
-    # 5. Android NDK
     if ndk_path.exists() and (ndk_build.exists() or Path(f"{ndk_build}.cmd").exists()):
         ok(f"Magisk NDK: {ndk_path}")
     else:
         warn(f"Magisk NDK: Not yet set up at {ndk_path}. Run './build.py ndk' to set it up automatically.")
 
-    # 6. JDK
     jdk_env = find_jdk()
     if jdk_env and "JAVA_HOME" in jdk_env:
         jh = jdk_env["JAVA_HOME"]
@@ -2400,7 +2315,6 @@ def check_environment(fatal: bool = True) -> bool:
     else:
         fail("JDK: Java 17+ not found. Please set JAVA_HOME or install JDK 17+.")
 
-    # 7. Rust & Android Targets
     rustc_bin = shutil.which("rustc")
     cargo_bin = shutil.which("cargo")
     if rustc_bin and cargo_bin:
@@ -2421,7 +2335,6 @@ def check_environment(fatal: bool = True) -> bool:
     else:
         fail("Rust/Cargo: Not found. Please install Rust via rustup (https://rustup.rs).")
 
-    # 8. Connected Devices (if install requested)
     if hasattr(args, "install") and args.install:
         try:
             dev_out = cmd_out([str(adb_path), "devices"])
@@ -2437,7 +2350,6 @@ def check_environment(fatal: bool = True) -> bool:
     if not all_ok and fatal:
         error("Environment checks failed! Please install the missing dependencies listed above.")
     return all_ok
-
 
 def ensure_paths(fatal: bool = True):
     global sdk_path, ndk_root, ndk_path, rust_sysroot
@@ -2488,7 +2400,6 @@ def ensure_paths(fatal: bool = True):
 
     gradlew = Path.cwd() / "app" / ("gradlew.bat" if is_windows else "gradlew")
 
-
 def ensure_adb():
     global adb_path
     if "adb_path" not in globals() or not adb_path.exists():
@@ -2496,7 +2407,6 @@ def ensure_adb():
             adb_path = Path(adb)
         else:
             error("Command 'adb' cannot be found in PATH")
-
 
 def parse_props(file: Path) -> dict[str, str]:
     props = {}
@@ -2514,7 +2424,6 @@ def parse_props(file: Path) -> dict[str, str]:
             props[key] = value
     return props
 
-
 def set_build_abis(abis: set[str]):
     global build_abis
 
@@ -2523,7 +2432,6 @@ def set_build_abis(abis: set[str]):
     for k in abis - support_abis.keys():
         error(f"Unknown ABI: {k}")
     build_abis = {k: support_abis[k] for k in support_abis if k in abis}
-
 
 def load_config():
     ensure_paths(fatal=False)
@@ -2566,7 +2474,6 @@ def load_config():
         abis = default_abis
 
     set_build_abis(abis)
-
 
 def parse_args():
     common = argparse.ArgumentParser(add_help=False)
@@ -2614,6 +2521,9 @@ def parse_args():
     subparsers = parser.add_subparsers(title="actions")
 
     all_parser = subparsers.add_parser("all", parents=[sub_common], help="build everything (native, udonge, stub, app)")
+
+    gen_parser = subparsers.add_parser("gen", parents=[sub_common], help="generate native flags and bindings without packaging")
+    gen_parser.set_defaults(func=generate_native)
 
     install_parser = subparsers.add_parser(
         "install", parents=[sub_common], help="install built APK onto connected ADB device"
@@ -2692,7 +2602,7 @@ def parse_args():
     ndk_parser.set_defaults(func=setup_ndk)
 
     known_actions = {
-        "all", "native", "app", "stub", "udonge", "legacy", "clean", "ndk",
+        "all", "gen", "native", "app", "stub", "udonge", "legacy", "clean", "ndk",
         "install", "check", "clippy", "cargo", "rustup",
         "test-native-auth", "test-identity",
     }
@@ -2710,14 +2620,12 @@ def parse_args():
         parsed.verbose = v_count
     return parsed
 
-
 def main():
     global args
     args = parse_args()
     args.config = Path(args.config)
     load_config()
     args.func()
-
 
 if __name__ == "__main__":
     main()

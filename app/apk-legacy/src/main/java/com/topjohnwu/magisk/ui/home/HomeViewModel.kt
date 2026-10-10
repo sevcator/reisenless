@@ -101,7 +101,7 @@ class HomeViewModel : AsyncLoadViewModel() {
     val showTest = false
     fun onTestPressed() = object : ViewEvent(), ActivityExecutor {
         override fun invoke(activity: UIActivity<*>) {
-            /* Entry point to trigger test events within the app */
+
         }
     }.publish()
 }

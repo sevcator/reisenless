@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">الإضافات</string>
     <string name="superuser">صلاحية الروت</string>
     <string name="settings">الإعدادات</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">السمات</string>
     <string name="denylist">قائمة الحظر</string>
 
-    <!--Home-->
     <string name="no_connection">لا يوجد اتصال بالإنترنت</string>
     <string name="loading">جارٍ التحميل…</string>
     <string name="update">تحديث</string>
@@ -22,7 +20,6 @@
 <string name="uninstall_magisk_title">إلغاء تثبيت magisk</string>
     <string name="uninstall_magisk_msg">سيتم تعطيل/إزالة جميع الإضافات!\nسيتم إزالة الوصول الجذري!\nسيتم إعادة تشفير أي تخزين داخلي تم فك تشفيره باستخدام magisk!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">الحفاظ على التشفير الإجباري</string>
     <string name="keep_dm_verity">الحفاظ على avb 2.0/dm-verity</string>
     <string name="recovery_mode">وضع الاسترداد</string>
@@ -40,7 +37,6 @@
     <string name="reboot_delay_toast">إعادة التشغيل خلال 5 ثوانٍ…</string>
     <string name="flash_screen_title">التثبيت</string>
 
-    <!--Superuser-->
     <string name="su_request_title">يطلب هذا التطبيق صلاحية الروت، يمنح وصولًا كاملًا إلى جهازك. ارفض إن لم تكن متأكدًا!</string>
     <string name="touch_filtered_warning">يحجب أحد التطبيقات طلب صلاحية الروت، لذا لا يستطيع magisk التحقق من استجابتك.</string>
     <string name="deny">رفض</string>
@@ -72,7 +68,6 @@
     <string name="superuser_toggle_revoke">سحب الصلاحية</string>
     <string name="superuser_policy_none">لم يطلب أي تطبيق صلاحيات الروت بعد.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">حفظ السجل</string>
     <string name="back">رجوع</string>    <string name="enabled">مفعّل</string>
     <string name="disabled">معطّل</string>
@@ -84,7 +79,6 @@
     <string name="granted">مسموح</string>
     <string name="denied">مرفوض</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">إظهار تطبيقات النظام</string>
     <string name="show_os_app">إظهار تطبيقات نظام التشغيل</string>
     <string name="hide_filter_hint">البحث بالاسم</string>
@@ -96,7 +90,6 @@
     <string name="menu_sort">ترتيب</string>
     <string name="hide_search">بحث</string>
 
-    <!--Module-->
     <string name="no_info_provided">(لا توجد معلومات)</string>
     <string name="reboot_userspace">إعادة تشغيل خفيفة</string>
     <string name="reboot_recovery">إعادة التشغيل إلى وضع الاسترداد</string>
@@ -116,7 +109,6 @@
     <string name="confirm_install">تثبيت الإضافة %1$s؟</string>
     <string name="confirm_install_title">تأكيد التثبيت</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">وضع السمة</string>
     <string name="settings_dark_mode_message">اختر الوضع الذي يناسب أسلوبك!</string>
     <string name="settings_dark_mode_light">فاتح دائمًا</string>
@@ -178,12 +170,10 @@
     <string name="requester_summary">ترث جلسات الروت طالب ال namespace</string>
     <string name="isolate_summary">لكل جلسة روت namespace معزول خاص بها</string>
 
-    <!--Notifications-->
     <string name="progress_channel">إشعارات التقدم</string>
     <string name="download_complete">اكتمل التنزيل</string>
     <string name="download_file_error">خطأ في تنزيل الملف</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">نعم</string>
     <string name="no">لا</string>
     <string name="repo_install_title">تثبيت %1$s %2$s(%3$d)</string>

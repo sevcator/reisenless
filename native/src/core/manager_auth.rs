@@ -62,7 +62,7 @@ pub fn parse_status_id(status: &str, name: &str) -> Option<i32> {
     }
     let id: i32 = value.parse().ok()?;
     if name == "Uid" {
-        // A manager child must retain the same real/effective/saved/fs UID.
+
         for _ in 0..3 {
             if values.next()? != value {
                 return None;

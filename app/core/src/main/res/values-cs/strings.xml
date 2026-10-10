@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">moduly</string>
     <string name="superuser">superuser</string>
     <string name="settings">nastavení</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">témata</string>
     <string name="denylist">denylist</string>
 
-    <!--Home-->
     <string name="no_connection">bez připojení</string>
     <string name="loading">načítání…</string>
     <string name="update">aktualizovat</string>
@@ -22,7 +20,6 @@
 <string name="uninstall_magisk_title">odinstalovat magisk</string>
     <string name="uninstall_magisk_msg">všechny moduly budou deaktivovány/odstraněny!\noprávnění root budou odebrána!\nveškeré interní úložiště, které nebylo zašifrováno pomocí magisku, bude znovu zašifrováno!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">ponechat force encryption</string>
     <string name="keep_dm_verity">ponechat avb 2.0/dm-verity</string>
     <string name="recovery_mode">režim recovery</string>
@@ -37,7 +34,6 @@
     <string name="reboot_delay_toast">restartování za 5 sekund…</string>
     <string name="flash_screen_title">instalace</string>
 
-    <!--Superuser-->
     <string name="su_request_title">požadavek superusera</string>
     <string name="touch_filtered_warning">magisk nemůže ověřit vaši odpověď, protože aplikace zavírá požadavek superusera</string>
     <string name="deny">zakázat</string>
@@ -69,7 +65,6 @@
     <string name="superuser_toggle_revoke">zrušit</string>
     <string name="superuser_policy_none">žádná aplikace zatím nepožádala o oprávnění superusera.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">uložit protokol</string>
     <string name="back">zpět</string>    <string name="enabled">zapnuto</string>
     <string name="disabled">vypnuto</string>
@@ -79,7 +74,6 @@
     <string name="selinux_context">selinux kontext: %s</string>
     <string name="supp_group">sekundární skupina: %s</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">zobrazit systémové aplikace</string>
     <string name="show_os_app">zobrazit os aplikace</string>
     <string name="hide_filter_hint">filtrovat dle názvu</string>
@@ -91,7 +85,6 @@
     <string name="menu_sort">seřadit</string>
     <string name="hide_search">vyhledávání</string>
 
-    <!--Module-->
     <string name="no_info_provided">(žádné informace)</string>
     <string name="reboot_userspace">restartovat do userspace</string>
     <string name="reboot_recovery">restartovat do recovery</string>
@@ -111,7 +104,6 @@
     <string name="confirm_install">instalovat modul %1$s?</string>
     <string name="confirm_install_title">potvrzení instalace</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">režim motivu</string>
     <string name="settings_dark_mode_message">vyberte režim, který nejlépe vyhovuje vašemu stylu!</string>
     <string name="settings_dark_mode_light">světlý</string>
@@ -173,12 +165,10 @@
     <string name="requester_summary">relace root je odvozena od jmenného prostoru žadatele</string>
     <string name="isolate_summary">každá relace root má svůj vlastní izolovaný jmenný prostor</string>
 
-    <!--Notifications-->
     <string name="progress_channel">oznámení o průběhu</string>
     <string name="download_complete">stahování dokončeno</string>
     <string name="download_file_error">chyba při stahování souboru</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">ano</string>
     <string name="no">ne</string>
     <string name="repo_install_title">instalovat %1$s %2$s(%3$d)</string>

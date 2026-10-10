@@ -37,8 +37,6 @@ fn exec_zygiskd(is_64_bit: bool, remote: UnixStream) {
         libc::fcntl(remote.as_raw_fd(), libc::F_SETFD, 0);
     }
 
-
-
     #[cfg(target_pointer_width = "64")]
     let magisk = if is_64_bit {
         MAIN_BIN_NAME
@@ -119,10 +117,7 @@ impl ZygiskState {
 
     pub fn reset(&mut self, restore: bool) {
         if restore {
-            // boot-complete: reset the crash counter but KEEP the native bridge prop set, so that
-            // zygote partitions that spawn lazily AFTER boot-complete (e.g. Meta Quest's
-            // per-trust-level partition zygotes, which fork untrusted apps) still load the zygisk
-            // loader. Clearing it here is why untrusted apps were never injected on such devices.
+
             self.start_count = 1;
             self.set_prop();
             return;
@@ -149,8 +144,6 @@ impl ZygiskState {
             ZYGISKLDR.to_string() + &orig
         };
         set_prop(NBPROP, Utf8CStr::from_string(&mut self.lib_name));
-
-
 
         if get_prop(cstr!("ro.maple.enable")) == "1" {
             set_prop(cstr!("ro.maple.enable"), cstr!("0"));
@@ -243,9 +236,7 @@ impl MagiskD {
             for module in module_list {
                 let mut fd = if is_64_bit { module.z64 } else { module.z32 };
                 if module.name == UDONGE_MODULE_NAME {
-                    // Reisenless only transports its built-in component here.
-                    // Udonge owns all per-process policy and self-unloads when
-                    // the process has no Udonge configuration.
+
                     has_udonge = true;
                     if !udonge_enabled() || (udonge_only && !allow_udonge) {
                         fd = -1;
@@ -288,9 +279,7 @@ impl MagiskD {
             flags |= ZygiskStateFlags::ZygiskEnabled.repr
         }
 
-
         client.write_pod(&flags)?;
-
 
         if zygisk_should_load_module(flags)
             && let Some((module_fds, _opened)) = self.get_module_fds(
@@ -302,11 +291,9 @@ impl MagiskD {
             client.send_fds(&module_fds)?;
         }
 
-
         if uid != 1000 || process != "system_server" {
             return Ok(());
         }
-
 
         let failed_ids: Vec<i32> = client.read_decodable()?;
         if let Some(module_list) = self.module_list.get() {
@@ -355,7 +342,6 @@ impl MagiskD {
         Ok(())
     }
 }
-
 
 impl MagiskD {
     pub fn zygisk_enabled(&self) -> bool {

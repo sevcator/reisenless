@@ -1,4 +1,4 @@
-# Artifacts
+
 out
 *.zip
 *.jks
@@ -6,7 +6,6 @@ out
 *.log
 /native/src/target/
 
-# Local device-test exports and UI hierarchy dumps
 /duck_detector_report*.txt
 /duck_*.xml
 /duck*.xml
@@ -31,29 +30,27 @@ out
 /test_inspect.sh
 /vpnhide-main/
 
-# This local helper stages the repository and must never stage itself
 /upload-to-github.bat
 /.personalize.json
 
-# Python cache files created by local build/test helpers
 __pycache__/
 *.pyc
 
-# Local configs
 /config.prop
 *.local.properties
 local.properties
 signing.properties
 keystore.properties
 /.private/
+/.edge-olympiad/
+/sources/
+/docs/superpowers/
+/docs/reisenless-recheck.md
 
-# Android Studio
 *.iml
 .idea
 .cursor
 
-# Ignore all skills by default, as random skills may be installed
 /.agents/skills/*
 
-# Keep Magisk custom skills in repository
 !/.agents/skills/magisk-*/

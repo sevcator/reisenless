@@ -77,7 +77,7 @@ data class LocalModule(
     @Throws(NumberFormatException::class)
     private fun parseProps(props: List<String>) {
         for (line in props) {
-            val prop = line.split("=".toRegex(), 2).map { it.trim() }
+            val prop = line.split('=', limit = 2).map { it.trim() }
             if (prop.size != 2)
                 continue
 

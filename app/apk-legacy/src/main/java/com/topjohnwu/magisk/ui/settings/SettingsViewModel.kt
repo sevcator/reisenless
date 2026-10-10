@@ -36,13 +36,12 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
 
     private fun createItems(): List<BaseSettingsItem> {
         val context = AppContext
-        // Customization
+
         val list = mutableListOf(
             Customization,
             Theme, if (LocaleSetting.useLocaleManager) LanguageSystem else Language
         )
 
-        // Magisk
         if (Info.env.isActive) {
             list.addAll(listOf(
                 Magisk,
@@ -57,18 +56,17 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             ))
         }
 
-        // Superuser
         if (Info.showSuperUser) {
             list.addAll(listOf(
                 Superuser,
                 Tapjack, Authentication, MultiuserMode, MountNamespaceMode, SUNotification
             ))
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                // Re-authenticate is not feasible on 8.0+
+
                 list.add(Reauthenticate)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // Can hide overlay windows on 12.0+
+
                 list.remove(Tapjack)
             }
             if (Const.Version.atLeast_30_1()) {

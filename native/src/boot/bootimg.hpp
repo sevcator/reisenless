@@ -7,10 +7,6 @@
 
 enum class FileFormat : uint8_t;
 
-/******************
- * Special Headers
- *****************/
-
 struct mtk_hdr {
     uint32_t magic;
     uint32_t size;
@@ -43,14 +39,9 @@ struct blob_hdr {
     uint32_t version;
 } __attribute__((packed));
 
-/**************
- * AVB Headers
- **************/
-
 #define AVB_FOOTER_MAGIC_LEN 4
 #define AVB_MAGIC_LEN 4
 #define AVB_RELEASE_STRING_SIZE 48
-
 
 struct AvbFooter {
     uint8_t magic[AVB_FOOTER_MAGIC_LEN];
@@ -61,7 +52,6 @@ struct AvbFooter {
     uint64_t vbmeta_size;
     uint8_t reserved[28];
 } __attribute__((packed));
-
 
 struct AvbVBMetaImageHeader {
     uint8_t magic[AVB_MAGIC_LEN];
@@ -87,12 +77,6 @@ struct AvbVBMetaImageHeader {
     uint8_t reserved[80];
 } __attribute__((packed));
 
-
-
-
-
-
-
 #define BOOT_MAGIC_SIZE 8
 #define BOOT_NAME_SIZE 16
 #define BOOT_ID_SIZE 32
@@ -106,34 +90,6 @@ struct AvbVBMetaImageHeader {
 #define VENDOR_RAMDISK_TYPE_PLATFORM 1
 #define VENDOR_RAMDISK_TYPE_RECOVERY 2
 #define VENDOR_RAMDISK_TYPE_DLKM 3
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 struct boot_img_hdr_v0_common {
     char magic[BOOT_MAGIC_SIZE];
@@ -151,34 +107,21 @@ struct boot_img_hdr_v0_common {
 struct boot_img_hdr_v0 : public boot_img_hdr_v0_common {
     uint32_t tags_addr;
 
-
-
-
-
     union {
         uint32_t unknown;
         uint32_t page_size;
     };
-
-
-
 
     union {
         uint32_t header_version;
         uint32_t extra_size;
     };
 
-
-
-
-
     uint32_t os_version;
 
     char name[BOOT_NAME_SIZE];
     char cmdline[BOOT_ARGS_SIZE];
     char id[BOOT_ID_SIZE];
-
-
 
     char extra_cmdline[BOOT_EXTRA_ARGS_SIZE];
 } __attribute__((packed));
@@ -194,7 +137,6 @@ struct boot_img_hdr_v2 : public boot_img_hdr_v1 {
     uint64_t dtb_addr;
 } __attribute__((packed));
 
-
 struct boot_img_hdr_pxa : public boot_img_hdr_v0_common {
     uint32_t extra_size;
     uint32_t unknown;
@@ -207,79 +149,6 @@ struct boot_img_hdr_pxa : public boot_img_hdr_v0_common {
 
     char extra_cmdline[BOOT_EXTRA_ARGS_SIZE];
 } __attribute__((packed));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 struct boot_img_hdr_v3 {
     uint8_t magic[BOOT_MAGIC_SIZE];
@@ -329,14 +198,8 @@ struct vendor_ramdisk_table_entry_v4 {
     uint32_t ramdisk_type;
     char ramdisk_name[VENDOR_RAMDISK_NAME_SIZE];
 
-
-
     uint32_t board_id[VENDOR_RAMDISK_TABLE_ENTRY_BOARD_ID_SIZE];
 } __attribute__((packed));
-
-
-
-
 
 template <typename T>
 static T align_to(T v, int a) {
@@ -364,7 +227,6 @@ struct dyn_img_hdr {
 
     virtual bool is_vendor() const = 0;
 
-
     decl_var(kernel_size, 32)
     decl_var(ramdisk_size, 32)
     decl_var(second_size, 32)
@@ -377,15 +239,12 @@ struct dyn_img_hdr {
     decl_str(id)
     decl_str(extra_cmdline)
 
-
     decl_var(recovery_dtbo_size, 32)
     decl_var(recovery_dtbo_offset, 64)
     decl_var(header_size, 32)
     decl_var(dtb_size, 32)
 
-
     decl_val(signature_size, 32)
-
 
     decl_val(vendor_ramdisk_table_size, 32)
     decl_val(vendor_ramdisk_table_entry_num, 32)
@@ -526,7 +385,6 @@ struct dyn_img_v3 : public dyn_img_hdr_boot {
     impl_val(header_version)
     impl_var(cmdline)
 
-
     uint32_t page_size() const override { return 4096; }
     char *extra_cmdline() override { return &v4_hdr->cmdline[BOOT_ARGS_SIZE]; }
     const char *extra_cmdline() const override { return &v4_hdr->cmdline[BOOT_ARGS_SIZE]; }
@@ -560,7 +418,6 @@ struct dyn_img_vnd_v3 : public dyn_img_hdr_vendor {
 
     size_t hdr_space() const override { return align_to(hdr_size(), page_size()); }
 
-
     char *extra_cmdline() override { return &v4_vnd->cmdline[BOOT_ARGS_SIZE]; }
     const char *extra_cmdline() const override { return &v4_vnd->cmdline[BOOT_ARGS_SIZE]; }
 };
@@ -580,10 +437,6 @@ struct dyn_img_vnd_v4 : public dyn_img_vnd_v3 {
 #undef impl_cls
 #undef impl_val
 #undef impl_var
-
-
-
-
 
 enum {
     MTK_KERNEL,
@@ -609,43 +462,24 @@ struct boot_img {
 
     const mmap_data map;
 
-
     dyn_img_hdr *hdr = nullptr;
 
-
     std::bitset<BOOT_FLAGS_MAX> flags;
-
 
     FileFormat k_fmt;
     FileFormat r_fmt;
     FileFormat e_fmt;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
     byte_view payload;
     byte_view tail;
-
 
     const mtk_hdr *k_hdr = nullptr;
     const mtk_hdr *r_hdr = nullptr;
 
     std::unique_ptr<ZImage> z_info;
 
-
     const AvbFooter *avb_footer = nullptr;
     const AvbVBMetaImageHeader *vbmeta = nullptr;
-
 
     const uint8_t *kernel = nullptr;
     const uint8_t *ramdisk = nullptr;
@@ -657,7 +491,6 @@ struct boot_img {
     const uint8_t *vendor_ramdisk_table = nullptr;
     const uint8_t *bootconfig = nullptr;
 
-
     byte_view kernel_dtb;
 
     explicit boot_img(const char *);
@@ -667,13 +500,11 @@ struct boot_img {
     const uint8_t *parse_hdr(const uint8_t *addr, FileFormat type);
     std::span<const vendor_ramdisk_table_entry_v4> vendor_ramdisk_tbl() const;
 
-
     static std::unique_ptr<boot_img> create(Utf8CStr name) { return std::make_unique<boot_img>(name.c_str()); }
     rust::Slice<const uint8_t> get_payload() const { return payload; }
     rust::Slice<const uint8_t> get_tail() const { return tail; }
     bool is_signed() const { return flags[AVB1_SIGNED_FLAG]; }
     uint64_t tail_off() const { return tail.data() - map.data(); }
-
 
     bool verify() const noexcept;
 };

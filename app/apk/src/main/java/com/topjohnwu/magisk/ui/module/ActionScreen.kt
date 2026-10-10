@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +57,12 @@ fun ActionScreen(
                 },
                 actions = {
                     if (finished) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = stringResource(CoreR.string.done),
+                            )
+                        }
                         IconButton(
                             modifier = Modifier.padding(end = 16.dp),
                             onClick = saveLog

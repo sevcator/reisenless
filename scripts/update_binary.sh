@@ -26,10 +26,7 @@ $BBBIN rm -rf $TMPDIR/lib
 
 export INSTALLER=$TMPDIR/install
 $BBBIN mkdir -p $INSTALLER
-# Extract a fresh copy of every packaged library into the installer tree. The
-# bootstrap copy above is deliberately named "busybox" so its applet dispatch
-# works before generated build variables are sourced; the installer still needs
-# the original packaged filename so it can promote it to $BUSYBOX_NAME.
+
 $BBBIN unzip -o "$3" "assets/*" "lib/*" "META-INF/com/google/*" -d $INSTALLER >&2
 export ASH_STANDALONE=1
 if echo "$3" | $BBBIN grep -q "uninstall"; then

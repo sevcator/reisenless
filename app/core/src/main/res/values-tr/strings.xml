@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">modüller</string>
     <string name="superuser">süper kullanıcı</string>
     <string name="settings">ayarlar</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">temalar</string>
     <string name="denylist">reddetme listesi</string>
 
-    <!--Home-->
     <string name="no_connection">bağlantı yok</string>
     <string name="loading">yükleniyor…</string>
     <string name="update">güncelle</string>
@@ -22,7 +20,6 @@
 <string name="uninstall_magisk_title">magisk\'i kaldır</string>
     <string name="uninstall_magisk_msg">tüm modüller devre dışı bırakılacak/kaldırılacak!\nroot kaldırılacak!\nmagisk kullanımıyla şifresi çözülen tüm dahili depolama birimleri yeniden şifrelenecek!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">zorunlu şifrelemeyi (force encryption) koru</string>
     <string name="keep_dm_verity">avb 2.0/dm-verity koru</string>
     <string name="recovery_mode">kurtarma (recovery) modu</string>
@@ -37,7 +34,6 @@
     <string name="reboot_delay_toast">5 saniye içinde yeniden başlatılıyor…</string>
     <string name="flash_screen_title">kurulum</string>
 
-    <!--Superuser-->
     <string name="su_request_title">bu uygulama root izni istiyor. cihazınıza tam erişim sağlar. emin değilseniz reddedin!</string>
     <string name="touch_filtered_warning">bir uygulama süper kullanıcı isteğini perdelendiği için magisk yanıtınızı doğrulayamıyor.</string>
     <string name="deny">reddet</string>
@@ -69,7 +65,6 @@
     <string name="superuser_toggle_revoke">geri al</string>
     <string name="superuser_policy_none">henüz hiçbir uygulama süper kullanıcı izni istemedi.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">günlüğü kaydet</string>
     <string name="back">geri</string>    <string name="enabled">etkin</string>
     <string name="disabled">devre dışı</string>
@@ -79,7 +74,6 @@
     <string name="selinux_context">selinux bağlamı: %s</string>
     <string name="supp_group">ek grup: %s</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">sistem uygulamalarını göster</string>
     <string name="show_os_app">i̇şletim sistemi uygulamalarını göster</string>
     <string name="hide_filter_hint">ada göre filtrele</string>
@@ -91,7 +85,6 @@
     <string name="menu_sort">sırala</string>
     <string name="hide_search">ara</string>
 
-    <!--Module-->
     <string name="no_info_provided">(bilgi sağlanmadı)</string>
     <string name="reboot_userspace">hızlı yeniden başlatma (soft reboot)</string>
     <string name="reboot_recovery">kurtarma (recovery) moduna yeniden başlat</string>
@@ -111,7 +104,6 @@
     <string name="confirm_install">%1$s modülü yüklensin mi?</string>
     <string name="confirm_install_title">kurulum onayı</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">tema modu</string>
     <string name="settings_dark_mode_message">tarzınıza en uygun modu seçin!</string>
     <string name="settings_dark_mode_light">her zaman açık</string>
@@ -173,12 +165,10 @@
     <string name="requester_summary">root oturumları talep edenin ad alanını devralır</string>
     <string name="isolate_summary">her root oturumunun kendi yalıtılmış ad alanı olacaktır</string>
 
-    <!--Notifications-->
     <string name="progress_channel">i̇lerleme bildirimleri</string>
     <string name="download_complete">i̇ndirme tamamlandı</string>
     <string name="download_file_error">dosya indirilirken hata oluştu</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">evet</string>
     <string name="no">hayır</string>
     <string name="repo_install_title">yükle: %1$s %2$s(%3$d)</string>

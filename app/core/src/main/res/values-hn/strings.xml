@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">modules</string>
     <string name="superuser">superuser</string>
     <string name="settings">settings</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">themes</string>
     <string name="denylist">denylist</string>
 
-    <!--Home-->
     <string name="no_connection">net nahi chal rha hai</string>
     <string name="loading">loading ho rha hai…</string>
     <string name="update">update</string>
@@ -23,7 +21,6 @@
     <string name="uninstall_magisk_title">magisk uninstall karo</string>
     <string name="uninstall_magisk_msg">saare modules disable ya remove ho jayenge!\nroot khatam ho jayega!\nagar magisk ne storage ko decrypt kiya tha toh wo phir se encrypt ho jayega!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">force encryption ko preserve karo</string>
     <string name="keep_dm_verity">avb 2.0/dm-verity ko preserve karo</string>
     <string name="recovery_mode">recovery mode</string>
@@ -40,7 +37,6 @@
     <string name="reboot_delay_toast">phone 5 second mein reboot hoga…</string>
     <string name="flash_screen_title">installation ho rahi hai</string>
 
-    <!--Superuser-->
     <string name="su_request_title">root access maang rha hai</string>
     <string name="touch_filtered_warning">ek app superuser request ko cover kar raha hai, isliye magisk aapka response verify nahi kar sakta.</string>
     <string name="deny">nahi</string>
@@ -68,7 +64,6 @@
     <string name="superuser_toggle_revoke">wapas lelo</string>
     <string name="superuser_policy_none">ab tak kisi bhi app ne root access nahi manga hai</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">log save karo</string>
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">target uid: %1$d</string>
@@ -76,13 +71,11 @@
     <string name="selinux_context">selinux context: %s</string>
     <string name="supp_group">supplementary group: %s</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">system apps dikhao</string>
     <string name="show_os_app">os apps dikhao</string>
     <string name="hide_filter_hint">naam ke hisaab se filter karo</string>
     <string name="hide_search">search karo</string>
 
-    <!--Module-->
     <string name="no_info_provided">(koi info nahi di gayi)</string>
     <string name="reboot_userspace">soft reboot</string>
     <string name="reboot_recovery">recovery mode mein reboot karo</string>
@@ -102,7 +95,6 @@
     <string name="confirm_install">>%1$s module install karna hai?</string>
     <string name="confirm_install_title">ek baar firse soch lo</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">theme mode</string>
     <string name="settings_dark_mode_message">apni hisaab se mode choose karo!</string>
     <string name="settings_dark_mode_light">hamesha light theme</string>
@@ -157,12 +149,10 @@
     <string name="requester_summary">root session apne requester ka namespace inherit karega</string>
     <string name="isolate_summary">har root session ka apna alag isolated namespace hoga</string>
 
-    <!--Notifications-->
     <string name="progress_channel">progress notifications</string>
     <string name="download_complete">download ho gaya</string>
     <string name="download_file_error">file download karne mein error aaya</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">haan</string>
     <string name="no">nahi</string>
     <string name="repo_install_title">%1$s %2$s(%3$d) install karo</string>

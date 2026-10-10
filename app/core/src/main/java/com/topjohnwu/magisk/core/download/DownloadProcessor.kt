@@ -26,14 +26,14 @@ class DownloadProcessor(notifier: DownloadNotifier) : DownloadNotifier by notifi
         handleModule(src, file.outputStream())
     }
 
-    suspend fun handleModule(src: InputStream, destination: OutputStream) {
-        val tmp = context.cachedFile("module.zip")
+    suspend fun handleModule(src: InputStream, destination: OutputStream) = destination.use { target ->
+        val tmp = java.io.File.createTempFile("module-", ".zip", context.cacheDir)
         try {
 
             src.writeTo(tmp)
 
             val input = ZipFile.Builder().setFile(tmp).get()
-            val output = ZipArchiveOutputStream(destination)
+            val output = ZipArchiveOutputStream(target)
             withInOut(input, output) { zin, zout ->
                 zout.putArchiveEntry(ZipArchiveEntry("META-INF/"))
                 zout.closeArchiveEntry()

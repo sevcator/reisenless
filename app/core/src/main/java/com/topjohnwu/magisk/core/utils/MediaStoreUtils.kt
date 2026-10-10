@@ -20,8 +20,6 @@ object MediaStoreUtils {
 
     private val cr get() = AppContext.contentResolver
 
-    // Providers can report storage/URI failures as runtime exceptions. Keep the
-    // file API's IOException contract so callers can display a failed operation.
     internal inline fun <T> storageOperation(block: () -> T): T = try {
         block()
     } catch (e: IllegalArgumentException) {
@@ -43,10 +41,6 @@ object MediaStoreUtils {
         val values = ContentValues()
         values.put(MediaStore.MediaColumns.RELATIVE_PATH, relPath)
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
-
-
-
-
 
         val fileUri = cr.insert(collection, values)
             ?: throw IOException("Can't insert $displayName.")
@@ -107,8 +101,7 @@ object MediaStoreUtils {
     fun getPatchOutputFile(displayName: String, subFolder: String): UriFile = storageOperation {
         require(subFolder.matches(Regex("[a-zA-Z]{4,9}")))
         require(displayName.matches(Regex("[a-zA-Z]{4,9}\\.[a-zA-Z]{3}")))
-        // Scoped storage allows Downloads/Documents, not arbitrary top-level
-        // directories. Keep the neutral names inside Downloads on every API.
+
         getFile(displayName, subFolder)
     }
 

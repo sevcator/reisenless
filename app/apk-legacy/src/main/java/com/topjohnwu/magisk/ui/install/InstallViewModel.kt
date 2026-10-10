@@ -68,8 +68,7 @@ class InstallViewModel : BaseViewModel() {
         }
 
     fun chooseApk() {
-        // Launch only from a user click, not from binding/state restoration.
-        // Clicking the already-selected row also lets the user replace the file.
+
         sourceChoice = R.id.source_selected
         GetContentEvent("application/vnd.android.package-archive", UriCallback(true)).publish()
     }
@@ -99,7 +98,7 @@ class InstallViewModel : BaseViewModel() {
 
     fun install() {
         val source = if (sourceChoice == R.id.source_selected) _apkUri.value ?: return else null
-        // A foreign build must never use this manager's direct-install helpers.
+
         if (source != null && method != R.id.method_patch) return
         when (method) {
             R.id.method_patch -> FlashFragment.patch(data.value ?: return, source).navigate(true)

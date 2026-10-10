@@ -87,23 +87,30 @@ class ModuleViewModel : AsyncLoadViewModel() {
         val moduleLoaded = Info.env.isActive &&
             withContext(Dispatchers.IO) { LocalModule.loaded() }
         if (moduleLoaded) {
-            val modules = withContext(Dispatchers.Default) {
+            val modules = withContext(Dispatchers.IO) {
                 LocalModule.installed().map { ModuleItem(it) }
             }
             _uiState.update { it.copy(loading = false, modules = modules) }
             loadUpdateInfo()
         } else {
-            _uiState.update { it.copy(loading = false) }
+            _uiState.update { it.copy(loading = false, modules = emptyList()) }
         }
     }
 
     private suspend fun loadUpdateInfo() {
+        if (Info.isConnected.value != true) return
         withContext(Dispatchers.IO) {
+
+            val updates = _uiState.value.modules.mapNotNull { item ->
+                if (item.isEnabled && !item.isRemoved && !item.showNotice && item.module.fetch()) {
+                    item.module to (item.module.updateInfo != null)
+                } else null
+            }.toMap()
             _uiState.update { state ->
                 state.copy(
                     modules = state.modules.map { item ->
-                        if (item.module.fetch()) {
-                            item.copy(showUpdate = item.module.updateInfo != null)
+                        if (item.module in updates) {
+                            item.copy(showUpdate = updates.getValue(item.module))
                         } else {
                             item
                         }
@@ -122,14 +129,17 @@ class ModuleViewModel : AsyncLoadViewModel() {
     }
 
     fun toggleEnabled(item: ModuleItem) {
-        val newEnabled = !item.isEnabled
-        item.module.enable = newEnabled
-        _uiState.update { state ->
-            state.copy(
-                modules = state.modules.map {
-                    if (it.module.id == item.module.id) it.copy(isEnabled = newEnabled) else it
-                }
-            )
+        viewModelScope.launch(Dispatchers.IO) {
+            val newEnabled = !item.isEnabled
+            item.module.enable = newEnabled
+            _uiState.update { state ->
+                state.copy(
+                    modules = state.modules.map {
+                        if (it.module.id == item.module.id) it.copy(isEnabled = newEnabled) else it
+                    }
+                )
+            }
+            if (newEnabled) loadUpdateInfo()
         }
     }
 

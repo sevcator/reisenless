@@ -47,7 +47,6 @@ impl MagiskD {
             .append_path(APP_PACKAGE_NAME)
             .append_path("install");
 
-
         let alt_bin_dirs = &[
             cstr!("/cache/data_adb/magisk"),
             cstr!("/data/magisk"),
@@ -61,7 +60,6 @@ impl MagiskD {
             }
         }
         cstr!("/cache/data_adb").remove_all().ok();
-
 
         cstr!(SECURE_DIR).follow_link().chmod(0o700).log_ok();
         cstr!(DATABIN).mkdir(0o755).log_ok();
@@ -85,7 +83,6 @@ impl MagiskD {
         busybox.copy_to(tmp_bb).ok();
         tmp_bb.follow_link().chmod(0o755).log_ok();
 
-
         Command::new(&tmp_bb)
             .arg0("busybox")
             .arg("--install")
@@ -95,7 +92,6 @@ impl MagiskD {
             .stderr(Stdio::null())
             .status()
             .log_ok();
-
 
         let bin32 = cstr!(concatcp!(DATABIN, "/", BIN32_DATABIN_NAME));
         if bin32.exists() {
@@ -126,7 +122,6 @@ impl MagiskD {
 
         self.preserve_stub_apk();
 
-
         let secure_dir = cstr!(SECURE_DIR);
         if !secure_dir.exists() {
             if self.sdk_int < 24 {
@@ -144,7 +139,6 @@ impl MagiskD {
             return true;
         }
 
-
         let boot_cnt = self.get_db_setting(DbEntryKey::BootloopCount);
         self.set_db_setting(DbEntryKey::BootloopCount, boot_cnt + 1)
             .log()
@@ -159,8 +153,7 @@ impl MagiskD {
 
             disable_modules();
             self.set_db_setting(DbEntryKey::ZygiskConfig, 0).log_ok();
-            // Safe mode disables user modules and optional Udonge behavior,
-            // but the minimal manager-visibility filter remains mandatory.
+
             setup_udonge_runtime(false);
             self.zygisk_enabled.store(false, Ordering::Release);
             self.zygote_injection_enabled
@@ -172,16 +165,13 @@ impl MagiskD {
 
         exec_common_scripts(cstr!("post-fs-data"));
 
-        // User scripts may change feature settings, so take one feature snapshot
-        // after they finish and use it for the rest of this boot stage.
         let features = self.get_db_settings().unwrap_or_default();
         if udonge_requested() {
             setup_udonge_runtime(true);
         }
         self.zygisk_enabled
             .store(features.zygisk, Ordering::Release);
-        // Built-in Hide Apps/Udonge use the private zygote transport but must
-        // not enable user-facing Zygisk or load third-party Zygisk modules.
+
         self.zygote_injection_enabled
             .store(features.zygisk || crate::udonge::transport_enabled(), Ordering::Release);
         initialize_denylist(features.sulist);
@@ -210,9 +200,7 @@ impl MagiskD {
 
         info!("** boot-complete triggered");
 
-
         self.set_db_setting(DbEntryKey::BootloopCount, 0).log_ok();
-
 
         let secure_dir = cstr!(SECURE_DIR);
         if !secure_dir.exists() {

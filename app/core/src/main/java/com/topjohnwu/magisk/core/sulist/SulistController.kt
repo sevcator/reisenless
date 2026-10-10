@@ -20,7 +20,6 @@ object SulistController {
         vararg values: String,
     ): ManagerCli.Result = ManagerCli.execute("--sulist", action, *values)
 
-    /** Returns null when the daemon could not report an authoritative state. */
     @Synchronized
     fun status(): Boolean? {
         val result = executeSulist("status")
@@ -32,7 +31,6 @@ object SulistController {
         }
     }
 
-    /** Returns the authoritative post-command state, or null on transport failure. */
     @Synchronized
     fun setEnabled(enabled: Boolean): Boolean? {
         val action = if (enabled) "enable" else "disable"
@@ -75,11 +73,6 @@ object SulistController {
         return executeSulist("rm", *values).code == 0
     }
 
-    /**
-     * One-time upgrade migration. A fresh installation only has the manager's
-     * policy, which is deliberately skipped and therefore starts with an empty
-     * ordinary-app allowlist.
-     */
     @Synchronized
     fun importExistingRootGrants(context: Context): Boolean {
         val markerQuery = "SELECT value FROM strings WHERE key='$MIGRATION_KEY'"
@@ -117,8 +110,7 @@ object SulistController {
         for (packageName in packages) {
             if (packageName in currentPackages) continue
             if (!add(packageName)) {
-                // A concurrent insert is harmless; verify it before retrying
-                // the whole migration on the next manager start.
+
                 val refreshed = list() ?: return false
                 if (refreshed.none { it.packageName == packageName }) return false
             }

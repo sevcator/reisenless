@@ -2,7 +2,6 @@
 
 primitives = ["jint", "jboolean", "jlong"]
 
-
 class JType:
     def __init__(self, cpp: str, jni: str):
         self.cpp = cpp
@@ -14,7 +13,6 @@ class JType:
         else:
             return "L"
 
-
 class JArray(JType):
     def __init__(self, type: JType):
         if type.cpp in primitives:
@@ -22,7 +20,6 @@ class JArray(JType):
         else:
             name = "jobjectArray"
         super().__init__(name, "[" + type.jni)
-
 
 class Argument:
     def __init__(self, name: str, type: JType, set_arg=False):
@@ -33,8 +30,6 @@ class Argument:
     def cpp(self) -> str:
         return f"{self.type.cpp} {self.name}"
 
-
-
 class Anon(Argument):
     cnt = 0
 
@@ -42,12 +37,10 @@ class Anon(Argument):
         super().__init__(f"_{Anon.cnt}", type)
         Anon.cnt += 1
 
-
 class Return:
     def __init__(self, value: str, type: JType):
         self.value = value
         self.type = type
-
 
 class JNIMethod:
     def __init__(self, name: str, ret: Return, args: list[Argument]):
@@ -77,7 +70,6 @@ class JNIMethod:
         args = "".join(map(lambda x: x.type.shorty(), self.args))
         return f"{self.ret.type.shorty()}{args}"
 
-
 class JNIHook(JNIMethod):
     def __init__(self, ver: str, ret: Return, args: list[Argument]):
         name = f"{self.hook_target()}_{ver}"
@@ -89,11 +81,8 @@ class JNIHook(JNIMethod):
     def body(self, orig_fn_ptr: str):
         return ""
 
-
 def ind(i):
     return "\n" + "    " * i
-
-
 
 jint = JType("jint", "I")
 jintArray = JArray(jint)
@@ -101,7 +90,6 @@ jstring = JType("jstring", "Ljava/lang/String;")
 jboolean = JType("jboolean", "Z")
 jlong = JType("jlong", "J")
 void = JType("void", "V")
-
 
 class ForkApp(JNIHook):
     def __init__(self, ver, args):
@@ -129,7 +117,6 @@ class ForkApp(JNIHook):
             decl += ind(3) + f"return {self.ret.value};"
         return decl
 
-
 class SpecializeApp(ForkApp):
     def __init__(self, ver: str, args: list[Argument]):
         super().__init__(ver, args)
@@ -138,15 +125,12 @@ class SpecializeApp(ForkApp):
     def hook_target(self):
         return "nativeSpecializeAppProcess"
 
-
 class ForkServer(ForkApp):
     def hook_target(self):
         return "nativeForkSystemServer"
 
     def init_args(self):
         return "ServerSpecializeArgs_v1 args(uid, gid, gids, runtime_flags, permitted_capabilities, effective_capabilities);"
-
-
 
 uid = Argument("uid", jint)
 gid = Argument("gid", jint)
@@ -160,18 +144,13 @@ fds_to_close = Argument("fds_to_close", jintArray)
 instruction_set = Argument("instruction_set", jstring)
 app_data_dir = Argument("app_data_dir", jstring)
 
-
 fds_to_ignore = Argument("fds_to_ignore", jintArray, True)
-
 
 is_child_zygote = Argument("is_child_zygote", jboolean, True)
 
-
 is_top_app = Argument("is_top_app", jboolean, True)
 
-# q running on xr
 is_perception_app = Argument("is_perception_app", jboolean)
-
 
 pkg_data_info_list = Argument("pkg_data_info_list", JArray(jstring), True)
 whitelisted_data_info_list = Argument(
@@ -180,19 +159,14 @@ whitelisted_data_info_list = Argument(
 mount_data_dirs = Argument("mount_data_dirs", jboolean, True)
 mount_storage_dirs = Argument("mount_storage_dirs", jboolean, True)
 
-
 mount_sysprop_overrides = Argument("mount_sysprop_overrides", jboolean, True)
 
-# b qpr2
 use_fifo_ui = Argument("use_fifo_ui", jboolean)
 
-# c qpr2
 cgroup_uid = Argument("cgroup_uid", jint)
-
 
 permitted_capabilities = Argument("permitted_capabilities", jlong)
 effective_capabilities = Argument("effective_capabilities", jlong)
-
 
 fas_l = ForkApp(
     "l",
@@ -675,7 +649,6 @@ server_samsung_q = ForkServer(
     ],
 )
 
-
 def gen_jni_def(field: str, methods: list[JNIHook]):
     decl = ""
     decl += ind(0) + f"std::array<JNINativeMethod, {len(methods)}> {field} = {{{{"
@@ -693,7 +666,6 @@ def gen_jni_def(field: str, methods: list[JNIHook]):
     decl += ind(0)
 
     return decl
-
 
 with open("jni_hooks.hpp", "w") as f:
     f.write("#pragma once\n\n")

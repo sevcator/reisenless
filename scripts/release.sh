@@ -1,14 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-
-
-
-
-
 CONFIG=config.prop
 NOTES=notes.md
-
 
 GCONFIG=app/gradle.properties
 BUILDCMD="./build.py -c $CONFIG"
@@ -36,7 +30,6 @@ disable_version_config() {
   sed -i "s:^version=:# version=:g" $CONFIG
 }
 
-
 set_version() {
   local ver=$1
   local code=$(echo - | awk "{ print $ver * 1000 }")
@@ -45,12 +38,10 @@ set_version() {
   sed -i "s:versionCode=.*:versionCode=${code}:g" $GCONFIG
   sed -i "s:version=.*:version=${ver}:g" $CONFIG
 
-
   git add -u .
   git status
   git commit -m "Release Magisk v$ver" -m "[skip ci]"
 }
-
 
 build() {
   [ -z $1 ] && exit 1
@@ -80,7 +71,6 @@ upload() {
   git push origin master
   git push --tags
 
-  # Publish release
   local release_apk="Magisk-v${ver}.apk"
   local legacy_apk="Magisk-v${ver}-legacy.apk"
   cp $out/app-release.apk $release_apk
@@ -89,7 +79,6 @@ upload() {
 
   rm -f $release_apk $legacy_apk
 }
-
 
 if command -v gsed >/dev/null; then
   function sed() { gsed "$@"; }

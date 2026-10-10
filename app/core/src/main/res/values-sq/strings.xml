@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">modulet</string>
     <string name="superuser">superpërdoruesi</string>
     <string name="settings">cilësimet</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">temat</string>
     <string name="denylist">lista e mohimit (denylist)</string>
 
-    <!--Home-->
     <string name="no_connection">nuk ka lidhje në rrjet</string>
     <string name="loading">duke u ngarkuar…</string>
     <string name="update">përditëso</string>
@@ -22,7 +20,6 @@
 <string name="uninstall_magisk_title">çinstalo magisk</string>
     <string name="uninstall_magisk_msg">të gjitha modulet do të çaktivizohen/hiqen!\nroot do të hiqet!\nçdo hapësirë ruajtëse e brendshme e çkoduar përmes magisk do të ri-enkriptohet!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">ruaj enkriptimin e detyruar</string>
     <string name="keep_dm_verity">ruaj avb 2.0/dm-verity</string>
     <string name="recovery_mode">mënyra recovery</string>
@@ -37,7 +34,6 @@
     <string name="reboot_delay_toast">duke u rinisur pas 5 sekondave…</string>
     <string name="flash_screen_title">instalimi</string>
 
-    <!--Superuser-->
     <string name="su_request_title">ky aplikacion po kërkon leje root. kjo i jep akses të plotë pajisjes suaj. mohoni nëse nuk jeni të sigurt!</string>
     <string name="touch_filtered_warning">për shkak se një aplikacion po mbulon kërkesën e superpërdoruesit, magisk nuk mund të verifikojë përgjigjen tuaj.</string>
     <string name="deny">refuzo</string>
@@ -69,7 +65,6 @@
     <string name="superuser_toggle_revoke">revoko (hiq lejen)</string>
     <string name="superuser_policy_none">asnjë aplikacion nuk ka kërkuar ende leje superpërdoruesi.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">ruaj regjistrin</string>
     <string name="back">mbrapa</string>    <string name="enabled">aktivizuar</string>
     <string name="disabled">çaktivizuar</string>
@@ -79,7 +74,6 @@
     <string name="selinux_context">konteksti selinux: %s</string>
     <string name="supp_group">grupi plotësues: %s</string>
 
-    <!--MagiskHide-->
     <string name="show_system_app">shfaq aplikacionet e sistemit</string>
     <string name="show_os_app">shfaq aplikacionet e os</string>
     <string name="hide_filter_hint">filtro sipas emrit</string>
@@ -91,7 +85,6 @@
     <string name="menu_sort">rendit</string>
     <string name="hide_search">kërko</string>
 
-    <!--Module-->
     <string name="no_info_provided">(nuk është dhënë informacion)</string>
     <string name="reboot_userspace">rinisje e lehtë (soft reboot)</string>
     <string name="reboot_recovery">rinis në recovery</string>
@@ -111,7 +104,6 @@
     <string name="confirm_install">të instalohet moduli %1$s?</string>
     <string name="confirm_install_title">konfirmimi i instalimit</string>
 
-   <!--Settings-->
     <string name="settings_dark_mode_title">tema</string>
     <string name="settings_dark_mode_message">zgjidhni stilin që ju përshtatet më shumë!</string>
     <string name="settings_dark_mode_light">gjithmonë e hapur</string>
@@ -173,12 +165,10 @@
     <string name="requester_summary">seancat root do të trashëgojnë hapësirën e kërkuesit të tyre</string>
     <string name="isolate_summary">çdo seancë root do të ketë hapësirën e saj të izoluar</string>
 
-    <!--Notifications-->
     <string name="progress_channel">njoftimet e progresit</string>
     <string name="download_complete">shkarkimi përfundoi</string>
     <string name="download_file_error">gabim gjatë shkarkimit të skedarit</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">po</string>
     <string name="no">jo</string>
     <string name="repo_install_title">instalo %1$s %2$s(%3$d)</string>

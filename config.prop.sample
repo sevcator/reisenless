@@ -1,51 +1,10 @@
 
 
-
-
-
-
-version=string
-
-
-
-
-
-outdir=string
-
-# Manager appearance: classic Magisk interface (default), or compose.
-# Both variants use the same release identity and shared native/core fixes.
-# managerUi=classic
-
-# Optional exact marker used by a previous randomized installation. Supplying
-# it lets the installer restore the predecessor's saved stock init before
-# applying a newly rotated identity.
-# legacyBackupConfig=.previous-marker
-
-
-
-abiList=[string]
-
-
-
-
-
-
-
-
-
-
-
-
-keyStore=string
-
-keyStorePass=string
-
-keyAlias=string
-
-keyPass=string
-
-# Release builds must use a private signing identity. build.py generates and
-# preserves one under .private/release-signing for local builds. CI builds must
-# provide REISENLESS_IDENTITY_SEED and the four REISENLESS_KEYSTORE_* secrets
-# shown in build.yml; optionally also provide REISENLESS_CERT_SHA256 to pin the
-# public certificate digest.
+outdir=out
+abiList=armeabi-v7a,arm64-v8a,x86,x86_64
+randomizeBuild=true
+randomizeSecureDir=true
+keyStore=
+keyStorePass=
+keyAlias=
+keyPass=

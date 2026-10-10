@@ -54,6 +54,7 @@ object AppContext : ContextWrapper(null),
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         LocaleSetting.instance.updateResource(resources)
+        com.topjohnwu.magisk.core.utils.AppCatalog.invalidate()
     }
 
     override fun onActivityStarted(activity: Activity) {
@@ -85,8 +86,6 @@ object AppContext : ContextWrapper(null),
     private fun preparePackagedSu(base: Context): String? = runCatching {
         val appInfo = base.applicationInfo
 
-
-
         (base.classLoader as? BaseDexClassLoader)?.findLibrary(BuildConfig.MAIN_LIB_NAME)
             ?: File(
                 appInfo.nativeLibraryDir,
@@ -110,13 +109,8 @@ object AppContext : ContextWrapper(null),
         AppApkPath = base.packageResourcePath
         AppBinaryPath = preparePackagedSu(base).orEmpty()
         resources.patch()
-        // Request callbacks can start the provider/activity directly without
-        // ever opening MainActivity. Create channels during application setup
-        // so status-bar notifications are always deliverable.
+
         Notifications.setup()
-
-
-
 
         val (suCmd, needsArgvShim) = run {
             val tmp = try {
@@ -147,9 +141,7 @@ object AppContext : ContextWrapper(null),
             } else {
                 "'$suCmd' --mount-master -c 'exec /system/bin/sh'"
             }
-            // Explicit commands bypass libsu's built-in non-root fallback.
-            // Keep a usable local shell when a different/missing daemon denies
-            // this manager, otherwise getShell never delivers its callback.
+
             shellBuilder.setCommands(
                 "/system/bin/sh",
                 "-c",

@@ -15,20 +15,11 @@
 
 using namespace std;
 
-// For the following data structures:
-// If package name == ISOLATED_MAGIC, or app ID == -1, it means isolated service
-// If package name == WEBVIEW_ZYGOTE_MAGIC, or app ID == 1053, it means webview zygote
-
-
-
-
 static unique_ptr<map<string, set<string, StringCmp>, StringCmp>> pkg_to_procs_;
 #define pkg_to_procs (*pkg_to_procs_)
 
-
 static unique_ptr<map<int, set<string_view>>> app_id_to_pkgs_;
 #define app_id_to_pkgs (*app_id_to_pkgs_)
-
 
 static pthread_mutex_t data_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -80,7 +71,6 @@ static void update_app_id(int app_id, const string &pkg, bool remove) {
         app_id_to_pkgs[app_id].emplace(pkg);
     }
 }
-
 
 static DIR *procfp;
 
@@ -273,7 +263,6 @@ static int add_list(const char *pkg, const char *proc) {
         update_app_id(app_id, it->first, false);
     }
 
-
     char sql[4096];
     ssprintf(sql, sizeof(sql),
             "INSERT INTO sulist (package_name, process) VALUES('%s', '%s')", pkg, proc);
@@ -395,7 +384,6 @@ int enable_deny() {
                 return DenyResponse::ERROR;
             }
         }
-
 
         if (SDK_INT >= 29) {
             kill_process("usap32", true);

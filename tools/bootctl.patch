@@ -1,18 +1,3 @@
-##################################################################################
-# How to build the prebuilt bootctl executable:
-#
-# 1. Checkout and sync the AOSP tree with the tag android-14.0.0_r1:
-#    https://source.android.com/setup/build/downloading
-# 2. Apply patches:
-#    `patch -p1 -d system/extras -i bootctl.patch`
-# 3. Build for arm, arm64, x86, and x86_64:
-#    `lunch aosp_<abi>-eng`
-# 4. Build the executable:
-#    `m bootctl`
-#
-# Despite built from the Android 14 branch, the executable is usable on API 31+.
-##################################################################################
-
 diff --git a/bootctl/Android.bp b/bootctl/Android.bp
 index 106ff863..0e139989 100644
 --- a/bootctl/Android.bp

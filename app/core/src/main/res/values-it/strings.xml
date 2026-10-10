@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">moduli</string>
     <string name="superuser">accesso root</string>
     <string name="settings">impostazioni</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">temi</string>
     <string name="denylist">lista di blocco</string>
 
-    <!--Home-->
     <string name="no_connection">connessione non disponibile</string>
     <string name="loading">caricamento…</string>
     <string name="update">aggiorna</string>
@@ -22,7 +20,6 @@
 <string name="uninstall_magisk_title">disinstalla magisk</string>
     <string name="uninstall_magisk_msg">tutti i moduli verranno disabilitati/rimossi!\nil root verrà rimosso!\ngli spazi di archiviazione interni decriptati tramite l\'uso di magisk verranno nuovamente criptati!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">mantieni crittografia forzata</string>
     <string name="keep_dm_verity">mantieni avb 2.0/dm-verity</string>
     <string name="recovery_mode">modalità recovery</string>
@@ -40,7 +37,6 @@
     <string name="reboot_delay_toast">riavvio fra 5 secondi…</string>
     <string name="flash_screen_title">installazione</string>
 
-    <!--Superuser-->
     <string name="su_request_title">richiesta di accesso root</string>
     <string name="touch_filtered_warning">magisk non può verificare la tua risposta perché un\'app sta oscurando una richiesta di accesso root</string>
     <string name="deny">nega</string>
@@ -72,7 +68,6 @@
     <string name="superuser_toggle_revoke">revoca</string>
     <string name="superuser_policy_none">nessuna app ha ancora chiesto i permessi di root.</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">salva registro eventi</string>
     <string name="back">indietro</string>    <string name="enabled">abilitato</string>
     <string name="disabled">disabilitato</string>
@@ -84,7 +79,6 @@
     <string name="granted">concesso</string>
     <string name="denied">negato</string>
 
-    <!-- MagiskHide -->
     <string name="show_system_app">mostra app di sistema</string>
     <string name="show_os_app">mostra app del sistema operativo</string>
     <string name="hide_filter_hint">filtra per nome</string>
@@ -96,7 +90,6 @@
     <string name="menu_sort">ordina</string>
     <string name="hide_search">cerca</string>
 
-    <!--Module-->
     <string name="no_info_provided">(nessuna informazione)</string>
     <string name="reboot_userspace">riavvio veloce</string>
     <string name="reboot_recovery">riavvia in recovery</string>
@@ -114,7 +107,6 @@
     <string name="zygisk_module_unloaded">modulo zygisk non caricato a causa di incompatibilità</string>
     <string name="module_empty">nessun modulo installato</string>
 
-    <!--Settings -->
     <string name="confirm_install">vuoi installare il modulo %1$s?</string>
     <string name="confirm_install_title">conferma installazione</string>
     <string name="settings_dark_mode_title">impostazioni tema</string>
@@ -180,12 +172,10 @@
     <string name="requester_summary">le sessioni di root erediteranno il namespace del loro richiedente</string>
     <string name="isolate_summary">ogni sessione di root avrà il suo namespace isolato</string>
 
-    <!--Notifications-->
     <string name="progress_channel">notifiche di avanzamento</string>
     <string name="download_complete">download completato</string>
     <string name="download_file_error">errore durante il download del file</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">sì</string>
     <string name="no">no</string>
     <string name="repo_install_title">installazione di %1$s %2$s(%3$d)</string>

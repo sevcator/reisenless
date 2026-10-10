@@ -16,7 +16,6 @@ import androidx.core.content.getSystemService
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import com.topjohnwu.magisk.core.AppContext
-import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.JobService
 import com.topjohnwu.magisk.core.R
 import com.topjohnwu.magisk.core.base.IActivityExtension
@@ -29,6 +28,9 @@ import com.topjohnwu.magisk.view.Notifications
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import okhttp3.ResponseBody
 import java.io.InputStream
@@ -55,7 +57,7 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
     companion object {
         const val ACTION = "com.topjohnwu.magisk.DOWNLOAD"
         const val SUBJECT_KEY = "subject"
-        private const val REQUEST_CODE = 1
+        private const val JOB_NAMESPACE = "downloads"
 
         private val progressBroadcast = MutableLiveData<Pair<Float, Subject>?>()
 
@@ -92,13 +94,13 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
 
 
                 val intent = createBroadcastIntent(context, subject)
-                PendingIntent.getBroadcast(context, REQUEST_CODE, intent, flag)
+                PendingIntent.getBroadcast(context, subject.notifyId, intent, flag)
             } else {
                 val intent = createServiceIntent(context, subject)
                 if (Build.VERSION.SDK_INT >= 26) {
-                    PendingIntent.getForegroundService(context, REQUEST_CODE, intent, flag)
+                    PendingIntent.getForegroundService(context, subject.notifyId, intent, flag)
                 } else {
-                    PendingIntent.getService(context, REQUEST_CODE, intent, flag)
+                    PendingIntent.getService(context, subject.notifyId, intent, flag)
                 }
             }
         }
@@ -117,11 +119,11 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
         @SuppressLint("MissingPermission")
         fun start(context: Context, subject: Subject) {
             if (Build.VERSION.SDK_INT >= 34) {
-                val scheduler = context.getSystemService<JobScheduler>()!!
+                val scheduler = context.getSystemService<JobScheduler>()!!.forNamespace(JOB_NAMESPACE)
                 val cmp = JobService::class.java.cmp(context.packageName)
                 val extras = Bundle()
                 extras.putParcelable(SUBJECT_KEY, subject)
-                val info = JobInfo.Builder(Const.ID.DOWNLOAD_JOB_ID, cmp)
+                val info = JobInfo.Builder(subject.notifyId, cmp)
                     .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                     .setUserInitiated(true)
                     .setTransientExtras(extras)
@@ -140,16 +142,24 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
 
     private val notifications = SparseArrayCompat<Notification.Builder>()
     private var attachedId = -1
-    private val job = Job()
+    private val job = SupervisorJob()
+    private val transfers = DownloadTransfers()
     private val processor = DownloadProcessor(this)
     private val network get() = ServiceLocator.networkService
+    val isIdle: Boolean @Synchronized get() = notifications.size() == 0
 
     fun download(subject: Subject) {
+        if (!transfers.begin(subject.notifyId)) return
         notifyUpdate(subject.notifyId)
         CoroutineScope(job + Dispatchers.IO).launch {
             try {
                 val stream = network.fetchFile(subject.url).toProgressStream(subject)
-                processor.handle(stream, subject)
+                if (!transfers.attach(subject.notifyId, stream)) throw CancellationException("Download stopped")
+                stream.use {
+                    coroutineContext.ensureActive()
+                    processor.handle(it, subject)
+                    coroutineContext.ensureActive()
+                }
                 val activity = AppContext.foregroundActivity
                 if (activity != null && subject.autoLaunch) {
                     notifyRemove(subject.notifyId)
@@ -157,9 +167,23 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
                 } else {
                     notifyFinish(subject)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                notifyFail(subject)
+                if (!transfers.cancelled) notifyFail(subject)
+            } finally {
+                transfers.end(subject.notifyId)
             }
+        }
+    }
+
+    fun cancel() {
+        job.cancel()
+        transfers.cancel()
+        synchronized(this) {
+            for (index in 0 until notifications.size()) Notifications.mgr.cancel(notifications.keyAt(index))
+            notifications.clear()
+            attachedId = -1
         }
     }
 
@@ -201,6 +225,7 @@ class DownloadEngine(session: DownloadSession) : DownloadSession by session, Dow
 
     @Synchronized
     override fun notifyUpdate(id: Int, editor: (Notification.Builder) -> Unit) {
+        if (transfers.cancelled) return
         val notification = (notifications[id] ?: Notifications.startProgress("").also {
             notifications[id] = it
         }).apply(editor)

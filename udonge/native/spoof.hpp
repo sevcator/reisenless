@@ -4,19 +4,12 @@
 
 namespace cloak {
 
-// Overwrite android.os.Build / Build.VERSION fields in the current process with
 void spoof_build(JNIEnv *env, const Config &cfg, const std::string &pkg = "");
 
-// Overwrite only Build.DISPLAY using the DISPLAY (or ID) value from cfg.gms_build.
-// Targeted variant for cloaked non-GMS apps — avoids changing MODEL/BRAND/etc.
-// which could break payment apps that validate device identity.
 void spoof_display(JNIEnv *env, const Config &cfg);
 
-// Overwrite Build.TYPE → "user" and Build.TAGS → "release-keys" unconditionally.
-// Keep Java Build constants consistent with the sanitized native properties.
 void spoof_build_type(JNIEnv *env);
 
-// Overwrite Custom ROM reflection fields like AssetManager.LINEAGE_APK_PATH to nullptr.
 void spoof_custom_rom(JNIEnv *env);
 
-} // namespace cloak
+}

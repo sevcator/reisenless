@@ -55,9 +55,7 @@ private fun ByteArray.replaceAll(from: ByteArray, to: ByteArray): Int {
 }
 
 private fun rebuildDex(data: ByteArray): ByteArray {
-    // Renaming changes string/type/member ordering. Recalculating the checksum
-    // alone leaves an invalid DEX. Re-intern every definition and reference so
-    // the writer sorts all ID tables and remaps instructions and annotations.
+
     val dex = DexBackedDexFile(null, data)
     val store = MemoryDataStore(data.size)
     DexPool.writeTo(store, dex)
@@ -163,7 +161,7 @@ private fun ZFile.rewriteVisibleBranding(
         }
         val appVisible = name == "resources.arsc" ||
             name.matches(Regex("classes(?:\\d+)?\\.dex")) ||
-            // Data Binding layout tags must match their rewritten DEX strings.
+
             (name.startsWith("res/") && name.endsWith(".xml")) ||
             name == "AndroidManifest.xml"
         val selected = if (appVisible) ordered else globalBrands.entries
@@ -175,16 +173,7 @@ private fun ZFile.rewriteVisibleBranding(
             )
         }
         var contents = entry.read()
-        // The user-facing product/status names are not internal identities.
-        // Protect only complete Android string-pool values, not substrings in
-        // resource keys, class names, paths, scripts, or other text.
-        // All product and component names are internal identities in a
-        // release build. Let the branding map rewrite their visible strings
-        // too; only the app label remains intentionally user-facing.
-        // Keep feature names readable in the UI while still rewriting the
-        // same identifiers everywhere else in the packaged application.
-        // Placeholders preserve the byte length required by in-place pool
-        // replacement and are restored after branding has been applied.
+
         val displayLabels = if (name == "resources.arsc") {
             listOf(
                 "zygisk" to "zYgIsK",
@@ -277,7 +266,7 @@ abstract class TransformApkTask : DefaultTask() {
             it.get(IncrementalPackager.VERSION_CONTROL_INFO_ENTRY_PATH)?.delete()
             it.get(JarFile.MANIFEST_NAME)?.delete()
             it.get("assets/PublicSuffixDatabase.list")?.delete()
-            // Profiles contain DEX indexes from before the namespace rewrite.
+
             it.get("assets/dexopt/baseline.prof")?.delete()
             it.get("assets/dexopt/baseline.profm")?.delete()
             it.rewriteVisibleNamespaces(namespaceMappings.get())
@@ -286,8 +275,7 @@ abstract class TransformApkTask : DefaultTask() {
                 globalBrandingMappings.get(),
             )
             transformations.get().forEach { transform -> transform(it) }
-            // Request extraction in the manifest while retaining stored,
-            // page-aligned entries in the signed release archive.
+
             it.entries().toList().filter { entry ->
                 entry.centralDirectoryHeader.name.matches(Regex("lib/[^/]+/[^/]+\\.so"))
             }.forEach { entry ->

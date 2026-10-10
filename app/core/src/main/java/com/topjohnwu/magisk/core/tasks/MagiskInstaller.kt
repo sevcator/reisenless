@@ -151,8 +151,7 @@ abstract class MagiskInstallImpl protected constructor(
                     }
                     val dest = File(installDir, name)
                     if (!shell.isRoot && (name == "mboot" || name == BuildConfig.MAIN_BIN_NAME)) {
-                        // Modern Android denies execution of files written into
-                        // app data. Execute the package-installed, read-only copy.
+
                         val installed = File(context.applicationInfo.nativeLibraryDir, n)
                         if (!installed.canExecute()) throw IOException("Missing installed tool")
                         Os.symlink(installed.path, dest.path)
@@ -211,7 +210,6 @@ abstract class MagiskInstallImpl protected constructor(
         out.use { copyAll(it, 1024 * 1024) }
 
     private class NoAvailableStream(s: InputStream) : FilterInputStream(s) {
-
 
         override fun available() = 0
     }
@@ -281,14 +279,11 @@ abstract class MagiskInstallImpl protected constructor(
                     console.add("-- skipping  : invalid $name")
                 }
 
-
                 val vbmeta = entry
                 entry = tarIn.nextEntry
 
-
                 vbmeta.name = name
                 vbmeta.size = rawData.size.toLong()
-
 
                 tarOut.putArchiveEntry(vbmeta)
                 tarOut.write(rawData)
@@ -304,7 +299,6 @@ abstract class MagiskInstallImpl protected constructor(
             }
             entry = tarIn.nextEntry ?: break
         }
-
 
         return when {
             recovery != null -> {
@@ -376,7 +370,6 @@ abstract class MagiskInstallImpl protected constructor(
             fifo = File.createTempFile("payload-fifo-", null, installDir)
             fifo.delete()
             Os.mkfifo(fifo.path, 420           )
-
 
             val future = arrayOf(
                 "cd $installDir",
@@ -481,7 +474,7 @@ abstract class MagiskInstallImpl protected constructor(
                 newBoot.newInputStream().use { it.copyAll(outStream, 1024 * 1024) }
             }
             newBoot.delete()
-            // Closing/finalizing the provider stream is part of success.
+
             outStream.close()
             pendingStream = null
             srcBoot.delete()
@@ -619,8 +612,7 @@ abstract class MagiskInstallImpl protected constructor(
         } finally {
             try {
                 withContext(NonCancellable + Dispatchers.IO) {
-                    // Only this operation's unique staging directory, never a
-                    // shared cache/root directory. Finish before releasing the lease.
+
                     if (::installDir.isInitialized && !installDir.deleteRecursively())
                         console.add("! unable to remove installation staging files")
                 }

@@ -45,7 +45,7 @@ void exempt_hidden_apis(JNIEnv *env) {
     clear_exception(env);
 }
 
-} // namespace
+}
 
 bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
              const std::string &dex) {
@@ -154,4 +154,4 @@ bool install(JNIEnv *env, const std::string &caller, const std::string &rule,
     return true;
 }
 
-} // namespace hideapps
+}

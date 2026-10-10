@@ -143,14 +143,6 @@ fn print_node(node: &UnalignedNode) {
 
 const DTB_MAGIC: &[u8] = b"\xd0\x0d\xfe\xed";
 
-// Size of the flattened device tree produced by this source (132 bytes / 0x84).
-//
-// https://github.com/torvalds/linux/blob/master/drivers/of/empty_root.dts
-// - 40 bytes: standard FDT header
-// - 16 bytes: empty memory reserve map (null terminator entry)
-// - 48 bytes: root node structure block (BEGIN_NODE, empty name, two 32-bit
-//   properties, END_NODE, FDT_END)
-// - 28 bytes: strings block (#address-cells and #size-cells, padded to 4 bytes)
 const MIN_NON_EMPTY_DTB_SIZE: usize = 0x84;
 
 pub(crate) fn find_dtb_offset(buf: &[u8]) -> Option<usize> {

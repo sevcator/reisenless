@@ -169,8 +169,8 @@ if is_windows:
         no_color = True
 
 
-if not sys.version_info >= (3, 8):
-    error("Requires Python 3.8+")
+if not sys.version_info >= (3, 12):
+    error("Requires Python 3.12+")
 
 cpu_count = multiprocessing.cpu_count()
 

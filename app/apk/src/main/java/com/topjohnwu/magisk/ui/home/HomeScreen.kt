@@ -86,6 +86,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.core.BuildConfig
@@ -198,15 +201,28 @@ fun HomeScreen(
 
     val fumos = remember { mutableStateListOf<RandomFumo>() }
     var nextId by remember { mutableLongStateOf(0L) }
-    val player = remember(context) {
-        runCatching { MediaPlayer.create(context, R.raw.fumo) }.getOrNull()
-    }
-    DisposableEffect(player) {
-        onDispose { player?.release() }
+    var player by remember(context) { mutableStateOf<MediaPlayer?>(null) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                player?.release()
+                player = null
+                fumos.clear()
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            player?.release()
+            player = null
+        }
     }
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) {
             fumos.clear()
+            player?.release()
+            player = null
         }
     }
 
@@ -282,6 +298,9 @@ fun HomeScreen(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
+                                if (player == null) {
+                                    player = runCatching { MediaPlayer.create(context, R.raw.fumo) }.getOrNull()
+                                }
                                 player?.let { audio ->
                                     runCatching {
                                         if (audio.isPlaying) audio.pause()

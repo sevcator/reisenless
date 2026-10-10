@@ -22,8 +22,6 @@ import com.topjohnwu.magisk.view.MagiskDialog
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.magisk.core.R as CoreR
 
-// --- Customization
-
 object Customization : BaseSettingsItem.Section() {
     override val title = CoreR.string.settings_customization.asText()
 }
@@ -58,8 +56,6 @@ object Theme : BaseSettingsItem.Blank() {
     override val title = CoreR.string.section_theme.asText()
 }
 
-// --- Magisk
-
 object Magisk : BaseSettingsItem.Section() {
     override val title = CoreR.string.magisk.asText()
 }
@@ -87,7 +83,6 @@ object SuList : BaseSettingsItem.Toggle() {
     override val title = CoreR.string.settings_sulist_title.asText()
     override val description get() = CoreR.string.settings_sulist_summary.asText()
 
-    // Filled by the guarded runtime refresh, never query the daemon on class initialization.
     override var value = false
         set(value) {
             field = value
@@ -206,8 +201,6 @@ object UdongeRomKeywords : BaseSettingsItem.Blank() {
         }
     }
 }
-
-// --- Superuser
 
 object Tapjack : BaseSettingsItem.Toggle() {
     override val title = CoreR.string.settings_su_tapjack_title.asText()

@@ -9,7 +9,7 @@
     </queries>
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Superuser must enumerate installed apps, including Android's Shell package. -->
+
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -66,7 +66,6 @@
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
             tools:node="remove" />
-
 
         <receiver
             android:name="androidx.profileinstaller.ProfileInstallReceiver"

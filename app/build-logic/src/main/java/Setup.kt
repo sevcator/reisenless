@@ -141,7 +141,6 @@ fun Project.setupCoreLib() {
                                 include("mboot", "minit", "mpol", "magisk", "libinit-ld.so")
                             } else {
 
-
                                 include("magisk")
                             }
                             rename {
@@ -322,9 +321,7 @@ fun Project.setupAppCommon() {
 
         packaging {
             jniLibs {
-                // These .so entries include CLI executables launched by path.
-                // They must be extracted by PackageManager; APK-backed library
-                // paths can be dlopen'ed but cannot be passed to execve.
+
                 useLegacyPackaging = true
             }
         }

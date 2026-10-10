@@ -34,6 +34,12 @@ class Service : BaseService(), DownloadSession {
     }
 
     override fun onDownloadComplete() {
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        android.os.Handler(mainLooper).post {
+            if (mEngine?.isIdle != true) return@post
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
+
+    override fun onDestroy() { mEngine?.cancel(); super.onDestroy() }
 }

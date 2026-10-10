@@ -52,4 +52,9 @@
         <item>@string/color_mode_dark</item>
     </string-array>
 
+    <string-array name="udonge_reheal_entries">
+        <item>@string/udonge_reheal_boot_only</item>
+        <item>@string/udonge_reheal_daily</item>
+    </string-array>
+
 </resources>

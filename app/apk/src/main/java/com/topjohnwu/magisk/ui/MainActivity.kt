@@ -88,7 +88,7 @@ class MainActivity : ComponentActivity(), SplashScreenHost {
 
     @SuppressLint("InlinedApi")
     override fun onCreateUi(savedInstanceState: Bundle?) {
-        // Publish the manager visibility policy at every authenticated start.
+
         Shell.EXECUTOR.execute { HideAppsRootClient.syncCurrentConfig() }
 
         showUnsupportedMessage()

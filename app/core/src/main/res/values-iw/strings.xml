@@ -1,6 +1,5 @@
 <resources>
 
-    <!--Sections-->
     <string name="modules">מודולים</string>
     <string name="superuser">משתמש על</string>
     <string name="settings">הגדרות</string>
@@ -9,7 +8,6 @@
     <string name="section_theme">עיצוב</string>
     <string name="denylist">רשימת דחייה</string>
 
-    <!--Home-->
     <string name="no_connection">אין חיבור זמין</string>
     <string name="loading">טוען…</string>
     <string name="update">עדכון</string>
@@ -23,7 +21,6 @@
     <string name="uninstall_magisk_title">הסרת magisk</string>
     <string name="uninstall_magisk_msg">כל המודולים יושבתו/יוסרו!\nגישת root תושבת!\nהנתונים שלך עשויים להיות מוצפנים אם לא הוצפנו כבר!</string>
 
-    <!--Install-->
     <string name="keep_force_encryption">שמירה על הצפנה בכח</string>
     <string name="keep_dm_verity">שמירה על avb 2.0/dm-verity</string>
     <string name="recovery_mode">מצב recovery</string>
@@ -40,7 +37,6 @@
     <string name="reboot_delay_toast">מאתחל בעוד 5 שניות…</string>
     <string name="flash_screen_title">התקנה</string>
 
-    <!--Superuser-->
     <string name="su_request_title">בקשות משתמש על</string>
     <string name="touch_filtered_warning">מכיוון שיישום מסתיר בקשה של משתמש על, magisk לא יכול לאמת את תגובתך</string>
     <string name="deny">דחייה</string>
@@ -67,7 +63,6 @@
     <string name="superuser_toggle_revoke">הסרה</string>
     <string name="superuser_policy_none">טרם נתבקשו הרשאות משתמש על על ידי יישומים</string>
 
-    <!--Logs-->
     <string name="menuSaveLog">שמירת log</string>
     <string name="pid">pid: %1$d</string>
     <string name="target_uid">יעד uid: %1$d</string>
@@ -75,15 +70,11 @@
     <string name="selinux_context">הקשר selinux: %s</string>
     <string name="supp_group">קבוצה משלימה: %s</string>
 
-    <!--SafetyNet-->
-
-    <!--MagiskHide-->
     <string name="show_system_app">הצגת יישומי מערכת</string>
     <string name="show_os_app">הצגת יישומי מערכת הפעלה</string>
     <string name="hide_filter_hint">סינון לפי שם</string>
     <string name="hide_search">חיפוש</string>
 
-    <!--Module-->
     <string name="no_info_provided">(לא סופק מידע)</string>
     <string name="reboot_userspace">אתחול רך</string>
     <string name="reboot_recovery">אתחול למצב recovery</string>
@@ -103,7 +94,6 @@
     <string name="confirm_install">להתקין מודול %1$s?</string>
     <string name="confirm_install_title">אישור התקנה</string>
 
-    <!--Settings-->
     <string name="settings_dark_mode_title">מצב עיצוב</string>
     <string name="settings_dark_mode_message">נא לבחור מצב המתאים ביותר לסגנון שלך!</string>
     <string name="settings_dark_mode_light">תמיד בהיר</string>
@@ -156,12 +146,10 @@
     <string name="requester_summary">חיבורי הroot יירשו את מרחב השם של המבקש</string>
     <string name="isolate_summary">לכל חיבור root יהיה מרחב שם מבודד</string>
 
-    <!--Notifications-->
     <string name="progress_channel">התראות התקדמות</string>
     <string name="download_complete">ההורדה הושלמה</string>
     <string name="download_file_error">שגיאה בהורדת קובץ</string>
 
-    <!--Toasts, Dialogs-->
     <string name="yes">כן</string>
     <string name="no">לא</string>
     <string name="repo_install_title">מתקין %1$s %2$s(%3$d)</string>

@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!--region Colors-->
-
-
-
 
     <attr name="colorDisabled" format="color" />
     <attr name="colorDisabledVariant" format="color" />
@@ -11,8 +7,6 @@
     <attr name="colorOnPrimaryVariant" format="color" />
     <attr name="colorOnSurfaceVariant" format="color" />
     <attr name="colorSurfaceSurfaceVariant" format="color" />
-
-
 
     <declare-styleable name="ConcealableView">
         <attr name="state_hidden" format="boolean" />

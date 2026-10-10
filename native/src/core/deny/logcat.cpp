@@ -63,7 +63,6 @@ struct [[gnu::packed]] android_event_list_t {
     int8_t element_count;
 } ;
 
-
 struct [[gnu::packed]] android_event_am_proc_start {
     android_event_header_t tag;
     android_event_list_t list;
@@ -72,10 +71,7 @@ struct [[gnu::packed]] android_event_am_proc_start {
     android_event_int_t uid;
     android_event_string_t process_name;
 
-
 };
-
-
 
 extern "C" {
 
@@ -86,7 +82,6 @@ extern "C" {
 [[gnu::weak]] int android_log_processLogBuffer(struct logger_entry *buf, AndroidLogEntry *entry);
 
 }
-
 
 static map<int, struct stat> zygote_map;
 bool logcat_exit;
@@ -141,8 +136,6 @@ static void process_main_buffer(struct log_msg *msg) {
         }
     };
 
-    // Unlike app zygote, webview zygote UID is fixed. This means we don't have to
-    // handle edge cases where apps print logs themselves and lead us into a honeycomb
     if (tag == "WebViewZygoteInit") {
         int pid = msg->entry.pid;
         if (entry.uid != WEBVIEW_ZYGOTE_UID || entry.message[0] != 'S') {
@@ -267,9 +260,6 @@ static void process_events_buffer(struct log_msg *msg) {
         if (!denylist_enforced) {
             break;
         }
-
-
-
 
         sleep(retry_delay);
         retry_delay = std::min(retry_delay * 2, 5U);

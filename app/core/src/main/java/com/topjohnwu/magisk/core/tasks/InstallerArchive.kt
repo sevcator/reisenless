@@ -6,7 +6,6 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.ZipFile
 
-/** Reads literal build metadata, never evaluates shell assignments. */
 internal class InstallerArchive(private val zip: ZipFile, abi: String) {
     val util = readText("assets/util_functions.sh")
     val names = parseNames(util)
@@ -61,8 +60,7 @@ internal class InstallerArchive(private val zip: ZipFile, abi: String) {
 
     companion object {
         private const val MAX_ENTRY = 64L * 1024 * 1024
-        // The archive-variable prefix is build-specific. Normalize the one archive
-        // declaration rather than embedding a prefix rewritten by APK branding/R8.
+
         private const val archiveKey = "PAYLOAD_ARCHIVE"
         private val keys = setOf("MAIN_BIN_NAME", "INIT_LD_NAME", "RAMDISK_NAME", "STUB_NAME",
             archiveKey, "BACKUP_CONFIG", "PACKAGED_MAIN_LIB", "PACKAGED_INIT_LIB",

@@ -8,6 +8,7 @@ namespace cloak {
 
 
 struct Config {
+    std::string current_package;
     std::unordered_set<std::string> packages;
     std::unordered_set<std::string> stealth_packages;
     std::unordered_map<std::string, std::string> props;

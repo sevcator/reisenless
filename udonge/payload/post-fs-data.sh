@@ -6,7 +6,8 @@ root=/data/adb/udonge
 runtime=$root/runtime
 state=$root/state
 
-[ -f "$state/disabled" ] && exit 0
+[ -f "$state/enabled" ] && [ ! -f "$state/disabled" ] &&
+    [ ! -f "$state/pending-reboot" ] || exit 0
 
 mkdir -p "$state"
 chmod 700 "$root" "$state"
@@ -20,12 +21,7 @@ for name in targets.conf props.conf pif.conf keybox_urls.conf; do
 done
 
 if [ -f "$state/targets.conf" ]; then
-    sed -i 's/^com\.android\.vending!$/com.android.vending/' "$state/targets.conf" 2>/dev/null || true
-    sed -i 's/^com\.google\.android\.gms!$/com.google.android.gms/' "$state/targets.conf" 2>/dev/null || true
-    sed -i 's/^com\.google\.android\.gsf!$/com.google.android.gsf/' "$state/targets.conf" 2>/dev/null || true
-    sed -i 's/^gr\.nikolasspyr\.integritycheck!$/gr.nikolasspyr.integritycheck?/' "$state/targets.conf" 2>/dev/null || true
-    sed -i 's/^io\.github\.vvb2060\.keyattestation!$/io.github.vvb2060.keyattestation?/' "$state/targets.conf" 2>/dev/null || true
-    sed -i 's/^com\.eltavine\.duckdetector!$/com.eltavine.duckdetector?/' "$state/targets.conf" 2>/dev/null || true
+    sed -i 's/[!?]*$//' "$state/targets.conf" 2>/dev/null || true
 fi
 
 if [ -f "$runtime/defaults/targets.conf" ] && [ -f "$state/targets.conf" ]; then
@@ -37,6 +33,18 @@ if [ -f "$runtime/defaults/targets.conf" ] && [ -f "$state/targets.conf" ]; then
 fi
 
 sync_vbmeta_digest() {
+    if [ ! -f "$state/boot_hash.bin" ] || [ "$(wc -c < "$state/boot_hash.bin" 2>/dev/null)" != 32 ]; then
+        local cur_digest
+        cur_digest="$(resetprop ro.boot.vbmeta.digest 2>/dev/null || getprop ro.boot.vbmeta.digest 2>/dev/null)"
+        cur_digest="$(printf '%s' "$cur_digest" | tr -d '[:space:]')"
+        if [ "${#cur_digest}" = 64 ] && [ "$cur_digest" != "0000000000000000000000000000000000000000000000000000000000000000" ] && command -v xxd >/dev/null 2>&1; then
+            printf '%s' "$cur_digest" | xxd -r -p > "$state/boot_hash.bin" 2>/dev/null
+        fi
+        if [ ! -f "$state/boot_hash.bin" ] || [ "$(wc -c < "$state/boot_hash.bin" 2>/dev/null)" != 32 ]; then
+            head -c 32 /dev/urandom > "$state/boot_hash.bin" 2>/dev/null || true
+        fi
+        chmod 600 "$state/boot_hash.bin" 2>/dev/null || true
+    fi
     [ "$(wc -c < "$state/boot_hash.bin" 2>/dev/null)" = 32 ] || return 1
     digest="$(od -An -tx1 -v "$state/boot_hash.bin" 2>/dev/null | tr -d ' \n')"
     [ "${#digest}" = 64 ] || return 1
@@ -73,6 +81,17 @@ normalize_boot_properties() {
     $RP -n ro.boot.veritymode.managed yes
     $RP -n ro.boot.selinux enforcing
     $RP -n ro.secureboot.lockstate locked
+    $RP -n ro.boot.avb_version 1.3
+    $RP -n ro.boot.vbmeta.avb_version 1.0
+    $RP -n ro.boot.vbmeta.hash_alg sha256
+    $RP -n ro.boot.vbmeta.size 4096
+    $RP -p persist.sys.pihooks.disable.gms_props true 2>/dev/null || true
+    $RP -p persist.sys.pihooks.disable.gms_key_attestation_block true 2>/dev/null || true
+    $RP -p persist.sys.entryhooks_enabled false 2>/dev/null || true
+    $RP -p -d persist.sys.spoof.gms 2>/dev/null || true
+    $RP -p -d persist.sys.pixelprops.gms 2>/dev/null || true
+    $RP -d persist.sys.spoof.gms 2>/dev/null || true
+    $RP -d persist.sys.pixelprops.gms 2>/dev/null || true
     $RP -n vendor.boot.verifiedbootstate green
     $RP -n vendor.boot.vbmeta.device_state locked
     $RP -n ro.is_ever_orange 0
@@ -96,7 +115,7 @@ normalize_boot_properties() {
     $RP -n ro.boot.bootmode unknown
     $RP -n vendor.boot.bootmode unknown
     for part in system vendor product system_ext odm; do
-        $RP -n "partition.${part}.verified" 0
+        $RP -n "partition.${part}.verified" 1
     done
     $RP -d ro.boot.verifiedbooterror 2>/dev/null || true
     $RP -d ro.boot.verifyerrorpart 2>/dev/null || true
@@ -131,7 +150,6 @@ normalize_boot_properties() {
         $RP -n ro.vendor.build.security_patch "$patch"
     fi
 
-    # Sync product identity from pif.conf for Device ID Attestation consistency
     if [ -f "$state/pif.conf" ]; then
         brand="$(sed -n 's/^BRAND=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
         model="$(sed -n 's/^MODEL=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
@@ -177,26 +195,6 @@ normalize_boot_properties() {
         [ -n "$product" ] && $RP -n ro.build.description "${product}-user 15 CANARY release-keys"
     fi
 
-    # Clean up leftover root artifacts in /data/local/tmp that trigger DroidGuard AVC denials
-    rm -f /data/local/tmp/su /data/local/tmp/su-old-apk /data/local/tmp/*su* 2>/dev/null || true
-
-    # Ensure USB debugging configuration persists across reboots
-    cfg="$(getprop persist.sys.usb.config 2>/dev/null)"
-    case "$cfg" in
-        *adb*) ;;
-        none|""|mtp) setprop persist.sys.usb.config mtp,adb 2>/dev/null ;;
-        *) setprop persist.sys.usb.config "${cfg},adb" 2>/dev/null ;;
-    esac
-    setprop persist.sys.oppo.usbactive 1 2>/dev/null
-
-    for settings_xml in /data/system/users/0/settings_global.xml /data/system/users/*/settings_global.xml; do
-        if [ -f "$settings_xml" ]; then
-            sed -i 's/name="adb_enabled" value="0"/name="adb_enabled" value="1"/' "$settings_xml" 2>/dev/null || true
-            sed -i 's/name="usb_debugging_auto_disabled" value="1"/name="usb_debugging_auto_disabled" value="0"/' "$settings_xml" 2>/dev/null || true
-        fi
-    done
-
-    # Clear VPN-revealing properties early
     for prop in $(getprop 2>/dev/null | grep -oE '\[net\.vpn[^]]*\]' | tr -d '[]'); do
         [ -n "$prop" ] && $RP -d "$prop" 2>/dev/null || true
     done
@@ -204,13 +202,11 @@ normalize_boot_properties() {
 
 normalize_boot_properties || true
 
-# Disable broken vendor Soter HAL service that triggers attestation anomalies on unlocked bootloaders
 stop soter-1-0 2>/dev/null || true
 setprop ctl.stop soter-1-0 2>/dev/null || true
 
 chmod 600 "$state/.certified" "$state/.keybox-checked" 2>/dev/null || true
 
-# Prevent MIUI ThemeCompatibilityLoader crash in app_process/TEESimulator
 if [ ! -f /data/system/theme_config/theme_compatibility.xml ]; then
     mkdir -p /data/system/theme_config 2>/dev/null
     touch /data/system/theme_config/theme_compatibility.xml 2>/dev/null

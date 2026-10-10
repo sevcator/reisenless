@@ -10,17 +10,20 @@ class ProgressInputStream(
 
     private var bytesRead = 0L
     private var lastUpdate = 0L
+    private var updated = false
+    private var closed = false
 
     private fun emitProgress() {
-        val cur = System.currentTimeMillis()
-        if (cur - lastUpdate > 1000) {
+        val cur = System.nanoTime()
+        if (!updated || cur - lastUpdate >= 1_000_000_000L) {
+            updated = true
             lastUpdate = cur
             progressEmitter(bytesRead)
         }
     }
 
     override fun read(): Int {
-        val b = read()
+        val b = super.read()
         if (b >= 0) {
             bytesRead++
             emitProgress()
@@ -42,7 +45,12 @@ class ProgressInputStream(
     }
 
     override fun close() {
-        super.close()
-        progressEmitter(bytesRead)
+        if (closed) return
+        closed = true
+        try {
+            super.close()
+        } finally {
+            progressEmitter(bytesRead)
+        }
     }
 }

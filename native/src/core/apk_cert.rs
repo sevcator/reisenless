@@ -92,9 +92,7 @@ fn parse_v2_certificate(value: &[u8]) -> io::Result<Vec<u8>> {
     let _digests = length_prefixed(signed_data, &mut signed_offset, MAX_SIGNING_BLOCK_SIZE)?;
     let certificates = length_prefixed(signed_data, &mut signed_offset, MAX_SIGNING_BLOCK_SIZE)?;
     let _attributes = length_prefixed(signed_data, &mut signed_offset, MAX_SIGNING_BLOCK_SIZE)?;
-    // AOSP apksig's V2SchemeSigner emits one extra empty length-prefixed
-    // field after additionalAttributes. Accept exactly that encoding as well
-    // as the three-field format; do not silently ignore arbitrary trailing data.
+
     let tail = &signed_data[signed_offset..];
     if !tail.is_empty() && tail != [0; 4] {
         return Err(bad_apk!("trailing signed data"));
@@ -208,7 +206,7 @@ pub fn read_certificate(apk: &mut File, version: i32) -> io::Result<Vec<u8>> {
         return Err(bad_apk!("APK too large"));
     }
     let mut data = Vec::with_capacity(length);
-    // Bound the read as well as the initial allocation if the file grows.
+
     apk.take((length + 1) as u64).read_to_end(&mut data)?;
     if data.len() != length {
         return Err(bad_apk!("APK length changed while reading"));

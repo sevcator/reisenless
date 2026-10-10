@@ -17,6 +17,7 @@ import com.topjohnwu.magisk.core.ktx.toTime
 import com.topjohnwu.magisk.core.ktx.writeTo
 import com.topjohnwu.magisk.core.tasks.MagiskInstaller
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils
+import com.topjohnwu.magisk.core.utils.BlockingBatch
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils.displayName
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils.inputStream
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils.outputStream
@@ -51,8 +52,6 @@ class FlashViewModel : BaseViewModel() {
     var flashAction: String = ""
     var flashUri: Uri? = null
 
-    // --- TerminalScreen mode (FLASH_ZIP) ---
-
     private var emulator: TerminalEmulator? = null
     private val emulatorReady = CompletableDeferred<TerminalEmulator>()
 
@@ -61,20 +60,20 @@ class FlashViewModel : BaseViewModel() {
         emulatorReady.complete(emu)
     }
 
-    // --- LazyColumn mode (MagiskInstaller) ---
-
     val consoleItems = mutableStateListOf<String>()
     private val logItems = mutableListOf<String>().synchronized()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val consoleBatch = BlockingBatch<String>(128,
+        { drain -> mainHandler.postDelayed({ drain() }, 16) },
+        { consoleItems.addAll(it) })
     private val outItems = object : CallbackList<String>() {
         override fun onAddElement(e: String?) {
             e ?: return
             logItems.add(e)
-            mainHandler.post { consoleItems.add(e) }
+            if (Looper.myLooper() == Looper.getMainLooper()) consoleBatch.drain()
+            consoleBatch.put(e)
         }
     }
-
-    // --- Shared ---
 
     fun startFlashing() {
         val action = flashAction
@@ -130,6 +129,7 @@ class FlashViewModel : BaseViewModel() {
     }
 
     private fun onResult(success: Boolean) {
+        consoleBatch.drain()
         _flashState.value = if (success) State.SUCCESS else State.FAILED
     }
 
@@ -177,15 +177,11 @@ class FlashViewModel : BaseViewModel() {
         val success = withContext(Dispatchers.IO) {
             runSuCommand(
                 emu,
-                "echo '- Installing $displayName'; " +
-                "sh $dir/update-binary dummy 1 '${zipFile.absolutePath}'; " +
-                "EXIT=\$?; " +
-                "if [ \$EXIT -ne 0 ]; then echo '! Installation failed'; fi; " +
-                "exit \$EXIT"
+                FlashZipCommands.install(dir.absolutePath, zipFile.absolutePath, displayName)
             )
         }
 
-        Shell.cmd("cd /", "rm -rf $dir ${Const.TMPDIR}").submit()
+        Shell.cmd("cd /", "rm -rf '${dir.absolutePath.replace("'", "'\\''")}' '${Const.TMPDIR}'").submit()
         _flashState.value = if (success) State.SUCCESS else State.FAILED
     }
 

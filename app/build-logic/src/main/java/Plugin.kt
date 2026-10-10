@@ -5,8 +5,6 @@ import org.gradle.kotlin.dsl.provideDelegate
 import java.io.File
 import java.util.Properties
 
-
-
 val ABI_SUPPORT_LIST = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64", "riscv64")
 
 private val props = Properties()
@@ -19,7 +17,6 @@ object Config {
 
     fun contains(key: String) = get(key) != null
 
-    // Properties from config.prop and flags.prop, may be null
     val version: String get() = get("version") ?: "null"
     val abiList: List<String> get() = get("abiList")?.split(",") ?: ABI_SUPPORT_LIST
     val toolAbiList: List<String> get() =
@@ -79,7 +76,6 @@ object Config {
     val legacyUdongeDir: String get() = get("legacyUdongeDir") ?: ""
     val legacyBackupConfig: String get() = get("legacyBackupConfig") ?: ""
 
-    // Properties from gradle.properties, should always exist
     val versionCode: Int get() = get("magisk.versionCode")!!.toInt()
     val stubVersion: String get() = get("magisk.stubVersion")!!
 }
@@ -96,10 +92,8 @@ class MagiskPlugin : Plugin<Project> {
     private fun Project.applyPlugin() {
         props.clear()
 
-        // Get gradle properties relevant to Magisk
         props.putAll(providers.gradlePropertiesPrefixedBy("magisk.").get())
 
-        // Load config.prop
         val configPath = findProperty("configPath") as String?
         val configFile = rootFile(configPath ?: "config.prop")
         if (configFile.exists()) {
@@ -109,7 +103,6 @@ class MagiskPlugin : Plugin<Project> {
                 props.putAll(config)
             }
         }
-
 
         val flagsProp = rootProject.layout.buildDirectory.file("flags.prop").get().asFile
         if (flagsProp.exists()) {

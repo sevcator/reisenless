@@ -1,4 +1,4 @@
-name: Private manager build
+name: Reisenless build and checks
 
 on:
   push:
@@ -8,6 +8,8 @@ on:
       - "native/**"
       - "scripts/**"
       - "udonge/**"
+      - "tools/**"
+      - ".gitmodules"
       - "build.py"
       - "config.prop.sample"
       - "config.prop"
@@ -20,11 +22,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: reisenless-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build release APK
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Check out
         uses: actions/checkout@v6
@@ -46,6 +52,27 @@ jobs:
           python build.py test-native-auth
           python build.py test-identity
           python build.py all -r -v
+
+      - name: Check host regressions
+        run: |
+          python tools/check_sources.py
+          python -m unittest discover -s tools -p 'test_build_commands.py' -v
+          python -m unittest discover -s tools -p 'test_udonge_workers.py' -v
+          python -m unittest discover -s tools -p 'test_feature_activation.py' -v
+          python scripts/env.py python tools/test_module_activation.py
+          python scripts/env.py python tools/test_hideapps_reflection.py
+          python scripts/env.py python tools/test_superuser_auth.py
+          python scripts/env.py python tools/test_download_jobs.py
+
+      - name: Check Android tests and lint
+        working-directory: app
+        run: >-
+          python ../scripts/env.py ./gradlew
+          :core:testDebugUnitTest :apk:testDebugUnitTest :hideapps:testDebugUnitTest
+          :core:lintDebug :apk:lintDebug :hideapps:lintDebug
+
+      - name: Check Rust lint
+        run: python build.py clippy
 
       - name: Resolve randomized artifact name
         shell: bash
@@ -72,8 +99,19 @@ jobs:
             out/${{ env.MANAGER_APK }}
             out/apk-legacy-release.apk
           if-no-files-found: error
-          compression-level: 9
+          compression-level: 0
+
+      - name: Upload check reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: check-reports-${{ github.sha }}
+          path: |
+            app/**/build/reports/tests/
+            app/**/build/reports/lint-results-*.html
+          if-no-files-found: ignore
 
       - name: Stop gradle daemon
         if: always()
-        run: ./app/gradlew --stop
+        working-directory: app
+        run: python ../scripts/env.py ./gradlew --stop

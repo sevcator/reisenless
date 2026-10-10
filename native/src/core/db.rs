@@ -55,6 +55,7 @@ where
     }
 }
 
+#[derive(Default)]
 pub struct DbSettings {
     pub root_access: RootAccess,
     pub multiuser_mode: MultiuserMode,
@@ -62,19 +63,6 @@ pub struct DbSettings {
     pub boot_count: i32,
     pub sulist: bool,
     pub zygisk: bool,
-}
-
-impl Default for DbSettings {
-    fn default() -> Self {
-        Self {
-            root_access: RootAccess::default(),
-            multiuser_mode: MultiuserMode::default(),
-            mnt_ns: MntNsMode::default(),
-            boot_count: 0,
-            sulist: false,
-            zygisk: false,
-        }
-    }
 }
 
 #[repr(i32)]

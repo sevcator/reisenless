@@ -27,7 +27,6 @@ class SuRequestHandler(
 
     private val responseSent = AtomicBoolean(false)
 
-
     suspend fun start(intent: Intent): Boolean {
         return try {
             startInternal(intent)
@@ -57,9 +56,7 @@ class SuRequestHandler(
         policy = try {
             policyDB.fetch(uid) ?: SuPolicy(uid)
         } catch (_: Exception) {
-            // A stale or unavailable daemon must not prevent the request UI
-            // from answering the native FIFO. Start with a query policy and
-            // let the user make the decision.
+
             SuPolicy(uid)
         }
         try {

@@ -163,7 +163,6 @@ pub mod ffi {
         fn switch_mnt_ns(pid: i32) -> i32;
         fn exec_root_shell(client: i32, pid: i32, req: &mut SuRequest, mode: MntNsMode);
 
-
         fn exec_script(script: Utf8CStrRef);
         fn exec_script_async(script: Utf8CStrRef);
         fn exec_common_scripts(stage: Utf8CStrRef);
@@ -211,13 +210,11 @@ pub mod ffi {
         unsafe fn magisk_main(argc: i32, argv: *mut *mut c_char) -> i32;
     }
 
-
     extern "Rust" {
         #[Self = SuRequest]
         #[cxx_name = "New"]
         fn default() -> SuRequest;
     }
-
 
     extern "Rust" {
         type MagiskD;
@@ -236,8 +233,7 @@ pub mod ffi {
 
 impl SuRequest {
     fn write_to_fd(&self, fd: i32) -> bool {
-        // File::from_raw_fd(-1) aborts even in release builds. A failed
-        // connection is a normal client error, not a valid owned descriptor.
+
         if fd < 0 {
             return false;
         }

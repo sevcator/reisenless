@@ -12,7 +12,6 @@ class ManagerCliException(
         commandErrors.firstOrNull()?.let { ": $it" }.orEmpty()
 )
 
-/** Runs privileged management requests as the signed Android manager UID. */
 object ManagerCli {
 
     enum class Status {

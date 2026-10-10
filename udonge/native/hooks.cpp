@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <cerrno>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -29,7 +30,6 @@
 
 #include "../../native/src/external/lsplt/lsplt/src/main/jni/include/lsplt.hpp"
 
-// memfd_create syscall numbers
 #ifndef __NR_memfd_create
 # if defined(__aarch64__)
 #   define __NR_memfd_create 279
@@ -71,28 +71,38 @@ static bool contains_ci(const char *text, const std::string &needle) {
     return text && contains_ci(text, strlen(text), needle.data(), needle.size());
 }
 
-// ---- path blocklist ----
+static char s_ksu1[9] = {0};
+static char s_ksu2[9] = {0};
+static char s_ap1[7] = {0};
+static char s_ap2[7] = {0};
+
+__attribute__((constructor))
+static void init_root_obf_tokens() {
+    static const uint8_t k1[] = {'K'^0x5A, 'e'^0x5A, 'r'^0x5A, 'n'^0x5A, 'e'^0x5A, 'l'^0x5A, 'S'^0x5A, 'U'^0x5A};
+    static const uint8_t k2[] = {'k'^0x5A, 'e'^0x5A, 'r'^0x5A, 'n'^0x5A, 'e'^0x5A, 'l'^0x5A, 's'^0x5A, 'u'^0x5A};
+    static const uint8_t a1[] = {'A'^0x5A, 'P'^0x5A, 'a'^0x5A, 't'^0x5A, 'c'^0x5A, 'h'^0x5A};
+    static const uint8_t a2[] = {'a'^0x5A, 'p'^0x5A, 'a'^0x5A, 't'^0x5A, 'c'^0x5A, 'h'^0x5A};
+    for (int i = 0; i < 8; ++i) { s_ksu1[i] = (char)(k1[i] ^ 0x5A); s_ksu2[i] = (char)(k2[i] ^ 0x5A); }
+    for (int i = 0; i < 6; ++i) { s_ap1[i] = (char)(a1[i] ^ 0x5A); s_ap2[i] = (char)(a2[i] ^ 0x5A); }
+}
+
 static const char *const kBlockedSubstr[] = {
-    // Magisk / Zygisk core
-    // NOTE: "zygisk" intentionally omitted — the linker reads /proc/self/maps to
-    // locate libzygisk.so for self-cleanup (dlclose), and filtering that line out
-    // causes Zygisk's destructor to access freed memory → SIGSEGV at 0x569a8.
-    // "/data/adb" below also hides the boot-owned Udonge runtime.
+
     "magisk", "lsposed", "lspd", "riru", "shamiko",
     "/data/adb", "supersu", "/su/", "busybox",
     "/system/bin/su", "/system/xbin/su", "/sbin/su",
     "/product/bin/su", "/vendor/bin/su", "/odm/bin/su",
     "/debug_ramdisk",
+
+    s_ksu1, s_ksu2, "ksud", "ksu",
+    s_ap1, s_ap2,
 };
 
-// Extra patterns only applied to /proc/*/mounts and mountinfo.
-// More aggressive — "worker" and "mirror" are Magisk-internal but too generic
-// to block in the global file-access hooks.
 static const char *const kMountsExtra[] = {
-    "debug_ramdisk",  // Magisk's debug ramfs mount point
-    "worker",         // Magisk overlay worker bind mounts
-    "mirror",         // Magisk mirror bind mounts
-    ".core",          // /sbin/.core or similar Magisk paths
+    "debug_ramdisk",
+    "worker",
+    "mirror",
+    ".core",
     "/adb/modules/",
 };
 
@@ -109,8 +119,6 @@ static bool str_ends_with(const char *s, const char *suffix) {
     return sl >= el && strcmp(s + sl - el, suffix) == 0;
 }
 
-// Return true if the path contains any user-configured ROM keyword.
-// Called from is_blocked(), which is already guarded by a !path check.
 static bool is_rom_path(const char *path) {
     if (!path) return false;
     if (str_ends_with(path, "_sepolicy.cil") || str_ends_with(path, "/sepolicy.cil") ||
@@ -122,8 +130,6 @@ static bool is_rom_path(const char *path) {
     for (const auto &kw : g_cfg->rom_keywords)
         if (contains_ci(path, kw)) return true;
 
-    // Duck Detector's ROM framework/recovery catalog also contains neutral
-    // path names that cannot be matched by a ROM keyword.
     static const char *const exact_paths[] = {
         "/system/addon.d",
         "/system/bin/install-recovery.sh",
@@ -160,7 +166,6 @@ static bool is_rom_path(const char *path) {
 static bool is_vpn_iface(const char *name) {
     if (!name || name[0] == '\0') return false;
 
-    // Fast check for real/exempt interfaces
     if (strncmp(name, "lo", 2) == 0 && (name[2] == '\0' || name[2] == ':')) return false;
     if (strncmp(name, "wlan", 4) == 0) return false;
     if (strncmp(name, "rmnet", 5) == 0) return false;
@@ -248,7 +253,6 @@ static bool is_blocked(const char *path) {
     return false;
 }
 
-// ---- originals ----
 static int     (*o_faccessat)(int, const char *, int, int);
 static int     (*o_access)(const char *, int);
 static int     (*o_stat)(const char *, struct stat *);
@@ -279,14 +283,33 @@ static int     (*o_execvpe)(const char *, char *const [], char *const []);
 static char   *(*o_getenv)(const char *);
 static void   *(*o_dlopen)(const char *, int);
 static void   *(*o_android_dlopen_ext)(const char *, int, const void *);
+static int     (*o_dlclose)(void *);
 static void   *(*o_loader_dlopen)(const char *, int, const void *);
 static void   *(*o_loader_android_dlopen_ext)(const char *, int, const void *, const void *);
+static void   *(*o_loader_dlsym)(void *, const char *, const void *);
 static jstring (*o_runtime_native_load)(JNIEnv *, jclass, jstring, jobject, jclass);
 static int     (*o_getifaddrs)(struct ifaddrs **) = nullptr;
 static int     (*o_ioctl)(int, unsigned long, ...) = nullptr;
 static int     (*o_setsockopt)(int, int, int, const void *, socklen_t) = nullptr;
 static long    (*o_syscall)(long, ...) = nullptr;
 static void install_late_library_hooks();
+static long h_syscall(long number, void *a1, void *a2, void *a3, void *a4, void *a5, void *a6);
+static void patch_duckdetector_raw_syscall(void *sym);
+
+static void resolve_linker_entrypoints() {
+    if (!o_loader_dlopen) {
+        o_loader_dlopen = reinterpret_cast<decltype(o_loader_dlopen)>(
+                dlsym(RTLD_DEFAULT, "__loader_dlopen"));
+    }
+    if (!o_loader_android_dlopen_ext) {
+        o_loader_android_dlopen_ext = reinterpret_cast<decltype(o_loader_android_dlopen_ext)>(
+                dlsym(RTLD_DEFAULT, "__loader_android_dlopen_ext"));
+    }
+    if (!o_loader_dlsym) {
+        o_loader_dlsym = reinterpret_cast<decltype(o_loader_dlsym)>(
+                dlsym(RTLD_DEFAULT, "__loader_dlsym"));
+    }
+}
 
 static void refresh_late_library_hooks() {
     static thread_local bool refreshing = false;
@@ -297,15 +320,18 @@ static void refresh_late_library_hooks() {
 }
 
 static void *h_dlopen(const char *filename, int flags) {
-    // Calling the public dlopen from this wrapper changes the linker caller to
-    // our trampoline. Android then chooses the wrong linker namespace and may
-    // reject vendor EGL/HAL dependencies. Forward the real call-site address
-    // to the linker's exported entry point so namespace selection is unchanged.
+
     const void *caller = __builtin_return_address(0);
     void *handle = o_loader_dlopen
         ? o_loader_dlopen(filename, flags, caller)
         : o_dlopen(filename, flags);
-    if (handle) refresh_late_library_hooks();
+    if (handle) {
+        if (filename && strstr(filename, "duckdetector")) {
+            void *sym = dlsym(handle, "tee_asm_syscall6");
+            if (sym) patch_duckdetector_raw_syscall(sym);
+        }
+        refresh_late_library_hooks();
+    }
     return handle;
 }
 
@@ -314,14 +340,30 @@ static void *h_android_dlopen_ext(const char *filename, int flags, const void *i
     void *handle = o_loader_android_dlopen_ext
         ? o_loader_android_dlopen_ext(filename, flags, info, caller)
         : o_android_dlopen_ext(filename, flags, info);
-    if (handle) refresh_late_library_hooks();
+    if (handle) {
+        if (filename && strstr(filename, "duckdetector")) {
+            void *sym = dlsym(handle, "tee_asm_syscall6");
+            if (sym) patch_duckdetector_raw_syscall(sym);
+        }
+        refresh_late_library_hooks();
+    }
     return handle;
+}
+
+static int h_dlclose(void *handle) {
+    int result = o_dlclose ? o_dlclose(handle) : ::dlclose(handle);
+    if (result == 0) refresh_late_library_hooks();
+    return result;
 }
 
 static void *h_dlsym(void *handle, const char *symbol) {
     if (symbol && (strstr(symbol, "threadLoopEv") != nullptr ||
                    strstr(symbol, "ANetworkSession") != nullptr)) {
         return nullptr;
+    }
+    if (o_loader_dlsym) {
+
+        return o_loader_dlsym(handle, symbol, __builtin_return_address(0));
     }
     if (o_dlsym) return o_dlsym(handle, symbol);
     return dlsym(handle, symbol);
@@ -333,7 +375,9 @@ static int h_selinux_check_access(const char *scon, const char *tcon, const char
         if (strstr(scon, "su") || strstr(tcon, "su") ||
             strstr(scon, "magisk") || strstr(tcon, "magisk") ||
             strstr(scon, "adbroot") || strstr(tcon, "adbroot") ||
-            strstr(scon, "droidspace") || strstr(tcon, "droidspace")) {
+            strstr(scon, "droidspace") || strstr(tcon, "droidspace") ||
+            strstr(scon, "zygisk") || strstr(tcon, "zygisk") ||
+            strstr(scon, "udonge") || strstr(tcon, "udonge")) {
             errno = EACCES;
             return -1;
         }
@@ -374,21 +418,10 @@ void hook_native_load(zygisk::Api *api, JNIEnv *env) {
         reinterpret_cast<decltype(o_runtime_native_load)>(method.fnPtr);
 }
 
-// ---- file-existence hiding ----
-static int h_faccessat(int d, const char *p, int m, int f) {
-    if (is_blocked(p)) { errno = ENOENT; return -1; }
-    return o_faccessat(d, p, m, f);
-}
-static int h_access(const char *p, int m) {
-    if (is_blocked(p)) { errno = ENOENT; return -1; }
-    return o_access(p, m);
-}
-
 static bool is_local_tmp_path(const char *p) {
     return p && (strcmp(p, "/data/local/tmp") == 0 || strcmp(p, "/data/local/tmp/") == 0);
 }
 
-// Check if the path ends with "mountinfo"
 static bool is_mountinfo_path(const char *path) {
     if (!path) return false;
     size_t len = strlen(path);
@@ -410,8 +443,55 @@ static std::string resolve_at_path(int dirfd, const char *path) {
     return path;
 }
 
+static bool is_mount_name(const char *name) {
+    if (!name) return false;
+    return strcmp(name, "mounts") == 0 ||
+           strcmp(name, "mountinfo") == 0 ||
+           strcmp(name, "mountstats") == 0;
+}
+
+static bool is_foreign_proc_mount_path(const char *path) {
+    if (!path || strncmp(path, "/proc/", 6) != 0) return false;
+    const char *owner = path + 6;
+    while (*owner == '/') owner++;
+    if (strncmp(owner, "self/", 5) == 0 || strncmp(owner, "thread-self/", 12) == 0) return false;
+    const char *slash = strchr(owner, '/');
+    if (!slash || slash == owner) return false;
+    for (const char *p = owner; p < slash; ++p) {
+        if (*p < '0' || *p > '9') return false;
+    }
+    const char *sub = slash + 1;
+    while (*sub == '/') sub++;
+    if (!is_mount_name(sub)) return false;
+    char pid_buf[16];
+    snprintf(pid_buf, sizeof(pid_buf), "%d", getpid());
+    size_t pid_len = strlen(pid_buf);
+    if (static_cast<size_t>(slash - owner) == pid_len && strncmp(owner, pid_buf, pid_len) == 0) {
+        return false;
+    }
+    return true;
+}
+
+static int h_faccessat(int d, const char *p, int m, int f) {
+    std::string full_path;
+    const char *target = p;
+    if (p && p[0] != '/' && d != AT_FDCWD && d >= 0) {
+        full_path = resolve_at_path(d, p);
+        if (!full_path.empty()) target = full_path.c_str();
+    }
+    if (is_blocked(target)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(target)) { errno = EACCES; return -1; }
+    return o_faccessat(d, p, m, f);
+}
+static int h_access(const char *p, int m) {
+    if (is_blocked(p)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
+    return o_access(p, m);
+}
+
 static int h_stat(const char *p, struct stat *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int res = o_stat ? o_stat(p, s) : ::stat(p, s);
     if (res == 0 && s && is_local_tmp_path(p)) {
         s->st_ino = 128;
@@ -420,6 +500,7 @@ static int h_stat(const char *p, struct stat *s) {
 }
 static int h_lstat(const char *p, struct stat *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int res = o_lstat ? o_lstat(p, s) : ::lstat(p, s);
     if (res == 0 && s && is_local_tmp_path(p)) {
         s->st_ino = 128;
@@ -434,6 +515,7 @@ static int h_fstatat(int d, const char *p, struct stat *s, int f) {
         if (!full_path.empty()) target = full_path.c_str();
     }
     if (is_blocked(target)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(target)) { errno = EACCES; return -1; }
     int res = o_fstatat ? o_fstatat(d, p, s, f) : ::fstatat(d, p, s, f);
     if (res == 0 && s && is_local_tmp_path(target)) {
         s->st_ino = 128;
@@ -443,6 +525,7 @@ static int h_fstatat(int d, const char *p, struct stat *s, int f) {
 
 static int h_stat64(const char *p, struct stat64 *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int res = o_stat64 ? o_stat64(p, s) : ::stat64(p, s);
     if (res == 0 && s && is_local_tmp_path(p)) {
         s->st_ino = 128;
@@ -451,6 +534,7 @@ static int h_stat64(const char *p, struct stat64 *s) {
 }
 static int h_lstat64(const char *p, struct stat64 *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int res = o_lstat64 ? o_lstat64(p, s) : ::lstat64(p, s);
     if (res == 0 && s && is_local_tmp_path(p)) {
         s->st_ino = 128;
@@ -465,14 +549,13 @@ static int h_fstatat64(int d, const char *p, struct stat64 *s, int f) {
         if (!full_path.empty()) target = full_path.c_str();
     }
     if (is_blocked(target)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(target)) { errno = EACCES; return -1; }
     int res = o_fstatat64 ? o_fstatat64(d, p, s, f) : ::fstatat64(d, p, s, f);
     if (res == 0 && s && is_local_tmp_path(target)) {
         s->st_ino = 128;
     }
     return res;
 }
-
-// ---- /proc self-file filtering helpers ----
 
 static bool is_self_proc_file(const char *path, const char *name) {
     if (!path || !name) return false;
@@ -483,12 +566,6 @@ static bool is_self_proc_file(const char *path, const char *name) {
     char buf[64];
     snprintf(buf, sizeof buf, "/proc/%d/%s", getpid(), name);
     return strcmp(path, buf) == 0;
-}
-
-static bool is_mount_name(const char *name) {
-    return strcmp(name, "mounts") == 0 ||
-           strcmp(name, "mountinfo") == 0 ||
-           strcmp(name, "mountstats") == 0;
 }
 
 static bool is_mount_path(const char *path) {
@@ -521,7 +598,6 @@ static std::vector<char> read_all_fd(int fd) {
     return data;
 }
 
-// Remove lines that reference blocked root paths (maps, mounts, etc.)
 static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
                                               bool extra_mounts_check) {
     std::vector<char> out;
@@ -539,7 +615,7 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
             for (const char *s : kMountsExtra)
                 if (memmem(p, len, s, strlen(s))) { keep = false; break; }
         }
-        // Also filter lines containing ROM keywords (e.g. lineage framework files in maps)
+
         if (keep && g_cfg) {
             for (const auto &kw : g_cfg->rom_keywords) {
                 if (contains_ci(p, len, kw.data(), kw.size())) { keep = false; break; }
@@ -578,10 +654,6 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
     return out;
 }
 
-
-// Normalize mountinfo lines by removing blocked entries and renumbering peer groups
-// (shared:X, master:X, propagate_from:X) into a contiguous gapless sequence to defeat
-// DuckDetector's detect_peer_group_gap probe.
 static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
     struct LineSpan {
         size_t start;
@@ -591,7 +663,6 @@ static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
     const char *p = raw.data();
     const char *end = p + raw.size();
 
-    // Step 1: Collect non-blocked lines
     while (p < end) {
         const char *nl = static_cast<const char *>(memchr(p, '\n', end - p));
         size_t len = nl ? static_cast<size_t>(nl - p + 1) : static_cast<size_t>(end - p);
@@ -618,7 +689,6 @@ static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
         p += len;
     }
 
-    // Step 2: Extract all shared:X, master:X, propagate_from:X IDs and collect unique IDs in order
     std::set<unsigned long> unique_shared;
     static const char *const kTags[] = {"shared:", "master:", "propagate_from:"};
     for (const auto &span : kept) {
@@ -644,7 +714,6 @@ static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
         }
     }
 
-    // Step 3: Build a gapless remap table: 1, 2, 3, ... N
     std::map<unsigned long, unsigned long> remap;
     if (!unique_shared.empty()) {
         unsigned long next_id = 1;
@@ -653,7 +722,6 @@ static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
         }
     }
 
-    // Step 4: Stream rewritten lines into output buffer
     std::vector<char> out;
     out.reserve(raw.size());
 
@@ -667,7 +735,6 @@ static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
             continue;
         }
 
-        // Rewrite optional fields before " - "
         const char *cur = line;
         static const char *const kTags[] = {"shared:", "master:", "propagate_from:"};
         while (cur < sep) {
@@ -697,7 +764,7 @@ static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
                 cur++;
             }
         }
-        // Append remainder of line (" - ...\n")
+
         out.insert(out.end(), sep, line + len);
     }
 
@@ -787,7 +854,6 @@ static std::vector<char> filter_smaps(const std::vector<char> &raw) {
     return out;
 }
 
-// Zero out TracerPid in /proc/self/status to hide debugger/tracer
 static std::vector<char> filter_status(const std::vector<char> &raw) {
     std::vector<char> out;
     out.reserve(raw.size());
@@ -918,8 +984,6 @@ enum ProcFilter {
     kFilterNetIfInet6,
 };
 
-// Create a memory-backed seekable fd containing `content`.
-// Prefers memfd_create (API 23+); falls back to a pipe.
 static int make_anon_fd(const std::vector<char> &content) {
 #ifdef __NR_memfd_create
     int fd = (int)syscall(__NR_memfd_create, "pf", (unsigned)MFD_CLOEXEC);
@@ -1046,43 +1110,46 @@ static int open_filtered_selinux(const char *path) {
     return anon;
 }
 
-// ---- open / openat hooks ----
 static int h_open(const char *p, int fl, ...) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int mode = 0;
     if (fl & O_CREAT) { va_list ap; va_start(ap, fl); mode = va_arg(ap, int); va_end(ap); }
     if ((fl & O_ACCMODE) == O_RDONLY) {
-        if (is_stagefright_path(p))         return open_filtered_stagefright(p);
-        if (is_selinux_policy_path(p))      return open_filtered_selinux(p);
-        if (is_self_proc_file(p, "maps"))   return open_filtered_proc(p, kFilterMaps);
-        if (is_self_proc_file(p, "smaps"))  return open_filtered_proc(p, kFilterSmaps);
-        if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
-        if (is_self_proc_file(p, "cgroup")) return open_filtered_proc(p, kFilterCgroup);
-        if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
+        if (is_stagefright_path(p))              return open_filtered_stagefright(p);
+        if (is_selinux_policy_path(p))           return open_filtered_selinux(p);
+        if (is_self_proc_file(p, "maps"))        return open_filtered_proc(p, kFilterMaps);
+        if (is_self_proc_file(p, "smaps"))       return open_filtered_proc(p, kFilterSmaps);
+        if (is_self_proc_file(p, "smaps_rollup")) return open_filtered_proc(p, kFilterSmaps);
+        if (is_self_proc_file(p, "status"))      return open_filtered_proc(p, kFilterStatus);
+        if (is_self_proc_file(p, "cgroup"))      return open_filtered_proc(p, kFilterCgroup);
+        if (is_mount_path(p))                    return open_filtered_proc(p, kFilterMounts);
         if (p && strcmp(p, "/proc/net/unix") == 0) return open_filtered_proc(p, kFilterNetUnix);
-        if (is_proc_net_path(p, "route"))      return open_filtered_proc(p, kFilterNetRoute);
-        if (is_proc_net_path(p, "ipv6_route")) return open_filtered_proc(p, kFilterNetIpv6Route);
-        if (is_proc_net_path(p, "dev"))        return open_filtered_proc(p, kFilterNetDev);
-        if (is_proc_net_path(p, "if_inet6"))   return open_filtered_proc(p, kFilterNetIfInet6);
+        if (is_proc_net_path(p, "route"))        return open_filtered_proc(p, kFilterNetRoute);
+        if (is_proc_net_path(p, "ipv6_route"))   return open_filtered_proc(p, kFilterNetIpv6Route);
+        if (is_proc_net_path(p, "dev"))          return open_filtered_proc(p, kFilterNetDev);
+        if (is_proc_net_path(p, "if_inet6"))     return open_filtered_proc(p, kFilterNetIfInet6);
     }
     return o_open ? o_open(p, fl, mode) : ::open(p, fl, mode);
 }
 
 static int h_open_2(const char *p, int fl) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     if ((fl & O_ACCMODE) == O_RDONLY) {
-        if (is_stagefright_path(p))         return open_filtered_stagefright(p);
-        if (is_selinux_policy_path(p))      return open_filtered_selinux(p);
-        if (is_self_proc_file(p, "maps"))   return open_filtered_proc(p, kFilterMaps);
-        if (is_self_proc_file(p, "smaps"))  return open_filtered_proc(p, kFilterSmaps);
-        if (is_self_proc_file(p, "status")) return open_filtered_proc(p, kFilterStatus);
-        if (is_self_proc_file(p, "cgroup")) return open_filtered_proc(p, kFilterCgroup);
-        if (is_mount_path(p))               return open_filtered_proc(p, kFilterMounts);
+        if (is_stagefright_path(p))              return open_filtered_stagefright(p);
+        if (is_selinux_policy_path(p))           return open_filtered_selinux(p);
+        if (is_self_proc_file(p, "maps"))        return open_filtered_proc(p, kFilterMaps);
+        if (is_self_proc_file(p, "smaps"))       return open_filtered_proc(p, kFilterSmaps);
+        if (is_self_proc_file(p, "smaps_rollup")) return open_filtered_proc(p, kFilterSmaps);
+        if (is_self_proc_file(p, "status"))      return open_filtered_proc(p, kFilterStatus);
+        if (is_self_proc_file(p, "cgroup"))      return open_filtered_proc(p, kFilterCgroup);
+        if (is_mount_path(p))                    return open_filtered_proc(p, kFilterMounts);
         if (p && strcmp(p, "/proc/net/unix") == 0) return open_filtered_proc(p, kFilterNetUnix);
-        if (is_proc_net_path(p, "route"))      return open_filtered_proc(p, kFilterNetRoute);
-        if (is_proc_net_path(p, "ipv6_route")) return open_filtered_proc(p, kFilterNetIpv6Route);
-        if (is_proc_net_path(p, "dev"))        return open_filtered_proc(p, kFilterNetDev);
-        if (is_proc_net_path(p, "if_inet6"))   return open_filtered_proc(p, kFilterNetIfInet6);
+        if (is_proc_net_path(p, "route"))        return open_filtered_proc(p, kFilterNetRoute);
+        if (is_proc_net_path(p, "ipv6_route"))   return open_filtered_proc(p, kFilterNetIpv6Route);
+        if (is_proc_net_path(p, "dev"))          return open_filtered_proc(p, kFilterNetDev);
+        if (is_proc_net_path(p, "if_inet6"))     return open_filtered_proc(p, kFilterNetIfInet6);
     }
     return o_open_2 ? o_open_2(p, fl) : ::open(p, fl);
 }
@@ -1095,42 +1162,46 @@ static int h_openat(int d, const char *p, int fl, ...) {
         if (!full_path.empty()) target = full_path.c_str();
     }
     if (is_blocked(target)) { errno = ENOENT; return -1; }
+    if (is_foreign_proc_mount_path(target)) { errno = EACCES; return -1; }
     int mode = 0;
     if (fl & O_CREAT) { va_list ap; va_start(ap, fl); mode = va_arg(ap, int); va_end(ap); }
     if ((fl & O_ACCMODE) == O_RDONLY) {
-        if (is_stagefright_path(target))         return open_filtered_stagefright(target);
-        if (is_selinux_policy_path(target))      return open_filtered_selinux(target);
-        if (is_self_proc_file(target, "maps"))   return open_filtered_proc(target, kFilterMaps);
-        if (is_self_proc_file(target, "smaps"))  return open_filtered_proc(target, kFilterSmaps);
-        if (is_self_proc_file(target, "status")) return open_filtered_proc(target, kFilterStatus);
-        if (is_self_proc_file(target, "cgroup")) return open_filtered_proc(target, kFilterCgroup);
-        if (is_mount_path(target))               return open_filtered_proc(target, kFilterMounts);
+        if (is_stagefright_path(target))              return open_filtered_stagefright(target);
+        if (is_selinux_policy_path(target))           return open_filtered_selinux(target);
+        if (is_self_proc_file(target, "maps"))        return open_filtered_proc(target, kFilterMaps);
+        if (is_self_proc_file(target, "smaps"))       return open_filtered_proc(target, kFilterSmaps);
+        if (is_self_proc_file(target, "smaps_rollup")) return open_filtered_proc(target, kFilterSmaps);
+        if (is_self_proc_file(target, "status"))      return open_filtered_proc(target, kFilterStatus);
+        if (is_self_proc_file(target, "cgroup"))      return open_filtered_proc(target, kFilterCgroup);
+        if (is_mount_path(target))                    return open_filtered_proc(target, kFilterMounts);
         if (target && strcmp(target, "/proc/net/unix") == 0) return open_filtered_proc(target, kFilterNetUnix);
-        if (is_proc_net_path(target, "route"))      return open_filtered_proc(target, kFilterNetRoute);
-        if (is_proc_net_path(target, "ipv6_route")) return open_filtered_proc(target, kFilterNetIpv6Route);
-        if (is_proc_net_path(target, "dev"))        return open_filtered_proc(target, kFilterNetDev);
-        if (is_proc_net_path(target, "if_inet6"))   return open_filtered_proc(target, kFilterNetIfInet6);
+        if (is_proc_net_path(target, "route"))        return open_filtered_proc(target, kFilterNetRoute);
+        if (is_proc_net_path(target, "ipv6_route"))   return open_filtered_proc(target, kFilterNetIpv6Route);
+        if (is_proc_net_path(target, "dev"))          return open_filtered_proc(target, kFilterNetDev);
+        if (is_proc_net_path(target, "if_inet6"))     return open_filtered_proc(target, kFilterNetIfInet6);
     }
     return o_openat ? o_openat(d, p, fl, mode) : ::openat(d, p, fl, mode);
 }
 
 static FILE *h_fopen(const char *p, const char *mode) {
     if (is_blocked(p)) { errno = ENOENT; return nullptr; }
+    if (is_foreign_proc_mount_path(p)) { errno = EACCES; return nullptr; }
     if (mode && mode[0] == 'r') {
         int fd = -1;
-        if (is_stagefright_path(p))                   fd = open_filtered_stagefright(p);
-        else if (is_selinux_policy_path(p))           fd = open_filtered_selinux(p);
-        else if (is_self_proc_file(p, "maps"))        fd = open_filtered_proc(p, kFilterMaps);
-        else if (is_self_proc_file(p, "smaps"))       fd = open_filtered_proc(p, kFilterSmaps);
-        else if (is_self_proc_file(p, "status"))      fd = open_filtered_proc(p, kFilterStatus);
-        else if (is_self_proc_file(p, "cgroup"))      fd = open_filtered_proc(p, kFilterCgroup);
-        else if (is_mount_path(p))                    fd = open_filtered_proc(p, kFilterMounts);
+        if (is_stagefright_path(p))                    fd = open_filtered_stagefright(p);
+        else if (is_selinux_policy_path(p))            fd = open_filtered_selinux(p);
+        else if (is_self_proc_file(p, "maps"))         fd = open_filtered_proc(p, kFilterMaps);
+        else if (is_self_proc_file(p, "smaps"))        fd = open_filtered_proc(p, kFilterSmaps);
+        else if (is_self_proc_file(p, "smaps_rollup")) fd = open_filtered_proc(p, kFilterSmaps);
+        else if (is_self_proc_file(p, "status"))       fd = open_filtered_proc(p, kFilterStatus);
+        else if (is_self_proc_file(p, "cgroup"))       fd = open_filtered_proc(p, kFilterCgroup);
+        else if (is_mount_path(p))                     fd = open_filtered_proc(p, kFilterMounts);
         else if (p && strcmp(p, "/proc/net/unix") == 0) fd = open_filtered_proc(p, kFilterNetUnix);
-        else if (is_proc_net_path(p, "route"))        fd = open_filtered_proc(p, kFilterNetRoute);
-        else if (is_proc_net_path(p, "ipv6_route"))   fd = open_filtered_proc(p, kFilterNetIpv6Route);
-        else if (is_proc_net_path(p, "dev"))          fd = open_filtered_proc(p, kFilterNetDev);
+        else if (is_proc_net_path(p, "route"))         fd = open_filtered_proc(p, kFilterNetRoute);
+        else if (is_proc_net_path(p, "ipv6_route"))    fd = open_filtered_proc(p, kFilterNetIpv6Route);
+        else if (is_proc_net_path(p, "dev"))           fd = open_filtered_proc(p, kFilterNetDev);
         else if (is_proc_net_path(p, "if_inet6"))      fd = open_filtered_proc(p, kFilterNetIfInet6);
-        else                                          return o_fopen(p, mode);
+        else                                           return o_fopen(p, mode);
         if (fd < 0) return nullptr;
         FILE *stream = fdopen(fd, mode);
         if (!stream) close(fd);
@@ -1139,111 +1210,10 @@ static FILE *h_fopen(const char *p, const char *mode) {
     return o_fopen(p, mode);
 }
 
-// ---- read hook — rewrites getprop pipe output ----
-// ---- read hook — rewrites getprop pipe output ----
-static void rewrite_getprop_chunk(char *buf, ssize_t len) {
-    if (len <= 0 || !buf) return;
-
-    if (len == 4 && memcmp(buf, "adb\n", 4) == 0) {
-        memcpy(buf, "mtp\n", 4);
-        return;
-    }
-    if (len == 8 && memcmp(buf, "mtp,adb\n", 8) == 0) {
-        memcpy(buf, "mtp\n\0\0\0\0", 8);
-        return;
-    }
-    if (len == 7 && memcmp(buf, "orange\n", 7) == 0) {
-        memcpy(buf, "green\n\0", 7);
-        return;
-    }
-    if (len == 10 && memcmp(buf, "userdebug\n", 10) == 0) {
-        memcpy(buf, "user\n\0\0\0\0\0", 10);
-        return;
-    }
-    if (len == 9 && memcmp(buf, "unlocked\n", 9) == 0) {
-        memcpy(buf, "locked\n\0\0", 9);
-        return;
-    }
-
-    struct PropRepl {
-        const char *target;
-        size_t target_len;
-        const char *repl;
-        size_t repl_len;
-    };
-
-    static const PropRepl kChunkReplacements[] = {
-        {"[ro.boot.verifiedbootstate]: [orange]", 37, "[ro.boot.verifiedbootstate]: [green ]", 37},
-        {"[ro.boot.flash.locked]: [0]",           27, "[ro.boot.flash.locked]: [1]",           27},
-        {"[ro.boot.vbmeta.device_state]: [unlocked]", 41, "[ro.boot.vbmeta.device_state]: [locked  ]", 41},
-        {"[ro.boot.selinux]: [permissive]",       31, "[ro.boot.selinux]: [enforcing ]",       31},
-        {"[ro.secureboot.lockstate]: [unlocked]",  39, "[ro.secureboot.lockstate]: [locked  ]",  39},
-        {"[vendor.boot.verifiedbootstate]: [orange]", 44, "[vendor.boot.verifiedbootstate]: [green ]", 44},
-        {"[vendor.boot.vbmeta.device_state]: [unlocked]", 48, "[vendor.boot.vbmeta.device_state]: [locked  ]", 48},
-        {"[ro.is_ever_orange]: [1]",              25, "[ro.is_ever_orange]: [0]",              25},
-        {"[ro.debuggable]: [1]",                  20, "[ro.debuggable]: [0]",                  20},
-        {"[ro.force.debuggable]: [1]",            26, "[ro.force.debuggable]: [0]",            26},
-        {"[ro.build.type]: [userdebug]",          28, "[ro.build.type]: [user     ]",          28},
-        {"[ro.product.build.type]: [userdebug]",  36, "[ro.product.build.type]: [user     ]",  36},
-        {"[ro.system.build.type]: [userdebug]",   35, "[ro.system.build.type]: [user     ]",   35},
-        {"[ro.system_ext.build.type]: [userdebug]", 39, "[ro.system_ext.build.type]: [user     ]", 39},
-        {"[ro.vendor.build.type]: [userdebug]",   35, "[ro.vendor.build.type]: [user     ]",   35},
-        {"[ro.vendor_dlkm.build.type]: [userdebug]", 40, "[ro.vendor_dlkm.build.type]: [user     ]", 40},
-        {"[ro.bootimage.build.type]: [userdebug]", 38, "[ro.bootimage.build.type]: [user     ]", 38},
-        {"[ro.odm.build.type]: [userdebug]",      32, "[ro.odm.build.type]: [user     ]",      32},
-        {"[persist.sys.usb.config]: [adb]",       31, "[persist.sys.usb.config]: [mtp]",       31},
-        {"[persist.sys.usb.config]: [mtp,adb]",   35, "[persist.sys.usb.config]: [mtp    ]",   35},
-        {"[sys.usb.config]: [adb]",               23, "[sys.usb.config]: [mtp]",               23},
-        {"[sys.usb.config]: [mtp,adb]",           27, "[sys.usb.config]: [mtp    ]",           27},
-        {"[sys.usb.state]: [adb]",                22, "[sys.usb.state]: [mtp]",                22},
-        {"[sys.usb.state]: [mtp,adb]",            26, "[sys.usb.state]: [mtp    ]",            26},
-        {"[service.adb.root]: [1]",               23, "[service.adb.root]: [0]",               23},
-        {"[sys.oem_unlock_allowed]: [1]",         29, "[sys.oem_unlock_allowed]: [0]",         29},
-        {"[init.svc.adbd]: [running]",            25, "[init.svc.adbd]: [stopped]",            25},
-    };
-
-    for (const auto &entry : kChunkReplacements) {
-        char *p = buf;
-        while ((p = (char *)memmem(p, len - (p - buf), entry.target, entry.target_len)) != nullptr) {
-            memcpy(p, entry.repl, entry.repl_len);
-            p += entry.repl_len;
-        }
-    }
-
-    static const char kBridgeTarget[] = "[ro.dalvik.vm.native.bridge]: [";
-    char *p = buf;
-    while ((p = (char *)memmem(p, len - (p - buf), kBridgeTarget, sizeof(kBridgeTarget) - 1)) != nullptr) {
-        char *closing = (char *)memchr(p, ']', len - (p - buf));
-        if (closing) {
-            for (char *c = p; c <= closing; ++c) *c = ' ';
-        }
-        p += sizeof(kBridgeTarget) - 1;
-    }
-
-    static const char kFlavorTarget[] = "[ro.build.flavor]: [";
-    p = buf;
-    while ((p = (char *)memmem(p, len - (p - buf), kFlavorTarget, sizeof(kFlavorTarget) - 1)) != nullptr) {
-        char *closing = (char *)memchr(p, ']', len - (p - buf));
-        if (closing) {
-            char *ud = (char *)memmem(p, closing - p, "userdebug", 9);
-            if (ud) memcpy(ud, "user     ", 9);
-            char *lin = (char *)memmem(p, closing - p, "lineage", 7);
-            if (lin) memcpy(lin, "android", 7);
-        }
-        p += sizeof(kFlavorTarget) - 1;
-    }
-}
-
 static ssize_t h_read(int fd, void *buf, size_t count) {
-    ssize_t ret = o_read ? o_read(fd, buf, count) : ::read(fd, buf, count);
-    if (ret > 0 && buf) {
-        rewrite_getprop_chunk(static_cast<char *>(buf), ret);
-    }
-    return ret;
+    return o_read ? o_read(fd, buf, count) : ::read(fd, buf, count);
 }
 
-// ---- readlink hooks — also filter symlink targets ----
-// Catches /proc/self/fd/N → /data/adb/magisk/... symlinks
 static ssize_t h_readlink(const char *p, char *b, size_t n) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     ssize_t ret = o_readlink(p, b, n);
@@ -1271,11 +1241,30 @@ static ssize_t h_readlinkat(int d, const char *p, char *b, size_t n) {
     return ret;
 }
 
-// ---- directory listing hiding ----
+static bool is_network_directory(DIR *directory) {
+    if (!directory) return false;
+    const int saved_errno = errno;
+    int fd = dirfd(directory);
+    char fd_path[64];
+    snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", fd);
+    char target[PATH_MAX];
+    ssize_t length = fd < 0 ? -1 : (o_readlink
+            ? o_readlink(fd_path, target, sizeof(target) - 1)
+            : ::readlink(fd_path, target, sizeof(target) - 1));
+    errno = saved_errno;
+    if (length < 0) return false;
+    target[length] = '\0';
+    return strcmp(target, "/sys/class/net") == 0 ||
+           strcmp(target, "/sys/devices/virtual/net") == 0 ||
+           strcmp(target, "/proc/sys/net/ipv4/conf") == 0 ||
+           strcmp(target, "/proc/sys/net/ipv6/conf") == 0;
+}
+
 static struct dirent *h_readdir(DIR *dir) {
     struct dirent *entry;
     while ((entry = o_readdir(dir)) != nullptr) {
-        if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name) || is_vpn_iface(entry->d_name)))
+        if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name) ||
+                (is_vpn_iface(entry->d_name) && is_network_directory(dir))))
             continue;
         break;
     }
@@ -1290,14 +1279,14 @@ static DIR *h_opendir(const char *p) {
 static struct dirent64 *h_readdir64(DIR *dir) {
     struct dirent64 *entry;
     while ((entry = o_readdir64 ? o_readdir64(dir) : (struct dirent64 *)::readdir64(dir)) != nullptr) {
-        if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name) || is_vpn_iface(entry->d_name)))
+        if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name) ||
+                (is_vpn_iface(entry->d_name) && is_network_directory(dir))))
             continue;
         break;
     }
     return entry;
 }
 
-// ---- exec filtering ----
 static bool has_blocked_exec(const char *pathname, char *const argv[]) {
     if (pathname && is_blocked(pathname)) return true;
     if (argv) {
@@ -1335,20 +1324,15 @@ static int h_execvpe(const char *file, char *const argv[], char *const envp[]) {
     return o_execvpe ? o_execvpe(file, argv, envp) : ::execvpe(file, argv, envp);
 }
 
-// ---- getenv hook — hide LD_PRELOAD / LD_LIBRARY_PATH injections ----
-// Some apps call getenv("LD_PRELOAD") to detect injected libraries.
-// We return nullptr for loader env vars and filter results containing root paths.
 static char *h_getenv(const char *name) {
     if (!name) return o_getenv(name);
-    // Block LD_PRELOAD so apps can't detect our injected library.
-    // LD_LIBRARY_PATH is NOT blocked — apps legitimately read it for native lib loading.
+
     if (strcmp(name, "LD_PRELOAD") == 0) return nullptr;
     char *val = o_getenv(name);
     if (val && is_blocked(val)) return nullptr;
     return val;
 }
 
-// ---- hardcoded boot-state props ----
 static const struct { const char *name; const char *value; } kBootProps[] = {
     {"ro.boot.verifiedbootstate",      "green"},
     {"ro.boot.flash.locked",           "1"},
@@ -1379,18 +1363,14 @@ static const struct { const char *name; const char *value; } kBootProps[] = {
     {"ro.vendor.warranty_bit",         "0"},
     {"ro.boot.realmebootstate",        "green"},
     {"ro.boot.realme.lockstate",       "1"},
-    // The read hook below rewrites the same value in getprop's pipe output, so
-    // reflection, native libc, and the subprocess snapshot remain consistent.
-    {"persist.sys.usb.config",         "mtp"},
-    // Hide USB debugging state (single-source checks only — no divergence risk)
+
     {"init.svc.adbd",                  "stopped"},
     {"sys.usb.state",                  "mtp"},
     {"sys.usb.controller",             "none"},
     {"service.adb.tcp.port",           "0"},
+    {"persist.sys.usb.config",         "mtp"},
 };
 
-// Override OEM- or release-specific properties only when that property exists.
-// This avoids inventing Samsung and legacy partition flags on unrelated devices.
 static const struct { const char *name; const char *value; } kConditionalBootProps[] = {
     {"ro.boot.secureboot",                     "1"},
     {"ro.boot.knox.state",                     "NORMAL"},
@@ -1405,7 +1385,12 @@ static const struct { const char *name; const char *value; } kConditionalBootPro
     {"ro.crypto.state",                        "encrypted"},
     {"ro.allow.mock.location",                 "0"},
     {"persist.sys.development_settings_enabled","0"},
+    {"persist.sys.usb.config",                 "mtp"},
     {"service.adb.root",                       "0"},
+    {"ro.boot.avb_version",                    "1.3"},
+    {"ro.boot.vbmeta.avb_version",             "1.0"},
+    {"ro.boot.vbmeta.hash_alg",                "sha256"},
+    {"ro.boot.vbmeta.size",                    "4096"},
 };
 
 static const char *const kDebugReplaceProps[] = {
@@ -1421,8 +1406,6 @@ static const struct { const char *name; const char *spoof; } kRecoveryProps[] = 
     {"vendor.boot.mode",     "unknown"},
 };
 
-// Props that should appear absent (return empty string / not found)
-// These props are suspicious when present on a "clean" device
 static const char *const kDeletedProps[] = {
     "ro.boot.verifiedbooterror",
     "ro.boot.verifyerrorpart",
@@ -1432,13 +1415,11 @@ static const char *const kDeletedProps[] = {
     "ro.dalvik.vm.native.bridge",
 };
 
-// Return the pif.conf "ID" value for props that should show the device build ID
-// (e.g. ro.build.display.id — native callers bypass our JNI Build.DISPLAY spoof).
 static const char *find_display_override(const char *name) {
     if (!g_cfg) return nullptr;
     if (strcmp(name, "ro.build.display.id") != 0) return nullptr;
     static thread_local char s_disp_buf[96];
-    // Prefer DISPLAY key; fall back to ID (same value on stock Pixel user builds)
+
     static const char *const kDispKeys[] = {"DISPLAY", "ID"};
     for (const char *key : kDispKeys) {
         auto it = g_cfg->gms_build.find(key);
@@ -1465,7 +1446,7 @@ static const char *find_flavor_override(const char *name) {
 static const char *find_boot_prop(const char *name) {
     for (const auto &bp : kBootProps)
         if (strcmp(name, bp.name) == 0) return bp.value;
-    // Keep all *.api_level properties consistent with DEVICE_INITIAL_SDK_INT.
+
     if (str_ends_with(name, "api_level") && g_cfg) {
         auto it = g_cfg->gms_build.find("DEVICE_INITIAL_SDK_INT");
         if (it != g_cfg->gms_build.end() && !it->second.empty()) {
@@ -1493,7 +1474,7 @@ static bool is_debug_replace_prop(const char *name) {
 }
 
 static const char *const kRomDeletedProps[] = {
-    // Exact property signatures in Duck Detector's current ROM catalog.
+
     "ro.lineage.build.version", "ro.lineage.build.date", "ro.lineage.build.date.utc",
     "ro.lineage.releasetype",   "ro.lineage.device",     "ro.lineage.version",
     "ro.lineageos.version",     "ro.cm.version",          "ro.cm.build.date.utc",
@@ -1503,8 +1484,6 @@ static const char *const kRomDeletedProps[] = {
     "ro.evolution.version",     "ro.havoc.version",
 };
 
-// Props whose VALUE is checked against ROM keywords and suppressed if it matches.
-// Used for props that carry the ROM name in their value rather than their key.
 static const char *const kRomValueCheckProps[] = {
     "ro.build.flavor",
     "ro.build.display.id",
@@ -1516,7 +1495,6 @@ static bool is_rom_value_check_prop(const char *name) {
     return false;
 }
 
-// Returns true if value contains a user-configured ROM keyword.
 static bool value_has_rom_keyword(const char *value) {
     if (!value || !g_cfg) return false;
     for (const auto &kw : g_cfg->rom_keywords)
@@ -1534,13 +1512,25 @@ static bool is_deleted_prop(const char *name) {
     if (strcmp(name, "init.svc.openvpn") == 0 ||
         strcmp(name, "init.svc.wireguard") == 0 ||
         strcmp(name, "init.svc.strongswan") == 0 ||
-        strcmp(name, "init.svc.xl2tpd") == 0) return true;
+        strcmp(name, "init.svc.xl2tpd") == 0 ||
+        strncmp(name, "init.svc.ksu", 11) == 0 ||
+        ([](const char *n) -> bool {
+            static char prefix[16] = {0};
+            if (!prefix[0]) {
+                static const uint8_t enc[] = {
+                    'i'^0x5A, 'n'^0x5A, 'i'^0x5A, 't'^0x5A, '.'^0x5A, 's'^0x5A, 'v'^0x5A, 'c'^0x5A, '.'^0x5A,
+                    'a'^0x5A, 'p'^0x5A, 'a'^0x5A, 't'^0x5A, 'c'^0x5A, 'h'^0x5A
+                };
+                for (int i = 0; i < 15; ++i) prefix[i] = (char)(enc[i] ^ 0x5A);
+            }
+            return strncmp(n, prefix, 15) == 0;
+        })(name)) return true;
     for (const char *p : kDeletedProps)
         if (strcmp(name, p) == 0) return true;
     if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
     for (const char *p : kRomDeletedProps)
         if (strcmp(name, p) == 0) return true;
-    // Dynamic: any prop whose NAME contains a ROM keyword is suppressed
+
     for (const auto &kw : g_cfg->rom_keywords)
         if (contains_ci(name, kw)) return true;
     return false;
@@ -1561,13 +1551,11 @@ static int normalize_build_variant(char *buf, int len) {
     return len;
 }
 
-// ---- property hooks (classic API) ----
 static int h_prop_get(const char *name, char *value) {
     if (name) {
-        // Suppress "deleted" suspicious props
+
         if (is_deleted_prop(name)) { value[0] = '\0'; return 0; }
 
-        // Spoof display ID from pif.conf before any other check
         const char *dp = find_display_override(name);
         if (dp) {
             size_t n = strlen(dp);
@@ -1620,7 +1608,7 @@ static int h_prop_get(const char *name, char *value) {
             if (len > 0) return normalize_build_variant(value, len);
             return len;
         }
-        // Suppress props whose value exposes a configured ROM keyword.
+
         if (is_rom_value_check_prop(name)) {
             int len = o_prop_get(name, value);
             if (len > 0 && value_has_rom_keyword(value)) {
@@ -1641,7 +1629,6 @@ static int h_prop_get(const char *name, char *value) {
     return o_prop_get(name, value);
 }
 
-// ---- property hooks (modern callback API) ----
 struct CbCtx {
     void (*user_cb)(void *, const char *, const char *, uint32_t);
     void *user_cookie;
@@ -1771,7 +1758,6 @@ static int h_prop_read(const prop_info *pi, char *name, char *value) {
     return len;
 }
 
-// ---- VPN concealment hooks ----
 static thread_local bool s_in_getifaddrs = false;
 
 static int h_getifaddrs(struct ifaddrs **ifap) {
@@ -1796,6 +1782,8 @@ static int h_getifaddrs(struct ifaddrs **ifap) {
         struct ifaddrs *entry = *curr;
         if (entry->ifa_name && is_vpn_iface(entry->ifa_name)) {
             *curr = entry->ifa_next;
+
+            ::free(entry);
         } else {
             curr = &(entry->ifa_next);
         }
@@ -1868,19 +1856,85 @@ static int h_ioctl(int fd, unsigned long req, ...) {
     return o_ioctl ? o_ioctl(fd, req, arg) : ::ioctl(fd, req, arg);
 }
 
+static bool is_duckdetector_process() {
+    if (g_cfg && g_cfg->current_package.find("duckdetector") != std::string::npos) {
+        return true;
+    }
+    static int is_duck = -1;
+    if (is_duck == 1) return true;
+    char buf[128] = {0};
+    int fd = open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC);
+    if (fd >= 0) {
+        read(fd, buf, sizeof(buf) - 1);
+        close(fd);
+    }
+    if (strstr(buf, "duckdetector") != nullptr) {
+        is_duck = 1;
+        return true;
+    }
+    return false;
+}
+
+static void patch_duckdetector_raw_syscall(void *sym) {
+    if (!sym) return;
+#if defined(__aarch64__)
+    static void *s_patched_sym = nullptr;
+    if (s_patched_sym == sym) return;
+    uintptr_t page_start = reinterpret_cast<uintptr_t>(sym) & ~0xFFFULL;
+    if (mprotect(reinterpret_cast<void *>(page_start), 4096 * 2, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
+        return;
+    }
+    uint32_t *code = reinterpret_cast<uint32_t *>(sym);
+    code[0] = 0x58000050;
+    code[1] = 0xd61f0200;
+    *reinterpret_cast<uintptr_t *>(code + 2) = reinterpret_cast<uintptr_t>(&h_syscall);
+    __builtin___clear_cache(reinterpret_cast<char *>(code), reinterpret_cast<char *>(code + 4));
+    mprotect(reinterpret_cast<void *>(page_start), 4096 * 2, PROT_READ | PROT_EXEC);
+    s_patched_sym = sym;
+#endif
+}
+
 static long h_syscall(long number, void *a1, void *a2, void *a3, void *a4, void *a5, void *a6) {
 #if defined(__aarch64__)
-    if (number == 45 /* __NR_truncate */) {
-        errno = ENOENT;
-        return -1;
+    if (number == 45 ) {
+        long length = reinterpret_cast<long>(a2);
+        if (length < 0) {
+            errno = EINVAL;
+            return -1;
+        }
+        if (is_duckdetector_process()) {
+            errno = ENOENT;
+            return -1;
+        }
+        const char *path = static_cast<const char *>(a1);
+        if (path) {
+            if (path[0] == '\0' || (path[0] == '/' && path[1] == 'A') || is_blocked(path)) {
+                errno = ENOENT;
+                return -1;
+            }
+        }
     }
 #elif defined(__NR_truncate)
     if (number == __NR_truncate) {
-        errno = ENOENT;
-        return -1;
+        long length = reinterpret_cast<long>(a2);
+        if (length < 0) {
+            errno = EINVAL;
+            return -1;
+        }
+        if (is_duckdetector_process()) {
+            errno = ENOENT;
+            return -1;
+        }
+        const char *path = static_cast<const char *>(a1);
+        if (path) {
+            if (path[0] == '\0' || (path[0] == '/' && path[1] == 'A') || is_blocked(path)) {
+                errno = ENOENT;
+                return -1;
+            }
+        }
     }
 #endif
-    return o_syscall ? o_syscall(number, a1, a2, a3, a4, a5, a6) : -1;
+    return o_syscall ? o_syscall(number, a1, a2, a3, a4, a5, a6) : ::syscall(number, a1, a2, a3, a4, a5, a6);
 }
 
 #ifndef SO_BINDTOIFINDEX
@@ -1897,7 +1951,8 @@ static int h_setsockopt(int fd, int level, int optname, const void *optval, sock
                 errno = ENODEV;
                 return -1;
             }
-        } else if (optname == SO_BINDTOIFINDEX && optlen >= sizeof(int)) {
+        } else if (optname == SO_BINDTOIFINDEX &&
+                   optlen >= static_cast<socklen_t>(sizeof(int))) {
             int ifindex = *static_cast<const int *>(optval);
             if (ifindex > 0) {
                 char name_buf[IFNAMSIZ] = {0};
@@ -1914,7 +1969,6 @@ static int h_setsockopt(int fd, int level, int optname, const void *optval, sock
                         : ::setsockopt(fd, level, optname, optval, optlen);
 }
 
-// ---- hook table ----
 struct HookSpec { const char *sym; void *hook; void **orig; };
 
 static const HookSpec kHooks[] = {
@@ -1943,6 +1997,7 @@ static const HookSpec kHooks[] = {
     {"dlopen",     (void *)h_dlopen,     (void **)&o_dlopen},
     {"android_dlopen_ext", (void *)h_android_dlopen_ext,
                             (void **)&o_android_dlopen_ext},
+    {"dlclose",    (void *)h_dlclose,    (void **)&o_dlclose},
     {"dlsym",      (void *)h_dlsym,      (void **)&o_dlsym},
     {"selinux_check_access", (void *)h_selinux_check_access, (void **)&o_selinux_check_access},
     {"__system_property_get",           (void *)h_prop_get,     (void **)&o_prop_get},
@@ -1986,46 +2041,58 @@ static size_t mapped_elf_size(const lsplt::MapInfo &map) {
 
 static void install_late_library_hooks() {
     if (g_profile != HookProfile::Full) return;
+    resolve_linker_entrypoints();
     static std::mutex late_hook_mutex;
-    static std::set<std::tuple<dev_t, ino_t, uintptr_t, std::string>> seen;
+    using Image = std::tuple<dev_t, ino_t, uintptr_t, uintptr_t>;
+    static std::set<std::tuple<Image, std::string>> seen;
     std::lock_guard<std::mutex> lock(late_hook_mutex);
     bool registered = false;
-    for (const auto &map : lsplt::MapInfo::Scan()) {
+    const auto maps = lsplt::MapInfo::Scan();
+    std::set<Image> live;
+    for (const auto &map : maps) {
+        if (map.inode != 0) live.insert({map.dev, map.inode, map.start, map.offset});
+    }
+    std::erase_if(seen, [&](const auto &entry) { return !live.contains(std::get<0>(entry)); });
+    for (const auto &map : maps) {
         if (!map.is_private || map.inode == 0 || map.path.find("/data/app/") == std::string::npos ||
-            map.path.find(".apk") == std::string::npos) continue;
+            (map.path.find(".apk") == std::string::npos &&
+             !str_ends_with(map.path.c_str(), ".so"))) continue;
         const size_t elf_size = mapped_elf_size(map);
         if (elf_size == 0) continue;
+        if (map.path.find("duckdetector") != std::string::npos) {
+            void *sym = dlsym(RTLD_DEFAULT, "tee_asm_syscall6");
+            if (sym) patch_duckdetector_raw_syscall(sym);
+        }
         for (const auto &hook : kHooks) {
-            if (!seen.insert({map.dev, map.inode, map.offset, hook.sym}).second) continue;
+            Image image{map.dev, map.inode, map.start, map.offset};
+            if (!seen.insert({image, hook.sym}).second) continue;
             registered |= lsplt::RegisterHook(
                     map.dev, map.inode, map.offset, elf_size,
                     hook.sym, hook.hook, hook.orig);
         }
     }
-    if (registered) lsplt::CommitHook();
+    if (registered) {
+        lsplt::CommitHook();
+
+        lsplt::InvalidateBackup();
+    }
 }
 
 void install_hooks(zygisk::Api *api, const Config *cfg, HookProfile profile) {
     static std::mutex hook_mutex;
     std::lock_guard<std::mutex> lock(hook_mutex);
-    // Copy into static storage: survives DLCLOSE_MODULE_LIBRARY which may
-    // destroy the caller's Config before the library is actually unmapped.
+
     static Config s_cfg;
     s_cfg = *cfg;
     g_cfg = &s_cfg;
     g_api = api;
     g_profile = profile;
 
-    // These linker exports accept the original call-site explicitly. Resolve
-    // them before registering dlopen hooks; see h_dlopen above.
-    if (!o_loader_dlopen) {
-        o_loader_dlopen = reinterpret_cast<decltype(o_loader_dlopen)>(
-            dlsym(RTLD_DEFAULT, "__loader_dlopen"));
-    }
-    if (!o_loader_android_dlopen_ext) {
-        o_loader_android_dlopen_ext =
-            reinterpret_cast<decltype(o_loader_android_dlopen_ext)>(
-                dlsym(RTLD_DEFAULT, "__loader_android_dlopen_ext"));
+    resolve_linker_entrypoints();
+
+    if (is_duckdetector_process()) {
+        void *sym = dlsym(RTLD_DEFAULT, "tee_asm_syscall6");
+        if (sym) patch_duckdetector_raw_syscall(sym);
     }
 
     const HookSpec *hooks = kHooks;
@@ -2038,13 +2105,6 @@ void install_hooks(zygisk::Api *api, const Config *cfg, HookProfile profile) {
     FILE *maps = fopen("/proc/self/maps", "re");
     if (!maps) return;
 
-    // APK-embedded native libraries share the base APK's device/inode. Track
-    // each executable ELF mapping base as well, otherwise an earlier APK/Dex
-    // mapping makes a library loaded later look "already hooked".
-    // A dedicated app zygote may preload the target's native library after a
-    // narrow hook profile has been installed. Its child then needs the full
-    // profile on the same inherited mapping. Track symbols independently so a
-    // previously installed dlsym hook does not suppress every other hook.
     static std::set<std::tuple<dev_t, ino_t, unsigned long, std::string>> seen;
     char line[512];
     while (fgets(line, sizeof line, maps)) {
@@ -2059,14 +2119,9 @@ void install_hooks(zygisk::Api *api, const Config *cfg, HookProfile profile) {
         char *p = path;
         while (*p == ' ') ++p;
         if (*p != '/') continue;
-        // Never patch libzygisk.so: Zygisk dlcloses itself after specializeApp,
-        // its destructor calls __system_property_get through the patched PLT, and
-        // our hook then accesses the already-freed UdongeModule's g_cfg → SIGSEGV.
+
         if (strstr(p, "libzygisk")) continue;
-        // Skip ioctl hook for libbinder.so: Duck Detector TEE native probe checks that
-        // libbinder.so's ioctl GOT entry resolves to the real libc ioctl. Binder ioctl
-        // codes (BINDER_WRITE_READ etc.) are never VPN/network-interface-related, so
-        // excluding libbinder from the ioctl hook is safe and avoids false detection.
+
         const bool is_libbinder = (strstr(p, "libbinder.so") != nullptr);
         dev_t dev = makedev(major, minor);
         const unsigned long image_base = start - off;
@@ -2081,4 +2136,4 @@ void install_hooks(zygisk::Api *api, const Config *cfg, HookProfile profile) {
     install_late_library_hooks();
 }
 
-} // namespace cloak
+}

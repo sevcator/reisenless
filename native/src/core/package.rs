@@ -237,8 +237,7 @@ impl MagiskD {
             .join_path(BUILD_STUB_NAME);
 
         if let Ok(mut fd) = apk.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
-            // The embedded trust-anchor stub has its own low versionCode and
-            // is not versioned like the randomized full manager release APK.
+
             info.trusted_cert = read_certificate(&mut fd, -1);
         }
 
@@ -260,12 +259,7 @@ impl MagiskD {
         manager_uid == uid || info.check_orig_uid(self, user, uid)
     }
 
-    /// Authenticate a direct manager client with Android's package identity.
-    ///
-    /// The embedded APK certificate establishes the trusted installed package,
-    /// the kernel-provided UID binds the socket peer to that package, and the
-    /// SELinux MLS/MCS level binds the process to the package data domain.
-    pub fn is_privileged_client(&self, user: i32, uid: i32, pid: i32, peer_context: &str) -> bool {
+    #[doc = " Authenticate a direct manager client with Android's package identity."]    #[doc = ""]    #[doc = " The embedded APK certificate establishes the trusted installed package,"]    #[doc = " the kernel-provided UID binds the socket peer to that package, and the"]    #[doc = " SELinux MLS/MCS level binds the process to the package data domain."]    pub fn is_privileged_client(&self, user: i32, uid: i32, pid: i32, peer_context: &str) -> bool {
         if uid == 0 {
             return true;
         }
