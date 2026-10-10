@@ -107,6 +107,11 @@ validate_migration_modules() {
   return 0
 }
 
+validate_migration_directory() {
+  [ ! -L "$1" ] && return 0
+  [ -d "$2" ] && [ "$(readlink -f "$2")" = "$2" ] && [ "$(readlink -f "$1")" = "$2" ]
+}
+
 rewrite_migration_paths() (
   local root="$1" source="$2" old_runtime="$3" destination="${4:-$SECURE_DIR}"
   local pattern replacement runtime file target temp
@@ -186,7 +191,7 @@ transactional_migrate_layout() {
   local source="$1" source_db="$2" source_udonge="$3" marker_name="$4"
   local marker="$SECURE_DIR/$marker_name" stage="$SECURE_DIR/.migration-stage.$$"
   local manifest="$stage/source.sha256" existing="$SECURE_DIR/.migration-source.tmp.$$"
-  local dir
+  local dir destination
 
   [ "$source" != "$SECURE_DIR" ] || return 0
   [ -d "$source" ] || return 0
@@ -194,9 +199,13 @@ transactional_migrate_layout() {
   [ -n "$source_db" ] || return 1
   [ -n "$source_udonge" ] || return 1
   for dir in modules modules_update post-fs-data.d service.d "$source_udonge"; do
-    [ ! -L "$source/$dir" ] || return 1
+    destination="$SECURE_DIR/$dir"
+    [ "$dir" != "$source_udonge" ] || destination="$SECURE_DIR/$UDONGE_DIR"
+    validate_migration_directory "$source/$dir" "$destination" || return 1
   done
-  [ ! -L "$source/$source_udonge/state" ] && [ ! -L "$source/$source_udonge/tee-state" ] || return 1
+  for dir in state tee-state; do
+    validate_migration_directory "$source/$source_udonge/$dir" "$SECURE_DIR/$UDONGE_DIR/$dir" || return 1
+  done
   mkdir -p "$SECURE_DIR" || return 1
   remove_migrated_stage_hooks "$SECURE_DIR" "$source" || return 1
 
@@ -222,7 +231,7 @@ transactional_migrate_layout() {
     rm -f "$existing"
   fi
 
-  if [ -f "$source/$source_db" ]; then
+  if [ -f "$source/$source_db" ] && { [ -s "$source/$source_db" ] || [ -s "$source/$source_db-wal" ]; }; then
     cp -af "$source/$source_db" "$stage/$DB_NAME" || { rm -rf "$stage"; return 1; }
     if [ -f "$source/$source_db-wal" ]; then
       cp -af "$source/$source_db-wal" "$stage/$DB_NAME-wal" || { rm -rf "$stage"; return 1; }
@@ -667,6 +676,8 @@ direct_install() {
   done
   image_size=$(stat -c '%s' "$image") || return 3
   [ "$image_size" -gt 0 ] || return 3
+  migrate_private_layout || return 3
+  migrate_legacy_layout || return 3
   echo "- flashing new boot image"
   flash_image "$image" "$2"
   status=$?
@@ -692,8 +703,6 @@ direct_install() {
   fi
 
   rm -f "$image" || return 3
-  migrate_private_layout || return 3
-  migrate_legacy_layout || return 3
   fix_env "$1" || return 3
   refresh_udonge_runtime || return 3
 
