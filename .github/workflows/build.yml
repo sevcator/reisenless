@@ -41,6 +41,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build project
+        id: release_build
         env:
           REISENLESS_IDENTITY_SEED: ${{ secrets.REISENLESS_IDENTITY_SEED }}
           REISENLESS_KEYSTORE_BASE64: ${{ secrets.REISENLESS_KEYSTORE_BASE64 }}
@@ -65,6 +66,7 @@ jobs:
           python scripts/env.py python tools/test_download_jobs.py
 
       - name: Check Android tests and lint
+        if: ${{ !cancelled() && steps.release_build.outcome == 'success' }}
         working-directory: app
         run: >-
           python ../scripts/env.py ./gradlew
@@ -72,6 +74,7 @@ jobs:
           :core:lintDebug :apk:lintDebug :hideapps:lintDebug
 
       - name: Check Rust lint
+        if: ${{ !cancelled() && steps.release_build.outcome == 'success' }}
         run: python build.py clippy
 
       - name: Resolve randomized artifact name

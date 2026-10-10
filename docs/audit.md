@@ -14,6 +14,7 @@ fixes and their regressions are included in the update.
   or deletes unrelated files under `/data/local/tmp`.
 - Module processing takes the minimal path when all modules are disabled or
   Zygisk-only modules are inactive. Pending removals and updates still run.
+- The app and daemon agree on Zygisk defaulting to off, including emulators.
 - The modern manager skips automatic update requests for offline, disabled,
   removed or incompatible modules and clears stale module listings when the
   root environment becomes inactive.

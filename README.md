@@ -7,7 +7,8 @@ and `THIRD_PARTY_NOTICES`.
 Udonge is off by default. Enable it in Settings and reboot to activate its
 optional runtime. Daily background updates and ROM hiding are separate choices.
 USB debugging remains under the user's control. Disabled modules do not run,
-and third-party Zygisk modules require the Zygisk setting.
+and third-party Zygisk modules require the Zygisk setting. Zygisk defaults to off
+on physical devices and emulators.
 
 ## Build
 
