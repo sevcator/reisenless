@@ -202,7 +202,7 @@ worker_is_legacy_hunter() {
 worker_stop_legacy_hunters() {
     local process pid start args processes candidates
 
-    if processes="$(ps -A -o PID,ARGS 2>/dev/null)"; then
+    if processes="$(ps -A -o pid,args 2>/dev/null)"; then
         candidates="$(printf '%s\n' "$processes" | awk '$1 ~ /^[0-9]+$/ && /keybox_heal\.sh/ && /hunt_daemon/ { print $1 }')"
     else
         candidates="$(
