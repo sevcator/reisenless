@@ -641,9 +641,14 @@ refresh_udonge_runtime() {
 }
 
 direct_install() {
+  local image="$1/new-boot.img" image_size status
+  image_size=$(stat -c '%s' "$image") || return 3
+  [ "$image_size" -gt 0 ] || return 3
   echo "- flashing new boot image"
-  flash_image $1/new-boot.img $2
-  case $? in
+  flash_image "$image" "$2"
+  status=$?
+  case "$status" in
+    0) ;;
     1)
       echo "! insufficient partition size"
       return 1
@@ -652,12 +657,21 @@ direct_install() {
       echo "! $2 is read only"
       return 2
       ;;
+    *)
+      echo "! unable to flash $2"
+      return 3
+      ;;
   esac
 
-  rm -f $1/new-boot.img
+  if [ ! -c "$2" ] && ! cmp -s -n "$image_size" "$image" "$2"; then
+    echo "! flashed boot image verification failed"
+    return 3
+  fi
+
+  rm -f "$image" || return 3
   migrate_private_layout || return 3
   migrate_legacy_layout || return 3
-  fix_env $1
+  fix_env "$1" || return 3
   refresh_udonge_runtime || return 3
 
   rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh"
