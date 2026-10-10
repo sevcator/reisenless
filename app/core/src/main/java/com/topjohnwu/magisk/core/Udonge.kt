@@ -140,42 +140,47 @@ object Udonge {
 
             if (installedId.isEmpty() || installedId != targetId) {
                 val tempDir = java.io.File(context.cacheDir, "udonge_extract_${System.currentTimeMillis()}")
-                tempDir.mkdirs()
-                java.util.zip.ZipInputStream(context.assets.open(Const.UDONGE_ARCHIVE)).use { zis ->
-                    var entry = zis.nextEntry
-                    while (entry != null) {
-                        val outFile = java.io.File(tempDir, entry.name)
-                        if (entry.isDirectory) {
-                            outFile.mkdirs()
-                        } else {
-                            outFile.parentFile?.mkdirs()
-                            outFile.outputStream().use { output ->
-                                zis.copyTo(output)
+                val installed = try {
+                    check(tempDir.mkdirs())
+                    java.util.zip.ZipInputStream(context.assets.open(Const.UDONGE_ARCHIVE)).use { zis ->
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            val outFile = java.io.File(tempDir, entry.name)
+                            if (entry.isDirectory) {
+                                outFile.mkdirs()
+                            } else {
+                                outFile.parentFile?.mkdirs()
+                                outFile.outputStream().use { output ->
+                                    zis.copyTo(output)
+                                }
                             }
+                            zis.closeEntry()
+                            entry = zis.nextEntry
                         }
-                        zis.closeEntry()
-                        entry = zis.nextEntry
                     }
-                }
 
-                val tempExtractPath = tempDir.absolutePath
-                val targetArchive = "${Const.DATABIN}/${Const.UDONGE_ARCHIVE}"
-                val cmd = UdongeRuntimeCommands.install(
-                    root, tempExtractPath, targetId.orEmpty(), BuildConfig.UDONGE_FILE_TYPE,
-                    Const.BUSYBOX_NAME)
-                val installed = shell.newJob().add(cmd).exec().isSuccess
-                tempDir.deleteRecursively()
+                    val cmd = UdongeRuntimeCommands.install(
+                        root, tempDir.absolutePath, targetId.orEmpty(), BuildConfig.UDONGE_FILE_TYPE,
+                        Const.BUSYBOX_NAME)
+                    shell.newJob().add(cmd).exec().isSuccess
+                } finally {
+                    tempDir.deleteRecursively()
+                }
                 if (!installed) return@runCatching
 
                 val tempArchive = java.io.File(context.cacheDir, "udonge.tmp")
-                context.assets.open(Const.UDONGE_ARCHIVE).use { input ->
-                    tempArchive.outputStream().use { output ->
-                        input.copyTo(output)
+                try {
+                    context.assets.open(Const.UDONGE_ARCHIVE).use { input ->
+                        tempArchive.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
                     }
+                    val targetArchive = "${Const.DATABIN}/${Const.UDONGE_ARCHIVE}"
+                    val tempArchiveStr = tempArchive.absolutePath
+                    shell.newJob().add("mkdir -p '${Const.DATABIN}' && cp -f '$tempArchiveStr' '$targetArchive'").exec()
+                } finally {
+                    tempArchive.delete()
                 }
-                val tempArchiveStr = tempArchive.absolutePath
-                shell.newJob().add("mkdir -p '${Const.DATABIN}' && cp -f '$tempArchiveStr' '$targetArchive'").exec()
-                tempArchive.delete()
             }
         }
     }

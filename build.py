@@ -1351,10 +1351,13 @@ def _udonge_sync_script(identity: dict[str, str]) -> str:
     return f'''#!/system/bin/sh
 set -e
 root={root}
+if [ ! -d "$root/runtime" ] && [ -d "$root/runtime.old" ]; then
+    mv "$root/runtime.old" "$root/runtime"
+fi
 [ -d "$root/runtime" ] || {{ echo UDONGE_NOT_INITIALIZED; exit 0; }}
 work=/data/local/tmp/reisenless-unpack
+trap 'status=$?; if [ ! -d "$root/runtime" ] && [ -d "$root/runtime.old" ]; then mv "$root/runtime.old" "$root/runtime" || true; fi; rm -rf "$root/runtime.new" "$work"; rm -f /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh; exit "$status"' EXIT
 mkdir -p "$work"
-trap 'rm -rf "$work"; rm -f /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh' EXIT
 rm -rf "$root/runtime.new"
 mkdir -p "$root/runtime.new"
 unpacked=0
@@ -1385,10 +1388,8 @@ chcon -R u:object_r:system_file:s0 "$root/runtime.new" 2>/dev/null || true
 chcon u:object_r:{file_type}:s0 "$root/runtime.new/tee/"*"/libTEESimulator.so" 2>/dev/null || true
 rm -rf "$root/runtime.old"
 mv "$root/runtime" "$root/runtime.old"
-if ! mv "$root/runtime.new" "$root/runtime"; then
-    mv "$root/runtime.old" "$root/runtime"
-    exit 1
-fi
+mv "$root/runtime.new" "$root/runtime"
+rm -rf "$root/runtime.old"
 echo UDONGE_SYNCED
 '''
 

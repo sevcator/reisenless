@@ -10,6 +10,13 @@ USB debugging remains under the user's control. Disabled modules do not run,
 and third-party Zygisk modules require the Zygisk setting. Zygisk defaults to off
 on physical devices and emulators.
 
+For an upgrade, install the new APK over the existing manager, select direct
+install, and reboot. Keep the same private identity seed, repository namespace,
+and signing key between releases so Android updates the existing package and
+the root installation reuses its paths. User settings, modules, and boot recovery
+backups are retained; replaced runtime payloads and installation staging are
+removed after a successful upgrade.
+
 ## Build
 
 Use Python 3.12 or newer, a JDK, and an Android SDK. GitHub Actions uses Python

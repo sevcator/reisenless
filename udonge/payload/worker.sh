@@ -200,11 +200,20 @@ worker_is_legacy_hunter() {
 }
 
 worker_stop_legacy_hunters() {
-    local process pid start
+    local process pid start args processes candidates
 
-    for process in /proc/[0-9]*; do
-        [ -d "$process" ] || continue
-        pid="${process##*/}"
+    if processes="$(ps -A -o PID,ARGS 2>/dev/null)"; then
+        candidates="$(printf '%s\n' "$processes" | awk '$1 ~ /^[0-9]+$/ && /keybox_heal\.sh/ && /hunt_daemon/ { print $1 }')"
+    else
+        candidates="$(
+            for process in /proc/[0-9]*; do
+                [ -d "$process" ] || continue
+                args="$(tr '\000' ' ' < "$process/cmdline" 2>/dev/null)" || continue
+                case "$args" in *keybox_heal.sh*hunt_daemon*) printf '%s\n' "${process##*/}" ;; esac
+            done
+        )"
+    fi
+    for pid in $candidates; do
         start="$(worker_process_start "$pid")" || continue
         [ -n "$start" ] || continue
         worker_is_legacy_hunter "$pid" || continue

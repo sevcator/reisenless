@@ -116,14 +116,14 @@ transactional_migrate_layout() {
 
   rm -rf "$stage"
   mkdir -p "$stage" || return 1
-  {
+  (
     migration_hash_tree "$source/$source_db" || exit 1
     for dir in modules modules_update post-fs-data.d service.d; do
       migration_hash_tree "$source/$dir" || exit 1
     done
     migration_hash_tree "$source/$source_udonge/state" || exit 1
     migration_hash_tree "$source/$source_udonge/tee-state" || exit 1
-  } > "$manifest" || { rm -rf "$stage"; return 1; }
+  ) > "$manifest" || { rm -rf "$stage"; return 1; }
 
   if [ -f "$marker" ]; then
     sed '1d' "$marker" > "$existing" 2>/dev/null || true
@@ -189,32 +189,42 @@ env_check() {
 }
 
 cp_readlink() {
-  if [ -z $2 ]; then
-    cd $1
+  if [ -z "$2" ]; then
+    cd "$1" || return 1
   else
-    cp -af $1/. $2
-    cd $2
+    cp -af "$1/." "$2" || return 1
+    cd "$2" || return 1
   fi
-  for file in *; do
-    if [ -L $file ]; then
-      local full=$(readlink -f $file)
-      rm $file
-      cp -af $full $file
+  for file in * .[!.]* ..?*; do
+    if [ -L "$file" ]; then
+      local full=$(readlink -f "$file")
+      [ -n "$full" ] || return 1
+      rm "$file" || return 1
+      cp -af "$full" "$file" || return 1
     fi
   done
-  chmod -R 755 .
-  cd /
+  chmod -R 755 . || return 1
+  cd / || return 1
 }
 
-fix_env() {
-
-  rm -rf $MAGISKBIN/*
-  mkdir -p $MAGISKBIN 2>/dev/null
-  chmod 700 ${SECURE_DIR}
-  cp_readlink $1 $MAGISKBIN
-  rm -rf $1
-  chown -R 0:0 $MAGISKBIN
-}
+fix_env() (
+  local source="$1" next="$MAGISKBIN.new" old="$MAGISKBIN.old"
+  [ -d "$source" ] && [ "$source" != "$MAGISKBIN" ] || return 1
+  trap 'status=$?; if [ ! -d "$MAGISKBIN" ] && [ -d "$old" ]; then mv "$old" "$MAGISKBIN" || true; fi; rm -rf "$next"; exit "$status"' EXIT
+  if [ ! -d "$MAGISKBIN" ] && [ -d "$old" ]; then
+    mv "$old" "$MAGISKBIN" || return 1
+  fi
+  rm -rf "$next" || return 1
+  mkdir -p "$next" || return 1
+  chmod 700 "$SECURE_DIR" || return 1
+  cp_readlink "$source" "$next" || return 1
+  chown -R 0:0 "$next" || return 1
+  rm -rf "$old" || return 1
+  [ ! -d "$MAGISKBIN" ] || mv "$MAGISKBIN" "$old" || return 1
+  mv "$next" "$MAGISKBIN" || return 1
+  rm -rf "$old" || return 1
+  rm -rf "$source"
+)
 
 migrate_legacy_layout() {
   local legacy=/data/a''db

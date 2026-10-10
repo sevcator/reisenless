@@ -6,13 +6,17 @@ internal object UdongeRuntimeCommands {
         (
             set -e
             root=${quote(root)}
+            trap 'status=${'$'}?; if [ ! -d "${'$'}root/runtime" ] && [ -d "${'$'}root/runtime.old" ]; then mv "${'$'}root/runtime.old" "${'$'}root/runtime" || true; fi; rm -rf "${'$'}root/runtime.new"; exit "${'$'}status"' EXIT
+            if [ ! -d "${'$'}root/runtime" ] && [ -d "${'$'}root/runtime.old" ]; then
+                mv "${'$'}root/runtime.old" "${'$'}root/runtime"
+            fi
             rm -rf "${'$'}root/runtime.new"
             mkdir -p "${'$'}root/runtime.new" "${'$'}root/state"
             cp -af ${quote("$extracted/.")} "${'$'}root/runtime.new/"
             for required in service.sh worker.sh hideapps.dex version payload.id; do
                 [ -s "${'$'}root/runtime.new/${'$'}required" ] || exit 1
             done
-            printf '%s\n' ${quote(payloadId)} > "${'$'}root/runtime.new/payload.id"
+            [ "${'$'}(cat "${'$'}root/runtime.new/payload.id")" = ${quote(payloadId)} ] || exit 1
             chmod -R 700 "${'$'}root/runtime.new"
             chcon -R u:object_r:system_file:s0 "${'$'}root/runtime.new" 2>/dev/null || true
             for library in "${'$'}root/runtime.new/tee/"*"/libTEESimulator.so"; do
@@ -29,10 +33,8 @@ internal object UdongeRuntimeCommands {
             worker_stop_legacy_hunters
             rm -rf "${'$'}root/runtime.old"
             if [ -d "${'$'}root/runtime" ]; then mv "${'$'}root/runtime" "${'$'}root/runtime.old"; fi
-            if ! mv "${'$'}root/runtime.new" "${'$'}root/runtime"; then
-                if [ -d "${'$'}root/runtime.old" ]; then mv "${'$'}root/runtime.old" "${'$'}root/runtime"; fi
-                exit 1
-            fi
+            mv "${'$'}root/runtime.new" "${'$'}root/runtime"
+            rm -rf "${'$'}root/runtime.old"
         )
     """.trimIndent()
 
