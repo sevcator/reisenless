@@ -15,7 +15,12 @@ install, and reboot. Keep the same private identity seed, repository namespace,
 and signing key between releases so Android updates the existing package and
 the root installation reuses its paths. User settings, modules, and boot recovery
 backups are retained; replaced runtime payloads and installation staging are
-removed after a successful upgrade.
+removed after a successful upgrade. After the new root completes boot, migrated
+Magisk and explicitly configured previous private installations are cleaned up.
+Obsolete Magisk manager APKs are also removed after boot; opening the manager
+retries failed APK removals. Conflicting user files are retained under the current
+private directory's `.upgrade-preserved`; stock boot backups keep their recovery
+copies.
 
 ## Build
 

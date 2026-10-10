@@ -1,10 +1,11 @@
 use crate::consts::{
-    APP_PACKAGE_NAME, BBPATH, BIN32_DATABIN_NAME, BUILD_BUSYBOX_NAME, DATABIN,
-    MAIN_BIN_NAME, MAIN_BIN_NAME_32, MODULEROOT, POLICY_BIN_NAME, POLICY_DATABIN_NAME, SECURE_DIR,
+    APP_PACKAGE_NAME, BBPATH, BIN32_DATABIN_NAME, BUILD_BUSYBOX_NAME, DATABIN, MAGISK_VER_CODE,
+    MAGISK_VERSION, MAIN_BIN_NAME, MAIN_BIN_NAME_32, MODULEROOT, POLICY_BIN_NAME,
+    POLICY_DATABIN_NAME, SECURE_DIR,
 };
 use crate::daemon::MagiskD;
 use crate::ffi::{
-    DbEntryKey, RequestCode, check_key_combo, exec_common_scripts, exec_module_scripts,
+    DbEntryKey, DbValues, RequestCode, check_key_combo, exec_common_scripts, exec_module_scripts,
     get_magisk_tmp, initialize_denylist,
 };
 use crate::module::disable_modules;
@@ -47,19 +48,15 @@ impl MagiskD {
             .append_path(APP_PACKAGE_NAME)
             .append_path("install");
 
-        let alt_bin_dirs = &[
-            cstr!("/cache/data_adb/magisk"),
-            cstr!("/data/magisk"),
-            app_bin_dir,
-        ];
-        for dir in alt_bin_dirs {
-            if dir.exists() {
-                cstr!(DATABIN).remove_all().ok();
-                dir.copy_to(cstr!(DATABIN)).ok();
-                dir.remove_all().ok();
+        let busybox = cstr!(concatcp!(DATABIN, "/", BUILD_BUSYBOX_NAME));
+        if !busybox.exists() && app_bin_dir.exists() {
+            if app_bin_dir.copy_to(cstr!(DATABIN)).is_err() {
+                return false;
+            }
+            if busybox.exists() {
+                app_bin_dir.remove_all().log_ok();
             }
         }
-        cstr!("/cache/data_adb").remove_all().ok();
 
         cstr!(SECURE_DIR).follow_link().chmod(0o700).log_ok();
         cstr!(DATABIN).mkdir(0o755).log_ok();
@@ -72,7 +69,6 @@ impl MagiskD {
             .log_ok();
         restorecon();
 
-        let busybox = cstr!(concatcp!(DATABIN, "/", BUILD_BUSYBOX_NAME));
         if !busybox.exists() {
             return false;
         }
@@ -95,7 +91,9 @@ impl MagiskD {
 
         let bin32 = cstr!(concatcp!(DATABIN, "/", BIN32_DATABIN_NAME));
         if bin32.exists() {
-            let tmp = buf.append_path(get_magisk_tmp()).append_path(MAIN_BIN_NAME_32);
+            let tmp = buf
+                .append_path(get_magisk_tmp())
+                .append_path(MAIN_BIN_NAME_32);
             bin32.copy_to(tmp).log_ok();
         }
         let mpol = cstr!(concatcp!(DATABIN, "/", POLICY_DATABIN_NAME));
@@ -117,7 +115,6 @@ impl MagiskD {
     }
 
     fn post_fs_data(&self) -> bool {
-
         info!("** post-fs-data mode running");
 
         self.preserve_stub_apk();
@@ -172,8 +169,10 @@ impl MagiskD {
         self.zygisk_enabled
             .store(features.zygisk, Ordering::Release);
 
-        self.zygote_injection_enabled
-            .store(features.zygisk || crate::udonge::transport_enabled(), Ordering::Release);
+        self.zygote_injection_enabled.store(
+            features.zygisk || crate::udonge::transport_enabled(),
+            Ordering::Release,
+        );
         initialize_denylist(features.sulist);
         self.handle_modules();
         clean_mounts();
@@ -182,7 +181,6 @@ impl MagiskD {
     }
 
     fn late_start(&self) {
-
         info!("** late_start service mode running");
 
         exec_common_scripts(cstr!("service"));
@@ -197,7 +195,6 @@ impl MagiskD {
     }
 
     fn boot_complete(&self) {
-
         info!("** boot-complete triggered");
 
         self.set_db_setting(DbEntryKey::BootloopCount, 0).log_ok();
@@ -214,8 +211,48 @@ impl MagiskD {
         }
     }
 
-    pub fn boot_stage_handler(&self, client: UnixStream, code: RequestCode) {
+    fn cleanup_upgrade(&self) {
+        let mut valid = false;
+        let mut rows = 0;
+        let mut check = |_: &[String], values: &DbValues| {
+            valid = values.get_text(0) == "ok";
+            rows += 1;
+        };
+        if self.db_exec_with_rows("PRAGMA quick_check;", &[], &mut check) != 0
+            || !valid
+            || rows != 1
+        {
+            error!("* Obsolete root cleanup deferred: database check failed");
+            return;
+        }
+        let result = Command::new(concatcp!(DATABIN, "/", BUILD_BUSYBOX_NAME))
+            .arg0("busybox")
+            .args([
+                "sh",
+                "-c",
+                ". \"$1/app_functions.sh\" && . \"$1/util_functions.sh\" && \
+                 [ \"$MAGISK_VER\" = \"$2\" ] && [ \"$MAGISK_VER_CODE\" = \"$3\" ] && \
+                 cleanup_upgrade \"$2\" \"$4\" \"$3\"",
+                "upgrade-cleanup",
+                DATABIN,
+                MAGISK_VERSION,
+                &MAGISK_VER_CODE.to_string(),
+                APP_PACKAGE_NAME,
+            ])
+            .env("ASH_STANDALONE", "1")
+            .env("ROOT_TMP", get_magisk_tmp().as_str())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .log();
+        if result.is_ok_and(|status| status.success()) {
+            info!("* Obsolete root installation cleanup complete");
+        } else {
+            error!("* Obsolete root installation cleanup deferred");
+        }
+    }
 
+    pub fn boot_stage_handler(&self, client: UnixStream, code: RequestCode) {
         let mut state = self.boot_stage_lock.lock();
 
         match code {
@@ -239,7 +276,10 @@ impl MagiskD {
                 drop(client);
                 if state.contains(BootState::PostFsDataDone) {
                     state.insert(BootState::BootComplete);
-                    self.boot_complete()
+                    self.boot_complete();
+                    if !state.contains(BootState::SafeMode) {
+                        self.cleanup_upgrade();
+                    }
                 }
             }
             _ => {}
@@ -263,14 +303,11 @@ fn check_data() -> bool {
         let crypto = get_prop(cstr!("ro.crypto.state"));
         return if !crypto.is_empty() {
             if crypto != "encrypted" {
-
                 true
             } else {
-
                 !get_prop(cstr!("init.svc.vold")).is_empty()
             }
         } else {
-
             true
         };
     }

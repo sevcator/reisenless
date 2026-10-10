@@ -1,11 +1,14 @@
 package com.topjohnwu.magisk.core.utils
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
+import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.superuser.Shell
 import java.io.File
+import java.util.zip.ZipFile
 
 class ShellInit : Shell.Initializer() {
     override fun onInit(context: Context, shell: Shell): Boolean {
@@ -68,8 +71,12 @@ class ShellInit : Shell.Initializer() {
     }
 
     private fun cleanupObsoleteManagers(context: Context, shell: Shell) {
-        if (cleanedUpObsoleteManagers) return
-        cleanedUpObsoleteManagers = true
+        if (cleanedUpObsoleteManagers || !Info.env.isCurrentBuild) return
+        val completed = shell.newJob().add(
+            "[ \"\$(sed -n '1p' '${Const.SECURE_DIR}/.upgrade-cleanup.complete')\" = '${BuildConfig.APP_VERSION_NAME}' ] && " +
+                "[ \"\$(sed -n '2p' '${Const.SECURE_DIR}/.upgrade-cleanup.complete')\" = \"\$(cat /proc/sys/kernel/random/boot_id)\" ]"
+        ).exec().isSuccess
+        if (!completed) return
         runCatching {
             val pm = context.packageManager
             val currentPkg = context.packageName
@@ -81,11 +88,14 @@ class ShellInit : Shell.Initializer() {
                 currentInfo.versionCode.toLong()
             }
             val currentInstallTime = currentInfo.firstInstallTime
+            var success = true
 
             val installed = pm.getInstalledApplications(0)
             for (app in installed) {
                 val pkg = app.packageName
-                if (pkg != currentPkg && pm.checkSignatures(currentPkg, pkg) == android.content.pm.PackageManager.SIGNATURE_MATCH) {
+                if (pkg != currentPkg && app.uid != context.applicationInfo.uid &&
+                    pkg.matches(Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")) &&
+                    isMagiskManager(app)) {
                     val otherInfo = runCatching { pm.getPackageInfo(pkg, 0) }.getOrNull() ?: continue
                     val otherVersionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                         otherInfo.longVersionCode
@@ -99,11 +109,25 @@ class ShellInit : Shell.Initializer() {
                         (otherVersionCode == currentVersionCode && otherInstallTime < currentInstallTime)
 
                     if (isObsolete) {
-                        shell.newJob().add("pm uninstall '$pkg'").exec()
+                        val result = shell.newJob().add("pm uninstall '$pkg'").exec()
+                        success = result.isSuccess && result.out.any { it.trim() == "Success" } && success
                     }
                 }
             }
+            cleanedUpObsoleteManagers = success
         }
     }
+
+    private fun isMagiskManager(app: ApplicationInfo): Boolean = runCatching {
+        ZipFile(app.sourceDir).use { archive ->
+            val util = archive.getEntry("assets/util_functions.sh") ?: return false
+            val patch = archive.getEntry("assets/boot_patch.sh") ?: return false
+            if (util.size !in 1..262144 || patch.size !in 1..262144) return false
+            val functions = archive.getInputStream(util).bufferedReader().use { it.readText() }
+            val patcher = archive.getInputStream(patch).bufferedReader().use { it.readText() }
+            functions.lineSequence().any { it.matches(Regex("MAGISK_VER_CODE=[0-9]+")) } &&
+                patcher.contains("ramdisk.cpio")
+        }
+    }.getOrDefault(false)
 
 }
