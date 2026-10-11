@@ -66,6 +66,11 @@ Release validation checks the APK signer, embedded trust anchor, native
 authorization parser, packaged payload and generated identities. The workflow
 also runs Android lint and Rust Clippy.
 
+Actions builds compact ARM64 releases by default, retaining the ARM32 daemon
+for 32-bit apps. Modern and legacy APKs are separate downloads. Select
+`universal` when manually running the workflow to include ARM32 and x86 tools.
+The default APKs are checked against a 12 MiB size limit.
+
 Builds write local artifacts under `out/`. Device installation is a separate,
 explicit action. Removed source comments are archived with their original
 locations in [`docs/COMMENTARIES.txt`](docs/COMMENTARIES.txt). External submodules

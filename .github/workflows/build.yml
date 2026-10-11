@@ -18,6 +18,14 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      architecture:
+        description: CPU architectures to package
+        type: choice
+        default: arm64
+        options:
+          - arm64
+          - universal
 
 permissions:
   contents: read
@@ -39,6 +47,30 @@ jobs:
 
       - name: Set up toolchain
         uses: ./.github/actions/setup
+
+      - name: Configure release architectures
+        env:
+          RELEASE_ARCHITECTURE: ${{ inputs.architecture || 'arm64' }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          profiles = {
+              "arm64": ("armeabi-v7a,arm64-v8a", "arm64-v8a"),
+              "universal": (
+                  "armeabi-v7a,arm64-v8a,x86,x86_64",
+                  "armeabi-v7a,arm64-v8a,x86,x86_64",
+              ),
+          }
+          profile = os.environ["RELEASE_ARCHITECTURE"]
+          abis, tools = profiles[profile]
+          Path("config.prop").write_text(
+              f"abiList={abis}\ntoolAbiList={tools}\n", encoding="utf-8"
+          )
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              output.write(f"RELEASE_ARCHITECTURE={profile}\n")
+          PY
 
       - name: Build project
         id: release_build
@@ -78,14 +110,60 @@ jobs:
           test -s out/apk-legacy-release.apk
           unzip -tq "out/$MANAGER_APK"
           unzip -tq out/apk-legacy-release.apk
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from zipfile import ZipFile
 
-      - name: Upload APKs
+          profile = os.environ["RELEASE_ARCHITECTURE"]
+          expected_abis = {"armeabi-v7a", "arm64-v8a"}
+          if profile == "universal":
+              expected_abis.update({"x86", "x86_64"})
+          identity = json.loads(
+              Path("native/out/generated/flags.json").read_text(encoding="utf-8")
+          )["identity"]
+          rows = []
+          for label, name in (
+              ("Modern release", os.environ["MANAGER_APK"]),
+              ("Legacy release", "apk-legacy-release.apk"),
+          ):
+              apk = Path("out", name)
+              with ZipFile(apk) as archive:
+                  libs = {n for n in archive.namelist() if n.startswith("lib/")}
+                  actual_abis = {n.split("/")[1] for n in libs}
+                  if actual_abis != expected_abis:
+                      raise SystemExit(f"Unexpected APK architectures: {actual_abis}")
+                  if profile == "arm64":
+                      arm32_libs = {n for n in libs if n.startswith("lib/armeabi-v7a/")}
+                      expected_arm32 = {
+                          f"lib/armeabi-v7a/lib{identity['mainLibName']}.so"
+                      }
+                      if arm32_libs != expected_arm32:
+                          raise SystemExit("ARM64 release contains unnecessary ARM32 tools")
+                      if apk.stat().st_size > 12 * 1024 * 1024:
+                          raise SystemExit(f"ARM64 release exceeds 12 MiB: {name}")
+              size = apk.stat().st_size / 1024 / 1024
+              print(f"{label}: {name} ({size:.2f} MiB, {profile})")
+              rows.append(f"| {label} | {profile} | {size:.2f} MiB |")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("| APK | Architecture | Size |\n| --- | --- | --- |\n")
+              summary.write("\n".join(rows) + "\n")
+          PY
+
+      - name: Upload modern release APK
         uses: actions/upload-artifact@v6
         with:
-          name: private-manager-${{ github.sha }}
-          path: |
-            out/${{ env.MANAGER_APK }}
-            out/apk-legacy-release.apk
+          name: reisenless-release-${{ env.RELEASE_ARCHITECTURE }}-${{ github.sha }}
+          path: out/${{ env.MANAGER_APK }}
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload legacy release APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: reisenless-legacy-release-${{ env.RELEASE_ARCHITECTURE }}-${{ github.sha }}
+          path: out/apk-legacy-release.apk
           if-no-files-found: error
           compression-level: 0
 
