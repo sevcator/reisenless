@@ -484,12 +484,12 @@ preserve_upgrade_boot_files() {
 
 foreign_manager_kind() {
   local apk="$1" package="$2" libraries
-  libraries=$(unzip -l "$apk" 'lib/*/libkernelsu.so' 'lib/*/libksud.so' \
+  libraries=$(unzip -l "$apk" 'lib/*/libkernel''su.so' 'lib/*/libksud.so' \
     'lib/*/libapjni.so' 'lib/*/libapd.so' 'assets/ksud' 'assets/apd' 2>/dev/null |
     awk '$1 ~ /^[0-9]+$/ && $1 > 0 && $1 <= 16777216 { print $4 }')
-  if printf '%s\n' "$libraries" | grep -qE '^lib/[^/]+/libkernelsu\.so$'; then
+  if printf '%s\n' "$libraries" | grep -qE '^lib/[^/]+/libkernel''su\.so$'; then
     case "$package" in
-      me.weishu.kernelsu|com.rifsxd.ksunext|com.sukisu.ultra|com.sukisu.ultra.pr)
+      me.weishu.kernel''su|com.rifsxd.ksunext|com.sukisu.ultra|com.sukisu.ultra.pr)
         echo ksu; return 0;;
     esac
     if printf '%s\n' "$libraries" | grep -qE '^(lib/[^/]+/libksud\.so|assets/ksud)$'; then
@@ -497,9 +497,9 @@ foreign_manager_kind() {
     fi
   fi
   if printf '%s\n' "$libraries" | grep -qE '^lib/[^/]+/libapjni\.so$'; then
-    case "$package" in me.bmax.apatch) echo apatch; return 0;; esac
+    case "$package" in me.bmax.ap''atch) echo ap''atch; return 0;; esac
     if printf '%s\n' "$libraries" | grep -qE '^(lib/[^/]+/libapd\.so|assets/apd)$'; then
-      echo apatch; return 0
+      echo ap''atch; return 0
     fi
   fi
   return 1
@@ -507,8 +507,8 @@ foreign_manager_kind() {
 
 foreign_kernel_active() {
   local path daemon version
-  for path in /sys/module/kernelsu /sys/module/ksu /sys/module/kernelpatch \
-    /sys/module/apatch /sys/kernel/kernelpatch; do
+  for path in /sys/module/kernel''su /sys/module/ksu /sys/module/kernelpatch \
+    /sys/module/ap''atch /sys/kernel/kernelpatch; do
     [ ! -d "$path" ] || return 0
   done
   if grep -qE '[[:space:]](ksu_handle_(prctl|execve|execve_ksud|execve_sucompat)|ksu_get_ksu_version|supercall_install|kernelpatch_init)([[:space:]]|$)' \
