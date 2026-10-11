@@ -10,14 +10,11 @@ import android.widget.Toast
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.topjohnwu.magisk.core.Const
-import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
-
-
 internal class WebViewInterface(
     private val context: Context,
     private val webView: WebView,
@@ -105,9 +102,6 @@ internal class WebViewInterface(
     }
 
     private fun runCommand(command: String, timeoutSeconds: Int? = 5): CommandResult {
-
-
-
         val commandLine = timeoutSeconds?.let { "timeout $it sh -c ${shellQuote(command)}" } ?: command
         val result = commands.run(commandLine) ?: return CommandResult(130, "", "")
         return CommandResult(

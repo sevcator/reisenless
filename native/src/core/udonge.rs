@@ -250,7 +250,7 @@ pub fn setup_runtime(run_optional_features: bool) {
 
     if runtime_complete(UDONGE_RUNTIME) {
         ensure_core_hide_config();
-        for script in ["post-fs-data.sh", "service.sh", "stop.sh"] {
+        for script in ["post-fs-data.sh", "service.sh", "stop.sh", "keybox_heal.sh"] {
             cstr::buf::default()
                 .join_path(UDONGE_RUNTIME)
                 .join_path(script)

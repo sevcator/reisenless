@@ -813,7 +813,7 @@ refresh_udonge_runtime() {
   local next=$root/runtime.new
   local old=$root/runtime.old
   local archive=$MAGISKBIN/$UDONGE_ARCHIVE
-  local version required
+  local version required file
 
   [ -f "$archive" ] || {
     ui_print "! protection payload is missing"
@@ -837,7 +837,7 @@ refresh_udonge_runtime() {
     return 1
   }
 
-  required="version hideapps.dex post-fs-data.sh service.sh stop.sh defaults/keybox.xml defaults/keybox_urls.conf defaults/pif.conf defaults/props.conf defaults/targets.conf"
+  required="payload.id version hideapps.dex post-fs-data.sh service.sh stop.sh keybox_heal.sh worker.sh defaults/keybox.xml defaults/keybox_urls.conf defaults/pif.conf defaults/props.conf defaults/targets.conf"
   case "$ARCH" in
     arm64)
       required="$required zygisk/arm64-v8a.so tee/arm64-v8a/inject tee/arm64-v8a/libTEESimulator.so tee/arm64-v8a/libcertgen.so tee/arm64-v8a/supervisor tee/classes.dex tee/daemon"
@@ -864,6 +864,13 @@ refresh_udonge_runtime() {
     rm -rf "$next"
     return 1
   }
+  if ! chmod -R 600 "$next" ||
+      ! find "$next" -type d -exec chmod 700 {} + ||
+      ! chmod 700 "$next/post-fs-data.sh" "$next/service.sh" "$next/stop.sh" "$next/keybox_heal.sh"; then
+    ui_print "! protection payload permissions failed"
+    rm -rf "$next"
+    return 1
+  fi
 
   mkdir -p "$root" || return 1
   rm -rf "$old"
@@ -873,9 +880,6 @@ refresh_udonge_runtime() {
   }
   if mv "$next" "$runtime"; then
     rm -rf "$old"
-    chmod -R 600 "$runtime"
-    find "$runtime" -type d -exec chmod 700 {} \;
-    chmod 700 "$runtime/post-fs-data.sh" "$runtime/service.sh" "$runtime/stop.sh"
     return 0
   fi
   [ -d "$runtime" ] || [ ! -d "$old" ] || mv "$old" "$runtime"
@@ -945,26 +949,31 @@ restore_imgs() {
   flash_image $BACKUPDIR/boot.img.gz $1
 }
 
-post_ota() {
-  cd /data/adb
-  cp -f $MAGISKBIN/bootctl bootctl
-  rm -f $MAGISKBIN/bootctl
-  chmod 755 bootctl
-  if ! ./bootctl hal-info; then
-    rm -f bootctl
-    return
-  fi
-  SLOT_NUM=0
-  [ $(./bootctl get-current-slot) -eq 0 ] && SLOT_NUM=1
-  ./bootctl set-active-boot-slot $SLOT_NUM
-  cat << EOF > post-fs-data.d/post_ota.sh
-${SECURE_DIR}/bootctl mark-boot-successful
-rm -f ${SECURE_DIR}/bootctl
-rm -f ${SECURE_DIR}/post-fs-data.d/post_ota.sh
+post_ota() (
+  local bootctl="$SECURE_DIR/bootctl"
+  local hook="$SECURE_DIR/post-fs-data.d/post_ota.sh"
+  local next="$hook.new" slot
+  trap 'status=$?; if [ "$status" -ne 0 ]; then rm -f "$bootctl" "$hook" "$next"; fi; exit "$status"' EXIT
+  [ -x "$MAGISKBIN/bootctl" ] || return 1
+  mkdir -p "$SECURE_DIR/post-fs-data.d" || return 1
+  cp -f "$MAGISKBIN/bootctl" "$bootctl" || return 1
+  chmod 700 "$bootctl" || return 1
+  "$bootctl" hal-info || return 1
+  slot=$("$bootctl" get-current-slot) || return 1
+  case "$slot" in
+    0) slot=1 ;;
+    1) slot=0 ;;
+    *) return 1 ;;
+  esac
+  cat << EOF > "$next" || return 1
+"$bootctl" mark-boot-successful || exit 1
+rm -f "$bootctl" "$hook"
 EOF
-  chmod 755 post-fs-data.d/post_ota.sh
-  cd /
-}
+  chmod 700 "$next" && mv -f "$next" "$hook" || return 1
+  "$bootctl" set-active-boot-slot "$slot" || return 1
+  rm -f "$MAGISKBIN/bootctl"
+  return 0
+)
 
 adb_pm_install() {
   local tmp=/data/local/tmp/temp.apk
@@ -1023,14 +1032,11 @@ printvar() {
   eval echo $1=\$$1
 }
 
-run_action() {
+run_action() (
   local MODID="$1"
-  cd "${SECURE_DIR}/modules/$MODID"
+  cd "${SECURE_DIR}/modules/$MODID" || return 1
   sh ./action.sh
-  local RES=$?
-  cd /
-  return $RES
-}
+)
 
 mount_partitions() {
   [ "$(getprop ro.build.ab_update)" = "true" ] && SLOT=$(getprop ro.boot.slot_suffix)

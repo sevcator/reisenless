@@ -3,25 +3,35 @@ package com.topjohnwu.magisk.ui.webui
 import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.superuser.Shell
 import java.io.File
+import java.util.concurrent.CancellationException
 
 internal class WebCommandSession {
     private val owners = mutableSetOf<File>()
     private var closed = false
 
-    fun run(command: String): Shell.Result? {
-        val owner = synchronized(owners) {
-            if (closed) return null
-            File.createTempFile("webui-command-", ".owner", AppContext.cacheDir).also { owners.add(it) }
-        }
+    data class Result(val code: Int, val out: List<String>, val err: List<String>)
+
+    fun run(command: String): Result? {
         try {
-            val body = OwnedCommandBuilder.body(command, owner.path)
-            return Shell.cmd("setsid sh -c ${WebUiCommandBuilder.shellQuote(body)}").exec()
-        } finally {
-            synchronized(owners) {
-                owners.remove(owner)
-                owner.delete()
-                File(owner.path + ".cancel").delete()
+            val owner = synchronized(owners) {
+                if (closed) return null
+                File.createTempFile("webui-command-", ".owner", AppContext.cacheDir).also { owners.add(it) }
             }
+            try {
+                val body = OwnedCommandBuilder.body(command, owner.path)
+                val result = Shell.cmd("setsid sh -c ${WebUiCommandBuilder.shellQuote(body)}").exec()
+                return Result(result.code, result.out, result.err)
+            } finally {
+                synchronized(owners) {
+                    owners.remove(owner)
+                    owner.delete()
+                    File(owner.path + ".cancel").delete()
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return Result(1, emptyList(), listOf("Unable to execute module command"))
         }
     }
 
@@ -31,7 +41,10 @@ internal class WebCommandSession {
             for (owner in pending) {
                 val cancel = synchronized(owners) {
                     if (owner !in owners) false
-                    else { File(owner.path + ".cancel").writeText(""); true }
+                    else {
+                        runCatching { File(owner.path + ".cancel").writeText("") }
+                        true
+                    }
                 }
                 if (!cancel) continue
 

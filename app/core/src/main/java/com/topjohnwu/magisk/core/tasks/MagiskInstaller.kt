@@ -563,7 +563,10 @@ abstract class MagiskInstallImpl protected constructor(
     private fun flashBoot() = "direct_install $installDir $srcBoot".sh().isSuccess
 
     private fun postOTA(): Boolean {
-        "post_ota".sh()
+        if (!"post_ota".sh().isSuccess) {
+            console.add("! unable to prepare post-OTA boot")
+            return false
+        }
         console.add("*************************************************************")
         console.add(" next reboot will boot to second slot!")
         console.add(" go back to system updates and press restart to complete ota")

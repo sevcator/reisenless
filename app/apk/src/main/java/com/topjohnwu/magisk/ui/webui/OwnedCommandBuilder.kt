@@ -3,12 +3,12 @@ package com.topjohnwu.magisk.ui.webui
 internal object OwnedCommandBuilder {
     fun body(command: String, owner: String): String = """
         record=${WebUiCommandBuilder.shellQuote(owner)}
-        [ ! -f "${'$'}record.cancel" ] || exit 130
+        [ -f "${'$'}record" ] && [ ! -e "${'$'}record.cancel" ] || exit 130
         start=${'$'}(awk '{sub(/^.*\) /, ""); print ${'$'}20}' /proc/${'$'}${'$'}/stat)
         boot=${'$'}(cat /proc/sys/kernel/random/boot_id)
-        printf '%s %s %s\n' "${'$'}${'$'}" "${'$'}start" "${'$'}boot" > "${'$'}record"
+        printf '%s %s %s\n' "${'$'}${'$'}" "${'$'}start" "${'$'}boot" > "${'$'}record" || exit 1
         trap 'rm -f "${'$'}record" "${'$'}record.cancel"' EXIT
-        [ ! -f "${'$'}record.cancel" ] || exit 130
+        [ ! -e "${'$'}record.cancel" ] || exit 130
         sh -c ${WebUiCommandBuilder.shellQuote(command)}
     """.trimIndent()
 
