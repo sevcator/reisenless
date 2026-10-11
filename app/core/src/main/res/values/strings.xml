@@ -246,6 +246,8 @@
     <string name="webui_webview_required" tools:ignore="MissingTranslation">android system webview required</string>
     <string name="webui_webview_required_summary" tools:ignore="MissingTranslation">this device does not have a usable android webview provider. install or enable android system webview, then try again.</string>
     <string name="webui_install_webview" tools:ignore="MissingTranslation">install webview</string>
+    <string name="webui_renderer_stopped" tools:ignore="MissingTranslation">module web interface stopped. open it again to retry.</string>
+    <string name="webui_no_browser" tools:ignore="MissingTranslation">no app store or browser is available. install or enable android system webview in device settings.</string>
 
     <string name="modules">modules</string>
     <string name="superuser">superuser</string>

@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -27,7 +28,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class WebUIActivity : ComponentActivity() {
-    private lateinit var webView: WebView
+    private var webView: WebView? = null
     private var bridge: WebViewInterface? = null
     private val preparation = WebCommandSession()
 
@@ -47,7 +48,9 @@ class WebUIActivity : ComponentActivity() {
         setContentView(progress)
 
         try {
-            webView = WebView(this).apply {
+            val view = WebView(this)
+            webView = view
+            view.apply {
                 settings.userAgentString = WebUiUserAgent.normalize(settings.userAgentString)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
@@ -57,13 +60,15 @@ class WebUIActivity : ComponentActivity() {
                 settings.setSupportZoom(false)
             }
         } catch (_: Throwable) {
+            releaseWebView()
             showWebViewUnavailable()
             return
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
+                val view = webView
+                if (view?.canGoBack() == true) view.goBack() else finish()
             }
         })
 
@@ -86,6 +91,7 @@ class WebUIActivity : ComponentActivity() {
     }
 
     private fun setupWebView(moduleId: String, moduleName: String, webRoot: File) {
+        val webView = webView ?: return
         val loader = WebViewAssetLoader.Builder()
             .setDomain(WEB_DOMAIN)
             .addPathHandler("/", RootFsPathHandler(webRoot))
@@ -93,6 +99,15 @@ class WebUIActivity : ComponentActivity() {
 
         val bridge = WebViewInterface(this, webView, moduleId, moduleName, lifecycleScope).also { bridge = it }
         webView.webViewClient = object : WebViewClient() {
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                if (this@WebUIActivity.webView === view) {
+                    releaseWebView()
+                    toast(CoreR.string.webui_renderer_stopped, Toast.LENGTH_LONG)
+                    finish()
+                }
+                return true
+            }
+
             override fun shouldInterceptRequest(
                 view: WebView,
                 request: WebResourceRequest,
@@ -106,12 +121,8 @@ class WebUIActivity : ComponentActivity() {
                     )
                 ) return false
                 if (request.url.scheme != "http" && request.url.scheme != "https") return true
-                return try {
-                    startActivity(externalViewIntent(request.url))
-                    true
-                } catch (_: ActivityNotFoundException) {
-                    true
-                }
+                openExternal(request.url)
+                return true
             }
         }
         webView.addJavascriptInterface(bridge, "ksu")
@@ -143,13 +154,10 @@ class WebUIActivity : ComponentActivity() {
             .setMessage(CoreR.string.webui_webview_required_summary)
             .setNegativeButton(android.R.string.cancel) { _, _ -> finish() }
             .setPositiveButton(CoreR.string.webui_install_webview) { _, _ ->
-                val market = externalViewIntent(
-                    "market://details?id=com.google.android.webview".toUri()
-                )
-                val browser = externalViewIntent(
-                    "https://play.google.com/store/apps/details?id=com.google.android.webview".toUri()
-                )
-                try { startActivity(market) } catch (_: ActivityNotFoundException) { startActivity(browser) }
+                if (!openExternal("market://details?id=com.google.android.webview".toUri()) &&
+                    !openExternal("https://play.google.com/store/apps/details?id=com.google.android.webview".toUri())) {
+                    toast(CoreR.string.webui_no_browser, Toast.LENGTH_LONG)
+                }
             }
             .setOnDismissListener { if (isFinishing.not()) finish() }
             .show()
@@ -159,18 +167,30 @@ class WebUIActivity : ComponentActivity() {
         addCategory(Intent.CATEGORY_BROWSABLE)
     }
 
-    override fun onPause() { if (::webView.isInitialized) webView.onPause(); super.onPause() }
-    override fun onResume() { super.onResume(); if (::webView.isInitialized) webView.onResume() }
+    private fun openExternal(uri: Uri): Boolean = try {
+        startActivity(externalViewIntent(uri))
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    } catch (_: SecurityException) {
+        false
+    }
+
+    private fun releaseWebView() {
+        bridge?.close()
+        bridge = null
+        val view = webView ?: return
+        webView = null
+        (view.parent as? android.view.ViewGroup)?.removeView(view)
+        view.destroy()
+    }
+
+    override fun onPause() { webView?.onPause(); super.onPause() }
+    override fun onResume() { super.onResume(); webView?.onResume() }
 
     override fun onDestroy() {
-        bridge?.close()
         preparation.close()
-        if (::webView.isInitialized) {
-            webView.removeJavascriptInterface("ksu")
-            webView.stopLoading()
-            (webView.parent as? android.view.ViewGroup)?.removeView(webView)
-            webView.destroy()
-        }
+        releaseWebView()
         super.onDestroy()
     }
 
