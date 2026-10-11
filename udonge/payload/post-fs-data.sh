@@ -5,6 +5,7 @@ root=/data/adb/udonge
 [ -d "$root" ] || root="$(cd "$(dirname "$0")/.." && pwd)"
 runtime=$root/runtime
 state=$root/state
+. "$runtime/worker.sh" || exit 1
 
 [ -f "$state/enabled" ] && [ ! -f "$state/disabled" ] &&
     [ ! -f "$state/pending-reboot" ] || exit 0
@@ -144,20 +145,20 @@ normalize_boot_properties() {
     digest="$(sed -n 's/^ro\.boot\.vbmeta\.digest=//p' "$state/props.conf" 2>/dev/null | tail -n 1)"
     [ "${#digest}" = 64 ] && $RP -n ro.boot.vbmeta.digest "$digest"
 
-    patch="$(sed -n 's/^SECURITY_PATCH=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+    patch="$(read_profile_value SECURITY_PATCH)"
     if [ -n "$patch" ]; then
         $RP -n ro.build.version.security_patch "$patch"
         $RP -n ro.vendor.build.security_patch "$patch"
     fi
 
     if [ -f "$state/pif.conf" ]; then
-        brand="$(sed -n 's/^BRAND=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        model="$(sed -n 's/^MODEL=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        device="$(sed -n 's/^DEVICE=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        manufacturer="$(sed -n 's/^MANUFACTURER=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        product="$(sed -n 's/^PRODUCT=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        fingerprint="$(sed -n 's/^FINGERPRINT=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        id="$(sed -n 's/^ID=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+        brand="$(read_profile_value BRAND)"
+        model="$(read_profile_value MODEL)"
+        device="$(read_profile_value DEVICE)"
+        manufacturer="$(read_profile_value MANUFACTURER)"
+        product="$(read_profile_value PRODUCT)"
+        fingerprint="$(read_profile_value FINGERPRINT)"
+        id="$(read_profile_value ID)"
 
         for prefix in ro.product \
                       ro.product.bootimage \

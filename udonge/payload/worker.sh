@@ -1,5 +1,19 @@
 #!/system/bin/sh
 
+read_profile_value() {
+    LC_ALL=C tr -d '\000' < "$state/pif.conf" 2>/dev/null |
+        LC_ALL=C awk -v key="$1" '
+        index($0, key "=") == 1 {
+            value = substr($0, length(key) + 2)
+            gsub(/[[:cntrl:]]/, "", value)
+            sub(/^[[:space:]]+/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            print value
+            exit
+        }
+    '
+}
+
 worker_current_pid() {
 
     local rest

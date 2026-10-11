@@ -9,7 +9,6 @@ state=$root/state
     [ ! -f "$state/pending-reboot" ] || exit 0
 tee_state=$state
 legacy_tee_state=$root/tee-state
-lock=$root/.service-lock
 work=$root/keybox-check
 boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
 . "$runtime/worker.sh" || exit 1
@@ -280,7 +279,7 @@ start_tee() {
     printf 'force\n' > "$tee_state/boot_props_mode"
     chmod 600 "$tee_state/boot_props_mode"
 
-    patch="$(sed -n 's/^SECURITY_PATCH=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+    patch="$(read_profile_value SECURITY_PATCH)"
     [ -n "$patch" ] || patch="$(getprop ro.build.version.security_patch 2>/dev/null)"
     if [ -z "$patch" ]; then
         c_year=$(date +%Y 2>/dev/null || echo 2026)
@@ -402,20 +401,20 @@ if command -v resetprop >/dev/null 2>&1; then
     done
     $RP -d ro.boot.verifiedbooterror 2>/dev/null || true
     $RP -d ro.boot.verifyerrorpart 2>/dev/null || true
-    patch="$(sed -n 's/^SECURITY_PATCH=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+    patch="$(read_profile_value SECURITY_PATCH)"
     if [ -n "$patch" ]; then
         $RP -n ro.build.version.security_patch "$patch"
         $RP -n ro.vendor.build.security_patch "$patch"
     fi
 
     if [ -f "$state/pif.conf" ]; then
-        brand="$(sed -n 's/^BRAND=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        model="$(sed -n 's/^MODEL=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        device="$(sed -n 's/^DEVICE=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        manufacturer="$(sed -n 's/^MANUFACTURER=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        product="$(sed -n 's/^PRODUCT=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        fingerprint="$(sed -n 's/^FINGERPRINT=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
-        id="$(sed -n 's/^ID=//p' "$state/pif.conf" 2>/dev/null | head -n 1)"
+        brand="$(read_profile_value BRAND)"
+        model="$(read_profile_value MODEL)"
+        device="$(read_profile_value DEVICE)"
+        manufacturer="$(read_profile_value MANUFACTURER)"
+        product="$(read_profile_value PRODUCT)"
+        fingerprint="$(read_profile_value FINGERPRINT)"
+        id="$(read_profile_value ID)"
 
         for prefix in ro.product \
                       ro.product.bootimage \

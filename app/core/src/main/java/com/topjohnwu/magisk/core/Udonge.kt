@@ -167,7 +167,13 @@ object Udonge {
                     tempDir.deleteRecursively()
                 }
                 if (!installed) return@runCatching
+            }
 
+            val targetArchive = "${Const.DATABIN}/${Const.UDONGE_ARCHIVE}"
+            val archivedId = shell.newJob()
+                .add("unzip -p '$targetArchive' payload.id 2>/dev/null")
+                .exec().out.firstOrNull().orEmpty().trim()
+            if (archivedId != targetId) {
                 val tempArchive = java.io.File(context.cacheDir, "udonge.tmp")
                 try {
                     context.assets.open(Const.UDONGE_ARCHIVE).use { input ->
@@ -175,9 +181,13 @@ object Udonge {
                             input.copyTo(output)
                         }
                     }
-                    val targetArchive = "${Const.DATABIN}/${Const.UDONGE_ARCHIVE}"
                     val tempArchiveStr = tempArchive.absolutePath
-                    shell.newJob().add("mkdir -p '${Const.DATABIN}' && cp -f '$tempArchiveStr' '$targetArchive'").exec()
+                    check(shell.newJob().add(
+                        "mkdir -p '${Const.DATABIN}' && " +
+                            "cp -f '$tempArchiveStr' '$targetArchive.new' && " +
+                            "chmod 600 '$targetArchive.new' && " +
+                            "mv -f '$targetArchive.new' '$targetArchive'"
+                    ).exec().isSuccess)
                 } finally {
                     tempArchive.delete()
                 }

@@ -1,5 +1,6 @@
 #include "hooks.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <cstdint>
 #include <cstdarg>
@@ -2017,35 +2018,30 @@ static const HookSpec kPropsHooks[] = {
     {"__system_property_read",          (void *)h_prop_read,    (void **)&o_prop_read},
 };
 
-static size_t mapped_elf_size(const lsplt::MapInfo &map) {
-    if (!(map.perms & PROT_READ) || map.end <= map.start ||
-        map.end - map.start < sizeof(ElfW(Ehdr))) return 0;
-    const auto *header = reinterpret_cast<const ElfW(Ehdr) *>(map.start);
-    if (memcmp(header->e_ident, ELFMAG, SELFMAG) != 0 ||
-        header->e_phentsize != sizeof(ElfW(Phdr)) || header->e_phnum == 0) return 0;
-    const size_t mapped_size = map.end - map.start;
-    const size_t table_size = static_cast<size_t>(header->e_phnum) * sizeof(ElfW(Phdr));
-    if (header->e_phoff > mapped_size || table_size > mapped_size - header->e_phoff) return 0;
-
-    const auto *program_headers = reinterpret_cast<const ElfW(Phdr) *>(
-            map.start + header->e_phoff);
-    size_t file_size = 0;
-    for (size_t i = 0; i < header->e_phnum; ++i) {
-        if (program_headers[i].p_type != PT_LOAD) continue;
-        if (program_headers[i].p_filesz > SIZE_MAX - program_headers[i].p_offset) return 0;
-        const size_t end = program_headers[i].p_offset + program_headers[i].p_filesz;
-        if (end > file_size) file_size = end;
-    }
-    return file_size;
-}
-
-static void install_late_library_hooks() {
-    if (g_profile != HookProfile::Full) return;
-    resolve_linker_entrypoints();
+static void install_late_library_hooks_locked() {
     static std::mutex late_hook_mutex;
     using Image = std::tuple<dev_t, ino_t, uintptr_t, uintptr_t>;
     static std::set<std::tuple<Image, std::string>> seen;
     std::lock_guard<std::mutex> lock(late_hook_mutex);
+    std::map<uintptr_t, size_t> loaded_images;
+    dl_iterate_phdr([](dl_phdr_info *info, size_t, void *data) {
+        if (!info->dlpi_name || !strstr(info->dlpi_name, "/data/app/")) return 0;
+        uintptr_t header = 0;
+        size_t file_size = 0;
+        for (size_t i = 0; i < info->dlpi_phnum; ++i) {
+            const auto &segment = info->dlpi_phdr[i];
+            if (segment.p_type != PT_LOAD) continue;
+            if (segment.p_filesz > SIZE_MAX - segment.p_offset) return 0;
+            file_size = std::max(file_size, static_cast<size_t>(segment.p_offset + segment.p_filesz));
+            if (segment.p_offset == 0 && segment.p_filesz >= sizeof(ElfW(Ehdr))) {
+                header = info->dlpi_addr + segment.p_vaddr;
+            }
+        }
+        if (header && file_size) {
+            static_cast<std::map<uintptr_t, size_t> *>(data)->emplace(header, file_size);
+        }
+        return 0;
+    }, &loaded_images);
     bool registered = false;
     const auto maps = lsplt::MapInfo::Scan();
     std::set<Image> live;
@@ -2054,11 +2050,12 @@ static void install_late_library_hooks() {
     }
     std::erase_if(seen, [&](const auto &entry) { return !live.contains(std::get<0>(entry)); });
     for (const auto &map : maps) {
-        if (!map.is_private || map.inode == 0 || map.path.find("/data/app/") == std::string::npos ||
+        if (!map.is_private || !(map.perms & PROT_READ) || map.inode == 0 ||
+            map.path.find("/data/app/") == std::string::npos ||
             (map.path.find(".apk") == std::string::npos &&
              !str_ends_with(map.path.c_str(), ".so"))) continue;
-        const size_t elf_size = mapped_elf_size(map);
-        if (elf_size == 0) continue;
+        const auto loaded = loaded_images.find(map.start);
+        if (loaded == loaded_images.end()) continue;
         if (map.path.find("duckdetector") != std::string::npos) {
             void *sym = dlsym(RTLD_DEFAULT, "tee_asm_syscall6");
             if (sym) patch_duckdetector_raw_syscall(sym);
@@ -2067,7 +2064,7 @@ static void install_late_library_hooks() {
             Image image{map.dev, map.inode, map.start, map.offset};
             if (!seen.insert({image, hook.sym}).second) continue;
             registered |= lsplt::RegisterHook(
-                    map.dev, map.inode, map.offset, elf_size,
+                    map.dev, map.inode, map.offset, loaded->second,
                     hook.sym, hook.hook, hook.orig);
         }
     }
@@ -2076,6 +2073,15 @@ static void install_late_library_hooks() {
 
         lsplt::InvalidateBackup();
     }
+}
+
+static void install_late_library_hooks() {
+    if (g_profile != HookProfile::Full) return;
+    resolve_linker_entrypoints();
+    dl_iterate_phdr([](dl_phdr_info *, size_t, void *) {
+        install_late_library_hooks_locked();
+        return 1;
+    }, nullptr);
 }
 
 void install_hooks(zygisk::Api *api, const Config *cfg, HookProfile profile) {

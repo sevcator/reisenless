@@ -1347,16 +1347,19 @@ def _udonge_sync_script(identity: dict[str, str]) -> str:
     root = f"{identity['secureDir'].rstrip('/')}/{identity['udongeDir']}"
     bb_name = identity["busyboxName"]
     secure = identity["secureDir"].rstrip("/")
+    archive = f"{secure}/{identity['dataDir']}/{identity['udongeArchive']}"
     file_type = identity["udongeFileType"]
     return f'''#!/system/bin/sh
 set -e
 root={root}
+archive={archive}
+next_archive="$archive.next.$$"
 if [ ! -d "$root/runtime" ] && [ -d "$root/runtime.old" ]; then
     mv "$root/runtime.old" "$root/runtime"
 fi
 [ -d "$root/runtime" ] || {{ echo UDONGE_NOT_INITIALIZED; exit 0; }}
 work=/data/local/tmp/reisenless-unpack
-trap 'status=$?; if [ ! -d "$root/runtime" ] && [ -d "$root/runtime.old" ]; then mv "$root/runtime.old" "$root/runtime" || true; fi; rm -rf "$root/runtime.new" "$work"; rm -f /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh; exit "$status"' EXIT
+trap 'status=$?; if [ ! -d "$root/runtime" ] && [ -d "$root/runtime.old" ]; then mv "$root/runtime.old" "$root/runtime" || true; fi; rm -rf "$root/runtime.new" "$work"; rm -f "$next_archive" /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh; exit "$status"' EXIT
 mkdir -p "$work"
 rm -rf "$root/runtime.new"
 mkdir -p "$root/runtime.new"
@@ -1374,6 +1377,9 @@ done
 for required in service.sh worker.sh hideapps.dex payload.id; do
     [ -s "$root/runtime.new/$required" ] || {{ rm -rf "$root/runtime.new"; exit 1; }}
 done
+mkdir -p "$(dirname "$archive")"
+cp /data/local/tmp/udonge.bin "$next_archive"
+chmod 600 "$next_archive"
 if [ -x "$root/runtime/keybox_heal.sh" ] && [ -f "$root/runtime/worker.sh" ]; then
     "$root/runtime/keybox_heal.sh" stop_daemon || true
 fi
@@ -1389,6 +1395,7 @@ chcon u:object_r:{file_type}:s0 "$root/runtime.new/tee/"*"/libTEESimulator.so" 2
 rm -rf "$root/runtime.old"
 mv "$root/runtime" "$root/runtime.old"
 mv "$root/runtime.new" "$root/runtime"
+mv -f "$next_archive" "$archive"
 rm -rf "$root/runtime.old"
 echo UDONGE_SYNCED
 '''
