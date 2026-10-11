@@ -8,6 +8,7 @@ use base::{FsPathBuilder, cstr};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[path = "../../../udonge/eligibility.rs"]
 mod eligibility;
@@ -22,6 +23,9 @@ const UDONGE_DISABLED: &str = concatcp!(UDONGE_ROOT, "/state/disabled");
 const UDONGE_ENABLED: &str = concatcp!(UDONGE_ROOT, "/state/enabled");
 const UDONGE_UNLOADED: &str = concatcp!(UDONGE_ROOT, "/state/unloaded");
 const UDONGE_PENDING_REBOOT: &str = concatcp!(UDONGE_ROOT, "/state/pending-reboot");
+const UDONGE_BOOT_PENDING: &str = concatcp!(UDONGE_ROOT, "/state/boot-pending");
+const UDONGE_BOOT_FAILED: &str = concatcp!(UDONGE_ROOT, "/state/boot-failed");
+static BOOT_BLOCKED: AtomicBool = AtomicBool::new(false);
 const HIDEAPPS_GLOBAL_LOADER: &str =
     concatcp!(UDONGE_ROOT, "/state/hideapps-global-loader-v2");
 
@@ -37,7 +41,36 @@ pub fn is_enabled() -> bool {
 }
 
 pub fn transport_enabled() -> bool {
-    !cstr!(UDONGE_UNLOADED).exists() && runtime_complete(UDONGE_RUNTIME)
+    !cstr!(UDONGE_UNLOADED).exists()
+        && !cstr!(UDONGE_BOOT_FAILED).exists()
+        && !BOOT_BLOCKED.load(Ordering::Relaxed)
+        && runtime_complete(UDONGE_RUNTIME)
+}
+
+fn prepare_boot_attempt() -> bool {
+    let Ok(boot_id) = std::fs::read_to_string("/proc/sys/kernel/random/boot_id") else {
+        return false;
+    };
+    if boot_id.trim().is_empty() {
+        return false;
+    }
+    if cstr!(UDONGE_BOOT_PENDING).exists()
+        && std::fs::read_to_string(UDONGE_BOOT_PENDING).ok().as_ref() != Some(&boot_id)
+    {
+        BOOT_BLOCKED.store(true, Ordering::Relaxed);
+        std::fs::write(UDONGE_DISABLED, b"").ok();
+        std::fs::write(UDONGE_BOOT_FAILED, b"Previous Udonge boot did not become stable\n").ok();
+        cstr!(UDONGE_ENABLED).remove().ok();
+        return false;
+    }
+    if !is_enabled() {
+        return false;
+    }
+    if std::fs::write(UDONGE_BOOT_PENDING, boot_id).is_err() {
+        BOOT_BLOCKED.store(true, Ordering::Relaxed);
+        return false;
+    }
+    true
 }
 
 fn ensure_core_hide_config() {
@@ -269,7 +302,7 @@ pub fn setup_runtime(run_optional_features: bool) {
         }
     }
 
-    if run_optional_features && is_enabled() {
+    if run_optional_features && prepare_boot_attempt() {
         let post_fs_data = cstr::buf::default()
             .join_path(UDONGE_RUNTIME)
             .join_path("post-fs-data.sh");

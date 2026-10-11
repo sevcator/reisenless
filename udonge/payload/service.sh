@@ -128,14 +128,6 @@ if [ -d "$legacy_tee_state" ]; then
 fi
 chmod 700 "$root" "$state"
 
-if [ ! -f /data/system/theme_config/theme_compatibility.xml ]; then
-    mkdir -p /data/system/theme_config 2>/dev/null
-    touch /data/system/theme_config/theme_compatibility.xml 2>/dev/null
-    chmod 755 /data/system/theme_config 2>/dev/null || true
-    chmod 644 /data/system/theme_config/theme_compatibility.xml 2>/dev/null || true
-    chown system:system /data/system/theme_config /data/system/theme_config/theme_compatibility.xml 2>/dev/null || true
-fi
-
 refresh_keybox() {
     if [ -x "$runtime/keybox_heal.sh" ]; then
         "$runtime/keybox_heal.sh" heal
@@ -145,6 +137,11 @@ refresh_keybox() {
 
 start_tee() {
     local sdk abi source run next old target patch version current pid pid_start pid_boot healthy
+    if [ -n "$(getprop ro.miui.ui.version.name 2>/dev/null)" ]; then
+        : > "$state/tee-unavailable"
+        chmod 600 "$state/tee-unavailable"
+        return 0
+    fi
     local health health_start health_boot args
     sdk="$(getprop ro.build.version.sdk 2>/dev/null)"
     [ "$sdk" -ge 29 ] 2>/dev/null || return 0
@@ -247,6 +244,8 @@ start_tee() {
         if (line == "" || line ~ /^#/) next
         clean = line
         gsub(/[!?]+$/, "", clean)
+        if (clean == "android" || clean == "system_server" ||
+            clean == "com.android.phone" || clean == "com.android.systemui") next
         if (!seen[clean]++) {
             order[count++] = clean
             mode[clean] = (line ~ /!$/) ? "!" : ((line ~ /\?$/) ? "?" : "")
@@ -360,127 +359,18 @@ refresh_keybox
 start_tee
 sync_vbmeta_digest || true
 
-RP="resetprop"
-if command -v resetprop >/dev/null 2>&1; then
-    $RP -n ro.boot.vbmeta.device_state locked
-    $RP -n ro.boot.verifiedbootstate green
-    $RP -n ro.boot.flash.locked 1
-    $RP -n ro.boot.veritymode enforcing
-    $RP -n ro.boot.veritymode.managed yes
-    $RP -p persist.sys.pihooks.disable.gms_props true 2>/dev/null || true
-    $RP -p persist.sys.pihooks.disable.gms_key_attestation_block true 2>/dev/null || true
-    $RP -p persist.sys.entryhooks_enabled false 2>/dev/null || true
-    $RP -p -d persist.sys.spoof.gms 2>/dev/null || true
-    $RP -p -d persist.sys.pixelprops.gms 2>/dev/null || true
-    $RP -d persist.sys.spoof.gms 2>/dev/null || true
-    $RP -d persist.sys.pixelprops.gms 2>/dev/null || true
-    $RP -n ro.boot.warranty_bit 0
-    $RP -n ro.warranty_bit 0
-    $RP -n ro.secure 1
-    $RP -n ro.debuggable 0
-    $RP -n ro.force.debuggable 0
-    $RP -n ro.adb.secure 1
-    $RP -n ro.build.type user
-    $RP -n ro.build.tags release-keys
-    $RP -n sys.oem_unlock_allowed 0
-    $RP -n ro.boot.selinux enforcing
-    $RP -n ro.boot.avb_version 1.3
-    $RP -n ro.boot.vbmeta.avb_version 1.0
-    $RP -n ro.boot.vbmeta.hash_alg sha256
-    $RP -n ro.boot.vbmeta.size 4096
-    $RP -n ro.is_ever_orange 0
-    $RP -n ro.crypto.state encrypted
-    $RP -n ro.oem_unlock_supported 0
-    $RP -n vendor.boot.vbmeta.device_state locked
-    $RP -n vendor.boot.verifiedbootstate green
-    $RP -n ro.bootmode unknown
-    $RP -n ro.boot.bootmode unknown
-    $RP -n vendor.boot.bootmode unknown
-    for part in system vendor product system_ext odm; do
-        $RP -n "partition.${part}.verified" 1
-    done
-    $RP -d ro.boot.verifiedbooterror 2>/dev/null || true
-    $RP -d ro.boot.verifyerrorpart 2>/dev/null || true
-    patch="$(read_profile_value SECURITY_PATCH)"
-    if [ -n "$patch" ]; then
-        $RP -n ro.build.version.security_patch "$patch"
-        $RP -n ro.vendor.build.security_patch "$patch"
-    fi
-
-    if [ -f "$state/pif.conf" ]; then
-        brand="$(read_profile_value BRAND)"
-        model="$(read_profile_value MODEL)"
-        device="$(read_profile_value DEVICE)"
-        manufacturer="$(read_profile_value MANUFACTURER)"
-        product="$(read_profile_value PRODUCT)"
-        fingerprint="$(read_profile_value FINGERPRINT)"
-        id="$(read_profile_value ID)"
-
-        for prefix in ro.product \
-                      ro.product.bootimage \
-                      ro.product.odm \
-                      ro.product.odm_dlkm \
-                      ro.product.product \
-                      ro.product.system \
-                      ro.product.system_ext \
-                      ro.product.system_dlkm \
-                      ro.product.vendor \
-                      ro.product.vendor_dlkm; do
-            [ -n "$brand" ] && $RP -n "${prefix}.brand" "$brand"
-            [ -n "$model" ] && $RP -n "${prefix}.model" "$model"
-            [ -n "$device" ] && $RP -n "${prefix}.device" "$device"
-            [ -n "$manufacturer" ] && $RP -n "${prefix}.manufacturer" "$manufacturer"
-            [ -n "$product" ] && $RP -n "${prefix}.name" "$product"
-        done
-        [ -n "$product" ] && $RP -n ro.build.product "$product"
-        [ -n "$model" ] && $RP -n bluetooth.device.default_name "$model"
-        $RP -n ro.com.google.clientidbase "android-google"
-        for fp_prop in ro.build.fingerprint \
-                       ro.bootimage.build.fingerprint \
-                       ro.odm.build.fingerprint \
-                       ro.product.build.fingerprint \
-                       ro.system.build.fingerprint \
-                       ro.system_ext.build.fingerprint \
-                       ro.vendor.build.fingerprint \
-                       ro.vendor_dlkm.build.fingerprint; do
-            [ -n "$fingerprint" ] && $RP -n "$fp_prop" "$fingerprint"
-        done
-        [ -n "$id" ] && {
-            $RP -n ro.build.id "$id"
-            $RP -n ro.build.display.id "$id"
-        }
-        [ -n "$product" ] && $RP -n ro.build.description "${product}-user 15 CANARY release-keys"
-        [ -n "$product" ] && $RP -n ro.build.flavor "${product}-user"
-    fi
-
-    for rom_prop in ro.lineage.build.version \
-                     ro.lineage.device \
-                     ro.lineage.display.version \
-                     ro.lineage.releasetype \
-                     ro.lineage.version \
-                     ro.lineagelegal.url \
-                     ro.boot.project_codename \
-                     persist.vendor.camera.privapp.list; do
-        $RP -n -d "$rom_prop" 2>/dev/null || true
-    done
-
-fi
-
-stop soter-1-0 2>/dev/null || true
-setprop ctl.stop soter-1-0 2>/dev/null || true
-pm disable com.tencent.soter.soterserver >/dev/null 2>&1 || true
-
-version="$(cat "$runtime/version" 2>/dev/null)"
-pif_hash="$(sha256sum "$state/pif.conf" 2>/dev/null | awk '{print $1}')"
-certified="$(cat "$state/.certified" 2>/dev/null)"
-if [ -f "$state/pif.conf" ] && [ "${version}_${pif_hash}" != "$certified" ]; then
-    am force-stop com.google.android.gms >/dev/null 2>&1
-    am force-stop com.android.vending >/dev/null 2>&1
-    pm clear com.android.vending >/dev/null 2>&1
-    am broadcast -a android.server.checkin.CHECKIN >/dev/null 2>&1
-    printf '%s\n' "${version}_${pif_hash}" > "$state/.certified"
-    chmod 600 "$state/.certified"
-fi
+system_server="$(pidof system_server 2>/dev/null)"
+server_start="$(worker_process_start "$system_server")"
+[ -n "$server_start" ] || exit 0
+attempt=0
+while [ "$attempt" -lt 60 ]; do
+    [ -f "$state/disabled" ] && exit 0
+    [ "$(getprop sys.boot_completed)" = 1 ] || exit 0
+    worker_is_current "$system_server" "$server_start" "$boot_id" || exit 0
+    sleep 2
+    attempt=$((attempt + 1))
+done
+[ "$(cat "$state/boot-pending" 2>/dev/null)" != "$boot_id" ] || rm -f "$state/boot-pending"
 
 if background_allowed && [ ! -f "$state/.strong_locked" ] && [ -x "$runtime/keybox_heal.sh" ]; then
     "$runtime/keybox_heal.sh" hunt_daemon </dev/null >/dev/null 2>&1 &

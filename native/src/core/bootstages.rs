@@ -154,7 +154,7 @@ impl MagiskD {
             setup_udonge_runtime(false);
             self.zygisk_enabled.store(false, Ordering::Release);
             self.zygote_injection_enabled
-                .store(crate::udonge::transport_enabled(), Ordering::Release);
+                .store(false, Ordering::Release);
             self.handle_modules();
             clean_mounts();
             return true;

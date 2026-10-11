@@ -48,7 +48,8 @@ object Udonge {
             "mkdir -p '$state' && " +
                 "if [ ! -f '$state/enabled' ] || [ -f '$state/disabled' ] || " +
                 "[ -f '$state/unloaded' ]; then " +
-                "rm -f '$state/disabled' '$state/unloaded' && : > '$state/enabled' && " +
+                "rm -f '$state/disabled' '$state/unloaded' '$state/boot-failed' " +
+                "'$state/boot-pending' && : > '$state/enabled' && " +
                 ": > '$pendingReboot'; " +
                 "fi"
         } else {
@@ -197,6 +198,11 @@ object Udonge {
 
     fun syncState(context: Context, shell: Shell) {
         syncRuntime(context, shell)
+        if (shell.newJob().add("test -f '$state/boot-failed'").exec().isSuccess) {
+            Config.udongeEnabled = false
+            Config.udongeBackgroundUpdates = false
+            scheduleBackgroundUpdates(context)
+        }
         val enabled = Config.udongeEnabled
         val job = shell.newJob()
         if (enabled) {
