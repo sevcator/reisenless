@@ -1,10 +1,12 @@
 package com.topjohnwu.magisk.core.utils
 
 import android.content.Context
+import android.widget.Toast
 import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.Udonge
+import com.topjohnwu.magisk.core.ktx.toast
 import com.topjohnwu.superuser.Shell
 import java.io.File
 
@@ -57,7 +59,7 @@ class ShellInit : Shell.Initializer() {
 
         if (shell.isRoot) {
             Udonge.syncState(context, shell)
-            cleanupObsoleteManagers(context, shell)
+            cleanupObsoleteInstallations(context, shell)
         }
 
         return true
@@ -66,9 +68,12 @@ class ShellInit : Shell.Initializer() {
     companion object {
         @Volatile
         private var cleanedUpObsoleteManagers = false
+
+        @Volatile
+        private var reportedPendingCleanup = false
     }
 
-    private fun cleanupObsoleteManagers(context: Context, shell: Shell) {
+    private fun cleanupObsoleteInstallations(context: Context, shell: Shell) {
         if (cleanedUpObsoleteManagers || !Info.env.isCurrentBuild ||
             Info.env.versionCode != BuildConfig.APP_VERSION_CODE) return
         val completed = shell.newJob().add(
@@ -83,6 +88,16 @@ class ShellInit : Shell.Initializer() {
                     "\"\$(cat /proc/sys/kernel/random/boot_id)\" '${context.packageName}'"
             ).exec().isSuccess
         }.getOrDefault(false)
+        if (!cleanedUpObsoleteManagers && !reportedPendingCleanup) {
+            val reason = mutableListOf<String>()
+            shell.newJob().add(
+                "head -n 1 '${Const.SECURE_DIR}/.upgrade-frameworks.pending' 2>/dev/null"
+            ).to(reason).exec()
+            reason.firstOrNull()?.let {
+                reportedPendingCleanup = true
+                context.toast(it, Toast.LENGTH_LONG)
+            }
+        }
     }
 
 }

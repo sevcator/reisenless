@@ -450,15 +450,21 @@ cleanup_migrated_layout() {
   rm -f "$marker"
 }
 
-preserve_upgrade_boot_files() {
-  local source="$1" backup="$2" item checksum target parent="$2"
+validate_upgrade_backup_path() {
+  local backup="$1" parent="$1"
   case "$backup" in "$SECURE_DIR"/.upgrade-preserved/*) ;; *) return 1;; esac
   while [ "$parent" != "$SECURE_DIR" ]; do
     [ ! -L "$parent" ] || return 1
     parent=${parent%/*}
   done
   [ ! -L "$SECURE_DIR" ] || return 1
-  for item in "$source"/stock_boot* "$source"/stock_dtb* "$source"/stock_dtbo*; do
+}
+
+preserve_upgrade_boot_files() {
+  local source="$1" backup="$2" item checksum target
+  validate_upgrade_backup_path "$backup" || return 1
+  for item in "$source"/stock_boot* "$source"/stock_dtb* "$source"/stock_dtbo* \
+    "$source"/ksu_backup_* "$source"/ksun_backup_* "$source"/boot_backup "$source"/stock_image.sha1; do
     [ -e "$item" ] || [ -L "$item" ] || continue
     if [ -f "$item" ]; then
       checksum=$(sha256sum "$item") || return 1
@@ -476,6 +482,208 @@ preserve_upgrade_boot_files() {
   done
 }
 
+foreign_manager_kind() {
+  local apk="$1" package="$2" libraries
+  libraries=$(unzip -l "$apk" 'lib/*/libkernelsu.so' 'lib/*/libksud.so' \
+    'lib/*/libapjni.so' 'lib/*/libapd.so' 'assets/ksud' 'assets/apd' 2>/dev/null |
+    awk '$1 ~ /^[0-9]+$/ && $1 > 0 && $1 <= 16777216 { print $4 }')
+  if printf '%s\n' "$libraries" | grep -qE '^lib/[^/]+/libkernelsu\.so$'; then
+    case "$package" in
+      me.weishu.kernelsu|com.rifsxd.ksunext|com.sukisu.ultra|com.sukisu.ultra.pr)
+        echo ksu; return 0;;
+    esac
+    if printf '%s\n' "$libraries" | grep -qE '^(lib/[^/]+/libksud\.so|assets/ksud)$'; then
+      echo ksu; return 0
+    fi
+  fi
+  if printf '%s\n' "$libraries" | grep -qE '^lib/[^/]+/libapjni\.so$'; then
+    case "$package" in me.bmax.apatch) echo apatch; return 0;; esac
+    if printf '%s\n' "$libraries" | grep -qE '^(lib/[^/]+/libapd\.so|assets/apd)$'; then
+      echo apatch; return 0
+    fi
+  fi
+  return 1
+}
+
+foreign_kernel_active() {
+  local path daemon version
+  for path in /sys/module/kernelsu /sys/module/ksu /sys/module/kernelpatch \
+    /sys/module/apatch /sys/kernel/kernelpatch; do
+    [ ! -d "$path" ] || return 0
+  done
+  if grep -qE '[[:space:]](ksu_handle_(prctl|execve|execve_ksud|execve_sucompat)|ksu_get_ksu_version|supercall_install|kernelpatch_init)([[:space:]]|$)' \
+      /proc/kallsyms 2>/dev/null; then
+    return 0
+  fi
+  for daemon in /data/adb/ksud /data/adb/ksu/bin/ksud; do
+    [ -x "$daemon" ] && [ ! -L "$daemon" ] || continue
+    [ "$(stat -c '%u' "$daemon")" = 0 ] || return 0
+    version=$(timeout 3 "$daemon" debug version 2>/dev/null |
+      sed -n 's/^Kernel Version: \([0-9][0-9]*\)$/\1/p' | head -n 1)
+    case "$version" in ''|*[!0-9]*) return 0;; esac
+    [ "$version" -eq 0 ] || return 0
+  done
+  return 1
+}
+
+validate_foreign_root_path() {
+  local path="$1" parent
+  case "$path" in
+    /data/adb/ksu|/data/adb/ap|/data/adb/ksud|/data/adb/apd|/data/adb/kpatch|\
+    /data/adb/.ksu_allowlist|/data/adb/.global_namespace_enable|/data/adb/metamodule|\
+    /metadata/ksu|/metadata/watchdog/ksu) ;;
+    *) return 1;;
+  esac
+  case "$path/" in "$SECURE_DIR/"*) return 1;; esac
+  case "$SECURE_DIR/" in "$path/"*) return 1;; esac
+  [ -e "$path" ] || [ -L "$path" ] || return 0
+  parent=${path%/*}
+  [ "$(readlink -f "$parent")" = "$parent" ] || return 1
+  [ "$(stat -c '%u' "$path")" = 0 ] || return 1
+  if [ -L "$path" ]; then
+    [ "$path" = /data/adb/metamodule ]
+    return $?
+  fi
+  awk -v root="$path" '$2 == root || index($2, root "/") == 1 { mounted=1 }
+    END { exit mounted ? 1 : 0 }' /proc/mounts
+}
+
+stop_foreign_root_processes() {
+  local entry pid executable start current attempt failed=0
+  for entry in /proc/[0-9]*/exe; do
+    executable=$(readlink "$entry" 2>/dev/null) || continue
+    executable=${executable% (deleted)}
+    case "$executable" in
+      /data/adb/ksud|/data/adb/apd|/data/adb/kpatch|/data/adb/ksu/*|/data/adb/ap/*) ;;
+      *) continue;;
+    esac
+    pid=${entry%/exe}; pid=${pid##*/}
+    [ "$pid" != "$$" ] || return 1
+    start=$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')
+    case "$start" in ''|*[!0-9]*) failed=1; continue;; esac
+    executable=$(readlink "$entry" 2>/dev/null) || continue
+    executable=${executable% (deleted)}
+    case "$executable" in
+      /data/adb/ksud|/data/adb/apd|/data/adb/kpatch|/data/adb/ksu/*|/data/adb/ap/*) ;;
+      *) continue;;
+    esac
+    [ "$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')" = "$start" ] || continue
+    kill -TERM "$pid" 2>/dev/null || true
+    attempt=0
+    while [ "$attempt" -lt 3 ]; do
+      current=$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')
+      [ "$current" = "$start" ] || break
+      sleep 1
+      attempt=$((attempt + 1))
+    done
+    [ "$current" = "$start" ] || continue
+    executable=$(readlink "$entry" 2>/dev/null) || continue
+    executable=${executable% (deleted)}
+    case "$executable" in
+      /data/adb/ksud|/data/adb/apd|/data/adb/kpatch|/data/adb/ksu/*|/data/adb/ap/*)
+        kill -KILL "$pid" 2>/dev/null || failed=1;;
+      *) failed=1;;
+    esac
+    sleep 1
+    if [ "$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')" = "$start" ] &&
+        readlink "$entry" >/dev/null 2>&1; then
+      failed=1
+    fi
+  done
+  return "$failed"
+}
+
+defer_framework_cleanup() {
+  local reason="$1" pending="$SECURE_DIR/.upgrade-frameworks.pending"
+  [ ! -L "$pending" ] && [ ! -L "$pending.new" ] || return 1
+  printf '%s\n' "$reason" > "$pending.new" || return 1
+  mv "$pending.new" "$pending" || return 1
+  chmod 600 "$pending" || return 1
+  echo "! $reason"
+  return 1
+}
+
+preserve_foreign_module_images() {
+  local source="$1" image checksum backup target
+  for image in "$source/modules.img" "$source/modules_update.img" "$source/update_tmp.img"; do
+    [ -e "$image" ] || [ -L "$image" ] || continue
+    [ -f "$image" ] && [ ! -L "$image" ] || return 1
+    checksum=$(sha256sum "$image") || return 1
+    checksum=${checksum%% *}
+    [ ${#checksum} -eq 64 ] || return 1
+    case "$checksum" in *[!0-9a-f]*) return 1;; esac
+    backup="$SECURE_DIR/.upgrade-preserved/module-images/$checksum"
+    target="$backup/${image##*/}"
+    validate_upgrade_backup_path "$backup" || return 1
+    [ ! -L "$target" ] || return 1
+    mkdir -p "$backup" || return 1
+    if [ ! -e "$target" ]; then
+      ln "$image" "$target" 2>/dev/null || cp "$image" "$target" || return 1
+    fi
+    [ -f "$target" ] && [ ! -L "$target" ] || return 1
+    [ "$(sha256sum "$target" | awk '{print $1}')" = "$checksum" ] || return 1
+  done
+}
+
+cleanup_obsolete_frameworks() {
+  local version="$1" path state present=false
+  case "$version" in ''|*[!A-Za-z0-9_.:-]*) return 1;; esac
+  [ ! -L "$SECURE_DIR/.upgrade-frameworks.complete" ] &&
+    [ ! -L "$SECURE_DIR/.upgrade-frameworks.complete.new" ] || return 1
+  [ "$(cat "$SECURE_DIR/.upgrade-frameworks.complete" 2>/dev/null)" != "$version" ] || return 0
+  for path in /data/adb/ksu /data/adb/ap /data/adb/ksud /data/adb/apd /data/adb/kpatch \
+    /data/adb/.ksu_allowlist /data/adb/.global_namespace_enable /data/adb/metamodule \
+    /metadata/ksu /metadata/watchdog/ksu; do
+    [ -e "$path" ] || [ -L "$path" ] || continue
+    present=true
+    validate_foreign_root_path "$path" || {
+      defer_framework_cleanup 'Old root cleanup is pending: an installation path is redirected, still mounted, or not owned by root.'
+      return 1
+    }
+  done
+  if foreign_kernel_active; then
+    defer_framework_cleanup 'Old kernel root may still be active. Install Reisenless using a matching stock kernel before cleanup.'
+    return 1
+  fi
+  if $present; then
+    for path in /data/adb/ksu /data/adb/ap; do
+      [ -d "$path" ] || continue
+      preserve_upgrade_boot_files "$path" "$SECURE_DIR/.upgrade-preserved/boot/foreign" || {
+        defer_framework_cleanup 'Old root cleanup is pending: a recovery backup could not be verified.'
+        return 1
+      }
+    done
+    stop_foreign_root_processes || {
+      defer_framework_cleanup 'Old root cleanup will retry when the previous root services have stopped.'
+      return 1
+    }
+    for path in /data/adb/ksu /data/adb/ap; do
+      [ -d "$path" ] || continue
+      preserve_foreign_module_images "$path" || {
+        defer_framework_cleanup 'Old root cleanup is pending: a saved module image could not be verified.'
+        return 1
+      }
+      state="$SECURE_DIR/.upgrade-preserved/foreign-state/$version/${path##*/}/module_configs"
+      validate_upgrade_backup_path "$state" && preserve_upgrade_tree "$path/module_configs" "$state" "$state" || {
+        defer_framework_cleanup 'Old root cleanup is pending: saved module configuration could not be verified.'
+        return 1
+      }
+    done
+    for path in /data/adb/ksu /data/adb/ap /data/adb/ksud /data/adb/apd /data/adb/kpatch \
+      /data/adb/.ksu_allowlist /data/adb/.global_namespace_enable /data/adb/metamodule \
+      /metadata/ksu /metadata/watchdog/ksu; do
+      [ -e "$path" ] || [ -L "$path" ] || continue
+      validate_foreign_root_path "$path" || return 1
+      rm -rf "$path" || return 1
+    done
+    rmdir /data/adb 2>/dev/null || true
+  fi
+  rm -f "$SECURE_DIR/.upgrade-frameworks.pending" || return 1
+  printf '%s\n' "$version" > "$SECURE_DIR/.upgrade-frameworks.complete.new" || return 1
+  mv "$SECURE_DIR/.upgrade-frameworks.complete.new" "$SECURE_DIR/.upgrade-frameworks.complete" || return 1
+  chmod 600 "$SECURE_DIR/.upgrade-frameworks.complete"
+}
+
 cleanup_obsolete_managers() {
   local current_package="$1" current_code="$2" packages line apk package version failed=0
   [ -n "$current_package" ] || return 1
@@ -490,6 +698,10 @@ cleanup_obsolete_managers() {
     apk=${line#package:}
     apk=${apk%=*}
     [ -f "$apk" ] || continue
+    if foreign_manager_kind "$apk" "$package" >/dev/null; then
+      pm uninstall "$package" 2>/dev/null | grep -xq 'Success' || failed=1
+      continue
+    fi
     unzip -l "$apk" assets/util_functions.sh assets/boot_patch.sh 2>/dev/null |
       awk '$4 == "assets/util_functions.sh" || $4 == "assets/boot_patch.sh" {
         if ($1 < 1 || $1 > 262144) exit 1
@@ -509,18 +721,23 @@ EOF
   return "$failed"
 }
 
-record_upgrade_cleanup() {
+record_upgrade_cleanup() (
   local version="$1" current_code="$2" current_boot="$3" current_package="$4"
+  umask 077
+  [ ! -L "$SECURE_DIR/.upgrade-cleanup.lock" ] || return 1
+  exec 9>"$SECURE_DIR/.upgrade-cleanup.lock" || return 1
+  flock -x 9 || return 1
   printf '%s\n%s\n%s\n' "$version" "$current_boot" "$current_code" > "$SECURE_DIR/.upgrade-cleanup.complete.new" || return 1
   mv "$SECURE_DIR/.upgrade-cleanup.complete.new" "$SECURE_DIR/.upgrade-cleanup.complete" || return 1
   chmod 600 "$SECURE_DIR/.upgrade-cleanup.complete" || return 1
+  cleanup_obsolete_frameworks "$version:$current_code" || return 1
   [ -n "$current_package" ] || return 0
   [ "$(cat "$SECURE_DIR/.upgrade-managers.complete" 2>/dev/null)" != "$version:$current_code" ] || return 0
   cleanup_obsolete_managers "$current_package" "$current_code" || return 1
   printf '%s:%s\n' "$version" "$current_code" > "$SECURE_DIR/.upgrade-managers.complete.new" || return 1
   mv "$SECURE_DIR/.upgrade-managers.complete.new" "$SECURE_DIR/.upgrade-managers.complete" || return 1
   chmod 600 "$SECURE_DIR/.upgrade-managers.complete"
-}
+)
 
 cleanup_upgrade() {
   local version="$1" current_package="$2" current_code="$3" current_boot old backup suffix database=ms.db

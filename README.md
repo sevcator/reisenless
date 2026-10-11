@@ -17,6 +17,10 @@ the root installation reuses its paths. User settings, modules, and boot recover
 backups are retained; replaced runtime payloads and installation staging are
 removed after a successful upgrade. After the new root completes boot, migrated
 Magisk and explicitly configured previous private installations are cleaned up.
+Obsolete KernelSU, KernelSU Next, SukiSU, and APatch manager APKs and recognized
+runtime paths are also removed. Stock boot backups and saved module data
+are retained privately. Cleanup is deferred when a competing kernel root is
+detected; root code embedded in a custom kernel requires a matching stock kernel.
 Obsolete Magisk manager APKs are removed once per upgrade; opening the manager
 retries failed APK removals. Conflicting user files are retained under the current
 private directory's `.upgrade-preserved`; stock boot backups keep their recovery
