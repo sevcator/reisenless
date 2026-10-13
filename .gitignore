@@ -50,3 +50,5 @@ keystore.properties
 *.iml
 .idea
 .cursor
+scratch/
+window_dump.xml

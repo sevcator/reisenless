@@ -39,6 +39,13 @@ void spoof_build(JNIEnv *env, const Config &cfg, const std::string &pkg) {
         }
     }
 
+    if (cfg.gms_build.find("BOARD") == cfg.gms_build.end()) {
+        auto it = cfg.gms_build.find("DEVICE");
+        if (it != cfg.gms_build.end() && !it->second.empty()) {
+            set_str(env, build, "BOARD", it->second);
+        }
+    }
+
     if (pkg == "com.android.vending" && ver) {
         auto it = cfg.gms_build.find("spoofVendingSdk");
         if (it != cfg.gms_build.end() && !it->second.empty()) {

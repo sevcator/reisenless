@@ -1,7 +1,7 @@
 #!/system/bin/sh
 
 umask 077
-root=/data/adb/udonge
+root=UDONGE_ROOT_STUB
 [ -d "$root" ] || root="$(cd "$(dirname "$0")/.." && pwd)"
 runtime=$root/runtime
 state=$root/state
@@ -21,7 +21,7 @@ process_is_current() {
     expected_boot="$3"
     [ -n "$pid" ] && [ -n "$expected_start" ] && [ "$expected_boot" = "$boot_id" ] || return 1
     kill -0 "$pid" 2>/dev/null || return 1
-    current_start="$(awk '{print $22}' "/proc/$pid/stat" 2>/dev/null)"
+    current_start="$(worker_process_start "$pid")"
     [ -n "$current_start" ] && [ "$current_start" = "$expected_start" ]
 }
 
@@ -58,7 +58,7 @@ remember_tee_supervisor() {
     local run pid start
     run="$1"
     pid="$2"
-    start="$(awk '{print $22}' "/proc/$pid/stat" 2>/dev/null)"
+    start="$(worker_process_start "$pid")"
     [ -n "$start" ] || return 1
     printf '%s\n' "$pid" > "$run/.pid"
     printf '%s\n' "$start" > "$run/.pid-start"
@@ -115,6 +115,29 @@ done
 
 [ -f "$state/disabled" ] && exit 0
 
+confirm_boot() {
+    local system_server server_start attempt
+    system_server="$(pidof system_server 2>/dev/null)"
+    server_start="$(worker_process_start "$system_server")"
+    [ -n "$server_start" ] || return 0
+    attempt=0
+    while [ "$attempt" -lt 60 ]; do
+        [ -f "$state/disabled" ] && return 0
+        [ "$(getprop sys.boot_completed)" = 1 ] || return 0
+        worker_is_current "$system_server" "$server_start" "$boot_id" || return 0
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    [ "$(cat "$state/boot-pending" 2>/dev/null)" != "$boot_id" ] || rm -f "$state/boot-pending"
+
+    if background_allowed && [ ! -f "$state/.strong_locked" ] && [ -x "$runtime/keybox_heal.sh" ]; then
+        "$runtime/keybox_heal.sh" hunt_daemon </dev/null >/dev/null 2>&1 &
+    fi
+}
+
+# Boot health must not wait for keybox downloads or TEE initialization.
+confirm_boot </dev/null >/dev/null 2>&1 &
+
 if [ -d "$legacy_tee_state" ]; then
     for name in keybox.xml target.txt security_patch.txt hbk boot_props_mode boot_hash.bin boot_key.bin; do
         if [ -f "$legacy_tee_state/$name" ] && [ ! -e "$tee_state/$name" ]; then
@@ -137,9 +160,7 @@ refresh_keybox() {
 
 start_tee() {
     local sdk abi source run next old target patch version current pid pid_start pid_boot healthy
-    if [ -n "$(getprop ro.miui.ui.version.name 2>/dev/null)" ]; then
-        : > "$state/tee-unavailable"
-        chmod 600 "$state/tee-unavailable"
+    if [ "$(cat "$state/tee-failed-payload" 2>/dev/null)" = "$(cat "$runtime/payload.id" 2>/dev/null)" ]; then
         return 0
     fi
     local health health_start health_boot args
@@ -166,11 +187,12 @@ start_tee() {
         chmod 700 "$next" "$tee_state"
         cp "$source/libTEESimulator.so" "$next/" || return 0
         [ ! -f "$source/libcertgen.so" ] || cp "$source/libcertgen.so" "$next/"
-        cp "$source/inject" "$next/inject" || return 0
+        cp "$source/inject" "$next/inject.bin" || return 0
+        cp "$runtime/tee/inject.sh" "$next/inject" || return 0
         cp "$source/supervisor" "$next/supervisor" || return 0
         cp "$runtime/tee/classes.dex" "$next/classes.dex" || return 0
         cp "$runtime/tee/daemon" "$next/daemon" || return 0
-        chmod 700 "$next/inject" "$next/supervisor" "$next/daemon"
+        chmod 700 "$next/inject" "$next/inject.bin" "$next/supervisor" "$next/daemon"
         printf '%s\n' "$version" > "$next/.version"
         printf '%s\n' "$payload_id" > "$next/.payload_id"
 
@@ -227,17 +249,38 @@ start_tee() {
 
     local tee_broken=0
     if [ "$sdk" -ge 31 ] 2>/dev/null; then
-        if [ -f "$state/tee-broken" ] || [ -f "$state/tee-unavailable" ] || \
-           [ "$(getprop ro.board.platform 2>/dev/null)" = "sdm845" ] || \
-           [ "$(getprop ro.boot.hardware.platform 2>/dev/null)" = "sdm845" ] || \
-           [ "$(getprop ro.product.manufacturer 2>/dev/null)" = "OnePlus" ]; then
+        # Loading failures say nothing about hardware key generation. AUTO probes
+        # the real TEE and handles vendor quirks; only an explicit override forces it.
+        if [ -f "$state/tee-hardware-broken" ]; then
             tee_broken=1
-            touch "$state/tee-broken" 2>/dev/null || true
-            chmod 600 "$state/tee-broken" 2>/dev/null || true
         fi
     fi
 
     temp_target="$tee_state/.target.$$"
+    # Shared system UIDs must never receive synthetic keys, including OEM services.
+    local pkg_try=0
+    while [ "$pkg_try" -lt 15 ]; do
+        cmd package list packages -U 2>/dev/null | awk '{
+            package = $1; sub(/^package:/, "", package)
+            for (i = 2; i <= NF; i++) if ($i ~ /^uid:/) {
+                uid = $i; sub(/^uid:/, "", uid)
+                if (uid % 100000 < 10000) print package
+            }
+        }' > "$tee_state/.system-packages"
+        [ -s "$tee_state/.system-packages" ] && break
+        sleep 1
+        pkg_try=$((pkg_try + 1))
+    done
+    if [ ! -s "$tee_state/.system-packages" ]; then
+        cat << 'EOF' > "$tee_state/.system-packages"
+android
+system_server
+com.android.phone
+com.android.systemui
+com.tencent.soter.soterserver
+com.miui.securitycenter
+EOF
+    fi
     awk '{
         line = $0
         gsub(/[ \r\t]/, "", line)
@@ -258,25 +301,158 @@ start_tee() {
             c = order[i]
             print c mode[c]
         }
-    }' "$target" > "$temp_target" 2>/dev/null && mv -f "$temp_target" "$target"
+    }' "$target" | awk 'NR == FNR { blocked[$1] = 1; next }
+        { package = $0; sub(/[!?]+$/, "", package); if (!(package in blocked)) print }
+    ' "$tee_state/.system-packages" - > "$temp_target" && mv -f "$temp_target" "$target"
+    rm -f "$tee_state/.system-packages"
 
-    if [ "$tee_broken" = 1 ]; then
-        for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation io.github.qwq233.keyattestation; do
-            sed -i "s/^${p}[!?]*\$/${p}!/" "$target" 2>/dev/null || true
-        done
-    else
-        sed -i 's/^com\.android\.vending!$/com.android.vending/' "$target" 2>/dev/null || true
-        sed -i 's/^com\.google\.android\.gms!$/com.google.android.gms/' "$target" 2>/dev/null || true
-        sed -i 's/^com\.google\.android\.gsf!$/com.google.android.gsf/' "$target" 2>/dev/null || true
-        sed -i 's/^gr\.nikolasspyr\.integritycheck[!?]*$/gr.nikolasspyr.integritycheck/' "$target" 2>/dev/null || true
-        sed -i 's/^io\.github\.vvb2060\.keyattestation[!?]*$/io.github.vvb2060.keyattestation/' "$target" 2>/dev/null || true
-        sed -i 's/^io\.github\.qwq233\.keyattestation[!?]*$/io.github.qwq233.keyattestation/' "$target" 2>/dev/null || true
-    fi
+    # Retain force-generation ('!') for critical attestation consumers across all devices
+    for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation io.github.qwq233.keyattestation com.henrikhermansen.playintegritychecker rikka.safetynetchecker; do
+        sed -i "s/^${p}[!?]*\$/${p}!/" "$target" 2>/dev/null || true
+    done
 
     sed -i 's/^com\.eltavine\.duckdetector[!?]*$/com.eltavine.duckdetector/' "$target" 2>/dev/null || true
 
-    printf 'force\n' > "$tee_state/boot_props_mode"
-    chmod 600 "$tee_state/boot_props_mode"
+    # Set boot_props_mode to force so TEESimulator spoofs ro.boot props for target processes
+    if [ ! -f "$tee_state/boot_props_mode" ]; then
+        printf 'force\n' > "$tee_state/boot_props_mode"
+        chmod 600 "$tee_state/boot_props_mode"
+    fi
+
+    find_resetprop() {
+        for p in $(which resetprop 2>/dev/null) \
+                 /data/adb/magisk/resetprop \
+                 /data/adb/ksu/bin/resetprop \
+                 /data/adb/ap/bin/resetprop \
+                 /product/bin/resetprop \
+                 /system/bin/resetprop \
+                 /system/xbin/resetprop \
+                 /sbin/resetprop; do
+            if [ -x "$p" ]; then
+                printf '%s\n' "$p"
+                return 0
+            fi
+        done
+        command -v resetprop 2>/dev/null || echo "resetprop"
+    }
+
+    apply_universal_security_props() {
+        local rp
+        rp="$(find_resetprop)"
+        command -v "$rp" >/dev/null 2>&1 || [ -x "$rp" ] || return 0
+
+        # Samsung Knox / Warranty
+        "$rp" -n ro.boot.warranty_bit 0 2>/dev/null || true
+        "$rp" -n ro.warranty_bit 0 2>/dev/null || true
+        "$rp" -n ro.vendor.boot.warranty_bit 0 2>/dev/null || true
+        "$rp" -n ro.vendor.warranty_bit 0 2>/dev/null || true
+
+        # Realme / Oppo
+        "$rp" -n ro.boot.realmebootstate green 2>/dev/null || true
+        "$rp" -n ro.boot.realme.lockstate 1 2>/dev/null || true
+
+        # OnePlus
+        "$rp" -n ro.is_ever_orange 0 2>/dev/null || true
+
+        # Verified boot / security state (universal for all devices)
+        "$rp" -n ro.boot.verifiedbootstate green 2>/dev/null || true
+        "$rp" -n vendor.boot.verifiedbootstate green 2>/dev/null || true
+        "$rp" -n ro.boot.flash.locked 1 2>/dev/null || true
+        "$rp" -n ro.boot.vbmeta.device_state locked 2>/dev/null || true
+        "$rp" -n vendor.boot.vbmeta.device_state locked 2>/dev/null || true
+        "$rp" -n ro.secureboot.lockstate locked 2>/dev/null || true
+        "$rp" -n ro.secureboot.devicelock 1 2>/dev/null || true
+        "$rp" -n ro.boot.veritymode enforcing 2>/dev/null || true
+        "$rp" -n ro.boot.veritymode.managed yes 2>/dev/null || true
+        "$rp" -n ro.boot.force_normal_boot 1 2>/dev/null || true
+        "$rp" -n ro.boot.secureboot enabled 2>/dev/null || true
+        "$rp" -n ro.debuggable 0 2>/dev/null || true
+        "$rp" -n ro.force.debuggable 0 2>/dev/null || true
+        "$rp" -n ro.secure 1 2>/dev/null || true
+        "$rp" -n ro.adb.secure 1 2>/dev/null || true
+        "$rp" -n ro.build.type user 2>/dev/null || true
+        "$rp" -n ro.build.tags release-keys 2>/dev/null || true
+        "$rp" -n ro.build.user android-build 2>/dev/null || true
+        "$rp" -n ro.build.host google.com 2>/dev/null || true
+        "$rp" -n ro.com.google.clientidbase android-google 2>/dev/null || true
+        "$rp" -n ro.oem_unlock_supported 0 2>/dev/null || true
+        "$rp" -n sys.oem_unlock_allowed 0 2>/dev/null || true
+
+        # Emulation flags
+        "$rp" -n ro.kernel.qemu 0 2>/dev/null || true
+        "$rp" -n ro.boot.qemu 0 2>/dev/null || true
+        "$rp" -n ro.hardware.virtual_device 0 2>/dev/null || true
+
+        # Delete verified boot error flags
+        "$rp" -d ro.boot.verifiedbooterror 2>/dev/null || true
+        "$rp" -d ro.boot.verifyerrorpart 2>/dev/null || true
+
+        local conf="$state/pif.conf"
+        if [ -f "$conf" ]; then
+            local fp brand dev manuf model prod id patch api_level incremental
+            brand="$(grep '^BRAND=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            dev="$(grep '^DEVICE=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            manuf="$(grep '^MANUFACTURER=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            model="$(grep '^MODEL=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n')"
+            prod="$(grep '^PRODUCT=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            fp="$(grep '^FINGERPRINT=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            id="$(grep '^ID=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            patch="$(grep '^SECURITY_PATCH=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            api_level="$(grep '^DEVICE_INITIAL_SDK_INT=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            incremental="$(grep '^INCREMENTAL=' "$conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+            [ -z "$incremental" ] && [ -n "$fp" ] && incremental="$(printf '%s' "$fp" | cut -d: -f2 | cut -d/ -f3 | tr -d '\r\n ')"
+
+            [ -n "$brand" ] || brand="google"
+            [ -n "$dev" ] || dev="tegu"
+            [ -n "$manuf" ] || manuf="Google"
+            [ -n "$model" ] || model="Pixel 9a"
+            [ -n "$prod" ] || prod="tegu_beta"
+
+            for prefix in ro.product ro.product.bootimage ro.product.odm ro.product.odm_dlkm ro.product.product ro.product.system ro.product.system_dlkm ro.product.system_ext ro.product.vendor ro.product.vendor_dlkm; do
+                "$rp" -n "${prefix}.brand" "$brand" 2>/dev/null || true
+                "$rp" -n "${prefix}.device" "$dev" 2>/dev/null || true
+                "$rp" -n "${prefix}.manufacturer" "$manuf" 2>/dev/null || true
+                "$rp" -n "${prefix}.model" "$model" 2>/dev/null || true
+                "$rp" -n "${prefix}.name" "$prod" 2>/dev/null || true
+            done
+
+            if [ -n "$fp" ]; then
+                for prefix in ro.build ro.bootimage.build ro.odm.build ro.odm_dlkm.build ro.product.build ro.system.build ro.system_dlkm.build ro.system_ext.build ro.vendor.build ro.vendor_dlkm.build; do
+                    "$rp" -n "${prefix}.fingerprint" "$fp" 2>/dev/null || true
+                done
+            fi
+
+            [ -n "$id" ] && { "$rp" -n ro.build.id "$id" 2>/dev/null || true; "$rp" -n ro.build.display.id "$id" 2>/dev/null || true; }
+            [ -n "$dev" ] && { "$rp" -n ro.build.product "$dev" 2>/dev/null || true; "$rp" -n ro.boot.hardware.sku "$dev" 2>/dev/null || true; "$rp" -n ro.boot.product.hardware.sku "$dev" 2>/dev/null || true; }
+            [ -n "$prod" ] && "$rp" -n ro.build.flavor "${prod}-user" 2>/dev/null || true
+            [ -n "$patch" ] && "$rp" -n ro.build.version.security_patch "$patch" 2>/dev/null || true
+            [ -n "$incremental" ] && "$rp" -n ro.build.version.incremental "$incremental" 2>/dev/null || true
+
+            if [ -n "$api_level" ]; then
+                "$rp" -n ro.product.first_api_level "$api_level" 2>/dev/null || true
+                "$rp" -n ro.build.version.first_api_level "$api_level" 2>/dev/null || true
+                "$rp" -n ro.board.first_api_level "$api_level" 2>/dev/null || true
+            fi
+        fi
+
+        getprop 2>/dev/null | sed 's/^\[//; s/\].*//' | grep -iE 'lineage|evolution|crdroid|arrow|mistos|axion|infinity|pixelos|rising|lunaris|halcyon|havoc|alphadroid|avium|bliss|calyx|derpfest|graphene|lmodroid|lumine|matrixx|sakura|statix|superior|clover|witaqua|yaap|mica|aospa|paranoid|omni|resurrection|aicp|corvus|syberia|elixir|nusantara|spark|voltage|cherish|octavi|carbon|dirtyunicorns|pixys|posp|revenge|descendant|fluid|dotos|stag|potato|colt|miku|baikal|droidx|ancient|xdroid|exthm|radiation|apollo|m2007j3sg' | while read -r p; do
+            case "$p" in
+                init.svc.*|ro.boottime.*) continue ;;
+                ro.product.*|ro.*.fingerprint) continue ;;
+                *) "$rp" -d "$p" 2>/dev/null || true ;;
+            esac
+        done
+
+        for p in ro.modversion ro.lineage.version ro.lineage.build.version ro.lineage.display.version \
+                 ro.lineagelegal.url ro.build.lineage.version ro.custom.version ro.rom.version \
+                 ro.boot.project_codename persist.vendor.camera.privapp.list ro.boot.cert \
+                 ro.vendor.radio.midevice ro.hardware.audio.primary vendor.camera.aux.packagelist; do
+            "$rp" -d "$p" 2>/dev/null || true
+        done
+
+        "$rp" -c 2>/dev/null || true
+    }
+    apply_universal_security_props || true
 
     patch="$(read_profile_value SECURITY_PATCH)"
     [ -n "$patch" ] || patch="$(getprop ro.build.version.security_patch 2>/dev/null)"
@@ -286,14 +462,11 @@ start_tee() {
         patch="${c_year}-${c_month}-05"
     fi
     cat > "$tee_state/security_patch.txt" <<EOF
-system=prop
+system=$patch
 boot=$patch
 vendor=$patch
 EOF
     chmod 600 "$tee_state/security_patch.txt"
-
-    mkdir -p /data/adb 2>/dev/null
-    ln -sfn "$tee_state" /data/adb/tricky_store 2>/dev/null || true
 
     [ -f "$tee_state/hbk" ] || head -c 32 /dev/urandom > "$tee_state/hbk"
     for item in "$tee_state"/*; do
@@ -304,8 +477,6 @@ EOF
             chmod 600 "$item"
         fi
     done
-
-    rm -rf "$tee_state/logs"
 
     healthy="$(find_tee_supervisor "$run")"
     if [ -n "$healthy" ] && remember_tee_supervisor "$run" "$healthy"; then
@@ -319,34 +490,71 @@ EOF
     if process_is_current "$pid" "$pid_start" "$pid_boot"; then
         if tee_child_is_current "$pid"; then
             rm -f "$state/tee-unavailable"
-            rm -rf "$tee_state/logs"
         fi
         return 0
     fi
     rm -f "$run/.pid" "$run/.pid-start" "$run/.pid-boot"
-    rm -f "$state/tee-unavailable"
-    (cd "$run" && exec ./supervisor ./daemon "$run" </dev/null >/dev/null 2>&1) &
+    printf 'starting\n' > "$state/tee-status"
+    : > "$state/tee-unavailable"
+    local keystore keystore_start server server_start
+    local wait_k=0
+    while [ "$wait_k" -lt 30 ]; do
+        keystore="$(pidof keystore2 2>/dev/null || pidof keystore 2>/dev/null)"
+        keystore_start="$(worker_process_start "$keystore")"
+        server="$(pidof system_server 2>/dev/null)"
+        server_start="$(worker_process_start "$server")"
+        [ -n "$keystore_start" ] && [ -n "$server_start" ] && break
+        sleep 1
+        wait_k=$((wait_k + 1))
+    done
+    [ -n "$keystore_start" ] && [ -n "$server_start" ] || return 1
+    printf '%s\n' "$keystore" > "$run/.keystore-pid"
+    printf '%s\n' "$keystore_start" > "$run/.keystore-start"
+    [ ! -f "$run/startup.log" ] || mv -f "$run/startup.log" "$run/startup.previous.log"
+    (cd "$run" && exec ./supervisor ./daemon "$run" </dev/null >startup.log 2>&1) &
     pid="$!"
     printf '%s\n' "$pid" > "$run/.pid"
-    pid_start="$(awk '{print $22}' "/proc/$pid/stat" 2>/dev/null)"
+    pid_start="$(worker_process_start "$pid")"
     printf '%s\n' "$pid_start" > "$run/.pid-start"
     printf '%s\n' "$boot_id" > "$run/.pid-boot"
 
     (
-        sleep 2
-        rm -rf "$tee_state/logs"
-        sleep 58
+        local attempt=0 failed=0
+        while [ "$attempt" -lt 30 ]; do
+            sleep 2
+            if ! worker_is_current "$keystore" "$keystore_start" "$boot_id" ||
+                ! worker_is_current "$server" "$server_start" "$boot_id"; then
+                failed=1
+                break
+            fi
+            attempt=$((attempt + 1))
+        done
         sync_vbmeta_digest || true
         healthy="$(find_tee_supervisor "$run")"
-        if [ -n "$healthy" ] && remember_tee_supervisor "$run" "$healthy"; then
+        if [ "$failed" = 0 ] && [ -n "$healthy" ] && remember_tee_supervisor "$run" "$healthy" &&
+            grep -qF libTEESimulator.so "/proc/$keystore/maps"; then
             rm -f "$state/tee-unavailable"
-            rm -rf "$tee_state/logs"
+            printf 'ready\n' > "$state/tee-status"
         else
-            process_is_current "$pid" "$pid_start" "$boot_id" && kill "$pid" 2>/dev/null
+            worker_is_current "$pid" "$pid_start" "$boot_id" && worker_stop_tree "$pid" "$pid_start"
             rm -f "$run/.pid" "$run/.pid-start" "$run/.pid-boot"
             : > "$state/tee-unavailable"
             chmod 600 "$state/tee-unavailable"
+            printf 'startup-failed\n' > "$state/tee-status"
+            cp "$runtime/payload.id" "$state/tee-failed-payload"
         fi
+        while [ "$failed" = 0 ] && [ -n "$healthy" ] && [ ! -f "$state/tee-unavailable" ]; do
+            sleep 30
+            if ! worker_is_current "$keystore" "$keystore_start" "$boot_id" ||
+                ! worker_is_current "$server" "$server_start" "$boot_id" ||
+                ! worker_is_current "$pid" "$pid_start" "$boot_id"; then
+                worker_is_current "$pid" "$pid_start" "$boot_id" && worker_stop_tree "$pid" "$pid_start"
+                : > "$state/tee-unavailable"
+                printf 'service-restarted\n' > "$state/tee-status"
+                cp "$runtime/payload.id" "$state/tee-failed-payload"
+                break
+            fi
+        done
         rm -f "$run/.health-pid" "$run/.health-start" "$run/.health-boot"
     ) &
     health_pid="$!"
@@ -355,23 +563,21 @@ EOF
     printf '%s\n' "$boot_id" > "$run/.health-boot"
 }
 
-refresh_keybox
 start_tee
+refresh_keybox
 sync_vbmeta_digest || true
 
+# Wait for boot completion and clear boot-pending so future boots remain enabled
 system_server="$(pidof system_server 2>/dev/null)"
 server_start="$(worker_process_start "$system_server")"
-[ -n "$server_start" ] || exit 0
-attempt=0
-while [ "$attempt" -lt 60 ]; do
-    [ -f "$state/disabled" ] && exit 0
-    [ "$(getprop sys.boot_completed)" = 1 ] || exit 0
-    worker_is_current "$system_server" "$server_start" "$boot_id" || exit 0
-    sleep 2
-    attempt=$((attempt + 1))
-done
-[ "$(cat "$state/boot-pending" 2>/dev/null)" != "$boot_id" ] || rm -f "$state/boot-pending"
-
-if background_allowed && [ ! -f "$state/.strong_locked" ] && [ -x "$runtime/keybox_heal.sh" ]; then
-    "$runtime/keybox_heal.sh" hunt_daemon </dev/null >/dev/null 2>&1 &
+if [ -n "$server_start" ]; then
+    attempt=0
+    while [ "$attempt" -lt 30 ]; do
+        [ -f "$state/disabled" ] && exit 0
+        [ "$(getprop sys.boot_completed)" = "1" ] && break
+        worker_is_current "$system_server" "$server_start" "$boot_id" || exit 0
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    [ "$(cat "$state/boot-pending" 2>/dev/null)" != "$boot_id" ] || rm -f "$state/boot-pending"
 fi

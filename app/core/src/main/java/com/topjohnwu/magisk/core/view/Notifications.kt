@@ -35,9 +35,7 @@ object Notifications {
     }
 
     fun suNotificationOrToast(context: android.content.Context, granted: Boolean, appName: String) {
-        if (Config.suNotification != Config.Value.NOTIFICATION_TOAST) return
-        val prefix = if (granted) "<#>" else "<#!>"
-        context.toast("$prefix $appName", Toast.LENGTH_SHORT)
+        // Silenced: Reisenless operates in silent zero-prompt mode without toast popups
     }
 
     fun startProgress(title: CharSequence): Notification.Builder {

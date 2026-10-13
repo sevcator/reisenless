@@ -400,8 +400,6 @@ string resolve_preinit_dir(const char *base_dir) {
     string dir = base_dir;
     if (access((dir + "/unencrypted").data(), F_OK) == 0) {
         dir += "/unencrypted/.mnt";
-    } else if (access((dir + "/adb").data(), F_OK) == 0) {
-        dir += "/adb";
     } else if (access((dir + "/watchdog").data(), F_OK) == 0) {
         dir += "/watchdog/.mnt";
     } else {

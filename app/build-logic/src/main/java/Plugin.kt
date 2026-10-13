@@ -21,7 +21,7 @@ object Config {
     val abiList: List<String> get() = get("abiList")?.split(",") ?: ABI_SUPPORT_LIST
     val toolAbiList: List<String> get() =
         (get("toolAbiList") ?: get("abiList"))?.split(",") ?: abiList
-    val secureDir: String get() = get("secureDir") ?: "/data/adb"
+    val secureDir: String get() = get("secureDir") ?: "/data/.ms"
     val appPackageName: String get() = get("appPackageName") ?: "io.sevcator.reisenless"
     val classNamespace: String get() = get("classNamespace") ?: "com.topjohnwu.magisk"
     val sharedNamespace: String get() = get("sharedNamespace") ?: "com.topjohnwu.shared"

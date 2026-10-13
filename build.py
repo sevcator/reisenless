@@ -409,7 +409,7 @@ def _build_identity() -> dict[str, str]:
         if args.release:
             error("Release builds require randomizeBuild=true")
         return {
-            "buildId": "ms", "secureDir": config.get("secureDir", "/data/adb"),
+            "buildId": "ms", "secureDir": config.get("secureDir", "/data/.ms"),
             "appPackageName": "io.sevcator.reisenless",
             "classNamespace": "com.topjohnwu.magisk",
             "sharedNamespace": "com.topjohnwu.shared",
@@ -1104,30 +1104,40 @@ def _zip_bytes(zf: ZipFile, name: str, data: bytes, mode: int = 0o644):
     info.external_attr = (stat.S_IFREG | mode) << 16
     zf.writestr(info, data)
 
-def _patch_tee_dex(data: bytes, udonge_root: str) -> bytes:
-    def fit_path(path: str, size: int, pad_after: str | None = None) -> bytes:
-        encoded = path.encode()
-        if len(encoded) > size:
-            error(f"Generated Udonge path is too long for TEE DEX: {path}")
+def _fit_tee_path(path: str, size: int, pad_after: str | None = None) -> bytes:
+    encoded = path.encode()
+    if len(encoded) > size:
+        error(f"Generated Udonge path is too long for TEE payload: {path}")
 
-        if pad_after is not None:
-            prefix = (pad_after.rstrip("/") + "/").encode()
-            if not encoded.startswith(prefix):
-                error(f"Invalid Udonge DEX padding prefix: {pad_after}")
-            split = len(prefix)
-        else:
-            split = encoded.find(b"/", len(b"/data/"))
-            if split < 0:
-                split = len(encoded)
-        return encoded[:split] + b"/" * (size - len(encoded)) + encoded[split:]
+    if pad_after is not None:
+        prefix = (pad_after.rstrip("/") + "/").encode()
+        if not encoded.startswith(prefix):
+            error(f"Invalid Udonge path padding prefix: {pad_after}")
+        split = len(prefix)
+    else:
+        split = encoded.find(b"/", len(b"/data/"))
+        if split < 0:
+            split = len(encoded)
+    return encoded[:split] + b"/" * (size - len(encoded)) + encoded[split:]
+
+
+def _patch_tee_native_paths(data: bytes, udonge_root: str) -> bytes:
+    source = b"/data/adb/tricky_store"
+    if source not in data:
+        return data
+    target = _fit_tee_path(f"{udonge_root}/state", len(source))
+    return data.replace(source, target)
+
+
+def _patch_tee_dex(data: bytes, udonge_root: str) -> bytes:
 
     state_source = b"/data/adb/tricky_store"
     library_source = b"/data/adb/modules/tricky_store/libcertgen.so"
     replacements = (
-        (state_source, fit_path(f"{udonge_root}/state", len(state_source))),
+        (state_source, _fit_tee_path(f"{udonge_root}/state", len(state_source))),
         (
             library_source,
-            fit_path(
+            _fit_tee_path(
                 f"{udonge_root}/tee-runtime/libcertgen.so",
                 len(library_source),
                 udonge_root,
@@ -1316,12 +1326,14 @@ def build_udonge():
         data = source.read_bytes()
         if name == "tee/classes.dex":
             data = _patch_tee_dex(data, udonge_root)
+        elif name.startswith("tee/") and name.endswith(".so"):
+            data = _patch_tee_native_paths(data, udonge_root)
         if name.endswith(".sh") or name in {"tee/daemon"} or name.endswith("/inject") or name.endswith("/supervisor"):
             mode = 0o700
         else:
             mode = 0o600 if name.startswith("defaults/") else 0o644
         if name.endswith(".sh"):
-            data = data.replace(b"root=/data/adb/udonge", f"root={udonge_root}".encode())
+            data = data.replace(b"root=UDONGE_ROOT_STUB", f"root={udonge_root}".encode())
             data = data.replace(b"udonge_lib_file", identity["udongeFileType"].encode())
         entries.append((name, data, mode))
 
@@ -1364,7 +1376,7 @@ mkdir -p "$work"
 rm -rf "$root/runtime.new"
 mkdir -p "$root/runtime.new"
 unpacked=0
-for bb in {secure}/{bb_name} {secure}/*/{bb_name} /data/adb/magisk/busybox /system/bin/busybox; do
+for bb in {secure}/{bb_name} {secure}/*/{bb_name} /system/bin/busybox; do
     if [ -x "$bb" ]; then
         ln -sf "$bb" "$work/busybox"
         if "$work/busybox" unzip -oq /data/local/tmp/udonge.bin -d "$root/runtime.new"; then
@@ -1886,6 +1898,23 @@ def _validate_release_artifact(apk: Path):
         error("Release APK is debuggable or test-only")
     if not re.search(r"android:extractNativeLibs[^\n]*=(?:true|0xffffffff)", manifest.stdout):
         error("Manager CLI executables require extractNativeLibs=true")
+    receiver_permission = (
+        _build_identity()["appPackageName"] + ".DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    )
+    permission_entries = re.findall(
+        r"(?m)^\s+E: (permission|uses-permission) \([^\n]*\)\n((?:\s+A: [^\n]*\n)+)",
+        manifest.stdout,
+    )
+    declared = used = False
+    for kind, attributes in permission_entries:
+        if not re.search(r'android:name[^\n]*="' + re.escape(receiver_permission) + '"', attributes):
+            continue
+        if kind == "permission":
+            declared = bool(re.search(r"android:protectionLevel[^\n]*=0x0*2\b", attributes))
+        else:
+            used = True
+    if not declared or not used:
+        error("Manager requires its signature permission for non-exported receivers")
     header("Verified release artifact (readable UI labels explicitly allowed)")
 
 def _generate_obfuscation_dictionary(identity: dict[str, str]):

@@ -160,9 +160,6 @@ is_legacy_payload_dir() {
   [ -d "$directory" ] && [ ! -L "$directory" ] || return 1
   [ -f "$directory/util_functions.sh" ] || return 1
   grep -q '^MAGISK_VER_CODE=[0-9]' "$directory/util_functions.sh" || return 1
-  if [ "$source" = /data/adb ]; then
-    case "${directory##*/}" in magisk|ms) return 0;; *) return 1;; esac
-  fi
   grep -xqF "SECURE_DIR='$source'" "$directory/util_functions.sh"
 }
 
@@ -336,11 +333,6 @@ fix_env() (
 )
 
 migrate_legacy_layout() {
-  local legacy=/data/a''db database=ms.db
-  [ -f "$legacy/$database" ] || database=magisk.db
-  transactional_migrate_layout "$legacy" "$database" udonge .migration-canonical.complete || return 1
-  rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh"
-  rm -f "$SECURE_DIR/post-fs-data.d/$STAGE_SCRIPT" "$SECURE_DIR/service.d/$STAGE_SCRIPT"
   return 0
 }
 
@@ -407,7 +399,7 @@ cleanup_migrated_layout() {
   local dir item
   [ "$source" != "$SECURE_DIR" ] || return 0
   [ -d "$source" ] || return 0
-  case "$source" in /data/adb|"$LEGACY_SECURE_DIR") ;; *) return 1;; esac
+  case "$source" in "$LEGACY_SECURE_DIR") ;; *) return 1;; esac
   [ ! -L "$source" ] && [ "$(readlink -f "$source")" = "$source" ] || return 1
   awk -v root="$source" '$2 == root || index($2, root "/") == 1 { mounted=1 }
     END { exit mounted ? 1 : 0 }' /proc/mounts || return 1
@@ -421,31 +413,18 @@ cleanup_migrated_layout() {
   preserve_upgrade_tree "$source/$runtime" "$SECURE_DIR/$UDONGE_DIR" "$backup/$runtime" true || return 1
   preserve_upgrade_file "$source/$database" "$SECURE_DIR/$DB_NAME" "$backup/$database" || return 1
   preserve_upgrade_file "$source/$database-wal" "$SECURE_DIR/$DB_NAME-wal" "$backup/$database-wal" || return 1
-  if [ "$source" = /data/adb ]; then
-    for item in ms.db magisk.db; do
-      [ "$item" != "$database" ] || continue
-      preserve_upgrade_file "$source/$item" "$SECURE_DIR/$DB_NAME" "$backup/$item" || return 1
-      preserve_upgrade_file "$source/$item-wal" "$SECURE_DIR/$DB_NAME-wal" "$backup/$item-wal" || return 1
-    done
-  fi
   for dir in modules modules_update post-fs-data.d service.d "$runtime"; do
     rm -rf "$source/$dir" || return 1
   done
   rm -f "$source/$database" "$source/$database-wal" "$source/$database-shm" || return 1
-  if [ "$source" = /data/adb ]; then
-    rm -f "$source/ms.db" "$source/ms.db-wal" "$source/ms.db-shm" \
-      "$source/magisk.db" "$source/magisk.db-wal" "$source/magisk.db-shm" || return 1
-  fi
   for item in "$source"/* "$source"/.[!.]*; do
     is_legacy_payload_dir "$source" "$item" || continue
     preserve_upgrade_boot_files "$item" "$backup/boot" || return 1
     rm -rf "$item" || return 1
   done
-  if [ "$source" = "$LEGACY_SECURE_DIR" ] && [ "$source" != /data/adb ]; then
+  if [ "$source" = "$LEGACY_SECURE_DIR" ]; then
     preserve_upgrade_tree "$source" "$SECURE_DIR" "$backup/other" true || return 1
     rm -rf "$source" || return 1
-  else
-    rmdir "$source" 2>/dev/null || true
   fi
   rm -f "$marker"
 }
@@ -515,22 +494,12 @@ foreign_kernel_active() {
       /proc/kallsyms 2>/dev/null; then
     return 0
   fi
-  for daemon in /data/adb/ksud /data/adb/ksu/bin/ksud; do
-    [ -x "$daemon" ] && [ ! -L "$daemon" ] || continue
-    [ "$(stat -c '%u' "$daemon")" = 0 ] || return 0
-    version=$(timeout 3 "$daemon" debug version 2>/dev/null |
-      sed -n 's/^Kernel Version: \([0-9][0-9]*\)$/\1/p' | head -n 1)
-    case "$version" in ''|*[!0-9]*) return 0;; esac
-    [ "$version" -eq 0 ] || return 0
-  done
   return 1
 }
 
 validate_foreign_root_path() {
   local path="$1" parent
   case "$path" in
-    /data/adb/ksu|/data/adb/ap|/data/adb/ksud|/data/adb/apd|/data/adb/kpatch|\
-    /data/adb/.ksu_allowlist|/data/adb/.global_namespace_enable|/data/adb/metamodule|\
     /metadata/ksu|/metadata/watchdog/ksu) ;;
     *) return 1;;
   esac
@@ -540,57 +509,12 @@ validate_foreign_root_path() {
   parent=${path%/*}
   [ "$(readlink -f "$parent")" = "$parent" ] || return 1
   [ "$(stat -c '%u' "$path")" = 0 ] || return 1
-  if [ -L "$path" ]; then
-    [ "$path" = /data/adb/metamodule ]
-    return $?
-  fi
   awk -v root="$path" '$2 == root || index($2, root "/") == 1 { mounted=1 }
     END { exit mounted ? 1 : 0 }' /proc/mounts
 }
 
 stop_foreign_root_processes() {
-  local entry pid executable start current attempt failed=0
-  for entry in /proc/[0-9]*/exe; do
-    executable=$(readlink "$entry" 2>/dev/null) || continue
-    executable=${executable% (deleted)}
-    case "$executable" in
-      /data/adb/ksud|/data/adb/apd|/data/adb/kpatch|/data/adb/ksu/*|/data/adb/ap/*) ;;
-      *) continue;;
-    esac
-    pid=${entry%/exe}; pid=${pid##*/}
-    [ "$pid" != "$$" ] || return 1
-    start=$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')
-    case "$start" in ''|*[!0-9]*) failed=1; continue;; esac
-    executable=$(readlink "$entry" 2>/dev/null) || continue
-    executable=${executable% (deleted)}
-    case "$executable" in
-      /data/adb/ksud|/data/adb/apd|/data/adb/kpatch|/data/adb/ksu/*|/data/adb/ap/*) ;;
-      *) continue;;
-    esac
-    [ "$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')" = "$start" ] || continue
-    kill -TERM "$pid" 2>/dev/null || true
-    attempt=0
-    while [ "$attempt" -lt 3 ]; do
-      current=$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')
-      [ "$current" = "$start" ] || break
-      sleep 1
-      attempt=$((attempt + 1))
-    done
-    [ "$current" = "$start" ] || continue
-    executable=$(readlink "$entry" 2>/dev/null) || continue
-    executable=${executable% (deleted)}
-    case "$executable" in
-      /data/adb/ksud|/data/adb/apd|/data/adb/kpatch|/data/adb/ksu/*|/data/adb/ap/*)
-        kill -KILL "$pid" 2>/dev/null || failed=1;;
-      *) failed=1;;
-    esac
-    sleep 1
-    if [ "$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')" = "$start" ] &&
-        readlink "$entry" >/dev/null 2>&1; then
-      failed=1
-    fi
-  done
-  return "$failed"
+  return 0
 }
 
 defer_framework_cleanup() {
@@ -631,9 +555,7 @@ cleanup_obsolete_frameworks() {
   [ ! -L "$SECURE_DIR/.upgrade-frameworks.complete" ] &&
     [ ! -L "$SECURE_DIR/.upgrade-frameworks.complete.new" ] || return 1
   [ "$(cat "$SECURE_DIR/.upgrade-frameworks.complete" 2>/dev/null)" != "$version" ] || return 0
-  for path in /data/adb/ksu /data/adb/ap /data/adb/ksud /data/adb/apd /data/adb/kpatch \
-    /data/adb/.ksu_allowlist /data/adb/.global_namespace_enable /data/adb/metamodule \
-    /metadata/ksu /metadata/watchdog/ksu; do
+  for path in /metadata/ksu /metadata/watchdog/ksu; do
     [ -e "$path" ] || [ -L "$path" ] || continue
     present=true
     validate_foreign_root_path "$path" || {
@@ -646,37 +568,15 @@ cleanup_obsolete_frameworks() {
     return 1
   fi
   if $present; then
-    for path in /data/adb/ksu /data/adb/ap; do
-      [ -d "$path" ] || continue
-      preserve_upgrade_boot_files "$path" "$SECURE_DIR/.upgrade-preserved/boot/foreign" || {
-        defer_framework_cleanup 'Old root cleanup is pending: a recovery backup could not be verified.'
-        return 1
-      }
-    done
     stop_foreign_root_processes || {
       defer_framework_cleanup 'Old root cleanup will retry when the previous root services have stopped.'
       return 1
     }
-    for path in /data/adb/ksu /data/adb/ap; do
-      [ -d "$path" ] || continue
-      preserve_foreign_module_images "$path" || {
-        defer_framework_cleanup 'Old root cleanup is pending: a saved module image could not be verified.'
-        return 1
-      }
-      state="$SECURE_DIR/.upgrade-preserved/foreign-state/$version/${path##*/}/module_configs"
-      validate_upgrade_backup_path "$state" && preserve_upgrade_tree "$path/module_configs" "$state" "$state" || {
-        defer_framework_cleanup 'Old root cleanup is pending: saved module configuration could not be verified.'
-        return 1
-      }
-    done
-    for path in /data/adb/ksu /data/adb/ap /data/adb/ksud /data/adb/apd /data/adb/kpatch \
-      /data/adb/.ksu_allowlist /data/adb/.global_namespace_enable /data/adb/metamodule \
-      /metadata/ksu /metadata/watchdog/ksu; do
+    for path in /metadata/ksu /metadata/watchdog/ksu; do
       [ -e "$path" ] || [ -L "$path" ] || continue
       validate_foreign_root_path "$path" || return 1
       rm -rf "$path" || return 1
     done
-    rmdir /data/adb 2>/dev/null || true
   fi
   rm -f "$SECURE_DIR/.upgrade-frameworks.pending" || return 1
   printf '%s\n' "$version" > "$SECURE_DIR/.upgrade-frameworks.complete.new" || return 1
@@ -756,10 +656,6 @@ cleanup_upgrade() {
   if [ -n "$LEGACY_SECURE_DIR" ] && [ "$LEGACY_SECURE_DIR" != "$SECURE_DIR" ]; then
     cleanup_migrated_layout "$LEGACY_SECURE_DIR" "$LEGACY_DB_NAME" \
       "$LEGACY_UDONGE_DIR" .migration-private.complete private || return 1
-  fi
-  if [ "$SECURE_DIR" != /data/adb ]; then
-    [ -f /data/adb/ms.db ] || database=magisk.db
-    cleanup_migrated_layout /data/adb "$database" udonge .migration-canonical.complete canonical || return 1
   fi
   for old in /data/magisk /data/ms /cache/data_adb/magisk /cache/data_adb/ms; do
     [ -d "$old" ] && [ ! -L "$old" ] || continue

@@ -55,7 +55,7 @@ bool read_str(int fd, std::string &value) {
 }
 
 #ifndef UDONGE_ROOT
-#define UDONGE_ROOT "/data/adb/udonge"
+#error "UDONGE_ROOT must be supplied by the build"
 #endif
 
 const char *CONF_DIR = UDONGE_ROOT "/state";
@@ -197,7 +197,13 @@ public:
             return;
         }
 
-        if (is_gms_unstable_) return;
+        if (is_gms_unstable_) {
+            if (!cfg_.gms_build.empty()) {
+                keep_loaded_ = true;
+                cloak::hook_native_load(api_, env_);
+            }
+            return;
+        }
 
         if (cfg_.shouldStealth(package_)) {
             return;
@@ -224,10 +230,14 @@ public:
         }
 
         if (is_gms_unstable_) {
+            if (!cfg_.gms_build.empty()) {
+                cfg_.current_package = package_;
+                cloak::install_hooks(api_, &cfg_, cloak::HookProfile::PropertiesOnly);
+            }
             if (hide_apps_) {
                 hideapps::install(env_, package_, hide_rule_, hide_dex_);
             }
-            api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
+            if (!keep_loaded_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
             return;
         }
         if (hide_apps_) {

@@ -1,7 +1,7 @@
 #!/system/bin/sh
 
 umask 077
-root=/data/adb/udonge
+root=UDONGE_ROOT_STUB
 [ -d "$root" ] || root="$(cd "$(dirname "$0")/.." && pwd)"
 runtime=$root/runtime
 state=$root/state

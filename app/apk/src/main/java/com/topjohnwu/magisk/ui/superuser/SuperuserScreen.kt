@@ -222,13 +222,6 @@ fun SuperuserScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
-                    Button(
-                        onClick = { showAddDialog.value = true }
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(CoreR.string.grant))
-                    }
                 }
             }
             return@Scaffold

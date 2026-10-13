@@ -121,10 +121,9 @@ impl MagiskD {
 
         let secure_dir = cstr!(SECURE_DIR);
         if !secure_dir.exists() {
-            if self.sdk_int < 24 {
-                secure_dir.mkdir(0o700).log_ok();
-            } else {
-                error!("* {} is not present, abort", SECURE_DIR);
+            secure_dir.mkdir(0o700).log_ok();
+            if !secure_dir.exists() {
+                error!("* {} is not present and cannot be created, abort", SECURE_DIR);
                 return true;
             }
         }
@@ -274,10 +273,16 @@ impl MagiskD {
             }
             RequestCode::BOOT_COMPLETE => {
                 drop(client);
-                if state.contains(BootState::PostFsDataDone) {
+                if state.contains(BootState::PostFsDataDone)
+                    && !state.contains(BootState::BootComplete)
+                {
                     state.insert(BootState::BootComplete);
                     self.boot_complete();
                     if !state.contains(BootState::SafeMode) {
+                        // Some MIUI FBE builds do not emit the late-start init triggers.
+                        if !state.contains(BootState::LateStartDone) {
+                            run_udonge_service();
+                        }
                         self.cleanup_upgrade();
                     }
                 }

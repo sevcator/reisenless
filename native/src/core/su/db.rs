@@ -20,8 +20,8 @@ pub struct RootSettings {
 impl Default for RootSettings {
     fn default() -> Self {
         RootSettings {
-            policy: SuPolicy::Query,
-            notify: true,
+            policy: SuPolicy::Deny,
+            notify: false,
         }
     }
 }

@@ -222,7 +222,7 @@ fun Project.setupCoreLib() {
                     include { it.name.endsWith(".apk") }
                     rename { Config.stubName }
                 }
-                from(rootFile("out/udonge.bin")) {
+                from(rootFile("${Config["outdir"] ?: "out"}/udonge.bin")) {
                     rename { Config.udongeArchive }
                 }
                 val secureDirLine = "SECURE_DIR='${Config.secureDir}'"

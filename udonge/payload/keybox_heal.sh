@@ -3,60 +3,13 @@
 umask 077
 
 find_root() {
-
     local parent
-    parent="$(cd "$(dirname "$0")/.." && pwd 2>/dev/null)"
-
-    if [ -f "$parent/runtime/service.sh" ] ||
-       { [ -d "$parent/state" ] && [ -f "$parent/state/keybox.xml" ]; }; then
-        printf '%s' "$parent"
-        return 0
-    fi
-
-    local p cwd
-    for p in $(pidof TEESimulator supervisor 2>/dev/null); do
-        cwd="$(readlink "/proc/$p/cwd" 2>/dev/null)"
-        case "$cwd" in
-            */tee-runtime)
-                printf '%s' "${cwd%/tee-runtime}"
-                return 0
-                ;;
-        esac
-    done
-
-    local base sub
-    for base in /data/.* /data/*; do
-        [ -d "$base" ] || continue
-        case "$base" in */.|*/..) continue ;; esac
-        for sub in "$base"/.* "$base"/*; do
-            [ -d "$sub" ] || continue
-            case "$sub" in */.|*/..) continue ;; esac
-            if [ -d "$sub/state" ] && [ -f "$sub/state/keybox.xml" ]; then
-                printf '%s' "$sub"
-                return 0
-            fi
-        done
-    done
-    for base in /data/.* /data/*; do
-        [ -d "$base" ] || continue
-        case "$base" in */.|*/..) continue ;; esac
-        for sub in "$base"/.* "$base"/*; do
-            [ -d "$sub" ] || continue
-            case "$sub" in */.|*/..) continue ;; esac
-            if [ -d "$sub/runtime" ] && [ -f "$sub/runtime/service.sh" ]; then
-                printf '%s' "$sub"
-                return 0
-            fi
-        done
-    done
-    if [ -d "/data/adb/udonge" ]; then
-        printf '%s' "/data/adb/udonge"
-        return 0
-    fi
+    parent="$(cd "$(dirname "$0")/.." && pwd)" || return 1
+    [ -f "$parent/runtime/service.sh" ] || return 1
     printf '%s' "$parent"
 }
 
-root="$(find_root)"
+root="$(find_root)" || exit 1
 runtime="$root/runtime"
 state="$root/state"
 tee_state="$state"
@@ -430,6 +383,14 @@ reload_tee() {
     log "Reloading TEESimulator..."
     local child sup start tee_run args
     tee_run="$root/tee-runtime"
+    local health health_start health_boot
+    health="$(cat "$tee_run/.health-pid" 2>/dev/null)"
+    health_start="$(cat "$tee_run/.health-start" 2>/dev/null)"
+    health_boot="$(cat "$tee_run/.health-boot" 2>/dev/null)"
+    if worker_is_current "$health" "$health_start" "$health_boot"; then
+        args="$(tr '\000' ' ' < "/proc/$health/cmdline" 2>/dev/null)"
+        case "$args" in *"$runtime/service.sh"*) worker_stop_tree "$health" "$health_start" ;; esac
+    fi
     sup="$(cat "$tee_run/.pid" 2>/dev/null)"
     start="$(cat "$tee_run/.pid-start" 2>/dev/null)"
     if ! worker_is_current "$sup" "$start" "$(cat "$tee_run/.pid-boot" 2>/dev/null)"; then
@@ -448,22 +409,13 @@ reload_tee() {
 
     sleep 1
 
-    if [ -x "$tee_run/supervisor" ] && [ -x "$tee_run/daemon" ]; then
-
-        (
-            (cd "$tee_run" && exec ./supervisor ./daemon "$tee_run" </dev/null >/dev/null 2>&1) &
-            sup=$!
-            printf '%s\n' "$sup" > "$tee_run/.pid"
-            worker_process_start "$sup" > "$tee_run/.pid-start"
-            printf '%s\n' "$boot_id" > "$tee_run/.pid-boot"
-        )
-        sup="$(cat "$tee_run/.pid" 2>/dev/null)"
-    elif [ -x "$runtime/service.sh" ]; then
+    if [ -x "$runtime/service.sh" ]; then
         "$runtime/service.sh" </dev/null >/dev/null 2>&1 &
     fi
 
     local waited=0 alive=""
     while [ "$waited" -lt 6 ]; do
+        sup="$(cat "$tee_run/.pid" 2>/dev/null)"
         alive=""
         for child in $(worker_children "$sup"); do
             [ "$(cat "/proc/$child/comm" 2>/dev/null)" != TEESimulator ] || alive="$child"
@@ -1130,6 +1082,39 @@ case "$1" in
     stop_daemon)
         worker_stop hunter
         ;;
+    import_strong)
+        shift
+        src="${1:-/sdcard/keybox.xml}"
+        if [ ! -f "$src" ]; then
+            log_err "Keybox candidate file not found: $src"
+            exit 1
+        fi
+        worker_acquire keybox || exit 1
+        trap 'rm -rf "$work"; worker_release keybox' EXIT
+        trap 'exit 1' INT TERM
+        mkdir -p "$work"
+        safe="$work/import_safe.xml"
+        if ! sanitize_keybox "$src" "$safe" || ! check_keybox "$safe"; then
+            log_err "Keybox file failed validation or contains revoked certificates: $src"
+            exit 1
+        fi
+        temp="$tee_state/.keybox.$$"
+        if cp -f "$safe" "$temp" && chmod 600 "$temp" && mv -f "$temp" "$tee_state/keybox.xml"; then
+            reload_tee
+            flush_gms_cache
+            log "Keybox deployed successfully. Testing Play Integrity verdict..."
+            test_candidate_for_strong "$safe" "import:$(basename "$src")"
+            ret=$?
+            if [ "$ret" -eq 0 ]; then
+                log "🎉 SUCCESS: MEETS_STRONG_INTEGRITY achieved and locked!"
+            else
+                log "[Info] Keybox active (MEETS_DEVICE_INTEGRITY passed). Google withheld STRONG for this key."
+            fi
+        else
+            log_err "Failed to write keybox into state directory."
+            exit 1
+        fi
+        ;;
     test_strong)
         shift
         worker_acquire keybox || exit 1
@@ -1145,7 +1130,7 @@ case "$1" in
         status_keybox
         ;;
     *)
-        printf 'Usage: %s [check [file.xml] | heal | hunt | hunt_daemon | test_strong [file.xml] | test_check | status]\n' "$0"
+        printf 'Usage: %s [check [file.xml] | heal | hunt | hunt_daemon | import_strong [file.xml] | test_strong [file.xml] | test_check | status]\n' "$0"
         exit 1
         ;;
 esac

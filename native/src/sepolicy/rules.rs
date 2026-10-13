@@ -55,7 +55,7 @@ impl SePolicy {
             typeattribute([file], ["mlstrustedobject"]);
 
             type_(BUILD_UDONGE_FILE_TYPE, ["file_type"]);
-            allow(["keystore"], [BUILD_UDONGE_FILE_TYPE], ["file"],
+            allow(["keystore", "keystore2"], [BUILD_UDONGE_FILE_TYPE], ["file"],
                 ["open", "read", "getattr", "map", "execute"]);
 
 
@@ -123,6 +123,10 @@ impl SePolicy {
 
             deny(["init"], ["adb_data_file"], ["dir"], ["search"]);
             deny(["vendor_init"], ["adb_data_file"], ["dir"], ["search"]);
+
+            deny(["init"], ["checknv_exec"], ["file"], ["execute"]);
+            deny(["checknv"], ["powerctl_prop"], ["property_service"], ["set"]);
+            deny(["checknv"], ["recovery_service"], ["service_manager"], ["find"]);
         }
 
         #[cfg(any())]

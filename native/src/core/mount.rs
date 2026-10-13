@@ -106,7 +106,6 @@ enum PartId {
     Cache,
     Klogdump,
     Metadata,
-    Persist,
 }
 
 enum EncryptType {
@@ -155,7 +154,6 @@ pub fn find_preinit_device() -> String {
 
 
             match info.target.as_str() {
-                "/persist" | "/mnt/vendor/persist" => Some((PartId::Persist, info)),
                 "/metadata" => Some((PartId::Metadata, info)),
                 "/klogdump" => Some((PartId::Klogdump, info)),
                 "/cache" => Some((PartId::Cache, info)),

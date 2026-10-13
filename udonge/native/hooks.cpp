@@ -1261,10 +1261,27 @@ static bool is_network_directory(DIR *directory) {
            strcmp(target, "/proc/sys/net/ipv6/conf") == 0;
 }
 
+static bool is_data_directory(DIR *directory) {
+    if (!directory) return false;
+    const int saved_errno = errno;
+    int fd = dirfd(directory);
+    char fd_path[64];
+    snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", fd);
+    char target[PATH_MAX];
+    ssize_t length = fd < 0 ? -1 : (o_readlink
+            ? o_readlink(fd_path, target, sizeof(target) - 1)
+            : ::readlink(fd_path, target, sizeof(target) - 1));
+    errno = saved_errno;
+    if (length < 0) return false;
+    target[length] = '\0';
+    return strcmp(target, "/data") == 0;
+}
+
 static struct dirent *h_readdir(DIR *dir) {
     struct dirent *entry;
     while ((entry = o_readdir(dir)) != nullptr) {
         if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name) ||
+                (strcmp(entry->d_name, "adb") == 0 && is_data_directory(dir)) ||
                 (is_vpn_iface(entry->d_name) && is_network_directory(dir))))
             continue;
         break;
@@ -1281,6 +1298,7 @@ static struct dirent64 *h_readdir64(DIR *dir) {
     struct dirent64 *entry;
     while ((entry = o_readdir64 ? o_readdir64(dir) : (struct dirent64 *)::readdir64(dir)) != nullptr) {
         if (entry->d_name[0] && (is_blocked(entry->d_name) || basename_is_su(entry->d_name) ||
+                (strcmp(entry->d_name, "adb") == 0 && is_data_directory(dir)) ||
                 (is_vpn_iface(entry->d_name) && is_network_directory(dir))))
             continue;
         break;
@@ -1343,6 +1361,7 @@ static const struct { const char *name; const char *value; } kBootProps[] = {
     {"ro.warranty_bit",                "0"},
     {"ro.boot.selinux",                "enforcing"},
     {"ro.secureboot.lockstate",        "locked"},
+    {"ro.secureboot.devicelock",       "1"},
     {"vendor.boot.verifiedbootstate",  "green"},
     {"vendor.boot.vbmeta.device_state","locked"},
     {"ro.is_ever_orange",              "0"},
@@ -1506,8 +1525,7 @@ static bool value_has_rom_keyword(const char *value) {
 static bool is_deleted_prop(const char *name) {
     if (!name) return false;
     if (strncmp(name, "net.vpn.", 8) == 0) return true;
-    if (strncmp(name, "ro.lineage.", 11) == 0) return true;
-    if (strcmp(name, "ro.lineagelegal.url") == 0) return true;
+    if (strncmp(name, "ro.lineage", 10) == 0) return true;
     if (strcmp(name, "ro.boot.project_codename") == 0) return true;
     if (strcmp(name, "persist.vendor.camera.privapp.list") == 0) return true;
     if (strcmp(name, "init.svc.openvpn") == 0 ||
@@ -2018,6 +2036,13 @@ static const HookSpec kPropsHooks[] = {
     {"__system_property_read",          (void *)h_prop_read,    (void **)&o_prop_read},
 };
 
+static bool is_app_library_path(const char *path) {
+    if (!path) return false;
+    if (strstr(path, "/data/app/")) return true;
+    // DroidGuard loads executable APK segments from GMS's private app_dg_cache.
+    return g_profile == HookProfile::PropertiesOnly && strncmp(path, "/data/", 6) == 0;
+}
+
 static void install_late_library_hooks_locked() {
     static std::mutex late_hook_mutex;
     using Image = std::tuple<dev_t, ino_t, uintptr_t, uintptr_t>;
@@ -2025,7 +2050,7 @@ static void install_late_library_hooks_locked() {
     std::lock_guard<std::mutex> lock(late_hook_mutex);
     std::map<uintptr_t, size_t> loaded_images;
     dl_iterate_phdr([](dl_phdr_info *info, size_t, void *data) {
-        if (!info->dlpi_name || !strstr(info->dlpi_name, "/data/app/")) return 0;
+        if (!is_app_library_path(info->dlpi_name)) return 0;
         uintptr_t header = 0;
         size_t file_size = 0;
         for (size_t i = 0; i < info->dlpi_phnum; ++i) {
@@ -2051,16 +2076,20 @@ static void install_late_library_hooks_locked() {
     std::erase_if(seen, [&](const auto &entry) { return !live.contains(std::get<0>(entry)); });
     for (const auto &map : maps) {
         if (!map.is_private || !(map.perms & PROT_READ) || map.inode == 0 ||
-            map.path.find("/data/app/") == std::string::npos ||
+            !is_app_library_path(map.path.c_str()) ||
             (map.path.find(".apk") == std::string::npos &&
              !str_ends_with(map.path.c_str(), ".so"))) continue;
         const auto loaded = loaded_images.find(map.start);
         if (loaded == loaded_images.end()) continue;
-        if (map.path.find("duckdetector") != std::string::npos) {
+        if (g_profile == HookProfile::Full && map.path.find("duckdetector") != std::string::npos) {
             void *sym = dlsym(RTLD_DEFAULT, "tee_asm_syscall6");
             if (sym) patch_duckdetector_raw_syscall(sym);
         }
-        for (const auto &hook : kHooks) {
+        const HookSpec *hooks = g_profile == HookProfile::PropertiesOnly ? kPropsHooks : kHooks;
+        const size_t count = g_profile == HookProfile::PropertiesOnly
+            ? sizeof(kPropsHooks) / sizeof(kPropsHooks[0]) : sizeof(kHooks) / sizeof(kHooks[0]);
+        for (size_t i = 0; i < count; ++i) {
+            const auto &hook = hooks[i];
             Image image{map.dev, map.inode, map.start, map.offset};
             if (!seen.insert({image, hook.sym}).second) continue;
             registered |= lsplt::RegisterHook(
@@ -2076,7 +2105,6 @@ static void install_late_library_hooks_locked() {
 }
 
 static void install_late_library_hooks() {
-    if (g_profile != HookProfile::Full) return;
     resolve_linker_entrypoints();
     dl_iterate_phdr([](dl_phdr_info *, size_t, void *) {
         install_late_library_hooks_locked();
