@@ -81,6 +81,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -280,7 +282,7 @@ fun HomeScreen(
                 if (uiState.magiskState == HomeViewModel.State.OUTDATED) {
                     OutdatedRootCard(onReinstall = { showInstallSheet = true })
                 }
-                StatusCard()
+                StatusCard(uiState = uiState)
 
                 Box(
                     modifier = Modifier
@@ -491,33 +493,60 @@ private class RebootOption(val labelRes: Int, val action: () -> Unit)
 
 
 
-private data class StatusInfo(val label: String, val status: String)
+private data class StatusInfo(
+    val label: String,
+    val status: String,
+    val isError: Boolean = false,
+)
 
 @Composable
 private fun StatusCard(
+    uiState: HomeViewModel.UiState,
     modifier: Modifier = Modifier
 ) {
+    val isInstalled = uiState.magiskState != HomeViewModel.State.INVALID
+    val isZygiskNeeded = Config.zygisk || Info.isZygiskEnabled
     val isZygiskActive = Config.zygisk && Info.isZygiskEnabled
-    val statuses = listOf(
-        StatusInfo(
-            label = stringResource(CoreR.string.ramdisk),
-            status = stringResource(if (Info.ramdisk) CoreR.string.yes else CoreR.string.no)
-        ),
-        StatusInfo(
-            label = stringResource(CoreR.string.zygisk),
-            status = stringResource(
-                if (isZygiskActive) CoreR.string.on
-                else CoreR.string.off
-            )
-        ),
-        StatusInfo(
-            label = stringResource(CoreR.string.udonge),
-            status = stringResource(
-                if (Config.udongeEnabled) CoreR.string.on
-                else CoreR.string.off
+
+    val statuses = buildList {
+        add(
+            StatusInfo(
+                label = stringResource(CoreR.string.home_installed_version),
+                status = if (isInstalled) {
+                    uiState.magiskInstalledVersion.ifEmpty { stringResource(CoreR.string.home_installed_version) }
+                } else {
+                    stringResource(CoreR.string.not_installed)
+                },
+                isError = !isInstalled
             )
         )
-    )
+        add(
+            StatusInfo(
+                label = stringResource(CoreR.string.ramdisk),
+                status = stringResource(if (Info.ramdisk) CoreR.string.yes else CoreR.string.no)
+            )
+        )
+        if (isZygiskNeeded) {
+            add(
+                StatusInfo(
+                    label = stringResource(CoreR.string.zygisk),
+                    status = stringResource(
+                        if (isZygiskActive) CoreR.string.on
+                        else CoreR.string.off
+                    )
+                )
+            )
+        }
+        add(
+            StatusInfo(
+                label = stringResource(CoreR.string.udonge),
+                status = stringResource(
+                    if (Config.udongeEnabled) CoreR.string.on
+                    else CoreR.string.off
+                )
+            )
+        )
+    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -541,13 +570,19 @@ private fun StatusCard(
                     Text(
                         text = info.label,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = info.status,
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = if (info.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
                     )
                 }
                 if (index < statuses.lastIndex) {

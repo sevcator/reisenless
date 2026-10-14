@@ -34,17 +34,21 @@ pub fn is_requested() -> bool {
     true
 }
 
-pub fn is_enabled() -> bool {
-    cstr!(UDONGE_ENABLED).exists()
-        && !cstr!(UDONGE_DISABLED).exists()
-        && transport_enabled()
-}
-
-pub fn transport_enabled() -> bool {
+pub fn transport_ready() -> bool {
     !cstr!(UDONGE_UNLOADED).exists()
         && !cstr!(UDONGE_BOOT_FAILED).exists()
         && !BOOT_BLOCKED.load(Ordering::Relaxed)
         && runtime_complete(UDONGE_RUNTIME)
+}
+
+pub fn is_enabled() -> bool {
+    cstr!(UDONGE_ENABLED).exists()
+        && !cstr!(UDONGE_DISABLED).exists()
+        && transport_ready()
+}
+
+pub fn transport_enabled() -> bool {
+    is_enabled()
 }
 
 fn prepare_boot_attempt() -> bool {

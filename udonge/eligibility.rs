@@ -22,15 +22,16 @@ fn is_application_uid(uid: i32) -> bool {
 }
 
 #[doc = " Returns whether Udonge is eligible to enter a denylisted process."]#[doc = ""]#[doc = " This policy deliberately lives in the Udonge source tree. Reisenless only"]#[doc = " consumes the boolean at its built-in-module transport boundary."]pub fn should_load(uid: i32, process: &str) -> bool {
-    let package = base_package(process);
-
-    if is_application_uid(uid) {
-        return true;
-    }
     if !std::path::Path::new(&format!("{UDONGE_ROOT}/state/enabled")).exists()
         || std::path::Path::new(&format!("{UDONGE_ROOT}/state/disabled")).exists()
     {
         return false;
+    }
+
+    let package = base_package(process);
+
+    if is_application_uid(uid) {
+        return true;
     }
     if process == "com.google.android.gms.unstable" {
         return true;
