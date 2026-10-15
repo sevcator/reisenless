@@ -165,11 +165,12 @@ impl MagiskD {
         if udonge_requested() {
             setup_udonge_runtime(true);
         }
+        let enable_zygisk = features.zygisk || crate::udonge::transport_enabled();
         self.zygisk_enabled
-            .store(features.zygisk, Ordering::Release);
+            .store(enable_zygisk, Ordering::Release);
 
         self.zygote_injection_enabled.store(
-            features.zygisk || crate::udonge::transport_enabled(),
+            enable_zygisk,
             Ordering::Release,
         );
         initialize_denylist(features.sulist);

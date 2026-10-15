@@ -403,23 +403,16 @@ reload_tee() {
         start="$(worker_process_start "$sup")"
     fi
     if worker_is_current "$sup" "$start" "$boot_id"; then
-        args="$(tr '\000' ' ' < "/proc/$sup/cmdline" 2>/dev/null)"
-        case "$args" in *"./daemon $tee_run"*) worker_stop_tree "$sup" "$start" ;; esac
-    fi
-
-    sleep 1
-
-    if [ -x "$runtime/service.sh" ]; then
-        "$runtime/service.sh" </dev/null >/dev/null 2>&1 &
+        pkill -9 -f TEESimulator 2>/dev/null || true
+    else
+        if [ -x "$runtime/service.sh" ]; then
+            "$runtime/service.sh" </dev/null >/dev/null 2>&1 &
+        fi
     fi
 
     local waited=0 alive=""
-    while [ "$waited" -lt 6 ]; do
-        sup="$(cat "$tee_run/.pid" 2>/dev/null)"
-        alive=""
-        for child in $(worker_children "$sup"); do
-            [ "$(cat "/proc/$child/comm" 2>/dev/null)" != TEESimulator ] || alive="$child"
-        done
+    while [ "$waited" -lt 15 ]; do
+        alive="$(pidof TEESimulator 2>/dev/null)"
         [ -n "$alive" ] && break
         sleep 1
         waited=$((waited + 1))

@@ -130,7 +130,7 @@ object Config : PreferenceConfig, DBConfig {
             LocaleSetting.instance.setLocale(value)
         }
 
-    var zygisk by dbSettings(Key.ZYGISK, false)
+    var zygisk by dbSettings(Key.ZYGISK, true)
     var sulist by dbSettings(Key.SULIST, false)
     var keyStoreRaw by dbStrings(Key.KEYSTORE, "", true)
 

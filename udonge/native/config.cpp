@@ -137,6 +137,19 @@ Config parse_config(const std::string &targets_text, const std::string &props_te
                 cfg.props["ro.board.api_level"] = v;
             } else if (k == "RELEASE") {
                 cfg.props["ro.build.version.release"] = v;
+                cfg.props["ro.system.build.version.release"] = v;
+                cfg.props["ro.vendor.build.version.release"] = v;
+                cfg.props["ro.product.build.version.release"] = v;
+                cfg.props["ro.system_ext.build.version.release"] = v;
+                cfg.props["ro.odm.build.version.release"] = v;
+                cfg.props["ro.build.version.release_or_codename"] = v;
+            } else if (k == "SDK_INT") {
+                cfg.props["ro.build.version.sdk"] = v;
+                cfg.props["ro.system.build.version.sdk"] = v;
+                cfg.props["ro.vendor.build.version.sdk"] = v;
+                cfg.props["ro.product.build.version.sdk"] = v;
+                cfg.props["ro.system_ext.build.version.sdk"] = v;
+                cfg.props["ro.odm.build.version.sdk"] = v;
             } else if (k == "INCREMENTAL") {
                 cfg.props["ro.build.version.incremental"] = v;
             } else if (k == "TYPE") {

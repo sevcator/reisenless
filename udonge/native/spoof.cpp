@@ -28,12 +28,26 @@ void spoof_build(JNIEnv *env, const Config &cfg, const std::string &pkg) {
     for (const auto &kv : cfg.gms_build) {
         const std::string &k = kv.first;
         const std::string &v = kv.second;
-        if (k == "SECURITY_PATCH" || k == "INCREMENTAL") {
+        if (k == "SECURITY_PATCH" || k == "INCREMENTAL" || k == "RELEASE") {
             set_str(env, ver, k.c_str(), v);
-        } else if (k == "DEVICE_INITIAL_SDK_INT" || k == "SDK_INT" ||
-                   k == "RELEASE") {
-
-            continue;
+        } else if (k == "DEVICE_INITIAL_SDK_INT") {
+            if (ver) {
+                int init_sdk = std::atoi(v.c_str());
+                if (init_sdk > 0) {
+                    jfieldID fid = env->GetStaticFieldID(ver, "DEVICE_INITIAL_SDK_INT", "I");
+                    if (fid) env->SetStaticIntField(ver, fid, init_sdk);
+                    else env->ExceptionClear();
+                }
+            }
+        } else if (k == "SDK_INT") {
+            if (ver) {
+                int sdk = std::atoi(v.c_str());
+                if (sdk > 0) {
+                    jfieldID fid = env->GetStaticFieldID(ver, "SDK_INT", "I");
+                    if (fid) env->SetStaticIntField(ver, fid, sdk);
+                    else env->ExceptionClear();
+                }
+            }
         } else {
             set_str(env, build, k.c_str(), v);
         }
