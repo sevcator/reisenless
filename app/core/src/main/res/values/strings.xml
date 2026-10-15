@@ -40,6 +40,8 @@
     <string name="patch_file_msg">select a raw image (*.img) or an odin tarfile (*.tar) or a payload.bin (*.bin)</string>
     <string name="reboot_delay_toast">rebooting in 5 seconds…</string>
     <string name="flash_screen_title">installation</string>
+    <string name="update_reisenless_from_apk" tools:ignore="MissingTranslation">update reisenless from apk</string>
+    <string name="update_apk_select_msg" tools:ignore="MissingTranslation">select a reisenless release apk (*.apk)</string>
 
     <string name="su_request_title">superuser request</string>
     <string name="touch_filtered_warning">because an app is obscuring a superuser request, reisenless can\'t verify your response.</string>

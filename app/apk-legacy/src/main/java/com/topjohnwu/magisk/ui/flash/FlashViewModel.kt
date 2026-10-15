@@ -90,6 +90,11 @@ class FlashViewModel : BaseViewModel() {
                     showReboot = false
                     MagiskInstaller.Download(uri.toString(), outItems, logItems).exec()
                 }
+                Const.Value.UPDATE_APK -> {
+                    uri ?: return@launch
+                    showReboot = Info.isRooted
+                    MagiskInstaller.UpdateApk(uri, outItems, logItems).exec()
+                }
                 else -> {
                     back()
                     return@launch

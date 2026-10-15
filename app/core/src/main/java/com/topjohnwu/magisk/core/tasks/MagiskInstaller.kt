@@ -114,7 +114,7 @@ abstract class MagiskInstallImpl protected constructor(
         return major >= 5 && !release.contains("android12-") && !release.startsWith("5.4")
     }
 
-    private fun findImage(): Boolean {
+    protected fun findImage(): Boolean {
         return findImage(Info.slot)
     }
 
@@ -124,7 +124,7 @@ abstract class MagiskInstallImpl protected constructor(
         return findImage(slot)
     }
 
-    private suspend fun extractFiles(): Boolean {
+    protected suspend fun extractFiles(customApk: File? = null): Boolean {
         console.add("- device platform: ${Const.CPU_ABI}")
         console.add("- installing: ${BuildConfig.APP_VERSION_NAME} (${BuildConfig.APP_VERSION_CODE})")
 
@@ -132,7 +132,7 @@ abstract class MagiskInstallImpl protected constructor(
         if (!installDir.mkdirs()) throw IOException("unable to create installation directory")
 
         try {
-            val sourceApk = File(context.applicationInfo.sourceDir)
+            val sourceApk = customApk ?: File(context.applicationInfo.sourceDir)
             ZipFile.builder().setFile(sourceApk).get().use { zf ->
                 zf.entries.asSequence().filter {
                     !it.isDirectory && it.name.startsWith("lib/${Const.CPU_ABI}/")
@@ -537,7 +537,7 @@ abstract class MagiskInstallImpl protected constructor(
         return true
     }
 
-    private fun patchBoot(): Boolean {
+    protected fun patchBoot(): Boolean {
         val newBoot = installDir.getChildFile("new-boot.img")
         if (!useRootDir) {
 
@@ -560,7 +560,7 @@ abstract class MagiskInstallImpl protected constructor(
         return isSuccess
     }
 
-    private fun flashBoot() = "direct_install $installDir $srcBoot".sh().isSuccess
+    protected fun flashBoot() = "direct_install $installDir $srcBoot".sh().isSuccess
 
     private fun postOTA(): Boolean {
         if (!"post_ota".sh().isSuccess) {
@@ -685,6 +685,82 @@ class MagiskInstaller {
         logs: MutableList<String>
     ) : ConsoleInstaller(console, logs) {
         override suspend fun operations() = direct()
+    }
+
+    class UpdateApk(
+        private val uri: Uri,
+        console: MutableList<String>,
+        logs: MutableList<String>
+    ) : ConsoleInstaller(console, logs) {
+        override suspend fun operations(): Boolean {
+            console.add("- preparing update package...")
+            val stageDir = File(context.cacheDir, "update-${UUID.randomUUID()}").also { it.mkdirs() }
+            val updateApk = File(stageDir, "update.apk")
+            try {
+                uri.inputStream().use { input ->
+                    updateApk.outputStream().use { input.copyAll(it, 1024 * 1024) }
+                }
+                if (!updateApk.exists() || updateApk.length() < 1024 * 1024) {
+                    console.add("! invalid APK file")
+                    return false
+                }
+
+                console.add("- verifying APK structure...")
+                val isReisenlessApk = try {
+                    ZipFile.builder().setFile(updateApk).get().use { zf ->
+                        zf.getEntry("assets/boot_patch.sh") != null &&
+                        zf.getEntry("assets/util_functions.sh") != null
+                    }
+                } catch (e: Exception) {
+                    false
+                }
+                if (!isReisenlessApk) {
+                    console.add("! selected file is not a valid Reisenless APK")
+                    return false
+                }
+
+                console.add("- updating manager application...")
+                val isRoot = Shell.getShell().isRoot
+                if (isRoot) {
+                    val installRes = Shell.cmd("pm install -r '${updateApk.path}'").exec()
+                    if (installRes.isSuccess) {
+                        console.add("- manager application updated")
+                    } else {
+                        console.add("! warning: pm install code ${installRes.code}")
+                    }
+                }
+
+                if (Info.isRooted) {
+                    console.add("- patching and updating root binaries...")
+                    if (!findImage()) {
+                        console.add("! unable to locate target boot image")
+                        return false
+                    }
+                    if (!extractFiles(updateApk)) {
+                        console.add("! unable to extract files from update APK")
+                        return false
+                    }
+                    if (!patchBoot()) {
+                        console.add("! boot patching failed")
+                        return false
+                    }
+                    if (!flashBoot()) {
+                        console.add("! flashing boot image failed")
+                        return false
+                    }
+                    console.add("- boot partition and runtime updated successfully")
+                }
+
+                console.add("************************************************")
+                console.add(" Reisenless has been successfully updated!")
+                console.add(" All settings, modules, and keyboxes preserved.")
+                console.add(" Please reboot your device to finish.")
+                console.add("************************************************")
+                return true
+            } finally {
+                stageDir.deleteRecursively()
+            }
+        }
     }
 
     class Emulator(

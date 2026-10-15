@@ -17,7 +17,7 @@ mkdir -p "$state"
 chmod 700 "$root" "$state"
 rm -f "$state/vbmeta_hash" "$state/pif_urls.conf"
 
-for name in targets.conf props.conf pif.conf keybox_urls.conf boot_key.bin; do
+for name in targets.conf props.conf pif.conf keybox_urls.conf rom_keywords.conf boot_key.bin; do
     if [ ! -s "$state/$name" ] || { [ "$name" = keybox_urls.conf ] && ! grep -q '^https://' "$state/$name"; }; then
         cp "$runtime/defaults/$name" "$state/$name"
         chmod 600 "$state/$name"

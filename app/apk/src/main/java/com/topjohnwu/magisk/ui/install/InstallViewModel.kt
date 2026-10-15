@@ -21,7 +21,7 @@ import com.topjohnwu.magisk.core.R as CoreR
 
 class InstallViewModel : BaseViewModel() {
 
-    enum class Method { NONE, PATCH, DIRECT, INACTIVE_SLOT, DOWNLOAD }
+    enum class Method { NONE, PATCH, DIRECT, INACTIVE_SLOT, DOWNLOAD, UPDATE_APK }
 
     data class UiState(
         val step: Int = 0,
@@ -51,6 +51,10 @@ class InstallViewModel : BaseViewModel() {
                 AppContext.toast(CoreR.string.patch_file_msg, Toast.LENGTH_LONG)
                 _uiState.update { it.copy(requestFilePicker = true) }
             }
+            Method.UPDATE_APK -> {
+                AppContext.toast(CoreR.string.update_apk_select_msg, Toast.LENGTH_LONG)
+                _uiState.update { it.copy(requestFilePicker = true) }
+            }
             Method.INACTIVE_SLOT -> {
                 _uiState.update { it.copy(showSecondSlotWarning = true) }
             }
@@ -75,7 +79,7 @@ class InstallViewModel : BaseViewModel() {
 
     fun onPatchFileSelected(uri: Uri) {
         _uiState.update { it.copy(patchUri = uri) }
-        if (_uiState.value.method == Method.PATCH) {
+        if (_uiState.value.method == Method.PATCH || _uiState.value.method == Method.UPDATE_APK) {
             install()
         }
     }
@@ -91,6 +95,10 @@ class InstallViewModel : BaseViewModel() {
         when (_uiState.value.method) {
             Method.PATCH -> navigateTo(Route.Flash(
                 action = Const.Value.PATCH_FILE,
+                additionalData = _uiState.value.patchUri!!.toString()
+            ))
+            Method.UPDATE_APK -> navigateTo(Route.Flash(
+                action = Const.Value.UPDATE_APK,
                 additionalData = _uiState.value.patchUri!!.toString()
             ))
             Method.DOWNLOAD -> navigateTo(Route.Flash(

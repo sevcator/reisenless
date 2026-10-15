@@ -9,15 +9,20 @@ namespace cloak {
 
 struct Config {
     std::string current_package;
+    std::string manager_package;
     std::unordered_set<std::string> packages;
     std::unordered_set<std::string> stealth_packages;
+    std::unordered_set<std::string> exempt_packages;
     std::unordered_map<std::string, std::string> props;
     std::unordered_map<std::string, std::string> gms_build;
     std::vector<std::string> rom_keywords;
 
 
     bool shouldCloak(const std::string &pkg) const {
-        return packages.count(pkg) != 0;
+        if (pkg.empty()) return false;
+        if (!manager_package.empty() && pkg == manager_package) return false;
+        if (exempt_packages.count(pkg) != 0) return false;
+        return packages.count("*") != 0 || packages.count(pkg) != 0;
     }
 
 

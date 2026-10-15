@@ -120,6 +120,13 @@ class FlashViewModel : BaseViewModel() {
                         MagiskInstaller.Download(uri.toString(), outItems, logItems).exec()
                     })
                 }
+                action == Const.Value.UPDATE_APK -> {
+                    uri ?: return@launch
+                    _showReboot.value = Info.isRooted
+                    onResult(withContext(Dispatchers.IO) {
+                        MagiskInstaller.UpdateApk(uri, outItems, logItems).exec()
+                    })
+                }
                 else -> {
                     consoleItems.add("! unknown installer action")
                     onResult(false)

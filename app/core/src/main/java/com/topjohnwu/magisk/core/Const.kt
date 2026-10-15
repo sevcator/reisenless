@@ -63,6 +63,7 @@ object Const {
         const val FLASH_MAGISK = "magisk"
         const val FLASH_INACTIVE_SLOT = "slot"
         const val UNINSTALL = "uninstall"
+        const val UPDATE_APK = "update_apk"
     }
 
     object Nav {

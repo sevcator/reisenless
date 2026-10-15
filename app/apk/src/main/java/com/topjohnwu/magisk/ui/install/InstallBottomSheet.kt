@@ -112,6 +112,14 @@ fun InstallBottomSheet(
                 }
 
                 SettingsArrow(
+                    title = stringResource(CoreR.string.update_reisenless_from_apk),
+                    onClick = {
+                        onDismiss()
+                        installVm.selectMethod(InstallViewModel.Method.UPDATE_APK)
+                    },
+                )
+
+                SettingsArrow(
                     title = stringResource(CoreR.string.select_patch_file),
                     onClick = {
                         onDismiss()

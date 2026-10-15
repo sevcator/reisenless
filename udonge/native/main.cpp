@@ -167,6 +167,7 @@ public:
         cfg_.current_package = package_;
 
         if ((args->uid % 100000) < 10000 ||
+            (!manager_.empty() && package_ == manager_) ||
             package_ == "com.android.systemui" ||
             process_name.find("systemui") != std::string::npos ||
             process_name == "system_server") {
@@ -259,6 +260,7 @@ private:
     JNIEnv *env_ = nullptr;
     cloak::Config cfg_;
     std::string package_;
+    std::string manager_;
     std::string hide_rule_;
     std::string hide_dex_;
     bool cloak_ = false;
@@ -293,7 +295,8 @@ private:
                 && read_str(fd, pif)
                 && read_str(fd, hide_rule_)
                 && read_str(fd, hide_dex_)
-                && read_str(fd, rom_keywords);
+                && read_str(fd, rom_keywords)
+                && read_str(fd, manager_);
             close(fd);
             if (!ok) {
                 targets.clear();
@@ -302,6 +305,7 @@ private:
                 hide_rule_.clear();
                 hide_dex_.clear();
                 rom_keywords.clear();
+                manager_.clear();
             } else {
                 from_companion = true;
             }
@@ -315,6 +319,10 @@ private:
             }
         }
         cfg_ = cloak::parse_config(targets, props, pif, rom_keywords);
+        cfg_.manager_package = manager_;
+        if (!manager_.empty() && package_ == manager_) {
+            return false;
+        }
         if (is_gms_unstable_ || is_pi_target_) {
             return !cfg_.gms_build.empty() || !hide_rule_.empty() || cfg_.shouldCloak(package_);
         }
@@ -331,7 +339,7 @@ static void companion_handler(int client) {
     std::string package;
     if (!read_str(client, package)) return;
     if (package.empty()) package = base_package(process_name);
-    std::string targets, props, pif, rom_keywords, hide_rule, hide_dex;
+    std::string targets, props, pif, rom_keywords, hide_rule, hide_dex, manager;
     {
     static std::mutex mutex;
     static cloak::FileCache files(cloak::read_file);
@@ -339,6 +347,15 @@ static void companion_handler(int client) {
     static cloak::Config target_config;
     std::lock_guard lock(mutex);
     const bool full_enabled = full_udonge_enabled();
+    const auto &hide_config = files.get(std::string(CONF_DIR) + "/hideapps.conf");
+    {
+        size_t g_pos = hide_config.find("G\t");
+        if (g_pos != std::string::npos) {
+            size_t end = hide_config.find('\n', g_pos);
+            std::string g_line = hide_config.substr(g_pos, end == std::string::npos ? std::string::npos : end - g_pos);
+            manager = tab_field(g_line, 1);
+        }
+    }
     if (full_enabled) {
         const auto &first = files.get(std::string(CONF_DIR) + "/targets.conf");
         const auto &second = files.get(std::string(CONF_DIR) + "/target.txt");
@@ -348,6 +365,7 @@ static void companion_handler(int client) {
         target_config = cloak::parse_config(targets, {}, {}, {});
         parsed_targets = targets;
     }
+    target_config.manager_package = manager;
     const bool gms_unstable = package == "com.google.android.gms"
             && process_name == "com.google.android.gms.unstable";
     const bool is_pi_target = package == "com.android.vending"
@@ -360,7 +378,6 @@ static void companion_handler(int client) {
     }
     rom_keywords = full_enabled
             ? files.get(std::string(CONF_DIR) + "/rom_keywords.conf") : std::string();
-    const auto &hide_config = files.get(std::string(CONF_DIR) + "/hideapps.conf");
     hide_rule = find_hide_rule(hide_config, package);
     if (!hide_rule.empty() || target_config.shouldCloak(package)) {
         hide_dex = files.get(UDONGE_ROOT "/runtime/hideapps.dex");
@@ -375,6 +392,7 @@ static void companion_handler(int client) {
     write_str(client, hide_rule);
     write_str(client, hide_dex);
     write_str(client, rom_keywords);
+    write_str(client, manager);
 }
 
 REGISTER_ZYGISK_MODULE(UdongeModule)

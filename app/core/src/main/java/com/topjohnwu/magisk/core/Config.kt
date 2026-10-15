@@ -122,7 +122,7 @@ object Config : PreferenceConfig, DBConfig {
         get() = storedUdongeKeyboxUrls.ifBlank { DEFAULT_UDONGE_KEYBOX_URLS }
         set(value) { storedUdongeKeyboxUrls = value }
     var udongeRomKeywords by preference(Key.UDONGE_ROM_KEYWORDS, "")
-    var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, false)
+    var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, true)
     var locale
         get() = localePrefs
         set(value) {

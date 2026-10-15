@@ -1580,12 +1580,13 @@ static bool is_deleted_prop(const char *name) {
         })(name)) return true;
     for (const char *p : kDeletedProps)
         if (strcmp(name, p) == 0) return true;
-    if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
     for (const char *p : kRomDeletedProps)
         if (strcmp(name, p) == 0) return true;
 
-    for (const auto &kw : g_cfg->rom_keywords)
-        if (contains_ci(name, kw)) return true;
+    if (g_cfg && !g_cfg->rom_keywords.empty()) {
+        for (const auto &kw : g_cfg->rom_keywords)
+            if (contains_ci(name, kw)) return true;
+    }
     return false;
 }
 
