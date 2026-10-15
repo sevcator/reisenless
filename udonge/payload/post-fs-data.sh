@@ -7,8 +7,11 @@ runtime=$root/runtime
 state=$root/state
 . "$runtime/worker.sh" || exit 1
 
-[ -f "$state/enabled" ] && [ ! -f "$state/disabled" ] &&
-    [ ! -f "$state/pending-reboot" ] || exit 0
+if [ ! -f "$state/disabled" ] && [ ! -f "$state/pending-reboot" ]; then
+    [ -f "$state/enabled" ] || { : > "$state/enabled"; chmod 600 "$state/enabled"; }
+else
+    exit 0
+fi
 
 mkdir -p "$state"
 chmod 700 "$root" "$state"
@@ -73,6 +76,7 @@ sync_vbmeta_digest() {
     printf 'ro.boot.vbmeta.digest=%s\n' "$digest" >> "$temp"
     chmod 600 "$temp"
     mv -f "$temp" "$state/props.conf"
+    resetprop -n ro.boot.vbmeta.digest "$digest" 2>/dev/null || true
 }
 
 sync_vbmeta_digest || true

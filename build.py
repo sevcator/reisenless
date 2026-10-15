@@ -1429,8 +1429,17 @@ def _sync_udonge_to_device(udonge_bin: Path, *, installed_apk: Path = None):
             [str(adb_path), *device, "shell", "su -c id"],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, shell=is_windows, timeout=15
         )
-        if "uid=0" not in su_check.stdout:
-            return
+        if "uid=0" in su_check.stdout:
+            exec_prefix = ["su", "-c"]
+        else:
+            adb_id = subprocess.run(
+                [str(adb_path), *device, "shell", "id"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, shell=is_windows, timeout=15
+            )
+            if "uid=0" in adb_id.stdout:
+                exec_prefix = []
+            else:
+                return
         color_print("\033[36m", "* Updating this build's Udonge runtime via root ADB...")
         script_path = config["outdir"] / "unpack_udonge.sh"
         script_path.write_bytes(_udonge_sync_script(identity).encode("utf-8"))
@@ -1438,8 +1447,9 @@ def _sync_udonge_to_device(udonge_bin: Path, *, installed_apk: Path = None):
             result = execv([str(adb_path), *device, "push", str(source), f"/data/local/tmp/{target}"])
             if result.returncode != 0:
                 error("Unable to stage Udonge runtime update")
+        run_cmd = [*exec_prefix, "sh /data/local/tmp/unpack_udonge.sh"] if exec_prefix else ["sh", "/data/local/tmp/unpack_udonge.sh"]
         result = subprocess.run(
-            [str(adb_path), *device, "shell", "su -c sh /data/local/tmp/unpack_udonge.sh"],
+            [str(adb_path), *device, "shell", *run_cmd],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=is_windows, timeout=180
         )
         if result.returncode == 0 and "UDONGE_SYNCED" in result.stdout:

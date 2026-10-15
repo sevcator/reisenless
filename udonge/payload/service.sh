@@ -5,8 +5,11 @@ root=UDONGE_ROOT_STUB
 [ -d "$root" ] || root="$(cd "$(dirname "$0")/.." && pwd)"
 runtime=$root/runtime
 state=$root/state
-[ -f "$state/enabled" ] && [ ! -f "$state/disabled" ] &&
-    [ ! -f "$state/pending-reboot" ] || exit 0
+if [ ! -f "$state/disabled" ] && [ ! -f "$state/pending-reboot" ]; then
+    [ -f "$state/enabled" ] || { : > "$state/enabled"; chmod 600 "$state/enabled"; }
+else
+    exit 0
+fi
 tee_state=$state
 legacy_tee_state=$root/tee-state
 work=$root/keybox-check
@@ -87,6 +90,7 @@ sync_vbmeta_digest() {
     printf 'ro.boot.vbmeta.digest=%s\n' "$digest" >> "$temp"
     chmod 600 "$temp"
     mv -f "$temp" "$state/props.conf"
+    resetprop -n ro.boot.vbmeta.digest "$digest" 2>/dev/null || true
 }
 
 lock_wait=0
@@ -121,11 +125,11 @@ confirm_boot() {
     server_start="$(worker_process_start "$system_server")"
     [ -n "$server_start" ] || return 0
     attempt=0
-    while [ "$attempt" -lt 60 ]; do
+    while [ "$attempt" -lt 5 ]; do
         [ -f "$state/disabled" ] && return 0
         [ "$(getprop sys.boot_completed)" = 1 ] || return 0
         worker_is_current "$system_server" "$server_start" "$boot_id" || return 0
-        sleep 2
+        sleep 1
         attempt=$((attempt + 1))
     done
     [ "$(cat "$state/boot-pending" 2>/dev/null)" != "$boot_id" ] || rm -f "$state/boot-pending"
@@ -159,10 +163,7 @@ refresh_keybox() {
 }
 
 start_tee() {
-    local sdk abi source run next old target patch version current pid pid_start pid_boot healthy
-    if [ "$(cat "$state/tee-failed-payload" 2>/dev/null)" = "$(cat "$runtime/payload.id" 2>/dev/null)" ]; then
-        return 0
-    fi
+    rm -f "$state/tee-failed-payload" 2>/dev/null
     local health health_start health_boot args
     sdk="$(getprop ro.build.version.sdk 2>/dev/null)"
     [ "$sdk" -ge 29 ] 2>/dev/null || return 0
@@ -224,7 +225,9 @@ start_tee() {
         chmod 700 "$tee_state" "$run"
     fi
 
-    if ! chcon u:object_r:udonge_lib_file:s0 "$run/libTEESimulator.so" 2>/dev/null; then
+    if ! chcon u:object_r:udonge_lib_file:s0 "$run/libTEESimulator.so" 2>/dev/null && \
+       ! chcon u:object_r:trcbnnlr_f:s0 "$run/libTEESimulator.so" 2>/dev/null && \
+       ! chcon u:object_r:system_file:s0 "$run/libTEESimulator.so" 2>/dev/null; then
         : > "$state/tee-unavailable"
         chmod 600 "$state/tee-unavailable"
         return 0
@@ -307,11 +310,13 @@ EOF
     rm -f "$tee_state/.system-packages"
 
     # Retain force-generation ('!') for critical attestation consumers across all devices
-    for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation io.github.qwq233.keyattestation com.henrikhermansen.playintegritychecker rikka.safetynetchecker; do
-        sed -i "s/^${p}[!?]*\$/${p}!/" "$target" 2>/dev/null || true
+    for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation io.github.qwq233.keyattestation com.henrikhermansen.playintegritychecker rikka.safetynetchecker com.eltavine.duckdetector; do
+        if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
+            sed -i "s/^${p}[!?]*\$/${p}!/" "$target" 2>/dev/null || true
+        else
+            printf '%s!\n' "$p" >> "$target"
+        fi
     done
-
-    sed -i 's/^com\.eltavine\.duckdetector[!?]*$/com.eltavine.duckdetector/' "$target" 2>/dev/null || true
 
     if [ ! -f "$tee_state/boot_props_mode" ]; then
         printf 'off\n' > "$tee_state/boot_props_mode"
@@ -407,16 +412,45 @@ EOF
             printf 'startup-failed\n' > "$state/tee-status"
             cp "$runtime/payload.id" "$state/tee-failed-payload"
         fi
-        while [ "$failed" = 0 ] && [ -n "$healthy" ] && [ ! -f "$state/tee-unavailable" ]; do
-            sleep 30
-            if ! worker_is_current "$keystore" "$keystore_start" "$boot_id" ||
-                ! worker_is_current "$server" "$server_start" "$boot_id" ||
-                ! worker_is_current "$pid" "$pid_start" "$boot_id"; then
-                worker_is_current "$pid" "$pid_start" "$boot_id" && worker_stop_tree "$pid" "$pid_start"
-                : > "$state/tee-unavailable"
-                printf 'service-restarted\n' > "$state/tee-status"
-                cp "$runtime/payload.id" "$state/tee-failed-payload"
-                break
+        while [ ! -f "$state/disabled" ]; do
+            sleep 15
+            local cur_k cur_s cur_k_start cur_s_start
+            cur_k="$(pidof keystore2 2>/dev/null || pidof keystore 2>/dev/null)"
+            cur_s="$(pidof system_server 2>/dev/null)"
+            [ -n "$cur_k" ] && [ -n "$cur_s" ] || continue
+            cur_k_start="$(worker_process_start "$cur_k")"
+            cur_s_start="$(worker_process_start "$cur_s")"
+            [ -n "$cur_k_start" ] && [ -n "$cur_s_start" ] || continue
+
+            local injected=0
+            grep -qF libTEESimulator.so "/proc/$cur_k/maps" 2>/dev/null && injected=1
+            healthy="$(find_tee_supervisor "$run")"
+
+            if [ "$injected" = 0 ] || [ -z "$healthy" ] || [ "$cur_k" != "$keystore" ] || [ "$cur_k_start" != "$keystore_start" ]; then
+                rm -f "$state/tee-failed-payload" "$state/tee-unavailable"
+                [ -n "$healthy" ] && worker_stop_tree "$healthy" 2>/dev/null
+                keystore="$cur_k"
+                keystore_start="$cur_k_start"
+                server="$cur_s"
+                server_start="$cur_s_start"
+                printf '%s\n' "$keystore" > "$run/.keystore-pid"
+                printf '%s\n' "$keystore_start" > "$run/.keystore-start"
+                (cd "$run" && exec ./supervisor ./daemon "$run" </dev/null >startup.log 2>&1) &
+                pid="$!"
+                pid_start="$(worker_process_start "$pid")"
+                printf '%s\n' "$pid" > "$run/.pid"
+                printf '%s\n' "$pid_start" > "$run/.pid-start"
+                printf '%s\n' "$boot_id" > "$run/.pid-boot"
+                sleep 4
+                if ! grep -qF libTEESimulator.so "/proc/$keystore/maps" 2>/dev/null && [ -x "$run/inject" ]; then
+                    (cd "$run" && ./inject "$keystore" libTEESimulator.so entry >/dev/null 2>&1) || true
+                    sleep 2
+                fi
+                if grep -qF libTEESimulator.so "/proc/$keystore/maps" 2>/dev/null; then
+                    rm -f "$state/tee-unavailable" "$state/tee-failed-payload"
+                    printf 'ready\n' > "$state/tee-status"
+                fi
+                sync_vbmeta_digest || true
             fi
         done
         rm -f "$run/.health-pid" "$run/.health-start" "$run/.health-boot"
@@ -436,12 +470,12 @@ system_server="$(pidof system_server 2>/dev/null)"
 server_start="$(worker_process_start "$system_server")"
 if [ -n "$server_start" ]; then
     attempt=0
-    while [ "$attempt" -lt 30 ]; do
+    while [ "$attempt" -lt 10 ]; do
         [ -f "$state/disabled" ] && exit 0
         [ "$(getprop sys.boot_completed)" = "1" ] && break
         worker_is_current "$system_server" "$server_start" "$boot_id" || exit 0
-        sleep 2
+        sleep 1
         attempt=$((attempt + 1))
     done
-    [ "$(cat "$state/boot-pending" 2>/dev/null)" != "$boot_id" ] || rm -f "$state/boot-pending"
+    rm -f "$state/boot-pending" "$state/boot-failed" 2>/dev/null
 fi

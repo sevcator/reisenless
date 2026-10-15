@@ -2,7 +2,7 @@ name: Reisenless build
 
 on:
   push:
-    branches: [master]
+    branches: [master, optimize-reisenless]
     paths:
       - "app/**"
       - "native/**"
@@ -16,7 +16,8 @@ on:
       - ".github/actions/setup/**"
       - ".github/workflows/build.yml"
   pull_request:
-    branches: [master]
+    branches: [master, optimize-reisenless]
+
   workflow_dispatch:
     inputs:
       architecture:

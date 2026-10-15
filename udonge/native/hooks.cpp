@@ -93,7 +93,7 @@ static const char *const kBlockedSubstr[] = {
     "/data/adb", "supersu", "/su/", "busybox",
     "/system/bin/su", "/system/xbin/su", "/sbin/su",
     "/product/bin/su", "/vendor/bin/su", "/odm/bin/su",
-    "/debug_ramdisk",
+    "/debug_ramdisk", "apolloctl", "apollo-lite", "apollo-enhanced", "apollon",
 
     s_ksu1, s_ksu2, "ksud", "ksu",
     s_ap1, s_ap2,
@@ -126,6 +126,11 @@ static bool is_rom_path(const char *path) {
         (strstr(path, "/etc/selinux/") && str_ends_with(path, ".cil"))) {
         return true;
     }
+
+    if (contains_ci(path, "lineage")) return true;
+    if (contains_ci(path, "apolloctl")) return true;
+    if (contains_ci(path, "apollo-enhanced")) return true;
+    if (contains_ci(path, "apollon")) return true;
 
     if (!g_cfg || g_cfg->rom_keywords.empty()) return false;
     for (const auto &kw : g_cfg->rom_keywords)
@@ -490,12 +495,41 @@ static int h_access(const char *p, int m) {
     return o_access(p, m);
 }
 
+static bool is_self_proc_file(const char *path, const char *name) {
+    if (!path || !name) return false;
+    if (strncmp(path, "/proc/self/", 11) == 0 && strcmp(path + 11, name) == 0)
+        return true;
+    if (strncmp(path, "/proc/thread-self/", 18) == 0 && strcmp(path + 18, name) == 0)
+        return true;
+    char buf[64];
+    snprintf(buf, sizeof buf, "/proc/%d/%s", getpid(), name);
+    return strcmp(path, buf) == 0;
+}
+
+template <typename StatT>
+static void normalize_proc_stat_time(const char *path, StatT *s) {
+    if (!s || !path) return;
+    if (is_self_proc_file(path, "ns/mnt") || is_self_proc_file(path, "mountinfo") ||
+        strstr(path, "/ns/mnt") || strstr(path, "/mountinfo")) {
+        struct timespec now;
+        if (clock_gettime(CLOCK_REALTIME, &now) == 0) {
+            s->st_atim.tv_sec = now.tv_sec;
+            s->st_atim.tv_nsec = now.tv_nsec;
+            s->st_mtim.tv_sec = now.tv_sec;
+            s->st_mtim.tv_nsec = now.tv_nsec;
+            s->st_ctim.tv_sec = now.tv_sec;
+            s->st_ctim.tv_nsec = now.tv_nsec;
+        }
+    }
+}
+
 static int h_stat(const char *p, struct stat *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int res = o_stat ? o_stat(p, s) : ::stat(p, s);
-    if (res == 0 && s && is_local_tmp_path(p)) {
-        s->st_ino = 128;
+    if (res == 0 && s) {
+        if (is_local_tmp_path(p)) s->st_ino = 128;
+        normalize_proc_stat_time(p, s);
     }
     return res;
 }
@@ -503,8 +537,9 @@ static int h_lstat(const char *p, struct stat *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int res = o_lstat ? o_lstat(p, s) : ::lstat(p, s);
-    if (res == 0 && s && is_local_tmp_path(p)) {
-        s->st_ino = 128;
+    if (res == 0 && s) {
+        if (is_local_tmp_path(p)) s->st_ino = 128;
+        normalize_proc_stat_time(p, s);
     }
     return res;
 }
@@ -518,8 +553,9 @@ static int h_fstatat(int d, const char *p, struct stat *s, int f) {
     if (is_blocked(target)) { errno = ENOENT; return -1; }
     if (is_foreign_proc_mount_path(target)) { errno = EACCES; return -1; }
     int res = o_fstatat ? o_fstatat(d, p, s, f) : ::fstatat(d, p, s, f);
-    if (res == 0 && s && is_local_tmp_path(target)) {
-        s->st_ino = 128;
+    if (res == 0 && s) {
+        if (is_local_tmp_path(target)) s->st_ino = 128;
+        normalize_proc_stat_time(target, s);
     }
     return res;
 }
@@ -528,8 +564,9 @@ static int h_stat64(const char *p, struct stat64 *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int res = o_stat64 ? o_stat64(p, s) : ::stat64(p, s);
-    if (res == 0 && s && is_local_tmp_path(p)) {
-        s->st_ino = 128;
+    if (res == 0 && s) {
+        if (is_local_tmp_path(p)) s->st_ino = 128;
+        normalize_proc_stat_time(p, s);
     }
     return res;
 }
@@ -537,8 +574,9 @@ static int h_lstat64(const char *p, struct stat64 *s) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
     int res = o_lstat64 ? o_lstat64(p, s) : ::lstat64(p, s);
-    if (res == 0 && s && is_local_tmp_path(p)) {
-        s->st_ino = 128;
+    if (res == 0 && s) {
+        if (is_local_tmp_path(p)) s->st_ino = 128;
+        normalize_proc_stat_time(p, s);
     }
     return res;
 }
@@ -552,21 +590,11 @@ static int h_fstatat64(int d, const char *p, struct stat64 *s, int f) {
     if (is_blocked(target)) { errno = ENOENT; return -1; }
     if (is_foreign_proc_mount_path(target)) { errno = EACCES; return -1; }
     int res = o_fstatat64 ? o_fstatat64(d, p, s, f) : ::fstatat64(d, p, s, f);
-    if (res == 0 && s && is_local_tmp_path(target)) {
-        s->st_ino = 128;
+    if (res == 0 && s) {
+        if (is_local_tmp_path(target)) s->st_ino = 128;
+        normalize_proc_stat_time(target, s);
     }
     return res;
-}
-
-static bool is_self_proc_file(const char *path, const char *name) {
-    if (!path || !name) return false;
-    if (strncmp(path, "/proc/self/", 11) == 0 && strcmp(path + 11, name) == 0)
-        return true;
-    if (strncmp(path, "/proc/thread-self/", 18) == 0 && strcmp(path + 18, name) == 0)
-        return true;
-    char buf[64];
-    snprintf(buf, sizeof buf, "/proc/%d/%s", getpid(), name);
-    return strcmp(path, buf) == 0;
 }
 
 static bool is_mount_path(const char *path) {
@@ -1316,7 +1344,10 @@ static bool has_blocked_exec(const char *pathname, char *const argv[]) {
     return false;
 }
 
+static bool handle_getprop_exec(const char *pathname, char *const argv[]);
+
 static int h_execve(const char *pathname, char *const argv[], char *const envp[]) {
+    if (handle_getprop_exec(pathname, argv)) return 0;
     if (has_blocked_exec(pathname, argv)) {
         static char false_path[] = "/system/bin/false";
         static char *const false_argv[] = {false_path, nullptr};
@@ -1326,6 +1357,7 @@ static int h_execve(const char *pathname, char *const argv[], char *const envp[]
 }
 
 static int h_execvp(const char *file, char *const argv[]) {
+    if (handle_getprop_exec(file, argv)) return 0;
     if (has_blocked_exec(file, argv)) {
         static char false_path[] = "/system/bin/false";
         static char *const false_argv[] = {false_path, nullptr};
@@ -1335,6 +1367,7 @@ static int h_execvp(const char *file, char *const argv[]) {
 }
 
 static int h_execvpe(const char *file, char *const argv[], char *const envp[]) {
+    if (handle_getprop_exec(file, argv)) return 0;
     if (has_blocked_exec(file, argv)) {
         static char false_path[] = "/system/bin/false";
         static char *const false_argv[] = {false_path, nullptr};
@@ -1386,6 +1419,7 @@ static const struct { const char *name; const char *value; } kBootProps[] = {
 
     {"init.svc.adbd",                  "stopped"},
     {"sys.usb.state",                  "mtp"},
+    {"sys.usb.config",                 "mtp"},
     {"sys.usb.controller",             "none"},
     {"service.adb.tcp.port",           "0"},
     {"persist.sys.usb.config",         "mtp"},
@@ -1775,6 +1809,84 @@ static int h_prop_read(const prop_info *pi, char *name, char *value) {
         }
     }
     return len;
+}
+
+static bool is_getprop_command(const char *pathname, char *const argv[]) {
+    if (pathname && (strcmp(pathname, "/system/bin/getprop") == 0 || strcmp(pathname, "getprop") == 0 || str_ends_with(pathname, "/getprop"))) return true;
+    if (argv && argv[0] && (strcmp(argv[0], "/system/bin/getprop") == 0 || strcmp(argv[0], "getprop") == 0 || str_ends_with(argv[0], "/getprop"))) return true;
+    return false;
+}
+
+static bool handle_getprop_exec(const char *pathname, char *const argv[]) {
+    bool is_sh = false;
+    std::string single_prop;
+    if (is_getprop_command(pathname, argv)) {
+        if (argv && argv[1] != nullptr && argv[2] == nullptr && argv[1][0] != '-') {
+            single_prop = argv[1];
+        }
+    } else if (pathname && (strcmp(pathname, "/system/bin/sh") == 0 || strcmp(pathname, "sh") == 0 || str_ends_with(pathname, "/sh"))) {
+        if (argv && argv[1] && strcmp(argv[1], "-c") == 0 && argv[2]) {
+            const char *cmd = argv[2];
+            while (*cmd == ' ' || *cmd == '\t') ++cmd;
+            if (strncmp(cmd, "getprop", 7) == 0 && (cmd[7] == '\0' || cmd[7] == ' ' || cmd[7] == '\t')) {
+                is_sh = true;
+                const char *arg = cmd + 7;
+                while (*arg == ' ' || *arg == '\t') ++arg;
+                if (*arg != '\0') {
+                    single_prop = arg;
+                    while (!single_prop.empty() && (single_prop.back() == ' ' || single_prop.back() == '\t' || single_prop.back() == '\n' || single_prop.back() == '\r')) {
+                        single_prop.pop_back();
+                    }
+                }
+            }
+        }
+        if (!is_sh) return false;
+    } else {
+        return false;
+    }
+
+    if (!single_prop.empty()) {
+        char val[PROP_VALUE_MAX] = {0};
+        h_prop_get(single_prop.c_str(), val);
+        printf("%s\n", val);
+        fflush(stdout);
+        _exit(0);
+    }
+
+    typedef int (*foreach_fn_t)(void (*)(const void *, void *), void *);
+    auto p_foreach = reinterpret_cast<foreach_fn_t>(dlsym(RTLD_DEFAULT, "__system_property_foreach"));
+    auto p_read_cb = o_prop_read_cb;
+    if (!p_read_cb) {
+        p_read_cb = reinterpret_cast<decltype(o_prop_read_cb)>(dlsym(RTLD_DEFAULT, "__system_property_read_callback"));
+    }
+
+    std::set<std::string> seen;
+    if (p_foreach && p_read_cb) {
+        struct Ctx {
+            std::set<std::string> *seen_set;
+            decltype(p_read_cb) read_cb;
+        } ctx = { &seen, p_read_cb };
+
+        p_foreach([](const void *pi, void *cookie) {
+            auto *c = reinterpret_cast<Ctx *>(cookie);
+            c->read_cb(pi, [](void *user_ctx, const char *name, const char *, uint32_t) {
+                if (!name || is_deleted_prop(name)) return;
+                auto *ctx_ptr = reinterpret_cast<Ctx *>(user_ctx);
+                ctx_ptr->seen_set->insert(name);
+                char buf[PROP_VALUE_MAX] = {0};
+                h_prop_get(name, buf);
+                printf("[%s]: [%s]\n", name, buf);
+            }, cookie);
+        }, &ctx);
+    }
+
+    for (const auto &bp : kBootProps) {
+        if (seen.find(bp.name) == seen.end()) {
+            printf("[%s]: [%s]\n", bp.name, bp.value);
+        }
+    }
+    fflush(stdout);
+    _exit(0);
 }
 
 static thread_local bool s_in_getifaddrs = false;

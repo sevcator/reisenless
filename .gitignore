@@ -52,3 +52,7 @@ keystore.properties
 .cursor
 scratch/
 window_dump.xml
+/duck_report*.txt
+/pic*.xml
+/screen_*.png
+

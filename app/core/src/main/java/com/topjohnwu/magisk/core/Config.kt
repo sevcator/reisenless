@@ -96,7 +96,7 @@ object Config : PreferenceConfig, DBConfig {
 
     private var localePrefs by preference(Key.LOCALE, "")
     var accentColor by preference(Key.ACCENT_COLOR, 0xFFC95BC8.toInt())
-    var udongeEnabled by preference(Key.UDONGE_ENABLED, false)
+    var udongeEnabled by preference(Key.UDONGE_ENABLED, true)
     private var rawUdongeRehealMode by preference(Key.UDONGE_REHEAL_MODE, Value.REHEAL_BOOT_ONLY)
     private var legacyUdongeBackgroundUpdates by preference(Key.UDONGE_BACKGROUND_UPDATES, false)
     var udongeRehealMode: Int

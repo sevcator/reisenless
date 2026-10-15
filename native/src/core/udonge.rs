@@ -17,6 +17,7 @@ pub use eligibility::should_load;
 pub const UDONGE_MODULE_NAME: &str = "@udonge";
 pub const UDONGE_ROOT: &str = concatcp!(SECURE_DIR, "/", BUILD_UDONGE_DIR);
 pub const UDONGE_RUNTIME: &str = concatcp!(UDONGE_ROOT, "/runtime");
+pub const UDONGE_STATE: &str = concatcp!(UDONGE_ROOT, "/state");
 const UDONGE_NEXT: &str = concatcp!(UDONGE_ROOT, "/runtime.new");
 const UDONGE_OLD: &str = concatcp!(UDONGE_ROOT, "/runtime.old");
 const UDONGE_DISABLED: &str = concatcp!(UDONGE_ROOT, "/state/disabled");
@@ -42,7 +43,7 @@ pub fn transport_ready() -> bool {
 }
 
 pub fn is_enabled() -> bool {
-    cstr!(UDONGE_ENABLED).exists()
+    (cstr!(UDONGE_ENABLED).exists() || !cstr!(UDONGE_DISABLED).exists())
         && !cstr!(UDONGE_DISABLED).exists()
         && transport_ready()
 }
@@ -286,6 +287,11 @@ pub fn setup_runtime(run_optional_features: bool) {
     }
 
     if runtime_complete(UDONGE_RUNTIME) {
+        if !cstr!(UDONGE_DISABLED).exists() && !cstr!(UDONGE_ENABLED).exists() {
+            cstr!(UDONGE_STATE).mkdirs(0o700).ok();
+            std::fs::write(UDONGE_ENABLED, b"").ok();
+            cstr!(UDONGE_ENABLED).follow_link().chmod(0o600).ok();
+        }
         ensure_core_hide_config();
         for script in ["post-fs-data.sh", "service.sh", "stop.sh", "keybox_heal.sh"] {
             cstr::buf::default()

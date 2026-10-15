@@ -198,7 +198,10 @@ object Udonge {
 
     fun syncState(context: Context, shell: Shell) {
         syncRuntime(context, shell)
-        if (shell.newJob().add("test -f '$state/boot-failed'").exec().isSuccess) {
+        val hasEnabled = shell.newJob().add("test -f '$state/enabled' && ! test -f '$state/disabled'").exec().isSuccess
+        if (hasEnabled) {
+            Config.udongeEnabled = true
+        } else if (shell.newJob().add("test -f '$state/boot-failed'").exec().isSuccess) {
             Config.udongeEnabled = false
             Config.udongeBackgroundUpdates = false
             scheduleBackgroundUpdates(context)
