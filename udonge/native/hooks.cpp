@@ -51,6 +51,7 @@ namespace cloak {
 static const Config *g_cfg = nullptr;
 static zygisk::Api *g_api = nullptr;
 static HookProfile g_profile = HookProfile::Full;
+static bool g_is_pi = false;
 
 static unsigned char ascii_lower(unsigned char c) {
     return c >= 'A' && c <= 'Z' ? static_cast<unsigned char>(c + ('a' - 'A')) : c;
@@ -1470,7 +1471,7 @@ static const char *const kDeletedProps[] = {
 };
 
 static const char *find_display_override(const char *name) {
-    if (!g_cfg) return nullptr;
+    if (!g_cfg || !g_is_pi) return nullptr;
     if (strcmp(name, "ro.build.display.id") != 0) return nullptr;
     static thread_local char s_disp_buf[96];
 
@@ -1486,7 +1487,7 @@ static const char *find_display_override(const char *name) {
 }
 
 static const char *find_flavor_override(const char *name) {
-    if (!g_cfg) return nullptr;
+    if (!g_cfg || !g_is_pi) return nullptr;
     if (strcmp(name, "ro.build.flavor") != 0) return nullptr;
     static thread_local char s_flavor_buf[96];
     auto it = g_cfg->gms_build.find("PRODUCT");
@@ -1501,7 +1502,7 @@ static const char *find_boot_prop(const char *name) {
     for (const auto &bp : kBootProps)
         if (strcmp(name, bp.name) == 0) return bp.value;
 
-    if (str_ends_with(name, "api_level") && g_cfg) {
+    if (str_ends_with(name, "api_level") && g_cfg && g_is_pi) {
         auto it = g_cfg->gms_build.find("DEVICE_INITIAL_SDK_INT");
         if (it != g_cfg->gms_build.end() && !it->second.empty()) {
             static thread_local char s_sdk_buf[8];
@@ -1678,6 +1679,14 @@ static int h_prop_get(const char *name, char *value) {
                 value[n] = '\0';
                 return (int)n;
             }
+            if (g_is_pi) {
+                auto pit = g_cfg->pif_props.find(name);
+                if (pit != g_cfg->pif_props.end()) {
+                    size_t n = pit->second.copy(value, 91);
+                    value[n] = '\0';
+                    return (int)n;
+                }
+            }
         }
     }
     return o_prop_get(name, value);
@@ -1723,7 +1732,12 @@ static void cb_trampoline(void *cookie, const char *name, const char *value, uin
                                 }
                             } else if (g_cfg) {
                                 auto it = g_cfg->props.find(name);
-                                if (it != g_cfg->props.end()) value = it->second.c_str();
+                                if (it != g_cfg->props.end()) {
+                                    value = it->second.c_str();
+                                } else if (g_is_pi) {
+                                    auto pit = g_cfg->pif_props.find(name);
+                                    if (pit != g_cfg->pif_props.end()) value = pit->second.c_str();
+                                }
                             }
                         }
                     }
@@ -1806,6 +1820,14 @@ static int h_prop_read(const prop_info *pi, char *name, char *value) {
                 size_t n = it->second.copy(value, 91);
                 value[n] = '\0';
                 return (int)n;
+            }
+            if (g_is_pi) {
+                auto pit = g_cfg->pif_props.find(name);
+                if (pit != g_cfg->pif_props.end()) {
+                    size_t n = pit->second.copy(value, 91);
+                    value[n] = '\0';
+                    return (int)n;
+                }
             }
         }
     }
@@ -2234,6 +2256,7 @@ void install_hooks(zygisk::Api *api, const Config *cfg, HookProfile profile) {
     g_cfg = &s_cfg;
     g_api = api;
     g_profile = profile;
+    g_is_pi = g_cfg && (g_cfg->isPiTarget(g_cfg->current_package) || g_cfg->current_package == "com.google.android.gms");
 
     resolve_linker_entrypoints();
 

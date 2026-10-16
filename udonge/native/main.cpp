@@ -323,6 +323,7 @@ private:
         if (!manager_.empty() && package_ == manager_) {
             return false;
         }
+        is_pi_target_ = cfg_.isPiTarget(package_);
         if (is_gms_unstable_ || is_pi_target_) {
             return !cfg_.gms_build.empty() || !hide_rule_.empty() || cfg_.shouldCloak(package_);
         }

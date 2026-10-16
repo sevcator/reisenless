@@ -21,6 +21,12 @@ object Config : PreferenceConfig, DBConfig {
         "https://www.davidepalma.it/pib/keybox.xml\n" +
         "https://raw.githubusercontent.com/MeowDump/MeowDump/main/Megatron"
 
+    const val DEFAULT_UDONGE_ROM_KEYWORDS =
+        "lineage\n" +
+        "crdroid\n" +
+        "apolloctl\n" +
+        "apollo-enhanced"
+
     override val stringDB get() = ServiceLocator.stringDB
     override val settingsDB get() = ServiceLocator.settingsDB
     override val context get() = ServiceLocator.deContext
@@ -121,7 +127,13 @@ object Config : PreferenceConfig, DBConfig {
     var udongeKeyboxUrls
         get() = storedUdongeKeyboxUrls.ifBlank { DEFAULT_UDONGE_KEYBOX_URLS }
         set(value) { storedUdongeKeyboxUrls = value }
-    var udongeRomKeywords by preference(Key.UDONGE_ROM_KEYWORDS, "")
+    private var storedUdongeRomKeywords by preference(
+        Key.UDONGE_ROM_KEYWORDS,
+        DEFAULT_UDONGE_ROM_KEYWORDS,
+    )
+    var udongeRomKeywords
+        get() = storedUdongeRomKeywords.ifBlank { DEFAULT_UDONGE_ROM_KEYWORDS }
+        set(value) { storedUdongeRomKeywords = value }
     var udongeRomHidingEnabled by preference(Key.UDONGE_ROM_HIDING, true)
     var locale
         get() = localePrefs

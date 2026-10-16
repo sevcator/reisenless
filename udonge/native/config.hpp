@@ -13,7 +13,9 @@ struct Config {
     std::unordered_set<std::string> packages;
     std::unordered_set<std::string> stealth_packages;
     std::unordered_set<std::string> exempt_packages;
+    std::unordered_set<std::string> pi_packages;
     std::unordered_map<std::string, std::string> props;
+    std::unordered_map<std::string, std::string> pif_props;
     std::unordered_map<std::string, std::string> gms_build;
     std::vector<std::string> rom_keywords;
 
@@ -28,6 +30,12 @@ struct Config {
 
     bool shouldStealth(const std::string &pkg) const {
         return stealth_packages.count(pkg) != 0;
+    }
+
+    bool isPiTarget(const std::string &pkg) const {
+        if (pkg.empty()) return false;
+        if (pkg == "com.android.vending" || pkg == "com.google.android.gms" || pkg == "com.google.android.gsf") return true;
+        return pi_packages.count(pkg) != 0;
     }
 
 };
