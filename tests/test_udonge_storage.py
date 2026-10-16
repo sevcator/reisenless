@@ -277,11 +277,26 @@ migrate_legacy_layout
 
     def test_config_maps_board_and_partition_props(self):
         config_text = (ROOT / "udonge/native/config.cpp").read_text(encoding="utf-8")
-        self.assertIn('cfg.props["ro.board.first_api_level"] = v;', config_text)
-        self.assertIn('cfg.props["ro.board.api_level"] = v;', config_text)
-        self.assertIn('cfg.props["ro.product.board"] = v;', config_text)
-        self.assertIn('cfg.props["ro.system_ext.build.fingerprint"] = v;', config_text)
-        self.assertIn('cfg.props["ro.odm.build.fingerprint"] = v;', config_text)
+        self.assertTrue(
+            'cfg.props["ro.board.first_api_level"] = v;' in config_text
+            or 'cfg.pif_props["ro.board.first_api_level"] = v;' in config_text
+        )
+        self.assertTrue(
+            'cfg.props["ro.board.api_level"] = v;' in config_text
+            or 'cfg.pif_props["ro.board.api_level"] = v;' in config_text
+        )
+        self.assertTrue(
+            'cfg.props["ro.product.board"] = v;' in config_text
+            or 'cfg.pif_props["ro.product.board"] = v;' in config_text
+        )
+        self.assertTrue(
+            'cfg.props["ro.system_ext.build.fingerprint"] = v;' in config_text
+            or 'cfg.pif_props["ro.system_ext.build.fingerprint"] = v;' in config_text
+        )
+        self.assertTrue(
+            'cfg.props["ro.odm.build.fingerprint"] = v;' in config_text
+            or 'cfg.pif_props["ro.odm.build.fingerprint"] = v;' in config_text
+        )
 
     def test_hooks_includes_xiaomi_devicelock(self):
         hooks_text = (ROOT / "udonge/native/hooks.cpp").read_text(encoding="utf-8")

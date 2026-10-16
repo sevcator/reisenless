@@ -55,6 +55,14 @@ if [ -f "$runtime/defaults/targets.conf" ] && [ -f "$state/targets.conf" ]; then
     done < "$runtime/defaults/targets.conf"
 fi
 
+if [ -f "$runtime/defaults/rom_keywords.conf" ] && [ -f "$state/rom_keywords.conf" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        case "$line" in '#'*) continue ;; esac
+        grep -qiFx "$line" "$state/rom_keywords.conf" 2>/dev/null || printf '%s\n' "$line" >> "$state/rom_keywords.conf"
+    done < "$runtime/defaults/rom_keywords.conf"
+fi
+
 sync_vbmeta_digest() {
     if [ ! -f "$state/boot_hash.bin" ] || [ "$(wc -c < "$state/boot_hash.bin" 2>/dev/null)" != 32 ]; then
         local cur_digest
