@@ -727,6 +727,18 @@ is_known_softbanned_serial() {
     esac
 }
 
+verification_allowed() {
+    [ -t 1 ] && return 0
+    [ "${FORCE_VERIFY:-0}" = "1" ] && return 0
+    local power window
+    power="$(dumpsys power 2>/dev/null | grep -E 'mWakefulness=|mInteractive=')"
+    printf '%s\n' "$power" | grep -qE 'mWakefulness=Awake|mInteractive=true' || return 1
+    window="$(dumpsys window policy 2>/dev/null | grep -E 'showing=|mShowingLockscreen=|isStatusBarKeyguard=')"
+    printf '%s\n' "$window" | grep -qE 'showing=false|mShowingLockscreen=false|isStatusBarKeyguard=false' || return 1
+    printf '%s\n' "$window" | grep -qE 'showing=true|mShowingLockscreen=true|isStatusBarKeyguard=true' && return 1
+    return 0
+}
+
 run_play_integrity_test() {
     verification_allowed || { printf 'DEFERRED'; return 0; }
     local dump="/data/local/tmp/pi_dump.$$.xml"
@@ -739,42 +751,68 @@ run_play_integrity_test() {
     sleep 3
     verification_allowed || { printf 'DEFERRED'; return 0; }
 
-    input tap 540 1513 >/dev/null 2>&1
+    # Tap CHECK button (center 540 1507)
+    input tap 540 1507 >/dev/null 2>&1
 
     local waited=0 found=0
-    while [ "$waited" -lt 14 ]; do
+    while [ "$waited" -lt 16 ]; do
         sleep 2
         waited=$((waited + 2))
         verification_allowed || { rm -f "$dump"; printf 'DEFERRED'; return 0; }
 
-        input tap 888 158 >/dev/null 2>&1
+        # Tap JSON response button in toolbar
+        input tap 870 90 >/dev/null 2>&1 || true
+        input tap 888 80 >/dev/null 2>&1 || true
         sleep 1
         uiautomator dump "$dump" >/dev/null 2>&1
-        if [ -s "$dump" ] && grep -q 'gr.nikolasspyr.integritycheck:id/message' "$dump" 2>/dev/null; then
-            found=1
-            break
+        if [ -s "$dump" ]; then
+            if grep -q 'gr.nikolasspyr.integritycheck:id/message' "$dump" 2>/dev/null; then
+                found=1
+                break
+            fi
+            # If icons finished evaluation (content-desc is no longer Unknown)
+            if grep -q 'resource-id="gr.nikolasspyr.integritycheck:id/basic_integrity_icon"' "$dump" 2>/dev/null && \
+               ! grep -q 'basic_integrity_icon.*content-desc="Unknown"' "$dump" 2>/dev/null; then
+                # Evaluated, tap JSON again
+                input tap 870 90 >/dev/null 2>&1 || true
+            fi
         fi
     done
 
     local verdict="ERROR"
     if [ "$found" -eq 1 ] && [ -s "$dump" ]; then
-
         if grep -Fq '"MEETS_STRONG_INTEGRITY"' "$dump"; then
             verdict="STRONG"
         elif grep -Fq '"MEETS_DEVICE_INTEGRITY"' "$dump"; then
             verdict="DEVICE"
         elif grep -Fq '"MEETS_BASIC_INTEGRITY"' "$dump"; then
             verdict="BASIC"
+        else
+            verdict="FAIL"
         fi
-    elif [ "$found" -eq 0 ]; then
+    fi
 
+    # Fallback inspection of the UI icons
+    if [ "$verdict" = "ERROR" ] || [ "$verdict" = "FAIL" ]; then
+        if [ -s "$dump" ]; then
+            if grep -Eq 'strong_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
+                verdict="STRONG"
+            elif grep -Eq 'device_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
+                verdict="DEVICE"
+            elif grep -Eq 'basic_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
+                verdict="BASIC"
+            elif grep -Eq 'basic_integrity_icon"[^>]*content-desc="Fail"' "$dump" 2>/dev/null; then
+                verdict="FAIL"
+            fi
+        fi
+    fi
+
+    if [ "$found" -eq 0 ] && [ "$verdict" = "ERROR" ]; then
         local win_info
         win_info=$(dumpsys window windows 2>/dev/null | grep -c 'gr.nikolasspyr.integritycheck' 2>/dev/null || echo 0)
         if [ "${win_info:-0}" -eq 0 ] 2>/dev/null; then
-
             verdict="LAUNCH_FAIL"
         fi
-
     fi
 
     rm -f "$dump"

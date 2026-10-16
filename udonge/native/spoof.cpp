@@ -28,8 +28,12 @@ void spoof_build(JNIEnv *env, const Config &cfg, const std::string &pkg) {
     for (const auto &kv : cfg.gms_build) {
         const std::string &k = kv.first;
         const std::string &v = kv.second;
-        if (k == "SECURITY_PATCH" || k == "INCREMENTAL" || k == "RELEASE") {
+        if (k == "SECURITY_PATCH" || k == "INCREMENTAL") {
             set_str(env, ver, k.c_str(), v);
+        } else if (k == "RELEASE") {
+            if (pkg == "com.google.android.gms" || pkg == "com.android.vending") {
+                set_str(env, ver, k.c_str(), v);
+            }
         } else if (k == "DEVICE_INITIAL_SDK_INT") {
             if (ver) {
                 int init_sdk = std::atoi(v.c_str());
@@ -40,7 +44,7 @@ void spoof_build(JNIEnv *env, const Config &cfg, const std::string &pkg) {
                 }
             }
         } else if (k == "SDK_INT") {
-            if (ver) {
+            if (ver && (pkg == "com.google.android.gms" || pkg == "com.android.vending")) {
                 int sdk = std::atoi(v.c_str());
                 if (sdk > 0) {
                     jfieldID fid = env->GetStaticFieldID(ver, "SDK_INT", "I");

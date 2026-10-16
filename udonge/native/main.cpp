@@ -226,7 +226,7 @@ public:
             return;
         }
 
-        if (!cfg_.gms_build.empty() && (is_gms_unstable_ || is_pi_target_ || cloak_)) {
+        if (!cfg_.gms_build.empty() && (is_gms_unstable_ || is_pi_target_)) {
             cloak::spoof_build(env_, cfg_, package_);
         }
 
