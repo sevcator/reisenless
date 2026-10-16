@@ -310,13 +310,16 @@ EOF
     rm -f "$tee_state/.system-packages"
 
     # Retain force-generation ('!') for critical attestation consumers across all devices
-    for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation io.github.qwq233.keyattestation com.henrikhermansen.playintegritychecker rikka.safetynetchecker com.eltavine.duckdetector; do
+    for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation io.github.qwq233.keyattestation com.henrikhermansen.playintegritychecker rikka.safetynetchecker; do
         if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
             sed -i "s/^${p}[!?]*\$/${p}!/" "$target" 2>/dev/null || true
         else
             printf '%s!\n' "$p" >> "$target"
         fi
     done
+
+    # Always keep com.eltavine.duckdetector clean without '!' or '?' (prevents TEE stall & PIF build drift)
+    sed -i 's/^com\.eltavine\.duckdetector[!?]*$/com.eltavine.duckdetector/' "$target" 2>/dev/null || true
 
     if [ ! -f "$tee_state/boot_props_mode" ]; then
         printf 'off\n' > "$tee_state/boot_props_mode"
@@ -461,9 +464,63 @@ EOF
     printf '%s\n' "$boot_id" > "$run/.health-boot"
 }
 
+normalize_boot_properties() {
+    local rp="resetprop"
+    command -v resetprop >/dev/null 2>&1 || rp="/product/bin/resetprop"
+    [ -x "$rp" ] || command -v "$rp" >/dev/null 2>&1 || return 0
+
+    $rp -n ro.boot.verifiedbootstate green
+    $rp -n vendor.boot.verifiedbootstate green
+    $rp -n ro.boot.flash.locked 1
+    $rp -n ro.boot.vbmeta.device_state locked
+    $rp -n vendor.boot.vbmeta.device_state locked
+    $rp -n ro.boot.veritymode enforcing
+    $rp -n ro.is_ever_orange 0
+    $rp -n ro.debuggable 0
+    $rp -n ro.force.debuggable 0
+    $rp -n ro.secure 1
+    $rp -n sys.oem_unlock_allowed 0
+    $rp -n ro.boot.warranty_bit 0
+    $rp -n ro.warranty_bit 0
+    $rp -n ro.vendor.boot.warranty_bit 0
+    $rp -n ro.vendor.warranty_bit 0
+    $rp -n ro.boot.realmebootstate green
+    $rp -n ro.boot.realme.lockstate 1
+
+    for name in \
+        ro.build.type \
+        ro.product.build.type \
+        ro.system.build.type \
+        ro.system_ext.build.type \
+        ro.vendor.build.type \
+        ro.vendor_dlkm.build.type \
+        ro.odm.build.type \
+        ro.bootimage.build.type; do
+        $rp -n "$name" user 2>/dev/null || true
+    done
+
+    for name in ro.build.flavor ro.product.build.flavor; do
+        val="$($rp "$name" 2>/dev/null)"
+        case "$val" in
+            *userdebug*) $rp -n "$name" "$(printf '%s' "$val" | sed 's/userdebug/user/g')" 2>/dev/null || true ;;
+            eng|*-eng|*_eng) $rp -n "$name" user 2>/dev/null || true ;;
+        esac
+    done
+
+    # Ensure ro.board.first_api_level consistency for legacy attestation fallback
+    cur_api="$(getprop ro.board.first_api_level 2>/dev/null)"
+    [ -z "$cur_api" ] && $rp -n ro.board.first_api_level 32 2>/dev/null || true
+}
+
 start_tee
 refresh_keybox
 sync_vbmeta_digest || true
+normalize_boot_properties || true
+
+# Disable broken vendor Soter HAL service and daemon that trigger attestation anomalies on unlocked bootloaders
+stop soter-1-0 2>/dev/null || true
+setprop ctl.stop soter-1-0 2>/dev/null || true
+pm disable com.tencent.soter.soterserver >/dev/null 2>&1 || true
 
 # Wait for boot completion and clear boot-pending so future boots remain enabled
 system_server="$(pidof system_server 2>/dev/null)"

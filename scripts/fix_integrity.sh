@@ -16,10 +16,16 @@ echo "${CYAN}[*]   REISENLESS UNIFIED INTEGRITY & PROPERTY NORMALIZER ${NC}"
 echo "${CYAN}[*] ===================================================${NC}"
 
 ROOT="/data/.xlmk/.yer"
+if [ ! -d "$ROOT" ]; then
+    ROOT="$(find /data -maxdepth 3 -name "tee-runtime" 2>/dev/null | head -n 1 | xargs dirname 2>/dev/null)"
+fi
 RUN="$ROOT/tee-runtime"
 STATE="$ROOT/state"
 RUNTIME="$ROOT/runtime"
 BIN_DIR="/data/.xlmk/.dweuvzu"
+if [ ! -d "$BIN_DIR" ]; then
+    BIN_DIR="$(dirname "$ROOT")"
+fi
 
 if [ -x "$BIN_DIR/resetprop" ]; then
     RP="$BIN_DIR/resetprop"
@@ -236,11 +242,11 @@ for pkg in com.android.vending com.google.android.gms com.google.android.gsf \
     }
 done
 
-# Ensure duckdetector is in target list with GENERATE mode
+# Ensure duckdetector is in target list WITHOUT '!' (prevents TEE stall & PIF build drift)
 sed -i "/^com\.eltavine\.duckdetector[!?]*\$/d" "$STATE/target.txt" 2>/dev/null || true
-printf 'com.eltavine.duckdetector!\n' >> "$STATE/target.txt" 2>/dev/null
+printf 'com.eltavine.duckdetector\n' >> "$STATE/target.txt" 2>/dev/null
 sed -i "/^com\.eltavine\.duckdetector[!?]*\$/d" "$STATE/targets.conf" 2>/dev/null || true
-printf 'com.eltavine.duckdetector!\n' >> "$STATE/targets.conf" 2>/dev/null
+printf 'com.eltavine.duckdetector\n' >> "$STATE/targets.conf" 2>/dev/null
 
 # 9. Flush GMS & Play Store Attestation Cache
 echo "${YELLOW}[7/7] Flushing stale Play Integrity and certification cache...${NC}"
