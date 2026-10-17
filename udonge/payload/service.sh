@@ -310,40 +310,19 @@ EOF
     rm -f "$tee_state/.system-packages"
 
     # Ensure critical attestation consumers are present in target.txt.
-    # Devices with Keymaster 3 (e.g. sdm845) cannot attest IDs via hardware (-10003),
-    # so they require '!' to force software keybox generation when a Google Root CA keybox is active.
-    # CRITICAL: If the active keybox uses a custom OEM Root (not Google), GMS and Vending MUST NOT
-    # be intercepted with '!', otherwise DroidGuard/GMS fails cloud checkin and Play Protect reports uncertified.
-    local force_gen="" force_gms=""
-    case "$(getprop ro.board.platform 2>/dev/null)|$(getprop ro.soc.model 2>/dev/null)" in
-        *sdm845*|*msm8998*|*msm8996*) force_gen="!" ;;
+    # Devices with Keymaster 3 (e.g. sdm845 / OnePlus 6) cannot attest IDs via hardware (-10003),
+    # so they require '!' across Google Play Services, Vending, and checkers so software keybox generation is enforced.
+    local force_gen=""
+    case "$(getprop ro.board.platform 2>/dev/null)|$(getprop ro.soc.model 2>/dev/null)|$(getprop ro.product.manufacturer 2>/dev/null)" in
+        *sdm845*|*msm8998*|*msm8996*|*[Oo]ne[Pp]lus*|*[Oo][Pp][Pp][Oo]*) force_gen="!" ;;
     esac
-    if command -v is_google_hardware_root >/dev/null 2>&1 && is_google_hardware_root "$tee_state/keybox.xml"; then
-        force_gms="$force_gen"
-    else
-        force_gms=""
-    fi
 
-    # System and test checkers
-    for p in android gr.nikolasspyr.integritycheck; do
+    # Intercept critical consumers with force_gen on Keymaster <= 3 platforms
+    for p in android gr.nikolasspyr.integritycheck com.android.vending com.google.android.gms com.google.android.gsf; do
         if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
             sed -i "s/^${p}[!?]*\$/${p}${force_gen}/" "$target" 2>/dev/null || true
         else
             printf '%s%s\n' "$p" "$force_gen" >> "$target"
-        fi
-    done
-
-    # GMS, Vending, GSF: only force if valid Google root is present
-    for p in com.android.vending com.google.android.gms com.google.android.gsf; do
-        if [ -n "$force_gms" ]; then
-            if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
-                sed -i "s/^${p}[!?]*\$/${p}${force_gms}/" "$target" 2>/dev/null || true
-            else
-                printf '%s%s\n' "$p" "$force_gms" >> "$target"
-            fi
-        else
-            # Strip force-generation to enable software fallback
-            sed -i "s/^${p}[!?]*\$/${p}/" "$target" 2>/dev/null || true
         fi
     done
 
@@ -358,8 +337,13 @@ EOF
     # Always keep com.eltavine.duckdetector clean without '!' or '?' (prevents TEE stall & PIF build drift)
     sed -i 's/^com\.eltavine\.duckdetector[!?]*$/com.eltavine.duckdetector/' "$target" 2>/dev/null || true
 
+    # Force boot_props_mode to ensure BootStateManager handles Oplus-family devices (e.g. OnePlus 6)
     if [ ! -f "$tee_state/boot_props_mode" ]; then
-        printf 'off\n' > "$tee_state/boot_props_mode"
+        if [ -n "$force_gen" ]; then
+            printf 'force\n' > "$tee_state/boot_props_mode"
+        else
+            printf 'off\n' > "$tee_state/boot_props_mode"
+        fi
         chmod 600 "$tee_state/boot_props_mode"
     fi
 
