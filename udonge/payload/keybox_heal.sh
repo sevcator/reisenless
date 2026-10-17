@@ -297,14 +297,16 @@ sanitize_keybox() {
         cp -f "$src" "$raw_unwrapped"
     fi
 
-    sed -e '/^[[:space:]]*<[?]xml[^>]*[?]>[[:space:]]*$/d' \
+    sed -e '/<!--.*-->/d' \
+        -e '/<!--/,/-->/d' \
+        -e '/<[?]xml/d' \
         -e 's/<Private>/<PrivateKey format="pem">/g' \
         -e 's/<\/Private>/<\/PrivateKey>/g' \
         -e 's/<Certificate>/<Certificate format="pem">/g' "$raw_unwrapped" | \
         tr -d '\r' > "$dst" 2>/dev/null || { rm -f "$raw_unwrapped"; return 1; }
     rm -f "$raw_unwrapped"
 
-    if grep -Fq '<!' "$dst" 2>/dev/null || grep -Fq '<?' "$dst" 2>/dev/null; then
+    if grep -Eq '<!(DOCTYPE|ENTITY)' "$dst" 2>/dev/null || grep -Fq '<?' "$dst" 2>/dev/null; then
         return 1
     fi
     return 0
@@ -427,6 +429,24 @@ reload_tee() {
     fi
 }
 
+is_google_hardware_root() {
+    local file="$1"
+    [ -f "$file" ] || return 1
+    awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/ {
+        if ($0 ~ /BEGIN CERTIFICATE/) { b64 = ""; next }
+        if ($0 ~ /END CERTIFICATE/) {
+            print b64
+            b64 = ""
+            next
+        }
+        gsub(/[ \r\n\t]/, "", $0)
+        b64 = b64 $0
+    }' "$file" 2>/dev/null | while IFS= read -r b64_cert; do
+        [ -n "$b64_cert" ] || continue
+        printf '%s' "$b64_cert" | base64 -d 2>/dev/null
+    done | grep -qaE 'Key Attestation CA|Droid CA|Google LLC'
+}
+
 score_keybox() {
     local file="$1"
     [ -f "$file" ] || { printf '0'; return; }
@@ -532,7 +552,7 @@ score_keybox() {
     local dev_id
     dev_id=$(sed -n 's/.*<Keybox DeviceID="\([^"]*\)".*/\1/p' "$file" 2>/dev/null | head -n 1)
     case "$dev_id" in
-        *MOCK*|*mock*|*Test*|*test*)
+        *MOCK*|*mock*|*sample*|*Sample*|*[Tt]est[[:space:]]*|*[[:space:]][Tt]est*|*[Tt]est[_-]*|*-[Tt]est*|*[_-][Tt]est|[Tt]est)
             printf '0'
             return
             ;;
@@ -546,6 +566,14 @@ score_keybox() {
         base_score=$((base_score + 20000000))
     elif [ "$has_ecdsa" -eq 1 ]; then
         base_score=$((base_score + 10000000))
+    fi
+
+    if is_google_hardware_root "$file"; then
+        if grep -qaE '(NOT_APPROVED|Tk9UX0FQUFJPVkVE)' "$file" 2>/dev/null; then
+            base_score=0
+        else
+            base_score=$((base_score + 50000000))
+        fi
     fi
 
     printf '%s' "$base_score"
@@ -682,6 +710,16 @@ EOF
     fi
 }
 
+hardware_supports_leaf() {
+    local plat soc
+    plat="$(getprop ro.board.platform 2>/dev/null)"
+    soc="$(getprop ro.soc.model 2>/dev/null)"
+    case "$plat|$soc" in
+        *sdm845*|*msm8998*|*msm8996*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
 is_softbanned() {
     local hash="$1"
     [ -n "$hash" ] || return 1
@@ -699,6 +737,7 @@ record_softban() {
 
 is_known_softbanned_serial() {
     case "$1" in
+        *774a0c73f386df0837e4730415e1e950*|\
         *64deaa4d53885472afac267bdbd4a472*|\
         *9307822e6c6f88cd2f1ab20c37afeb1*|\
         *15510740886364958753*|\
@@ -739,79 +778,101 @@ verification_allowed() {
     return 0
 }
 
+clear_detection_traces() {
+    log "[Traces] Flushing DroidGuard and GMS attestation caches..." >&2
+    rm -f /data/data/com.google.android.gms/databases/dg.db* 2>/dev/null || true
+    rm -rf /data/data/com.google.android.gms/app_dg_cache 2>/dev/null || true
+    rm -rf /data/data/com.android.vending/cache 2>/dev/null || true
+    rm -f /data/local/tmp/last_pi_response.json 2>/dev/null || true
+    am force-stop com.google.android.gms 2>/dev/null || true
+    am force-stop com.google.android.gms.unstable 2>/dev/null || true
+    am force-stop com.android.vending 2>/dev/null || true
+    am force-stop gr.nikolasspyr.integritycheck 2>/dev/null || true
+    sleep 2
+}
+
 run_play_integrity_test() {
     verification_allowed || { printf 'DEFERRED'; return 0; }
     local dump="/data/local/tmp/pi_dump.$$.xml"
     rm -f "$dump"
 
-    am force-stop gr.nikolasspyr.integritycheck 2>/dev/null || true
-    am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n gr.nikolasspyr.integritycheck/.MainActivity >/dev/null 2>&1 || \
+    clear_detection_traces
+    am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n gr.nikolasspyr.integritycheck/.MainActivity -f 0x10000000 >/dev/null 2>&1 || \
         monkey -p gr.nikolasspyr.integritycheck -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 
-    sleep 3
+    sleep 2
+    # Wait for GMS to re-initialize DroidGuard database
+    local dg_waited=0
+    while [ "$dg_waited" -lt 8 ]; do
+        if [ -s /data/data/com.google.android.gms/databases/dg.db ]; then
+            break
+        fi
+        sleep 1
+        dg_waited=$((dg_waited + 1))
+    done
+    sleep 1
+
     verification_allowed || { printf 'DEFERRED'; return 0; }
 
-    # Tap CHECK button (center 540 1507)
-    input tap 540 1507 >/dev/null 2>&1
+    # Tap CHECK button (center 540 1514)
+    input tap 540 1514 >/dev/null 2>&1
 
-    local waited=0 found=0
+    local waited=0 finished=0
     while [ "$waited" -lt 16 ]; do
         sleep 2
         waited=$((waited + 2))
         verification_allowed || { rm -f "$dump"; printf 'DEFERRED'; return 0; }
 
-        # Tap JSON response button in toolbar
-        input tap 870 90 >/dev/null 2>&1 || true
-        input tap 888 80 >/dev/null 2>&1 || true
-        sleep 1
         uiautomator dump "$dump" >/dev/null 2>&1
         if [ -s "$dump" ]; then
-            if grep -q 'gr.nikolasspyr.integritycheck:id/message' "$dump" 2>/dev/null; then
-                found=1
-                break
-            fi
-            # If icons finished evaluation (content-desc is no longer Unknown)
             if grep -q 'resource-id="gr.nikolasspyr.integritycheck:id/basic_integrity_icon"' "$dump" 2>/dev/null && \
                ! grep -q 'basic_integrity_icon.*content-desc="Unknown"' "$dump" 2>/dev/null; then
-                # Evaluated, tap JSON again
-                input tap 870 90 >/dev/null 2>&1 || true
+                finished=1
+                break
             fi
         fi
     done
 
     local verdict="ERROR"
-    if [ "$found" -eq 1 ] && [ -s "$dump" ]; then
-        if grep -Fq '"MEETS_STRONG_INTEGRITY"' "$dump"; then
+    if [ -s "$dump" ]; then
+        if grep -Eq 'strong_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
             verdict="STRONG"
-        elif grep -Fq '"MEETS_DEVICE_INTEGRITY"' "$dump"; then
+        elif grep -Eq 'device_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
             verdict="DEVICE"
-        elif grep -Fq '"MEETS_BASIC_INTEGRITY"' "$dump"; then
+        elif grep -Eq 'basic_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
             verdict="BASIC"
-        else
+        elif grep -Eq 'basic_integrity_icon"[^>]*content-desc="Fail"' "$dump" 2>/dev/null; then
             verdict="FAIL"
         fi
     fi
 
-    # Fallback inspection of the UI icons
-    if [ "$verdict" = "ERROR" ] || [ "$verdict" = "FAIL" ]; then
-        if [ -s "$dump" ]; then
-            if grep -Eq 'strong_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
-                verdict="STRONG"
-            elif grep -Eq 'device_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
-                verdict="DEVICE"
-            elif grep -Eq 'basic_integrity_icon"[^>]*content-desc="Pass"' "$dump" 2>/dev/null; then
-                verdict="BASIC"
-            elif grep -Eq 'basic_integrity_icon"[^>]*content-desc="Fail"' "$dump" 2>/dev/null; then
-                verdict="FAIL"
-            fi
-        fi
+    # Tap toolbar Raw Response button to capture JSON dialog
+    input tap 888 158 >/dev/null 2>&1 || true
+    sleep 1
+    uiautomator dump "$dump" >/dev/null 2>&1
+    if [ -s "$dump" ]; then
+        awk -v RS='</node>' '
+            /requestDetails/ {
+                match($0, /text=["\x27]({.*})["\x27]/, m)
+                if (m[1]) {
+                    gsub(/&#10;/, "\n", m[1])
+                    gsub(/&quot;/, "\"", m[1])
+                    gsub(/&amp;/, "\&", m[1])
+                    print m[1]
+                }
+            }
+        ' "$dump" > /data/local/tmp/last_pi_response.json 2>/dev/null || true
     fi
 
-    if [ "$found" -eq 0 ] && [ "$verdict" = "ERROR" ]; then
-        local win_info
-        win_info=$(dumpsys window windows 2>/dev/null | grep -c 'gr.nikolasspyr.integritycheck' 2>/dev/null || echo 0)
-        if [ "${win_info:-0}" -eq 0 ] 2>/dev/null; then
-            verdict="LAUNCH_FAIL"
+    if [ -s /data/local/tmp/last_pi_response.json ]; then
+        if grep -Fq '"MEETS_STRONG_INTEGRITY"' /data/local/tmp/last_pi_response.json; then
+            verdict="STRONG"
+        elif grep -Fq '"MEETS_DEVICE_INTEGRITY"' /data/local/tmp/last_pi_response.json; then
+            verdict="DEVICE"
+        elif grep -Fq '"MEETS_BASIC_INTEGRITY"' /data/local/tmp/last_pi_response.json; then
+            verdict="BASIC"
+        else
+            verdict="FAIL"
         fi
     fi
 
@@ -828,6 +889,13 @@ test_candidate_for_strong() {
     local hash
     hash=$(sha256sum "$cand_xml" 2>/dev/null | awk '{print $1}')
     [ -n "$hash" ] || return 1
+
+    local root_type="Custom OEM Root (Eligible for MEETS_DEVICE_INTEGRITY)"
+    if is_google_hardware_root "$cand_xml"; then
+        root_type="Google Hardware Root CA (Eligible for MEETS_STRONG_INTEGRITY)"
+    fi
+    log "[Hunter] Candidate: $source_label (${hash:0:12}) | $root_type"
+
     if verification_cache_hit "$hash"; then
         [ "$cached_verdict" != DEVICE ] || return 2
         return 3
@@ -858,15 +926,42 @@ test_candidate_for_strong() {
 
     local temp="$tee_state/.keybox.$$" active_hash
     active_hash="$(sha256sum "$tee_state/keybox.xml" 2>/dev/null | awk '{print $1}')"
-    if [ "$hash" = "$active_hash" ]; then
-        :
-    elif cp -f "$cand_xml" "$temp" && chmod 600 "$temp" && mv -f "$temp" "$tee_state/keybox.xml"; then
-        reload_tee
-        flush_gms_cache
-        sleep 2
-    else
-        log_err "[Hunter] Failed to deploy candidate: $source_label"
-        return 1
+    if [ "$hash" != "$active_hash" ]; then
+        if cp -f "$cand_xml" "$temp" && chmod 600 "$temp" && mv -f "$temp" "$tee_state/keybox.xml"; then
+            reload_tee
+            flush_gms_cache
+            sleep 2
+        else
+            log_err "[Hunter] Failed to deploy candidate: $source_label"
+            return 1
+        fi
+    fi
+
+    if [ -f "$tee_state/target.txt" ]; then
+        if hardware_supports_leaf; then
+            sed -i 's/^\(android\|com\.google\.android\.gms\|com\.android\.vending\|gr\.nikolasspyr\.integritycheck\)[!?]*$/\1/' "$tee_state/target.txt" 2>/dev/null || true
+        else
+            for pkg in android gr.nikolasspyr.integritycheck; do
+                if grep -q "^${pkg}" "$tee_state/target.txt" 2>/dev/null; then
+                    sed -i "s/^${pkg}[!?]*/${pkg}!/g" "$tee_state/target.txt" 2>/dev/null || true
+                else
+                    printf '%s!\n' "$pkg" >> "$tee_state/target.txt"
+                fi
+            done
+            if is_google_hardware_root "$cand_xml"; then
+                for pkg in com.google.android.gms com.android.vending; do
+                    if grep -q "^${pkg}" "$tee_state/target.txt" 2>/dev/null; then
+                        sed -i "s/^${pkg}[!?]*/${pkg}!/g" "$tee_state/target.txt" 2>/dev/null || true
+                    else
+                        printf '%s!\n' "$pkg" >> "$tee_state/target.txt"
+                    fi
+                done
+            else
+                for pkg in com.google.android.gms com.android.vending; do
+                    sed -i "/^${pkg}[!?]*/d" "$tee_state/target.txt" 2>/dev/null || true
+                done
+            fi
+        fi
     fi
 
     log "[Hunter] Running on-device Play Integrity verification..."
@@ -1148,14 +1243,43 @@ case "$1" in
         ;;
     test_strong)
         shift
+        manual_file="${1:-$tee_state/keybox.xml}"
         worker_acquire keybox || exit 1
         trap 'rm -rf "$work"; worker_release keybox' EXIT
         trap 'exit 1' INT TERM
-        test_candidate_for_strong "${1:-$tee_state/keybox.xml}" "manual"
+        if [ "$manual_file" != "$tee_state/keybox.xml" ]; then
+            if [ ! -f "$manual_file" ]; then
+                log_err "Keybox file not found: $manual_file"
+                exit 1
+            fi
+            mkdir -p "$work"
+            safe="$work/manual_safe.xml"
+            if ! sanitize_keybox "$manual_file" "$safe" || ! check_keybox "$safe"; then
+                log_err "Keybox file failed validation or CRL check: $manual_file"
+                exit 1
+            fi
+            bk="$work/active_backup.xml"
+            [ -f "$tee_state/keybox.xml" ] && cp -f "$tee_state/keybox.xml" "$bk"
+            test_candidate_for_strong "$safe" "manual:$(basename "$manual_file")"
+            ret=$?
+            if [ "$ret" -ne 0 ] && [ -f "$bk" ]; then
+                log "Candidate did not achieve STRONG. Restoring previous active keybox."
+                cp -f "$bk" "$tee_state/keybox.xml"
+                reload_tee
+                flush_gms_cache
+            fi
+            exit "$ret"
+        else
+            test_candidate_for_strong "$tee_state/keybox.xml" "active"
+        fi
         ;;
     test_check)
         run_play_integrity_test
         printf '\n'
+        if [ -s /data/local/tmp/last_pi_response.json ]; then
+            cat /data/local/tmp/last_pi_response.json
+            printf '\n'
+        fi
         ;;
     status|"")
         status_keybox

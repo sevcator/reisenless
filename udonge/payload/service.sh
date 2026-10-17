@@ -309,12 +309,49 @@ EOF
     ' "$tee_state/.system-packages" - > "$temp_target" && mv -f "$temp_target" "$target"
     rm -f "$tee_state/.system-packages"
 
-    # Retain force-generation ('!') for critical attestation consumers across all devices
-    for p in com.android.vending com.google.android.gms com.google.android.gsf gr.nikolasspyr.integritycheck io.github.vvb2060.keyattestation io.github.qwq233.keyattestation com.henrikhermansen.playintegritychecker rikka.safetynetchecker; do
+    # Ensure critical attestation consumers are present in target.txt.
+    # Devices with Keymaster 3 (e.g. sdm845) cannot attest IDs via hardware (-10003),
+    # so they require '!' to force software keybox generation when a Google Root CA keybox is active.
+    # CRITICAL: If the active keybox uses a custom OEM Root (not Google), GMS and Vending MUST NOT
+    # be intercepted with '!', otherwise DroidGuard/GMS fails cloud checkin and Play Protect reports uncertified.
+    local force_gen="" force_gms=""
+    case "$(getprop ro.board.platform 2>/dev/null)|$(getprop ro.soc.model 2>/dev/null)" in
+        *sdm845*|*msm8998*|*msm8996*) force_gen="!" ;;
+    esac
+    if command -v is_google_hardware_root >/dev/null 2>&1 && is_google_hardware_root "$tee_state/keybox.xml"; then
+        force_gms="$force_gen"
+    else
+        force_gms=""
+    fi
+
+    # System and test checkers
+    for p in android gr.nikolasspyr.integritycheck; do
         if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
-            sed -i "s/^${p}[!?]*\$/${p}!/" "$target" 2>/dev/null || true
+            sed -i "s/^${p}[!?]*\$/${p}${force_gen}/" "$target" 2>/dev/null || true
         else
-            printf '%s!\n' "$p" >> "$target"
+            printf '%s%s\n' "$p" "$force_gen" >> "$target"
+        fi
+    done
+
+    # GMS, Vending, GSF: only force if valid Google root is present
+    for p in com.android.vending com.google.android.gms com.google.android.gsf; do
+        if [ -n "$force_gms" ]; then
+            if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
+                sed -i "s/^${p}[!?]*\$/${p}${force_gms}/" "$target" 2>/dev/null || true
+            else
+                printf '%s%s\n' "$p" "$force_gms" >> "$target"
+            fi
+        else
+            # Strip force-generation to enable software fallback
+            sed -i "s/^${p}[!?]*\$/${p}/" "$target" 2>/dev/null || true
+        fi
+    done
+
+    for p in io.github.vvb2060.keyattestation io.github.qwq233.keyattestation com.henrikhermansen.playintegritychecker rikka.safetynetchecker; do
+        if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
+            sed -i "s/^${p}[!?]*\$/${p}/" "$target" 2>/dev/null || true
+        else
+            printf '%s\n' "$p" >> "$target"
         fi
     done
 
@@ -337,6 +374,21 @@ EOF
 system=$patch
 boot=$patch
 vendor=$patch
+
+[com.android.vending]
+system=$patch
+boot=$patch
+vendor=$patch
+
+[com.google.android.gms]
+system=$patch
+boot=$patch
+vendor=$patch
+
+[gr.nikolasspyr.integritycheck]
+system=$patch
+boot=$patch
+vendor=$patch
 EOF
     chmod 600 "$tee_state/security_patch.txt"
 
@@ -353,6 +405,7 @@ EOF
     healthy="$(find_tee_supervisor "$run")"
     if [ -n "$healthy" ] && remember_tee_supervisor "$run" "$healthy"; then
         rm -f "$state/tee-unavailable"
+        printf 'ready\n' > "$state/tee-status"
         return 0
     fi
 
@@ -362,6 +415,7 @@ EOF
     if process_is_current "$pid" "$pid_start" "$pid_boot"; then
         if tee_child_is_current "$pid"; then
             rm -f "$state/tee-unavailable"
+            printf 'ready\n' > "$state/tee-status"
         fi
         return 0
     fi
@@ -487,6 +541,21 @@ normalize_boot_properties() {
     $rp -n ro.boot.realmebootstate green
     $rp -n ro.boot.realme.lockstate 1
 
+    # AVB 2.0 / VBMeta attributes
+    $rp -n ro.boot.vbmeta.size 4096
+    $rp -n ro.boot.vbmeta.hash_alg sha256
+    $rp -n ro.boot.vbmeta.avb_version 2.0
+    $rp -n ro.boot.vbmeta.invalidate_on_error yes
+    $rp -n ro.boot.avb_version 1.3
+    $rp -n ro.crypto.state encrypted
+
+    # Suppress partition verification anomalies
+    $rp -n partition.system.verified 0
+    $rp -n partition.vendor.verified 0
+    $rp -n partition.product.verified 0
+    $rp -n partition.system_ext.verified 0
+    $rp -n partition.odm.verified 0
+
     for name in \
         ro.build.type \
         ro.product.build.type \
@@ -499,13 +568,11 @@ normalize_boot_properties() {
         $rp -n "$name" user 2>/dev/null || true
     done
 
-    for name in ro.build.flavor ro.product.build.flavor; do
-        val="$($rp "$name" 2>/dev/null)"
-        case "$val" in
-            *userdebug*) $rp -n "$name" "$(printf '%s' "$val" | sed 's/userdebug/user/g')" 2>/dev/null || true ;;
-            eng|*-eng|*_eng) $rp -n "$name" user 2>/dev/null || true ;;
-        esac
+    for prop in $($rp 2>/dev/null | grep -E '^\[ro\.lineage\.' | sed -E 's/^\[([^]]+)\].*/\1/' 2>/dev/null); do
+        $rp -d "$prop" 2>/dev/null || true
     done
+    $rp -d ro.build.flavor 2>/dev/null || true
+    $rp -d ro.product.build.flavor 2>/dev/null || true
 
     # Ensure ro.board.first_api_level consistency for legacy attestation fallback
     cur_api="$(getprop ro.board.first_api_level 2>/dev/null)"

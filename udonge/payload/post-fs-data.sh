@@ -23,6 +23,10 @@ for name in targets.conf props.conf pif.conf keybox_urls.conf rom_keywords.conf 
         chmod 600 "$state/$name"
     fi
 done
+if [ -f "$state/pif.conf" ] && grep -qi 'CANARY' "$state/pif.conf"; then
+    cp -f "$runtime/defaults/pif.conf" "$state/pif.conf"
+    chmod 600 "$state/pif.conf"
+fi
 sync_oem_boot_key() {
     local vbmeta="/dev/block/by-name/vbmeta"
     if [ ! -e "$vbmeta" ]; then
@@ -110,6 +114,21 @@ normalize_boot_properties() {
     $rp -n ro.boot.realmebootstate green
     $rp -n ro.boot.realme.lockstate 1
 
+    # AVB 2.0 / VBMeta attributes
+    $rp -n ro.boot.vbmeta.size 4096
+    $rp -n ro.boot.vbmeta.hash_alg sha256
+    $rp -n ro.boot.vbmeta.avb_version 2.0
+    $rp -n ro.boot.vbmeta.invalidate_on_error yes
+    $rp -n ro.boot.avb_version 1.3
+    $rp -n ro.crypto.state encrypted
+
+    # Suppress partition verification anomalies
+    $rp -n partition.system.verified 0
+    $rp -n partition.vendor.verified 0
+    $rp -n partition.product.verified 0
+    $rp -n partition.system_ext.verified 0
+    $rp -n partition.odm.verified 0
+
     for name in \
         ro.build.type \
         ro.product.build.type \
@@ -122,13 +141,11 @@ normalize_boot_properties() {
         $rp -n "$name" user 2>/dev/null || true
     done
 
-    for name in ro.build.flavor ro.product.build.flavor; do
-        val="$($rp "$name" 2>/dev/null)"
-        case "$val" in
-            *userdebug*) $rp -n "$name" "$(printf '%s' "$val" | sed 's/userdebug/user/g')" 2>/dev/null || true ;;
-            eng|*-eng|*_eng) $rp -n "$name" user 2>/dev/null || true ;;
-        esac
+    for prop in $($rp 2>/dev/null | grep -E '^\[ro\.lineage\.' | sed -E 's/^\[([^]]+)\].*/\1/' 2>/dev/null); do
+        $rp -d "$prop" 2>/dev/null || true
     done
+    $rp -d ro.build.flavor 2>/dev/null || true
+    $rp -d ro.product.build.flavor 2>/dev/null || true
 
     cur_api="$(getprop ro.board.first_api_level 2>/dev/null)"
     [ -z "$cur_api" ] && $rp -n ro.board.first_api_level 32 2>/dev/null || true

@@ -250,3 +250,22 @@ verification_allowed() {
     printf '%s\n' "$window" | grep -qE 'showing=true|mShowingLockscreen=true|isStatusBarKeyguard=true' && return 1
     return 0
 }
+
+is_google_hardware_root() {
+    local file="$1"
+    [ -f "$file" ] || return 1
+    awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/ {
+        if ($0 ~ /BEGIN CERTIFICATE/) { b64 = ""; next }
+        if ($0 ~ /END CERTIFICATE/) {
+            print b64
+            b64 = ""
+            next
+        }
+        gsub(/[ \r\n\t]/, "", $0)
+        b64 = b64 $0
+    }' "$file" 2>/dev/null | while IFS= read -r b64_cert; do
+        [ -n "$b64_cert" ] || continue
+        printf '%s' "$b64_cert" | base64 -d 2>/dev/null
+    done | grep -qaE 'Key Attestation CA|Droid CA|Google LLC'
+}
+

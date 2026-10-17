@@ -36,9 +36,11 @@ fn is_application_uid(uid: i32) -> bool {
     if process == "com.google.android.gms.unstable" {
         return true;
     }
-    let targets =
+    let targets1 =
         std::fs::read_to_string(format!("{UDONGE_ROOT}/state/targets.conf")).unwrap_or_default();
-    if target_config_contains(&targets, package) {
+    let targets2 =
+        std::fs::read_to_string(format!("{UDONGE_ROOT}/state/target.txt")).unwrap_or_default();
+    if target_config_contains(&targets1, package) || target_config_contains(&targets2, package) {
         return true;
     }
     false

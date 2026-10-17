@@ -15,24 +15,25 @@ echo "${CYAN}[*] ===================================================${NC}"
 echo "${CYAN}[*]   REISENLESS UNIFIED INTEGRITY & PROPERTY NORMALIZER ${NC}"
 echo "${CYAN}[*] ===================================================${NC}"
 
-ROOT="/data/.xlmk/.yer"
+ROOT="/data/.gacl/.thj"
 if [ ! -d "$ROOT" ]; then
-    ROOT="$(find /data -maxdepth 3 -name "tee-runtime" 2>/dev/null | head -n 1 | xargs dirname 2>/dev/null)"
+    SUPERVISOR_CMD="$(ps -ef 2>/dev/null | awk '/supervisor \.\/daemon/ { for (i=1; i<=NF; i++) if ($i ~ /tee-runtime$/) print $i }' | head -n 1)"
+    if [ -n "$SUPERVISOR_CMD" ] && [ -d "$(dirname "$SUPERVISOR_CMD")" ]; then
+        ROOT="$(dirname "$SUPERVISOR_CMD")"
+    else
+        ROOT="$(find /data -maxdepth 3 -name "tee-runtime" 2>/dev/null | while read -r p; do stat -c '%Y %n' "$p" 2>/dev/null; done | sort -nr | head -n 1 | awk '{print $2}' | xargs dirname 2>/dev/null)"
+    fi
 fi
 RUN="$ROOT/tee-runtime"
 STATE="$ROOT/state"
 RUNTIME="$ROOT/runtime"
-BIN_DIR="/data/.xlmk/.dweuvzu"
-if [ ! -d "$BIN_DIR" ]; then
-    BIN_DIR="$(dirname "$ROOT")"
-fi
 
-if [ -x "$BIN_DIR/resetprop" ]; then
-    RP="$BIN_DIR/resetprop"
-elif [ -x "/product/bin/resetprop" ]; then
-    RP="/product/bin/resetprop"
+if command -v lnnqjjk >/dev/null 2>&1; then
+    RP="lnnqjjk resetprop"
 elif command -v resetprop >/dev/null 2>&1; then
     RP="resetprop"
+elif [ -x "/product/bin/resetprop" ]; then
+    RP="/product/bin/resetprop"
 else
     RP="setprop"
 fi
@@ -44,8 +45,9 @@ DELPROP="$RP -d"
 echo "${YELLOW}[1/7] Clearing failure flags and ensuring state...${NC}"
 rm -f "$STATE/tee-failed-payload" "$STATE/tee-unavailable" "$STATE/disabled" "$STATE/boot-failed" "$STATE/boot-pending" "$STATE/.softbanned_keys.txt" 2>/dev/null
 rm -rf "$STATE/persistent_keys"/* 2>/dev/null
-touch "$STATE/enabled" "$STATE/tee-broken" 2>/dev/null
-chmod 600 "$STATE/enabled" "$STATE/tee-broken" 2>/dev/null
+touch "$STATE/enabled" 2>/dev/null
+rm -f "$STATE/tee-broken" "$STATE/tee_status.txt" 2>/dev/null
+chmod 600 "$STATE/enabled" 2>/dev/null
 cat /proc/sys/kernel/random/boot_id > "$STATE/boot-pending" 2>/dev/null
 chmod 600 "$STATE/boot-pending" 2>/dev/null
 
@@ -145,13 +147,12 @@ EOF
 chmod 600 "$STATE/pif.conf" 2>/dev/null || true
 
 cat << 'EOF' > "$STATE/security_patch.txt"
-system=2023-09-01
+system=prop
 boot=2023-09-01
 vendor=2023-09-01
 EOF
 chmod 600 "$STATE/security_patch.txt" 2>/dev/null || true
-printf 'tee_broken=true\n' > "$STATE/tee_status.txt" 2>/dev/null || true
-chmod 600 "$STATE/tee_status.txt" 2>/dev/null || true
+rm -f "$STATE/tee-broken" "$STATE/tee_status.txt" 2>/dev/null || true
 
 FP="Xiaomi/apollopro_global/apollo:12/RKQ1.211001.001/V14.0.4.0.SJDMIXM:user/release-keys"
 
@@ -168,6 +169,8 @@ $SETPROP ro.build.tags "release-keys"
 $SETPROP ro.build.version.release "12"
 $SETPROP ro.build.version.release_or_codename "12"
 $SETPROP ro.build.version.security_patch "2023-09-01"
+$SETPROP ro.board.first_api_level "29"
+$SETPROP ro.product.first_api_level "29"
 
 for part in system system_ext product vendor oem odm bootimage odm_dlkm vendor_dlkm; do
     $SETPROP "ro.product.${part}.brand" "Xiaomi" 2>/dev/null
@@ -216,8 +219,8 @@ echo "  -> ro.boot.vbmeta.digest set to ${GREEN}$DIGEST${NC}"
 # ADB properties alignment (preserve real ADB connectivity across reboots)
 $SETPROP service.adb.root "0"
 
-# Cleanup test dumps and temporary files from /data/local/tmp
-rm -f /data/local/tmp/*boot.img /data/local/tmp/*.xml /data/local/tmp/*.png /data/local/tmp/apolloctl-preview /data/local/tmp/unpack_udonge.sh /data/local/tmp/udonge.bin 2>/dev/null || true
+# Cleanup test dumps, temporary files and stale pif.conf from /data/local/tmp
+rm -f /data/local/tmp/*boot.img /data/local/tmp/*.xml /data/local/tmp/*.png /data/local/tmp/apolloctl-preview /data/local/tmp/unpack_udonge.sh /data/local/tmp/udonge.bin /data/local/tmp/pif.conf 2>/dev/null || true
 
 # 7. Strip Custom ROM / LineageOS Signatures & Compact Arenas
 echo "${YELLOW}[5/7] Stripping Custom ROM signatures and compacting property arenas...${NC}"
@@ -236,10 +239,8 @@ $RP -c 2>/dev/null || true
 echo "${YELLOW}[6/7] Enforcing target attestation configuration...${NC}"
 for pkg in com.android.vending com.google.android.gms com.google.android.gsf \
            gr.nikolasspyr.integritycheck com.henrikhermansen.playintegritychecker; do
-    grep -qxF "${pkg}!" "$STATE/target.txt" 2>/dev/null || {
-        sed -i "/^${pkg}[!?]*\$/d" "$STATE/target.txt" 2>/dev/null || true
-        printf '%s!\n' "$pkg" >> "$STATE/target.txt" 2>/dev/null
-    }
+    sed -i "s/^${pkg}[!?]*\$/${pkg}/" "$STATE/target.txt" 2>/dev/null || true
+    grep -qxF "$pkg" "$STATE/target.txt" 2>/dev/null || printf '%s\n' "$pkg" >> "$STATE/target.txt" 2>/dev/null
 done
 
 # Ensure duckdetector is in target list WITHOUT '!' (prevents TEE stall & PIF build drift)
