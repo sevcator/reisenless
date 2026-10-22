@@ -98,7 +98,7 @@ private fun ZFile.rewriteVisibleNamespaces(namespaces: Map<String, String>) {
     if (ordered.isEmpty()) return
     ordered.forEach { (source, target) ->
         require(target.length == source.length) {
-            "Randomized namespace must be ${source.length} characters: $source"
+            "Randomized namespace must be ${source.length} characters: $source -> '$target' (len ${target.length})"
         }
     }
     val replacements = ordered.flatMap { (source, target) ->

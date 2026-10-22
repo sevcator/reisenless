@@ -190,7 +190,7 @@ uint32_t parse_uint32_hex(string_view s) {
 int switch_mnt_ns(int pid) {
     int ret = -1;
     int fd = syscall(__NR_pidfd_open, pid, 0);
-    if (fd > 0) {
+    if (fd >= 0) {
         ret = setns(fd, CLONE_NEWNS);
         close(fd);
     }

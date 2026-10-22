@@ -1,6 +1,7 @@
 #include "hooks.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <cstdint>
 #include <cstdarg>
@@ -22,6 +23,8 @@
 #include <sys/socket.h>
 #include <sys/system_properties.h>
 #include <linux/sockios.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include <set>
 #include <map>
 #include <mutex>
@@ -96,6 +99,20 @@ static const char *const kBlockedSubstr[] = {
     "/product/bin/su", "/vendor/bin/su", "/odm/bin/su",
     "/debug_ramdisk", "apolloctl", "apollo-lite", "apollo-enhanced", "apollon",
 
+    // Reisenless dynamic tokens & directories
+    "/data/.gacl", ".gacl",
+    "lnnqjjk",
+    ".dqblcm",
+    "ebcqdszjr",
+    "yhgkxgk.bin",
+    ".sazhlix",
+    ".qjilcrpt",
+    ".ftbviwk",
+    ".thj",
+    ".uzkiihkp",
+    "/dev/.negvfjvf", ".negvfjvf",
+    "com.zhozxmvhv.kfjckwcasx",
+
     s_ksu1, s_ksu2, "ksud", "ksu",
     s_ap1, s_ap2,
 };
@@ -106,13 +123,20 @@ static const char *const kMountsExtra[] = {
     "mirror",
     ".core",
     "/adb/modules/",
+    ".gacl",
+    ".dqblcm",
+    "lnnqjjk",
+    ".negvfjvf",
+    " /tmp ",
+    " /tmp\n",
 };
 
 static bool basename_is_su(const char *path) {
     const char *b = strrchr(path, '/');
     b = b ? b + 1 : path;
     return strcmp(b, "su") == 0 || strcmp(b, "magisk") == 0 ||
-           strcmp(b, "magiskpolicy") == 0 || strcmp(b, "resetprop") == 0;
+           strcmp(b, "magiskpolicy") == 0 || strcmp(b, "resetprop") == 0 ||
+           strcmp(b, "lnnqjjk") == 0 || strcmp(b, "lnnqjjkp") == 0;
 }
 
 static bool str_ends_with(const char *s, const char *suffix) {
@@ -161,6 +185,7 @@ static bool is_rom_path(const char *path) {
         "/product/etc/selinux/product_sepolicy.cil",
         "/system/etc/selinux/plat_sepolicy.cil",
         "/odm/etc/selinux/odm_sepolicy.cil",
+        "/tmp",
     };
     for (const char *blocked : exact_paths) {
         const size_t length = strlen(blocked);
@@ -285,8 +310,11 @@ static DIR    *(*o_opendir)(const char *);
 static struct dirent *(*o_readdir)(DIR *);
 static struct dirent64 *(*o_readdir64)(DIR *);
 static int     (*o_execve)(const char *, char *const [], char *const []);
+static int     (*o_execv)(const char *, char *const []) = nullptr;
 static int     (*o_execvp)(const char *, char *const []);
 static int     (*o_execvpe)(const char *, char *const [], char *const []);
+static int     (*o_execveat)(int, const char *, char *const [], char *const [], int) = nullptr;
+static int     (*o_fexecve)(int, char *const [], char *const []) = nullptr;
 static char   *(*o_getenv)(const char *);
 static void   *(*o_dlopen)(const char *, int);
 static void   *(*o_android_dlopen_ext)(const char *, int, const void *);
@@ -298,8 +326,12 @@ static jstring (*o_runtime_native_load)(JNIEnv *, jclass, jstring, jobject, jcla
 static int     (*o_getifaddrs)(struct ifaddrs **) = nullptr;
 static int     (*o_ioctl)(int, unsigned long, ...) = nullptr;
 static int     (*o_setsockopt)(int, int, int, const void *, socklen_t) = nullptr;
+static ssize_t (*o_sendto)(int, const void *, size_t, int, const struct sockaddr *, socklen_t) = nullptr;
+static ssize_t (*o_sendmsg)(int, const struct msghdr *, int) = nullptr;
+static ssize_t (*o_send)(int, const void *, size_t, int) = nullptr;
 static long    (*o_syscall)(long, ...) = nullptr;
 static void install_late_library_hooks();
+static long h_tee_asm_syscall6(long number, void *a1, void *a2, void *a3, void *a4, void *a5, void *a6);
 static long h_syscall(long number, void *a1, void *a2, void *a3, void *a4, void *a5, void *a6);
 static void patch_duckdetector_raw_syscall(void *sym);
 
@@ -368,12 +400,18 @@ static void *h_dlsym(void *handle, const char *symbol) {
                    strstr(symbol, "ANetworkSession") != nullptr)) {
         return nullptr;
     }
+    void *sym = nullptr;
     if (o_loader_dlsym) {
-
-        return o_loader_dlsym(handle, symbol, __builtin_return_address(0));
+        sym = o_loader_dlsym(handle, symbol, __builtin_return_address(0));
+    } else if (o_dlsym) {
+        sym = o_dlsym(handle, symbol);
+    } else {
+        sym = dlsym(handle, symbol);
     }
-    if (o_dlsym) return o_dlsym(handle, symbol);
-    return dlsym(handle, symbol);
+    if (sym && symbol && strcmp(symbol, "tee_asm_syscall6") == 0) {
+        patch_duckdetector_raw_syscall(sym);
+    }
+    return sym;
 }
 
 static int h_selinux_check_access(const char *scon, const char *tcon, const char *tclass,
@@ -435,17 +473,31 @@ static bool is_mountinfo_path(const char *path) {
     return len >= 9 && strcmp(path + len - 9, "mountinfo") == 0;
 }
 
-static std::string resolve_at_path(int dirfd, const char *path) {
-    if (!path || path[0] == '\0') return "";
-    if (path[0] == '/') return path;
-    if (dirfd == AT_FDCWD || dirfd < 0) return path;
+static std::string resolve_fd_path(int fd) {
+    if (fd < 0) return "";
     char fd_path[64];
-    snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", dirfd);
+    snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", fd);
     char resolved[PATH_MAX];
     ssize_t len = ::readlink(fd_path, resolved, sizeof(resolved) - 1);
     if (len > 0) {
         resolved[len] = '\0';
-        return std::string(resolved) + "/" + path;
+        return std::string(resolved);
+    }
+    return "";
+}
+
+static std::string resolve_at_path(int dirfd, const char *path) {
+    if (!path || path[0] == '\0') {
+        if (dirfd >= 0 && dirfd != AT_FDCWD) {
+            return resolve_fd_path(dirfd);
+        }
+        return "";
+    }
+    if (path[0] == '/') return path;
+    if (dirfd == AT_FDCWD || dirfd < 0) return path;
+    std::string base = resolve_fd_path(dirfd);
+    if (!base.empty()) {
+        return base + "/" + path;
     }
     return path;
 }
@@ -488,12 +540,20 @@ static int h_faccessat(int d, const char *p, int m, int f) {
     }
     if (is_blocked(target)) { errno = ENOENT; return -1; }
     if (is_foreign_proc_mount_path(target)) { errno = EACCES; return -1; }
-    return o_faccessat(d, p, m, f);
+    return o_faccessat ? o_faccessat(d, p, m, f) : ::faccessat(d, p, m, f);
 }
 static int h_access(const char *p, int m) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
     if (is_foreign_proc_mount_path(p)) { errno = EACCES; return -1; }
-    return o_access(p, m);
+    return o_access ? o_access(p, m) : ::access(p, m);
+}
+
+static bool is_proc_version_path(const char *path) {
+    if (!path) return false;
+    if (strcmp(path, "/proc/version") == 0) return true;
+    size_t len = strlen(path);
+    if (len >= 13 && strcmp(path + len - 13, "/proc/version") == 0) return true;
+    return false;
 }
 
 static bool is_self_proc_file(const char *path, const char *name) {
@@ -644,6 +704,13 @@ static std::vector<char> filter_blocked_lines(const std::vector<char> &raw,
         if (keep && extra_mounts_check) {
             for (const char *s : kMountsExtra)
                 if (memmem(p, len, s, strlen(s))) { keep = false; break; }
+            if (keep && (memmem(p, len, " - tmpfs ", 9) || memmem(p, len, " tmpfs ", 7))) {
+                if (memmem(p, len, " /system", 8) || memmem(p, len, " /product", 9) ||
+                    memmem(p, len, " /vendor", 8) || memmem(p, len, " /system_ext", 12) ||
+                    memmem(p, len, " /odm", 5)) {
+                    keep = false;
+                }
+            }
         }
 
         if (keep && g_cfg) {
@@ -703,6 +770,13 @@ static std::vector<char> filter_mountinfo(const std::vector<char> &raw) {
         if (keep) {
             for (const char *s : kMountsExtra) {
                 if (memmem(p, len, s, strlen(s))) { keep = false; break; }
+            }
+        }
+        if (keep && (memmem(p, len, " - tmpfs ", 9) || memmem(p, len, " tmpfs ", 7))) {
+            if (memmem(p, len, " /system", 8) || memmem(p, len, " /product", 9) ||
+                memmem(p, len, " /vendor", 8) || memmem(p, len, " /system_ext", 12) ||
+                memmem(p, len, " /odm", 5)) {
+                keep = false;
             }
         }
         if (keep && g_cfg) {
@@ -903,6 +977,16 @@ static std::vector<char> filter_status(const std::vector<char> &raw) {
     return out;
 }
 
+static std::vector<char> filter_version(const std::vector<char> &raw) {
+    std::string s(raw.data(), raw.size());
+    size_t pos = 0;
+    while ((pos = s.find("root@", pos)) != std::string::npos) {
+        s.replace(pos, 5, "android-build@");
+        pos += 14;
+    }
+    return std::vector<char>(s.begin(), s.end());
+}
+
 static std::vector<char> filter_proc_net_route(const std::vector<char> &raw) {
     std::vector<char> out;
     out.reserve(raw.size());
@@ -1012,6 +1096,7 @@ enum ProcFilter {
     kFilterNetIpv6Route,
     kFilterNetDev,
     kFilterNetIfInet6,
+    kFilterVersion,
 };
 
 static int make_anon_fd(const std::vector<char> &content) {
@@ -1065,12 +1150,13 @@ static int open_filtered_proc(const char *path, ProcFilter filter) {
                 filtered = filter_blocked_lines(raw, true);
             }
             break;
-        case kFilterNetUnix:      filtered = filter_blocked_lines(raw, false); break;
+        case kFilterNetUnix:      filtered = filter_blocked_lines(raw, true); break;
         case kFilterCgroup:       filtered = filter_blocked_lines(raw, false); break;
         case kFilterNetRoute:     filtered = filter_proc_net_route(raw); break;
         case kFilterNetIpv6Route: filtered = filter_proc_net_last_field(raw); break;
         case kFilterNetDev:       filtered = filter_proc_net_dev(raw); break;
         case kFilterNetIfInet6:   filtered = filter_proc_net_last_field(raw); break;
+        case kFilterVersion:      filtered = filter_version(raw); break;
     }
 
     int anon = make_anon_fd(filtered);
@@ -1159,6 +1245,7 @@ static int h_open(const char *p, int fl, ...) {
         if (is_proc_net_path(p, "ipv6_route"))   return open_filtered_proc(p, kFilterNetIpv6Route);
         if (is_proc_net_path(p, "dev"))          return open_filtered_proc(p, kFilterNetDev);
         if (is_proc_net_path(p, "if_inet6"))     return open_filtered_proc(p, kFilterNetIfInet6);
+        if (is_proc_version_path(p))             return open_filtered_proc(p, kFilterVersion);
     }
     return o_open ? o_open(p, fl, mode) : ::open(p, fl, mode);
 }
@@ -1180,6 +1267,7 @@ static int h_open_2(const char *p, int fl) {
         if (is_proc_net_path(p, "ipv6_route"))   return open_filtered_proc(p, kFilterNetIpv6Route);
         if (is_proc_net_path(p, "dev"))          return open_filtered_proc(p, kFilterNetDev);
         if (is_proc_net_path(p, "if_inet6"))     return open_filtered_proc(p, kFilterNetIfInet6);
+        if (is_proc_version_path(p))             return open_filtered_proc(p, kFilterVersion);
     }
     return o_open_2 ? o_open_2(p, fl) : ::open(p, fl);
 }
@@ -1209,6 +1297,7 @@ static int h_openat(int d, const char *p, int fl, ...) {
         if (is_proc_net_path(target, "ipv6_route"))   return open_filtered_proc(target, kFilterNetIpv6Route);
         if (is_proc_net_path(target, "dev"))          return open_filtered_proc(target, kFilterNetDev);
         if (is_proc_net_path(target, "if_inet6"))     return open_filtered_proc(target, kFilterNetIfInet6);
+        if (is_proc_version_path(target))             return open_filtered_proc(target, kFilterVersion);
     }
     return o_openat ? o_openat(d, p, fl, mode) : ::openat(d, p, fl, mode);
 }
@@ -1231,7 +1320,8 @@ static FILE *h_fopen(const char *p, const char *mode) {
         else if (is_proc_net_path(p, "ipv6_route"))    fd = open_filtered_proc(p, kFilterNetIpv6Route);
         else if (is_proc_net_path(p, "dev"))           fd = open_filtered_proc(p, kFilterNetDev);
         else if (is_proc_net_path(p, "if_inet6"))      fd = open_filtered_proc(p, kFilterNetIfInet6);
-        else                                           return o_fopen(p, mode);
+        else if (is_proc_version_path(p))              fd = open_filtered_proc(p, kFilterVersion);
+        else                                           return o_fopen ? o_fopen(p, mode) : ::fopen(p, mode);
         if (fd < 0) return nullptr;
         FILE *stream = fdopen(fd, mode);
         if (!stream) close(fd);
@@ -1246,7 +1336,7 @@ static ssize_t h_read(int fd, void *buf, size_t count) {
 
 static ssize_t h_readlink(const char *p, char *b, size_t n) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
-    ssize_t ret = o_readlink(p, b, n);
+    ssize_t ret = o_readlink ? o_readlink(p, b, n) : ::readlink(p, b, n);
     if (ret > 0) {
         for (const char *s : kBlockedSubstr)
             if (memmem(b, (size_t)ret, s, strlen(s))) { errno = ENOENT; return -1; }
@@ -1259,7 +1349,7 @@ static ssize_t h_readlink(const char *p, char *b, size_t n) {
 }
 static ssize_t h_readlinkat(int d, const char *p, char *b, size_t n) {
     if (is_blocked(p)) { errno = ENOENT; return -1; }
-    ssize_t ret = o_readlinkat(d, p, b, n);
+    ssize_t ret = o_readlinkat ? o_readlinkat(d, p, b, n) : ::readlinkat(d, p, b, n);
     if (ret > 0) {
         for (const char *s : kBlockedSubstr)
             if (memmem(b, (size_t)ret, s, strlen(s))) { errno = ENOENT; return -1; }
@@ -1335,11 +1425,36 @@ static struct dirent64 *h_readdir64(DIR *dir) {
     return entry;
 }
 
+static bool command_string_contains_blocked_bin(const char *cmd) {
+    if (!cmd) return false;
+    for (const char *s : kBlockedSubstr) {
+        if (strstr(cmd, s)) return true;
+    }
+    const char *p = cmd;
+    while ((p = strstr(p, "su")) != nullptr) {
+        bool left_boundary = (p == cmd || isspace(static_cast<unsigned char>(p[-1])) ||
+                              p[-1] == ';' || p[-1] == '&' || p[-1] == '|' ||
+                              p[-1] == '`' || p[-1] == '$' || p[-1] == '(');
+        char next = p[2];
+        bool right_boundary = (next == '\0' || isspace(static_cast<unsigned char>(next)) ||
+                               next == ';' || next == '&' || next == '|' ||
+                               next == '`' || next == ')');
+        if (left_boundary && right_boundary) {
+            return true;
+        }
+        p += 2;
+    }
+    return false;
+}
+
 static bool has_blocked_exec(const char *pathname, char *const argv[]) {
     if (pathname && is_blocked(pathname)) return true;
     if (argv) {
         for (int i = 0; argv[i] != nullptr; ++i) {
             if (is_blocked(argv[i])) return true;
+            if (strcmp(argv[i], "-c") == 0 && argv[i + 1] != nullptr) {
+                if (command_string_contains_blocked_bin(argv[i + 1])) return true;
+            }
         }
     }
     return false;
@@ -1355,6 +1470,16 @@ static int h_execve(const char *pathname, char *const argv[], char *const envp[]
         return o_execve ? o_execve(false_path, false_argv, envp) : ::execve(false_path, false_argv, envp);
     }
     return o_execve ? o_execve(pathname, argv, envp) : ::execve(pathname, argv, envp);
+}
+
+static int h_execv(const char *pathname, char *const argv[]) {
+    if (handle_getprop_exec(pathname, argv)) return 0;
+    if (has_blocked_exec(pathname, argv)) {
+        static char false_path[] = "/system/bin/false";
+        static char *const false_argv[] = {false_path, nullptr};
+        return o_execv ? o_execv(false_path, false_argv) : ::execv(false_path, false_argv);
+    }
+    return o_execv ? o_execv(pathname, argv) : ::execv(pathname, argv);
 }
 
 static int h_execvp(const char *file, char *const argv[]) {
@@ -1377,12 +1502,73 @@ static int h_execvpe(const char *file, char *const argv[], char *const envp[]) {
     return o_execvpe ? o_execvpe(file, argv, envp) : ::execvpe(file, argv, envp);
 }
 
+static int h_execveat(int dirfd, const char *pathname, char *const argv[], char *const envp[], int flags) {
+    std::string full_path = resolve_at_path(dirfd, pathname);
+    const char *target = !full_path.empty() ? full_path.c_str() : pathname;
+    if (has_blocked_exec(target, argv)) {
+        static char false_path[] = "/system/bin/false";
+        static char *const false_argv[] = {false_path, nullptr};
+        return o_execve ? o_execve(false_path, false_argv, envp) : ::execve(false_path, false_argv, envp);
+    }
+    if (o_execveat) return o_execveat(dirfd, pathname, argv, envp, flags);
+#if defined(__NR_execveat)
+    return static_cast<int>(::syscall(__NR_execveat, dirfd, pathname, argv, envp, flags));
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
+static int h_fexecve(int fd, char *const argv[], char *const envp[]) {
+    std::string target = resolve_fd_path(fd);
+    if (has_blocked_exec(target.c_str(), argv)) {
+        static char false_path[] = "/system/bin/false";
+        static char *const false_argv[] = {false_path, nullptr};
+        return o_execve ? o_execve(false_path, false_argv, envp) : ::execve(false_path, false_argv, envp);
+    }
+    if (o_fexecve) return o_fexecve(fd, argv, envp);
+#if defined(__NR_execveat)
+# ifndef AT_EMPTY_PATH
+#   define AT_EMPTY_PATH 0x1000
+# endif
+    return static_cast<int>(::syscall(__NR_execveat, fd, "", argv, envp, AT_EMPTY_PATH));
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
 static char *h_getenv(const char *name) {
     if (!name) return o_getenv(name);
 
     if (strcmp(name, "LD_PRELOAD") == 0) return nullptr;
+    if (strncmp(name, "MAGISK_", 7) == 0 ||
+        strncmp(name, "SUPERUSER_", 10) == 0 ||
+        strcmp(name, "SUPOLICY") == 0) return nullptr;
+
     char *val = o_getenv(name);
-    if (val && is_blocked(val)) return nullptr;
+    if (!val) return nullptr;
+
+    if (strcmp(name, "PATH") == 0) {
+        static thread_local std::string s_clean_path;
+        s_clean_path.clear();
+        const char *start = val;
+        while (*start) {
+            const char *colon = strchr(start, ':');
+            size_t seg_len = colon ? (size_t)(colon - start) : strlen(start);
+            std::string segment(start, seg_len);
+            if (!is_blocked(segment.c_str()) && segment.find("debug_ramdisk") == std::string::npos &&
+                segment != "/sbin") {
+                if (!s_clean_path.empty()) s_clean_path += ':';
+                s_clean_path += segment;
+            }
+            if (!colon) break;
+            start = colon + 1;
+        }
+        return const_cast<char *>(s_clean_path.c_str());
+    }
+
+    if (is_blocked(val)) return nullptr;
     return val;
 }
 
@@ -2041,54 +2227,250 @@ static void patch_duckdetector_raw_syscall(void *sym) {
     uint32_t *code = reinterpret_cast<uint32_t *>(sym);
     code[0] = 0x58000050;
     code[1] = 0xd61f0200;
-    *reinterpret_cast<uintptr_t *>(code + 2) = reinterpret_cast<uintptr_t>(&h_syscall);
+    *reinterpret_cast<uintptr_t *>(code + 2) = reinterpret_cast<uintptr_t>(&h_tee_asm_syscall6);
     __builtin___clear_cache(reinterpret_cast<char *>(code), reinterpret_cast<char *>(code + 4));
     mprotect(reinterpret_cast<void *>(page_start), 4096 * 2, PROT_READ | PROT_EXEC);
     s_patched_sym = sym;
 #endif
 }
 
-static long h_syscall(long number, void *a1, void *a2, void *a3, void *a4, void *a5, void *a6) {
+static bool is_blocked_netlink_buffer(const void *buf, size_t len) {
+    if (!buf || len < sizeof(struct nlmsghdr)) return false;
+    const auto *nlh = static_cast<const struct nlmsghdr *>(buf);
+    if (nlh->nlmsg_len < sizeof(struct nlmsghdr) || nlh->nlmsg_len > len) return false;
+    return nlh->nlmsg_type == RTM_GETLINK || nlh->nlmsg_type == RTM_GETNEIGH;
+}
+
+static bool is_blocked_msghdr(const struct msghdr *msg) {
+    if (!msg || !msg->msg_iov || msg->msg_iovlen <= 0) return false;
+    for (size_t i = 0; i < static_cast<size_t>(msg->msg_iovlen); ++i) {
+        if (is_blocked_netlink_buffer(msg->msg_iov[i].iov_base, msg->msg_iov[i].iov_len)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool is_netlink_socket(int fd, const struct sockaddr *addr, socklen_t addrlen) {
+    if (addr && addrlen >= sizeof(sa_family_t)) {
+        return addr->sa_family == AF_NETLINK;
+    }
+    if (fd < 0) return false;
+    struct sockaddr_storage ss;
+    socklen_t slen = sizeof(ss);
+    if (::getsockname(fd, reinterpret_cast<struct sockaddr *>(&ss), &slen) == 0) {
+        return ss.ss_family == AF_NETLINK;
+    }
+    return false;
+}
+
+static long h_tee_asm_syscall6(long number, void *a1, void *a2, void *a3, void *a4, void *a5, void *a6) {
 #if defined(__aarch64__)
-    if (number == 45 ) {
+    // 45: __NR_truncate
+    if (number == 45) {
         long length = reinterpret_cast<long>(a2);
         if (length < 0) {
-            errno = EINVAL;
-            return -1;
+            return -EINVAL;
         }
         if (is_duckdetector_process()) {
-            errno = ENOENT;
-            return -1;
+            return -ENOENT;
         }
         const char *path = static_cast<const char *>(a1);
         if (path) {
             if (path[0] == '\0' || (path[0] == '/' && path[1] == 'A') || is_blocked(path)) {
-                errno = ENOENT;
-                return -1;
+                return -ENOENT;
             }
         }
+    }
+    // 48: __NR_faccessat
+    else if (number == 48) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        int mode = static_cast<int>(reinterpret_cast<long>(a3));
+        int flags = static_cast<int>(reinterpret_cast<long>(a4));
+        int res = h_faccessat(dfd, p, mode, flags);
+        if (res < 0) return -errno;
+        return res;
+    }
+    // 56: __NR_openat
+    else if (number == 56) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        int flags = static_cast<int>(reinterpret_cast<long>(a3));
+        int mode = static_cast<int>(reinterpret_cast<long>(a4));
+        int fd = h_openat(dfd, p, flags, mode);
+        if (fd < 0) return -errno;
+        return fd;
+    }
+    // 78: __NR_readlinkat
+    else if (number == 78) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        char *buf = static_cast<char *>(a3);
+        size_t bufsiz = static_cast<size_t>(reinterpret_cast<long>(a4));
+        ssize_t res = h_readlinkat(dfd, p, buf, bufsiz);
+        if (res < 0) return -errno;
+        return res;
+    }
+    // 79: __NR_newfstatat
+    else if (number == 79) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        struct stat *s = static_cast<struct stat *>(a3);
+        int flag = static_cast<int>(reinterpret_cast<long>(a4));
+        int res = h_fstatat(dfd, p, s, flag);
+        if (res < 0) return -errno;
+        return res;
+    }
+    // 206: __NR_sendto
+    else if (number == 206) {
+        int fd = static_cast<int>(reinterpret_cast<long>(a1));
+        const void *buf = a2;
+        size_t len = static_cast<size_t>(reinterpret_cast<long>(a3));
+        const struct sockaddr *dest_addr = static_cast<const struct sockaddr *>(a5);
+        socklen_t addrlen = static_cast<socklen_t>(reinterpret_cast<long>(a6));
+        if (is_blocked_netlink_buffer(buf, len)) {
+            if (is_duckdetector_process() || is_netlink_socket(fd, dest_addr, addrlen)) {
+                return -EACCES;
+            }
+        }
+    }
+    // 211: __NR_sendmsg
+    else if (number == 211) {
+        int fd = static_cast<int>(reinterpret_cast<long>(a1));
+        const struct msghdr *msg = static_cast<const struct msghdr *>(a2);
+        if (is_blocked_msghdr(msg)) {
+            const struct sockaddr *sa = msg ? static_cast<const struct sockaddr *>(msg->msg_name) : nullptr;
+            socklen_t salen = msg ? msg->msg_namelen : 0;
+            if (is_duckdetector_process() || is_netlink_socket(fd, sa, salen)) {
+                return -EACCES;
+            }
+        }
+    }
+    // 221: __NR_execve
+    else if (number == 221) {
+        const char *p = static_cast<const char *>(a1);
+        char *const *argv = static_cast<char *const *>(a2);
+        if (has_blocked_exec(p, argv)) {
+            return -ENOENT;
+        }
+    }
+    // 281: __NR_execveat
+    else if (number == 281) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        char *const *argv = static_cast<char *const *>(a3);
+        std::string full_path = resolve_at_path(dfd, p);
+        const char *target = !full_path.empty() ? full_path.c_str() : p;
+        if (has_blocked_exec(target, argv)) {
+            return -ENOENT;
+        }
+    }
+    // 291: __NR_statx
+    else if (number == 291) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        std::string full_path;
+        const char *target = p;
+        if (p && p[0] != '/' && dfd != AT_FDCWD && dfd >= 0) {
+            full_path = resolve_at_path(dfd, p);
+            if (!full_path.empty()) target = full_path.c_str();
+        }
+        if (is_blocked(target)) return -ENOENT;
+        if (is_foreign_proc_mount_path(target)) return -EACCES;
+    }
+    // 437: __NR_openat2
+    else if (number == 437) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        std::string full_path;
+        const char *target = p;
+        if (p && p[0] != '/' && dfd != AT_FDCWD && dfd >= 0) {
+            full_path = resolve_at_path(dfd, p);
+            if (!full_path.empty()) target = full_path.c_str();
+        }
+        if (is_blocked(target)) return -ENOENT;
+        if (is_proc_net_path(target, "unix")) {
+            int fd = open_filtered_proc(target, kFilterNetUnix);
+            if (fd >= 0) return fd;
+        }
+        if (is_mount_path(target)) {
+            int fd = open_filtered_proc(target, kFilterMounts);
+            if (fd >= 0) return fd;
+        }
+        if (is_proc_version_path(target)) {
+            int fd = open_filtered_proc(target, kFilterVersion);
+            if (fd >= 0) return fd;
+        }
+        if (is_self_proc_file(target, "maps")) {
+            int fd = open_filtered_proc(target, kFilterMaps);
+            if (fd >= 0) return fd;
+        }
+        if (is_self_proc_file(target, "smaps")) {
+            int fd = open_filtered_proc(target, kFilterSmaps);
+            if (fd >= 0) return fd;
+        }
+    }
+    // 439: __NR_faccessat2
+    else if (number == 439) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        int mode = static_cast<int>(reinterpret_cast<long>(a3));
+        int flags = static_cast<int>(reinterpret_cast<long>(a4));
+        int res = h_faccessat(dfd, p, mode, flags);
+        if (res < 0) return -errno;
+        return res;
     }
 #elif defined(__NR_truncate)
     if (number == __NR_truncate) {
         long length = reinterpret_cast<long>(a2);
         if (length < 0) {
-            errno = EINVAL;
-            return -1;
+            return -EINVAL;
         }
         if (is_duckdetector_process()) {
-            errno = ENOENT;
-            return -1;
+            return -ENOENT;
         }
         const char *path = static_cast<const char *>(a1);
         if (path) {
             if (path[0] == '\0' || (path[0] == '/' && path[1] == 'A') || is_blocked(path)) {
-                errno = ENOENT;
-                return -1;
+                return -ENOENT;
             }
         }
     }
+#if defined(__NR_execve)
+    else if (number == __NR_execve) {
+        const char *p = static_cast<const char *>(a1);
+        char *const *argv = static_cast<char *const *>(a2);
+        if (has_blocked_exec(p, argv)) {
+            return -ENOENT;
+        }
+    }
 #endif
-    return o_syscall ? o_syscall(number, a1, a2, a3, a4, a5, a6) : ::syscall(number, a1, a2, a3, a4, a5, a6);
+#if defined(__NR_execveat)
+    else if (number == __NR_execveat) {
+        int dfd = static_cast<int>(reinterpret_cast<long>(a1));
+        const char *p = static_cast<const char *>(a2);
+        char *const *argv = static_cast<char *const *>(a3);
+        std::string full_path = resolve_at_path(dfd, p);
+        const char *target = !full_path.empty() ? full_path.c_str() : p;
+        if (has_blocked_exec(target, argv)) {
+            return -ENOENT;
+        }
+    }
+#endif
+#endif
+    long ret = o_syscall ? o_syscall(number, a1, a2, a3, a4, a5, a6) : ::syscall(number, a1, a2, a3, a4, a5, a6);
+    if (ret < 0) return -errno;
+    return ret;
+}
+
+static long h_syscall(long number, void *a1, void *a2, void *a3, void *a4, void *a5, void *a6) {
+    long ret = h_tee_asm_syscall6(number, a1, a2, a3, a4, a5, a6);
+    if (ret < 0 && ret >= -4095) {
+        errno = static_cast<int>(-ret);
+        return -1;
+    }
+    return ret;
 }
 
 #ifndef SO_BINDTOIFINDEX
@@ -2123,6 +2505,41 @@ static int h_setsockopt(int fd, int level, int optname, const void *optval, sock
                         : ::setsockopt(fd, level, optname, optval, optlen);
 }
 
+static ssize_t h_sendto(int fd, const void *buf, size_t len, int flags,
+                        const struct sockaddr *dest_addr, socklen_t addrlen) {
+    if (is_blocked_netlink_buffer(buf, len)) {
+        if (is_duckdetector_process() || is_netlink_socket(fd, dest_addr, addrlen)) {
+            errno = EACCES;
+            return -1;
+        }
+    }
+    return o_sendto ? o_sendto(fd, buf, len, flags, dest_addr, addrlen)
+                    : ::sendto(fd, buf, len, flags, dest_addr, addrlen);
+}
+
+static ssize_t h_sendmsg(int fd, const struct msghdr *msg, int flags) {
+    if (is_blocked_msghdr(msg)) {
+        const struct sockaddr *sa = msg ? static_cast<const struct sockaddr *>(msg->msg_name) : nullptr;
+        socklen_t salen = msg ? msg->msg_namelen : 0;
+        if (is_duckdetector_process() || is_netlink_socket(fd, sa, salen)) {
+            errno = EACCES;
+            return -1;
+        }
+    }
+    return o_sendmsg ? o_sendmsg(fd, msg, flags)
+                     : ::sendmsg(fd, msg, flags);
+}
+
+static ssize_t h_send(int fd, const void *buf, size_t len, int flags) {
+    if (is_blocked_netlink_buffer(buf, len)) {
+        if (is_duckdetector_process() || is_netlink_socket(fd, nullptr, 0)) {
+            errno = EACCES;
+            return -1;
+        }
+    }
+    return o_send ? o_send(fd, buf, len, flags) : ::send(fd, buf, len, flags);
+}
+
 struct HookSpec { const char *sym; void *hook; void **orig; };
 
 static const HookSpec kHooks[] = {
@@ -2145,8 +2562,11 @@ static const HookSpec kHooks[] = {
     {"readdir",    (void *)h_readdir,    (void **)&o_readdir},
     {"readdir64",  (void *)h_readdir64,  (void **)&o_readdir64},
     {"execve",     (void *)h_execve,     (void **)&o_execve},
+    {"execv",      (void *)h_execv,      (void **)&o_execv},
     {"execvp",     (void *)h_execvp,     (void **)&o_execvp},
     {"execvpe",    (void *)h_execvpe,    (void **)&o_execvpe},
+    {"execveat",   (void *)h_execveat,   (void **)&o_execveat},
+    {"fexecve",    (void *)h_fexecve,    (void **)&o_fexecve},
     {"getenv",     (void *)h_getenv,     (void **)&o_getenv},
     {"dlopen",     (void *)h_dlopen,     (void **)&o_dlopen},
     {"android_dlopen_ext", (void *)h_android_dlopen_ext,
@@ -2162,6 +2582,9 @@ static const HookSpec kHooks[] = {
     {"ioctl",       (void *)h_ioctl,       (void **)&o_ioctl},
     {"setsockopt",  (void *)h_setsockopt,  (void **)&o_setsockopt},
     {"syscall",     (void *)h_syscall,     (void **)&o_syscall},
+    {"sendto",      (void *)h_sendto,      (void **)&o_sendto},
+    {"sendmsg",     (void *)h_sendmsg,     (void **)&o_sendmsg},
+    {"send",        (void *)h_send,        (void **)&o_send},
 };
 
 static const HookSpec kPropsHooks[] = {

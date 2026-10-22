@@ -225,13 +225,7 @@ start_tee() {
         chmod 700 "$tee_state" "$run"
     fi
 
-    if ! chcon u:object_r:udonge_lib_file:s0 "$run/libTEESimulator.so" 2>/dev/null && \
-       ! chcon u:object_r:trcbnnlr_f:s0 "$run/libTEESimulator.so" 2>/dev/null && \
-       ! chcon u:object_r:system_file:s0 "$run/libTEESimulator.so" 2>/dev/null; then
-        : > "$state/tee-unavailable"
-        chmod 600 "$state/tee-unavailable"
-        return 0
-    fi
+    chcon u:object_r:system_file:s0 "$run/libTEESimulator.so" 2>/dev/null || true
 
     if [ ! -f "$tee_state/keybox.xml" ]; then
         cp "$runtime/defaults/keybox.xml" "$tee_state/keybox.xml"
@@ -242,9 +236,12 @@ start_tee() {
     for conf_file in "$runtime/defaults/targets.conf" "$state/targets.conf"; do
         if [ -f "$conf_file" ]; then
             while IFS= read -r raw || [ -n "$raw" ]; do
-                pkg="$(printf '%s' "$raw" | sed 's/^stealth://' | tr -d '\r\n ')"
+                case "$raw" in '#'*) continue ;; esac
+                case "$raw" in stealth:*) continue ;; esac
+                pkg="$(printf '%s' "$raw" | tr -d '\r\n ')"
                 [ -n "$pkg" ] || continue
-                case "$pkg" in '#'*) continue ;; esac
+                [ "$pkg" = "*" ] && continue
+                case "$pkg" in android*|system_server*) continue ;; esac
                 grep -qxF "$pkg" "$target" 2>/dev/null || printf '%s\n' "$pkg" >> "$target"
             done < "$conf_file"
         fi
@@ -318,11 +315,23 @@ EOF
     esac
 
     # Intercept critical consumers with force_gen on Keymaster <= 3 platforms
-    for p in android gr.nikolasspyr.integritycheck com.android.vending com.google.android.gms com.google.android.gsf; do
+    for p in gr.nikolasspyr.integritycheck com.android.vending; do
         if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
             sed -i "s/^${p}[!?]*\$/${p}${force_gen}/" "$target" 2>/dev/null || true
         else
             printf '%s%s\n' "$p" "$force_gen" >> "$target"
+        fi
+    done
+
+    # Ensure system framework, system server, and wildcards are never in target.txt
+    sed -i '/^\(android\|system_server\|\*\)[!?]*$/d' "$target" 2>/dev/null || true
+
+    # GMS and GSF must remain unforced to prevent intercepting internal AES master keys
+    for p in com.google.android.gms com.google.android.gsf; do
+        if grep -qE "^${p}[!?]*$" "$target" 2>/dev/null; then
+            sed -i "s/^${p}[!?]*\$/${p}/" "$target" 2>/dev/null || true
+        else
+            printf '%s\n' "$p" >> "$target"
         fi
     done
 
@@ -568,10 +577,9 @@ refresh_keybox
 sync_vbmeta_digest || true
 normalize_boot_properties || true
 
-# Disable broken vendor Soter HAL service and daemon that trigger attestation anomalies on unlocked bootloaders
+# Disable broken vendor Soter HAL service that triggers attestation anomalies on unlocked bootloaders
 stop soter-1-0 2>/dev/null || true
 setprop ctl.stop soter-1-0 2>/dev/null || true
-pm disable com.tencent.soter.soterserver >/dev/null 2>&1 || true
 
 # Wait for boot completion and clear boot-pending so future boots remain enabled
 system_server="$(pidof system_server 2>/dev/null)"

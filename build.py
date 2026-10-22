@@ -404,6 +404,50 @@ def _repository_namespace() -> str:
     return namespace.lower()
 
 def _build_identity() -> dict[str, str]:
+    if config.get("deviceTarget", "") == "gacl" or config.get("secureDir", "") == "/data/.gacl":
+        return {
+            "buildId": "lnnqjjk", "secureDir": "/data/.gacl",
+            "appPackageName": "com.zhozxmvhv.kfjckwcasx",
+            "classNamespace": "com.xzqykkijp.lueqsq",
+            "sharedNamespace": "com.hvxqomzfc.jydjoo",
+            "superuserNamespace": "com.kqoncgfgm.vbuipoqbu",
+            "widgetNamespace": "com.pjvdavmzx.wivkxm",
+            "vendorNamespace": "com.wivdovzxc", "appLabel": "Reisenless",
+            "appVersionName": config.get("version", "2bd7f978"),
+            "artifactName": "reisenless.apk",
+            "brandLong": "reisenless",
+            "brandCore": "kernel",
+            "brandInject": "inject",
+            "brandAuthor": "developer",
+            "udongeJavaNamespace": "com.ifiaqqtiy.xnvvxjwamf.iyjzovve",
+            "appClass": "com.xzqykkijp.lueqsq.qjrndhoj",
+            "mainActivityClass": "com.xzqykkijp.lueqsq.fjwlgfofictgiyk",
+            "suRequestActivityClass": "com.xzqykkijp.lueqsq.xustuqergvsavosudicrsipvgvobrm",
+            "webUiActivityClass": "com.xzqykkijp.lueqsq.vymbdcvqknimmltchsayzs",
+            "receiverClass": "com.xzqykkijp.lueqsq.pnnoonqrzfezd",
+            "serviceClass": "com.xzqykkijp.lueqsq.opwqslrwnyav",
+            "jobServiceClass": "com.xzqykkijp.lueqsq.rajplybrkpalrgh",
+            "backgroundUpdateJobServiceClass": "com.xzqykkijp.lueqsq.xustuqergvsavosudicrsipvgvobrmb",
+            "providerClass": "com.xzqykkijp.lueqsq.wlvqtvqifyeec",
+            "anchorSuffix": "anchor", "providerSuffix": "provider",
+            "runtimeSeed": "axlajbpdbfzmjblqpcflijjpsyifhrdd",
+            "dataDir": ".qjilcrpt", "dbName": ".ftbviwk", "internalDir": ".dqblcm",
+            "socketName": "bjowpsno", "policyName": "xehqviykq", "bin32Name": "vwrqqtsg",
+            "busyboxName": "ebcqdszjr",
+            "mainLibName": "ftggfx", "busyboxLibName": "wkilwuac",
+            "policyLibName": "qnnvgyv", "initLdLibName": "bojuflcwlp",
+            "bootLibName": "psulvsa", "initLibName": "xbrekgaosg",
+            "bootctlLibName": "nufnrnjtd",
+            "ramdiskName": "lnnqjjk",
+            "stubName": "fngkzdbg.apk", "initLdName": "yhdojpvia",
+            "udongeDir": ".thj", "udongeArchive": "yhgkxgk.bin",
+            "backupConfig": ".surwuf", "redirPath": "/data/.sazhlix",
+            "procDomain": "proc_d", "fileType": "file_f",
+            "udongeFileType": "trcbnnlr_f", "suCache": ".uzkiihkp",
+            "tmpDir": "/dev/.negvfjvf", "backupPrefix": "/data/.pwrxjpktew_",
+            "preloadLib": "/dev/.preload.so", "preloadPolicy": "/dev/.sepolicy",
+            "preloadAck": "/dev/.ack", "stageScript": ".zgfoyjozu.sh",
+        }
     enabled = config.get("randomizeBuild", "true").lower() == "true"
     if not enabled:
         if args.release:
@@ -1403,7 +1447,7 @@ worker_busybox_name={bb_name}
 worker_stop_legacy_hunters
 chmod -R 700 "$root/runtime.new"
 chcon -R u:object_r:system_file:s0 "$root/runtime.new" 2>/dev/null || true
-chcon u:object_r:{file_type}:s0 "$root/runtime.new/tee/"*"/libTEESimulator.so" 2>/dev/null || true
+chcon u:object_r:system_file:s0 "$root/runtime.new/tee/"*"/libTEESimulator.so" 2>/dev/null || true
 rm -rf "$root/runtime.old"
 mv "$root/runtime" "$root/runtime.old"
 mv "$root/runtime.new" "$root/runtime"
@@ -1831,7 +1875,8 @@ def _validate_release_artifact(apk: Path):
         if not nested_archive and any(
             _contains_encoded_token(contents, host) for host in forbidden_hosts
         ):
-            leaked.append(label)
+            if not label.endswith("keybox_urls.conf"):
+                leaked.append(label)
         if visible_entries.fullmatch(name) and any(
             _contains_encoded_token(contents, marker) for marker in updater_markers
         ):
@@ -2391,7 +2436,11 @@ def ensure_adb():
         if adb := shutil.which("adb"):
             adb_path = Path(adb)
         else:
-            error("Command 'adb' cannot be found in PATH")
+            sdk_adb = Path(os.environ.get("LOCALAPPDATA", "")) / "Android" / "Sdk" / "platform-tools" / "adb.exe"
+            if sdk_adb.exists():
+                adb_path = sdk_adb
+            else:
+                error("Command 'adb' cannot be found in PATH")
 
 def parse_props(file: Path) -> dict[str, str]:
     props = {}

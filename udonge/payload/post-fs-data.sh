@@ -51,10 +51,38 @@ sync_oem_boot_key() {
 sync_oem_boot_key || true
 
 
+if [ -f "$state/targets.conf" ]; then
+    sed -i '/^\*$/d' "$state/targets.conf" 2>/dev/null || true
+    sed -i '/^\(android\|system_server\)[!?]*$/d' "$state/targets.conf" 2>/dev/null || true
+    sed -i 's/^com\.axlebolt\.standoff2$/stealth:com.axlebolt.standoff2/' "$state/targets.conf" 2>/dev/null || true
+fi
+if [ -f "$state/pif.conf" ]; then
+    if ! grep -q '^SDK_INT=' "$state/pif.conf"; then
+        rel="$(grep '^RELEASE=' "$state/pif.conf" | head -n1 | cut -d= -f2- | tr -d '\r\n ')"
+        sdk=""
+        case "$rel" in
+            15*) sdk=35 ;;
+            14*) sdk=34 ;;
+            13*) sdk=33 ;;
+            12.1*|12L*) sdk=32 ;;
+            12*) sdk=31 ;;
+            11*) sdk=30 ;;
+            10*) sdk=29 ;;
+            9*)  sdk=28 ;;
+            8.1*) sdk=27 ;;
+            8.0*) sdk=26 ;;
+            *)    sdk=30 ;;
+        esac
+        [ -n "$sdk" ] && printf 'SDK_INT=%s\n' "$sdk" >> "$state/pif.conf"
+    fi
+fi
+
 if [ -f "$runtime/defaults/targets.conf" ] && [ -f "$state/targets.conf" ]; then
     while IFS= read -r line || [ -n "$line" ]; do
         [ -n "$line" ] || continue
         case "$line" in '#'*) continue ;; esac
+        [ "$line" = "*" ] && continue
+        case "$line" in android*|system_server*) continue ;; esac
         grep -qxF "$line" "$state/targets.conf" 2>/dev/null || printf '%s\n' "$line" >> "$state/targets.conf"
     done < "$runtime/defaults/targets.conf"
 fi

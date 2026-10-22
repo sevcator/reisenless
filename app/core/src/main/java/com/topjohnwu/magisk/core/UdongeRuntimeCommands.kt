@@ -20,7 +20,7 @@ internal object UdongeRuntimeCommands {
             chmod -R 700 "${'$'}root/runtime.new"
             chcon -R u:object_r:system_file:s0 "${'$'}root/runtime.new" 2>/dev/null || true
             for library in "${'$'}root/runtime.new/tee/"*"/libTEESimulator.so"; do
-                [ ! -f "${'$'}library" ] || chcon ${quote("u:object_r:$fileType:s0")} "${'$'}library"
+                [ ! -f "${'$'}library" ] || chcon "u:object_r:system_file:s0" "${'$'}library"
             done
             if [ -x "${'$'}root/runtime/keybox_heal.sh" ] && [ -f "${'$'}root/runtime/worker.sh" ]; then
                 "${'$'}root/runtime/keybox_heal.sh" stop_daemon

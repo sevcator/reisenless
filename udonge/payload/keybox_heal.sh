@@ -27,7 +27,20 @@ log_err() {
 }
 
 candidate_urls() {
-    awk '/^https?:\/\// && !seen[$0]++ { print; if (++count == 16) exit }' "$1"
+    local file="$1"
+    local cat_file="$work/catalog.json.$$"
+    if command -v curl >/dev/null 2>&1; then
+        if curl -fsSL --connect-timeout 4 --max-time 8 "https://rawbin.dpejoh.com/catalog" -o "$cat_file" 2>/dev/null && [ -s "$cat_file" ]; then
+            local src ver
+            src=$(sed -n 's/.*"working":{[^}]*"source":"\([^"]*\)".*/\1/p' "$cat_file" 2>/dev/null)
+            ver=$(sed -n 's/.*"working":{[^}]*"version":"\([^"]*\)".*/\1/p' "$cat_file" 2>/dev/null)
+            if [ -n "$src" ] && [ -n "$ver" ]; then
+                printf 'https://rawbin.dpejoh.com/key/%s/%s\n' "$src" "$ver"
+            fi
+            rm -f "$cat_file"
+        fi
+    fi
+    awk '/^https?:\/\// && !seen[$0]++ { print; if (++count == 16) exit }' "$file"
 }
 
 fetch_candidate() {
@@ -227,8 +240,17 @@ unwrap_payload() {
     local cur="$work/unw_cur.$$" nxt="$work/unw_nxt.$$"
     cp -f "$src" "$cur"
 
+    local xxd_cmd="xxd"
+    if ! command -v xxd >/dev/null 2>&1; then
+        if [ -x /system/bin/xxd ]; then
+            xxd_cmd="/system/bin/xxd"
+        elif command -v busybox >/dev/null 2>&1 && busybox xxd --help >/dev/null 2>&1; then
+            xxd_cmd="busybox xxd"
+        fi
+    fi
+
     local iter=0
-    while [ "$iter" -lt 15 ]; do
+    while [ "$iter" -lt 25 ]; do
         iter=$((iter + 1))
 
         if grep -q '<AndroidAttestation' "$cur" 2>/dev/null || grep -q '<Keybox' "$cur" 2>/dev/null; then
@@ -243,10 +265,15 @@ unwrap_payload() {
             return 0
         fi
 
-        if command -v xxd >/dev/null 2>&1; then
-            if xxd -r -p "$cur" > "$nxt" 2>/dev/null && [ -s "$nxt" ] && [ "$(wc -c < "$nxt" 2>/dev/null || echo 0)" -ge 80 ]; then
+        if command -v "$xxd_cmd" >/dev/null 2>&1 || [ -x "$xxd_cmd" ]; then
+            if $xxd_cmd -r -p "$cur" > "$nxt" 2>/dev/null && [ -s "$nxt" ] && [ "$(wc -c < "$nxt" 2>/dev/null || echo 0)" -ge 80 ]; then
                 if grep -q '<AndroidAttestation' "$nxt" 2>/dev/null || grep -q '<Keybox' "$nxt" 2>/dev/null; then
                     cp -f "$nxt" "$dst"
+                    rm -f "$cur" "$nxt"
+                    return 0
+                fi
+                if tr 'A-Za-z' 'N-ZA-Mn-za-m' < "$nxt" 2>/dev/null | grep -q '<AndroidAttestation' 2>/dev/null; then
+                    tr 'A-Za-z' 'N-ZA-Mn-za-m' < "$nxt" > "$dst" 2>/dev/null
                     rm -f "$cur" "$nxt"
                     return 0
                 fi
@@ -341,7 +368,7 @@ check_keybox() {
     leaf_score=$(score_keybox "$file")
 
     if [ "${leaf_score:-1}" -eq 0 ] 2>/dev/null; then
-        log_err "Keybox $file leaf certificate is expired — rejecting."
+        log_err "Keybox $file is expired, mock, or unusable — rejecting."
         return 1
     fi
 
@@ -568,12 +595,13 @@ score_keybox() {
         base_score=$((base_score + 10000000))
     fi
 
+    if grep -qaE '(NOT_APPROVED|Tk9UX0FQUFJPVkVE)' "$file" 2>/dev/null; then
+        printf '0'
+        return
+    fi
+
     if is_google_hardware_root "$file"; then
-        if grep -qaE '(NOT_APPROVED|Tk9UX0FQUFJPVkVE)' "$file" 2>/dev/null; then
-            base_score=0
-        else
-            base_score=$((base_score + 50000000))
-        fi
+        base_score=$((base_score + 50000000))
     fi
 
     printf '%s' "$base_score"
@@ -939,29 +967,24 @@ test_candidate_for_strong() {
 
     if [ -f "$tee_state/target.txt" ]; then
         if hardware_supports_leaf; then
-            sed -i 's/^\(android\|com\.google\.android\.gms\|com\.android\.vending\|gr\.nikolasspyr\.integritycheck\)[!?]*$/\1/' "$tee_state/target.txt" 2>/dev/null || true
+            sed -i 's/^\(android\|com\.google\.android\.gms\|com\.google\.android\.gsf\|com\.android\.vending\|gr\.nikolasspyr\.integritycheck\)[!?]*$/\1/' "$tee_state/target.txt" 2>/dev/null || true
         else
-            for pkg in android gr.nikolasspyr.integritycheck; do
+            for pkg in android gr.nikolasspyr.integritycheck com.android.vending; do
                 if grep -q "^${pkg}" "$tee_state/target.txt" 2>/dev/null; then
                     sed -i "s/^${pkg}[!?]*/${pkg}!/g" "$tee_state/target.txt" 2>/dev/null || true
                 else
                     printf '%s!\n' "$pkg" >> "$tee_state/target.txt"
                 fi
             done
-            if is_google_hardware_root "$cand_xml"; then
-                for pkg in com.google.android.gms com.android.vending; do
-                    if grep -q "^${pkg}" "$tee_state/target.txt" 2>/dev/null; then
-                        sed -i "s/^${pkg}[!?]*/${pkg}!/g" "$tee_state/target.txt" 2>/dev/null || true
-                    else
-                        printf '%s!\n' "$pkg" >> "$tee_state/target.txt"
-                    fi
-                done
-            else
-                for pkg in com.google.android.gms com.android.vending; do
-                    sed -i "/^${pkg}[!?]*/d" "$tee_state/target.txt" 2>/dev/null || true
-                done
-            fi
+            for pkg in com.google.android.gms com.google.android.gsf; do
+                if grep -q "^${pkg}" "$tee_state/target.txt" 2>/dev/null; then
+                    sed -i "s/^${pkg}[!?]*/${pkg}/g" "$tee_state/target.txt" 2>/dev/null || true
+                else
+                    printf '%s\n' "$pkg" >> "$tee_state/target.txt"
+                fi
+            done
         fi
+        sed -i 's/^com\.eltavine\.duckdetector[!?]*$/com.eltavine.duckdetector/' "$tee_state/target.txt" 2>/dev/null || true
     fi
 
     log "[Hunter] Running on-device Play Integrity verification..."

@@ -1,7 +1,7 @@
 #!/system/bin/sh
 # ==============================================================================
 # Reisenless Play Integrity Anti-Detection & Property Normalization Engine
-# Target: Xiaomi Mi 10T Pro (apollo) - Snapdragon 865 - LineageOS 21
+# Target: OnePlus 6 (OnePlus6) - Snapdragon 845 - LineageOS 21
 # ==============================================================================
 
 CYAN='\033[1;36m'
@@ -95,9 +95,8 @@ if [ -n "$KEYSTORE" ]; then
     printf '%s\n' "$KEYSTORE_START" > "$RUN/.keystore-start" 2>/dev/null
     echo "  -> Target Keystore2 PID: ${GREEN}$KEYSTORE${NC} (start: $KEYSTORE_START)"
     
-    # Ensure proper SELinux labeling on TEE runtime binaries and libraries
-    chcon -R u:object_r:trcbnnlr_f:s0 "$RUN" 2>/dev/null || true
-    sed -i 's/udonge_lib_file/trcbnnlr_f/g' "$RUNTIME/service.sh" 2>/dev/null || true
+    # Ensure proper SELinux labeling on TEE runtime binaries and libraries (system_file:s0 required for keystore access)
+    chcon -R u:object_r:system_file:s0 "$RUN" 2>/dev/null || true
 
     # Spawn supervisor daemon if not running
     if ! pgrep -f "supervisor ./daemon" >/dev/null 2>&1; then
@@ -125,64 +124,65 @@ else
     echo "${RED}[!] Warning: libTEESimulator injection pending or delayed.${NC}"
 fi
 
-# 5. Apply universal Xiaomi Mi 10T Pro Android 12 certified properties across ALL partitions
-echo "${YELLOW}[3/7] Enforcing universal Xiaomi Mi 10T Pro certified properties in shared memory...${NC}"
+# 5. Apply OnePlus 6 Android 11 certified properties across ALL partitions
+echo "${YELLOW}[3/7] Enforcing OnePlus 6 (OnePlus6) certified properties in shared memory...${NC}"
 
-# Enforce certified Xiaomi Mi 10T Pro profile in state directory
+# Enforce certified OnePlus 6 Android 11 profile in state directory
 cat << 'EOF' > "$STATE/pif.conf"
-FINGERPRINT=Xiaomi/apollopro_global/apollo:12/RKQ1.211001.001/V14.0.4.0.SJDMIXM:user/release-keys
-BRAND=Xiaomi
-DEVICE=apollo
-MANUFACTURER=Xiaomi
-MODEL=M2007J3SG
-PRODUCT=apollopro_global
-RELEASE=12
-ID=RKQ1.211001.001
-INCREMENTAL=V14.0.4.0.SJDMIXM
+FINGERPRINT=OnePlus/OnePlus6/OnePlus6:11/RKQ1.201217.002/2111252325:user/release-keys
+BRAND=OnePlus
+DEVICE=OnePlus6
+MANUFACTURER=OnePlus
+MODEL=ONEPLUS A6003
+PRODUCT=OnePlus6
+RELEASE=11
+ID=RKQ1.201217.002
+INCREMENTAL=2111252325
 TAGS=release-keys
 TYPE=user
-SECURITY_PATCH=2023-09-01
-DEVICE_INITIAL_SDK_INT=29
+SECURITY_PATCH=2022-01-01
+DEVICE_INITIAL_SDK_INT=27
+SDK_INT=30
 EOF
 chmod 600 "$STATE/pif.conf" 2>/dev/null || true
 
 cat << 'EOF' > "$STATE/security_patch.txt"
 system=prop
-boot=2023-09-01
-vendor=2023-09-01
+boot=2022-01-01
+vendor=2022-01-01
 EOF
 chmod 600 "$STATE/security_patch.txt" 2>/dev/null || true
 rm -f "$STATE/tee-broken" "$STATE/tee_status.txt" 2>/dev/null || true
 
-FP="Xiaomi/apollopro_global/apollo:12/RKQ1.211001.001/V14.0.4.0.SJDMIXM:user/release-keys"
+FP="OnePlus/OnePlus6/OnePlus6:11/RKQ1.201217.002/2111252325:user/release-keys"
 
-$SETPROP ro.product.brand "Xiaomi"
-$SETPROP ro.product.manufacturer "Xiaomi"
-$SETPROP ro.product.model "M2007J3SG"
-$SETPROP ro.product.device "apollo"
-$SETPROP ro.product.name "apollopro_global"
-$SETPROP ro.build.product "apollo"
-$SETPROP ro.build.id "RKQ1.211001.001"
-$SETPROP ro.build.display.id "RKQ1.211001.001"
+$SETPROP ro.product.brand "OnePlus"
+$SETPROP ro.product.manufacturer "OnePlus"
+$SETPROP ro.product.model "ONEPLUS A6003"
+$SETPROP ro.product.device "OnePlus6"
+$SETPROP ro.product.name "OnePlus6"
+$SETPROP ro.build.product "OnePlus6"
+$SETPROP ro.build.id "RKQ1.201217.002"
+$SETPROP ro.build.display.id "RKQ1.201217.002"
 $SETPROP ro.build.type "user"
 $SETPROP ro.build.tags "release-keys"
-$SETPROP ro.build.version.release "12"
-$SETPROP ro.build.version.release_or_codename "12"
-$SETPROP ro.build.version.security_patch "2023-09-01"
-$SETPROP ro.board.first_api_level "29"
-$SETPROP ro.product.first_api_level "29"
+$SETPROP ro.build.version.release "11"
+$SETPROP ro.build.version.release_or_codename "11"
+$SETPROP ro.build.version.security_patch "2022-01-01"
+$SETPROP ro.board.first_api_level "27"
+$SETPROP ro.product.first_api_level "27"
 
 for part in system system_ext product vendor oem odm bootimage odm_dlkm vendor_dlkm; do
-    $SETPROP "ro.product.${part}.brand" "Xiaomi" 2>/dev/null
-    $SETPROP "ro.product.${part}.manufacturer" "Xiaomi" 2>/dev/null
-    $SETPROP "ro.product.${part}.model" "M2007J3SG" 2>/dev/null
-    $SETPROP "ro.product.${part}.device" "apollo" 2>/dev/null
-    $SETPROP "ro.product.${part}.name" "apollopro_global" 2>/dev/null
+    $SETPROP "ro.product.${part}.brand" "OnePlus" 2>/dev/null
+    $SETPROP "ro.product.${part}.manufacturer" "OnePlus" 2>/dev/null
+    $SETPROP "ro.product.${part}.model" "ONEPLUS A6003" 2>/dev/null
+    $SETPROP "ro.product.${part}.device" "OnePlus6" 2>/dev/null
+    $SETPROP "ro.product.${part}.name" "OnePlus6" 2>/dev/null
     $SETPROP "ro.${part}.build.fingerprint" "$FP" 2>/dev/null
-    $SETPROP "ro.${part}.build.id" "RKQ1.211001.001" 2>/dev/null
+    $SETPROP "ro.${part}.build.id" "RKQ1.201217.002" 2>/dev/null
     $SETPROP "ro.${part}.build.type" "user" 2>/dev/null
     $SETPROP "ro.${part}.build.tags" "release-keys" 2>/dev/null
-    $SETPROP "ro.${part}.build.version.security_patch" "2023-09-01" 2>/dev/null
+    $SETPROP "ro.${part}.build.version.security_patch" "2022-01-01" 2>/dev/null
 done
 $SETPROP ro.build.fingerprint "$FP"
 

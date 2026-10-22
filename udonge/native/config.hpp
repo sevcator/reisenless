@@ -24,7 +24,7 @@ struct Config {
         if (pkg.empty()) return false;
         if (!manager_package.empty() && pkg == manager_package) return false;
         if (exempt_packages.count(pkg) != 0) return false;
-        return packages.count("*") != 0 || packages.count(pkg) != 0;
+        return packages.count(pkg) != 0;
     }
 
 
@@ -34,7 +34,8 @@ struct Config {
 
     bool isPiTarget(const std::string &pkg) const {
         if (pkg.empty()) return false;
-        if (pkg == "com.android.vending" || pkg == "com.google.android.gms" || pkg == "com.google.android.gsf") return true;
+        if (pkg == "com.android.vending" || pkg == "com.google.android.gms" ||
+            pkg == "com.google.android.gsf" || pkg == "com.google.android.gms.unstable") return true;
         return pi_packages.count(pkg) != 0;
     }
 

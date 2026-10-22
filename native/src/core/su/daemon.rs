@@ -139,19 +139,21 @@ impl MagiskD {
         } else {
             self.get_su_info(cred.uid as i32)
         };
-        {
+        let (should_notify, notify_policy) = {
             let mut access = info.access.lock();
 
-            let mut app = SuAppContext {
-                cred,
-                info: &info,
-                settings: &mut access.settings,
-                sdk_int: self.sdk_int(),
-            };
-            app.connect_app();
-            if !manager_authenticated && info.mgr_uid > 0 && app.settings.notify {
-                app.app_notify();
+            {
+                let mut app = SuAppContext {
+                    cred,
+                    info: &info,
+                    settings: &mut access.settings,
+                    sdk_int: self.sdk_int(),
+                };
+                app.connect_app();
             }
+
+            let should_notify = !manager_authenticated && info.mgr_uid > 0 && access.settings.notify;
+            let notify_policy = access.settings.policy;
 
             access.refresh();
 
@@ -162,9 +164,27 @@ impl MagiskD {
             if access.settings.policy == SuPolicy::Deny {
                 warn!("su: request rejected ({})", info.uid);
                 client.write_pod(&SuPolicy::Deny.repr).ok();
+                if should_notify {
+                    let info_clone = info.clone();
+                    let sdk_int = self.sdk_int();
+                    std::thread::spawn(move || {
+                        let mut settings = RootSettings {
+                            policy: notify_policy,
+                            notify: true,
+                        };
+                        let app = SuAppContext {
+                            cred,
+                            info: &info_clone,
+                            settings: &mut settings,
+                            sdk_int,
+                        };
+                        app.app_notify();
+                    });
+                }
                 return;
             }
-        }
+            (should_notify, notify_policy)
+        };
 
         let child = unsafe { libc::fork() };
         if child == 0 {
@@ -185,6 +205,24 @@ impl MagiskD {
         if child < 0 {
             error!("su: fork failed, abort");
             return;
+        }
+
+        if should_notify {
+            let info_clone = info.clone();
+            let sdk_int = self.sdk_int();
+            std::thread::spawn(move || {
+                let mut settings = RootSettings {
+                    policy: notify_policy,
+                    notify: true,
+                };
+                let app = SuAppContext {
+                    cred,
+                    info: &info_clone,
+                    settings: &mut settings,
+                    sdk_int,
+                };
+                app.app_notify();
+            });
         }
 
         debug!("su: waiting child pid=[{}]", child);

@@ -13,7 +13,9 @@ fn target_config_contains(config: &str, package: &str) -> bool {
         if line.is_empty() || line.starts_with('#') {
             return false;
         }
-        line.strip_prefix("stealth:").unwrap_or(line) == package
+        let line = line.strip_prefix("stealth:").unwrap_or(line);
+        let line = line.trim_end_matches(['!', '?']);
+        line == package
     })
 }
 
@@ -21,7 +23,11 @@ fn is_application_uid(uid: i32) -> bool {
     uid.rem_euclid(100_000) >= 10_000
 }
 
-#[doc = " Returns whether Udonge is eligible to enter a denylisted process."]#[doc = ""]#[doc = " This policy deliberately lives in the Udonge source tree. Reisenless only"]#[doc = " consumes the boolean at its built-in-module transport boundary."]pub fn should_load(uid: i32, process: &str) -> bool {
+#[doc = " Returns whether Udonge is eligible to enter a denylisted process."]
+#[doc = ""]
+#[doc = " This policy deliberately lives in the Udonge source tree. Reisenless only"]
+#[doc = " consumes the boolean at its built-in-module transport boundary."]
+pub fn should_load(uid: i32, process: &str) -> bool {
     if !std::path::Path::new(&format!("{UDONGE_ROOT}/state/enabled")).exists()
         || std::path::Path::new(&format!("{UDONGE_ROOT}/state/disabled")).exists()
     {

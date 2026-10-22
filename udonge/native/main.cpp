@@ -113,6 +113,8 @@ bool contains_package(const std::string &packages, const std::string &package) {
 }
 
 std::string find_hide_rule(const std::string &config, const std::string &package) {
+    if (package.empty() || package == "com.google.android.gms" || package == "com.google.android.gsf"
+            || package == "com.android.vending") return {};
     const std::string prefix = "R\t" + package + "\t";
     std::string global;
     size_t start = 0;
@@ -182,12 +184,29 @@ public:
                 || package_ == "com.google.android.gms";
         if (!fetch_config(process_name, package_)) return;
 
-        if (cfg_.shouldCloak(package_) || cfg_.shouldStealth(package_) || is_pi_target_) {
+        const bool is_checker = (package_ == "gr.nikolasspyr.integritycheck"
+                || package_.find("integritycheck") != std::string::npos
+                || package_.find("playintegrity") != std::string::npos);
+
+        if (cfg_.shouldCloak(package_) || cfg_.shouldStealth(package_) || is_pi_target_ || is_checker) {
             api_->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
         }
-        hide_apps_ = !hide_dex_.empty() && (!hide_rule_.empty() || cfg_.shouldCloak(package_));
-        if (hide_apps_ && hide_rule_.empty()) {
-            hide_rule_ = "T\t" + package_ + "\tB\t0\t\t\t";
+
+        if (cfg_.shouldStealth(package_)) {
+            hide_apps_ = false;
+            cloak_ = false;
+            keep_loaded_ = false;
+            return;
+        }
+
+        const bool is_gms = (package_ == "com.google.android.gms" || package_ == "com.google.android.gsf");
+        if (is_gms) {
+            hide_apps_ = false;
+        } else {
+            hide_apps_ = !hide_dex_.empty() && (!hide_rule_.empty() || cfg_.shouldCloak(package_) || is_checker);
+            if (hide_apps_ && hide_rule_.empty()) {
+                hide_rule_ = "T\t" + package_ + "\tB\t0\t\t\t";
+            }
         }
 
         if (child_zygote) {
@@ -206,9 +225,6 @@ public:
             return;
         }
 
-        if (cfg_.shouldStealth(package_)) {
-            return;
-        }
         if (cfg_.shouldCloak(package_)) {
             cloak_ = true;
             keep_loaded_ = true;
@@ -217,6 +233,11 @@ public:
     }
 
     void postAppSpecialize(const AppSpecializeArgs *args) override {
+        if (cfg_.shouldStealth(package_)) {
+            if (!keep_loaded_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
+            return;
+        }
+
         if (args->is_child_zygote && *args->is_child_zygote) {
 
             if (cloak_) {
@@ -234,9 +255,6 @@ public:
             if (!cfg_.gms_build.empty()) {
                 cfg_.current_package = package_;
                 cloak::install_hooks(api_, &cfg_, cloak::HookProfile::PropertiesOnly);
-            }
-            if (hide_apps_) {
-                hideapps::install(env_, package_, hide_rule_, hide_dex_);
             }
             if (!keep_loaded_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
             return;
@@ -379,11 +397,19 @@ static void companion_handler(int client) {
     }
     rom_keywords = full_enabled
             ? files.get(std::string(CONF_DIR) + "/rom_keywords.conf") : std::string();
-    hide_rule = find_hide_rule(hide_config, package);
-    if (!hide_rule.empty() || target_config.shouldCloak(package)) {
-        hide_dex = files.get(UDONGE_ROOT "/runtime/hideapps.dex");
-        if (hide_rule.empty()) {
-            hide_rule = "T\t" + package + "\tB\t0\t\t\t";
+    const bool is_checker = (package == "gr.nikolasspyr.integritycheck"
+            || package.find("integritycheck") != std::string::npos
+            || package.find("playintegrity") != std::string::npos);
+    const bool is_stealth = target_config.shouldStealth(package);
+    const bool is_gms_pkg = (package == "com.google.android.gms" || package == "com.google.android.gsf"
+            || package == "com.android.vending");
+    if (!is_stealth && !is_gms_pkg) {
+        hide_rule = find_hide_rule(hide_config, package);
+        if (!hide_rule.empty() || target_config.shouldCloak(package) || is_checker) {
+            hide_dex = files.get(UDONGE_ROOT "/runtime/hideapps.dex");
+            if (hide_rule.empty()) {
+                hide_rule = "T\t" + package + "\tB\t0\t\t\t";
+            }
         }
     }
     }

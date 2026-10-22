@@ -415,15 +415,22 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
             break;
     }
 
+    string shell_login;
     const char *argv[4] = { nullptr };
 
-    argv[0] = req.login ? "-" : req.shell.c_str();
+    if (req.login) {
+        string_view shell_sv(req.shell.data(), req.shell.size());
+        auto slash = shell_sv.rfind('/');
+        shell_login = "-" + string(slash == string_view::npos ? shell_sv : shell_sv.substr(slash + 1));
+        argv[0] = shell_login.c_str();
+    } else {
+        argv[0] = req.shell.c_str();
+    }
 
     if (!req.command.empty()) {
         argv[1] = "-c";
         argv[2] = req.command.c_str();
     }
-
 
     umask(022);
     char path[32];
@@ -440,6 +447,12 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
         if (pos == std::string::npos)
             break;
     }
+    const char *cur_path = getenv("PATH");
+    if (cur_path == nullptr || cur_path[0] == '\0') {
+        setenv("PATH", "/product/bin:/apex/com.android.runtime/bin:/apex/com.android.art/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/vendor/xbin", 1);
+    }
+    if (getenv("ANDROID_ROOT") == nullptr) setenv("ANDROID_ROOT", "/system", 1);
+    if (getenv("ANDROID_DATA") == nullptr) setenv("ANDROID_DATA", "/data", 1);
     if (!req.keep_env) {
         struct passwd *pw;
         pw = getpwuid(req.target_uid);

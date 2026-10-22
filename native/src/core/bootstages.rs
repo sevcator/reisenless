@@ -89,6 +89,28 @@ impl MagiskD {
             .status()
             .log_ok();
 
+        let bb_symlink = buf
+            .append_path(get_magisk_tmp())
+            .append_path(BBPATH)
+            .append_path("busybox");
+        if !bb_symlink.exists() {
+            bb_symlink
+                .create_symlink_to(cstr!(concatcp!("./", BUILD_BUSYBOX_NAME)))
+                .log_ok();
+        }
+
+        let databin_bb = cstr!(concatcp!(DATABIN, "/busybox"));
+        if !databin_bb.exists() {
+            databin_bb
+                .create_symlink_to(cstr!(concatcp!("./", BUILD_BUSYBOX_NAME)))
+                .log_ok();
+        }
+
+        let legacy_magisk_dir = cstr!(concatcp!(SECURE_DIR, "/magisk"));
+        if !legacy_magisk_dir.exists() {
+            legacy_magisk_dir.create_symlink_to(cstr!(DATABIN)).log_ok();
+        }
+
         let bin32 = cstr!(concatcp!(DATABIN, "/", BIN32_DATABIN_NAME));
         if bin32.exists() {
             let tmp = buf
