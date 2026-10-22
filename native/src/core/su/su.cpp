@@ -447,10 +447,15 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
         if (pos == std::string::npos)
             break;
     }
+    std::string su_path = std::string(get_magisk_tmp()) + "/" BBPATH ":" + get_magisk_tmp();
     const char *cur_path = getenv("PATH");
-    if (cur_path == nullptr || cur_path[0] == '\0') {
-        setenv("PATH", "/product/bin:/apex/com.android.runtime/bin:/apex/com.android.art/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/vendor/xbin", 1);
+    if (cur_path && cur_path[0] != '\0') {
+        su_path += ":";
+        su_path += cur_path;
+    } else {
+        su_path += ":/product/bin:/apex/com.android.runtime/bin:/apex/com.android.art/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/vendor/xbin";
     }
+    setenv("PATH", su_path.c_str(), 1);
     if (getenv("ANDROID_ROOT") == nullptr) setenv("ANDROID_ROOT", "/system", 1);
     if (getenv("ANDROID_DATA") == nullptr) setenv("ANDROID_DATA", "/data", 1);
     if (!req.keep_env) {

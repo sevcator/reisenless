@@ -235,7 +235,7 @@ pub fn revert_unmount(pid: i32) {
 
 
     for info in parse_mount_info("self") {
-        if info.source == WORKER_SOURCE || info.root.starts_with("/adb/modules") {
+        if info.source == WORKER_SOURCE || info.root.contains("/modules") {
             targets.push(info.target);
         }
     }

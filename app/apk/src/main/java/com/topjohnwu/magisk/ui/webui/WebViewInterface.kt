@@ -26,7 +26,7 @@ internal class WebViewInterface(
     @Volatile private var closed = false
     fun close() { closed = true; commands.close() }
     @JavascriptInterface
-    fun exec(command: String): String = runCommand(command).output
+    fun exec(command: String): String = runCommand(command, 120).output
 
     @JavascriptInterface
     fun exec(command: String, callback: String) {
@@ -36,7 +36,8 @@ internal class WebViewInterface(
     @JavascriptInterface
     fun exec(command: String, options: String?, callback: String) {
         scope.launch(Dispatchers.IO) {
-            postCallback(callback, runCommand(withOptions(command, options)))
+            val timeout = parseTimeout(options)
+            postCallback(callback, runCommand(withOptions(command, options), timeout))
         }
     }
 
@@ -87,6 +88,13 @@ internal class WebViewInterface(
         put("moduleDir", File(Const.MODULE_PATH, moduleId).path)
     }.toString()
 
+    private fun parseTimeout(options: String?): Int? {
+        val opts = options?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return 120
+        if (!opts.has("timeout")) return 120
+        val t = opts.optInt("timeout", 120)
+        return if (t > 0) t else null
+    }
+
     private fun withOptions(command: String, options: String?): String {
         val opts = options?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return command
         val environment = buildMap {
@@ -101,7 +109,7 @@ internal class WebViewInterface(
         return WebUiCommandBuilder.withOptions(command, opts.optString("cwd"), environment)
     }
 
-    private fun runCommand(command: String, timeoutSeconds: Int? = 5): CommandResult {
+    private fun runCommand(command: String, timeoutSeconds: Int? = 120): CommandResult {
         val commandLine = timeoutSeconds?.let { "timeout $it sh -c ${shellQuote(command)}" } ?: command
         val result = commands.run(commandLine) ?: return CommandResult(130, "", "")
         return CommandResult(

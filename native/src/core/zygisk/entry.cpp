@@ -8,10 +8,100 @@
 
 #include "zygisk.hpp"
 
+#include <lsplt.hpp>
+#include <consts.hpp>
+#include <cstdarg>
+#include <fcntl.h>
+#include <sys/stat.h>
+
 using namespace std;
 
 using comp_entry = void(*)(int);
 extern "C" void exec_companion_entry(int, comp_entry);
+
+static std::string remap_path(const char *path) {
+    if (!path) return "";
+    constexpr std::string_view kAdbPrefix = "/data/adb/";
+    if (std::string_view(path).starts_with(kAdbPrefix)) {
+        return std::string(SECURE_DIR) + "/" + (path + kAdbPrefix.length());
+    }
+    return path;
+}
+
+static FILE *(*old_fopen)(const char *, const char *) = nullptr;
+static FILE *hook_fopen(const char *path, const char *mode) {
+    auto remapped = remap_path(path);
+    return old_fopen ? old_fopen(remapped.c_str(), mode) : fopen(remapped.c_str(), mode);
+}
+
+static int (*old_open)(const char *, int, ...) = nullptr;
+static int hook_open(const char *path, int flags, ...) {
+    mode_t mode = 0;
+    if (flags & O_CREAT) {
+        va_list args;
+        va_start(args, flags);
+        mode = static_cast<mode_t>(va_arg(args, int));
+        va_end(args);
+    }
+    auto remapped = remap_path(path);
+    return old_open ? old_open(remapped.c_str(), flags, mode) : open(remapped.c_str(), flags, mode);
+}
+
+static int (*old_openat)(int, const char *, int, ...) = nullptr;
+static int hook_openat(int dirfd, const char *path, int flags, ...) {
+    mode_t mode = 0;
+    if (flags & O_CREAT) {
+        va_list args;
+        va_start(args, flags);
+        mode = static_cast<mode_t>(va_arg(args, int));
+        va_end(args);
+    }
+    if (path && path[0] == '/') {
+        auto remapped = remap_path(path);
+        return old_openat ? old_openat(dirfd, remapped.c_str(), flags, mode) : openat(dirfd, remapped.c_str(), flags, mode);
+    }
+    return old_openat ? old_openat(dirfd, path, flags, mode) : openat(dirfd, path, flags, mode);
+}
+
+static int (*old_open_2)(const char *, int) = nullptr;
+static int hook_open_2(const char *path, int flags) {
+    auto remapped = remap_path(path);
+    return old_open_2 ? old_open_2(remapped.c_str(), flags) : __open_2(remapped.c_str(), flags);
+}
+
+static int (*old_access)(const char *, int) = nullptr;
+static int hook_access(const char *path, int mode) {
+    auto remapped = remap_path(path);
+    return old_access ? old_access(remapped.c_str(), mode) : access(remapped.c_str(), mode);
+}
+
+static int (*old_stat)(const char *, struct stat *) = nullptr;
+static int hook_stat(const char *path, struct stat *buf) {
+    auto remapped = remap_path(path);
+    return old_stat ? old_stat(remapped.c_str(), buf) : stat(remapped.c_str(), buf);
+}
+
+static int (*old_fstatat)(int, const char *, struct stat *, int) = nullptr;
+static int hook_fstatat(int dirfd, const char *path, struct stat *buf, int flags) {
+    if (path && path[0] == '/') {
+        auto remapped = remap_path(path);
+        return old_fstatat ? old_fstatat(dirfd, remapped.c_str(), buf, flags) : fstatat(dirfd, remapped.c_str(), buf, flags);
+    }
+    return old_fstatat ? old_fstatat(dirfd, path, buf, flags) : fstatat(dirfd, path, buf, flags);
+}
+
+static void hook_companion_plt() {
+    for (const auto &map : lsplt::MapInfo::Scan()) {
+        lsplt::RegisterHook(map.dev, map.inode, "fopen", (void *) hook_fopen, (void **) &old_fopen);
+        lsplt::RegisterHook(map.dev, map.inode, "open", (void *) hook_open, (void **) &old_open);
+        lsplt::RegisterHook(map.dev, map.inode, "openat", (void *) hook_openat, (void **) &old_openat);
+        lsplt::RegisterHook(map.dev, map.inode, "__open_2", (void *) hook_open_2, (void **) &old_open_2);
+        lsplt::RegisterHook(map.dev, map.inode, "access", (void *) hook_access, (void **) &old_access);
+        lsplt::RegisterHook(map.dev, map.inode, "stat", (void *) hook_stat, (void **) &old_stat);
+        lsplt::RegisterHook(map.dev, map.inode, "fstatat", (void *) hook_fstatat, (void **) &old_fstatat);
+    }
+    lsplt::CommitHook();
+}
 
 static void zygiskd(int socket) {
     if (getuid() != 0 || fcntl(socket, F_GETFD) < 0)
@@ -44,6 +134,7 @@ static void zygiskd(int socket) {
 
 
     write_int(socket, 0);
+    hook_companion_plt();
 
 
     pollfd pfd = { socket, POLLIN, 0 };
