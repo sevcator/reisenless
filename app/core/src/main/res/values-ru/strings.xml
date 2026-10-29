@@ -216,7 +216,6 @@
     <string name="settings_sulist_config_title">настройка sulist</string>
     <string name="settings_sulist_config_summary">выберите приложения и процессы, которым разрешён доступ к reisenless</string>
     <string name="hide_apps_all_apps">все приложения (глобально)</string>
-    <string name="udonge_version_label">udonge %1$s</string>
     <string name="hide_apps_title">скрытие приложений</string>
     <string name="hide_apps_summary">скрывать выбранные пакеты из запросов приложений</string>
     <string name="hide_apps_service_inactive">встроенный фильтр неактивен · включите zygisk и перезагрузите устройство</string>
@@ -230,15 +229,6 @@
     <string name="hide_apps_search">поиск пакетов</string>
     <string name="hide_apps_viewer_whitelist_title">приложения, которым видны скрытые приложения</string>
     <string name="webui">веб-интерфейс</string>
-    <string name="udonge">udonge</string>
-    <string name="udonge_background_updates_title">eirin</string>
-    <string name="udonge_background_updates_summary">разрешить udonge регулярно проверять и восстанавливать целостность</string>
-    <string name="udonge_reheal_title">udonge reheal</string>
-    <string name="udonge_reheal_summary">когда udonge восстанавливает отпечатки для прохождения integrity?</string>
-    <string name="udonge_reheal_boot_only">только при загрузке</string>
-    <string name="udonge_reheal_daily">ежедневная проверка</string>
-    <string name="udonge_integrity_title">udonge</string>
-    <string name="udonge_integrity_summary">make your device as sweet like jelly &gt;w&lt;</string>
     <string name="webui_root_required">для webui требуются root и активная установка reisenless</string>
     <string name="webui_webview_required">требуется android system webview</string>
     <string name="webui_webview_required_summary">на устройстве нет рабочего поставщика android webview. установите или включите android system webview и повторите попытку.</string>
