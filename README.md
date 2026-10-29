@@ -1,14 +1,12 @@
 # Reisenless
 
 Reisenless is an Android root manager based on Magisk, with built-in app hiding
-and optional Udonge features. Source and dependency licenses are in `LICENSE`
+and hardened security architecture. Source and dependency licenses are in `LICENSE`
 and `THIRD_PARTY_NOTICES`.
 
-Udonge is off by default. Enable it in Settings and reboot to activate its
-optional runtime. Daily background updates and ROM hiding are separate choices.
-USB debugging remains under the user's control. Disabled modules do not run,
-and third-party Zygisk modules require the Zygisk setting. Zygisk defaults to off
-on physical devices and emulators.
+Reisenless features standard Zygisk integration, multi-stage defensive hardening,
+and root cloaking. Disabled modules do not run, and third-party Zygisk modules
+require the Zygisk setting. Zygisk defaults to on for enhanced compatibility.
 
 For an upgrade, install the new APK over the existing manager, select direct
 install, and reboot. Keep the same private identity seed, repository namespace,
