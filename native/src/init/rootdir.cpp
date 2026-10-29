@@ -13,7 +13,61 @@ using namespace std;
 static vector<string> rc_list;
 
 #define NEW_INITRC_DIR  "/system/etc/init/hw"
+#define SYSTEM_INITRC_DIR "/system/etc/init"
 #define INIT_RC         "init.rc"
+
+static void relax_encryption_in_file(int dir_fd, const char *dir_path, const char *name, bool writable) {
+    owned_fd src_rc = xopenat(dir_fd, name, O_RDONLY | O_CLOEXEC, 0);
+    if (src_rc < 0) return;
+
+    bool has_encryption_require = false;
+    string content;
+    file_readline(src_rc, [&has_encryption_require, &content](Utf8CStr line) -> bool {
+        string s = line.c_str();
+        if (line.sv().contains("encryption=Require")) {
+            has_encryption_require = true;
+            replace_all(s, "encryption=Require", "encryption=DeleteIfNecessary");
+        }
+        content += s;
+        return true;
+    });
+
+    if (!has_encryption_require) return;
+
+    if (writable) {
+        unlinkat(dir_fd, name, 0);
+        owned_fd dest_fd = xopenat(dir_fd, name, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+        if (dest_fd < 0) return;
+        LOGD("Relax encryption=Require in %s/%s\n", dir_path, name);
+        xwrite(dest_fd, content.data(), content.size());
+        fclone_attr(src_rc, dest_fd);
+    } else {
+        char ovl_dir[PATH_MAX] = {};
+        ssprintf(ovl_dir, sizeof(ovl_dir), ROOTOVL "%s", dir_path);
+        xmkdirs(ovl_dir, 0755);
+        auto dest_dir = xopen_dir(ovl_dir);
+        if (!dest_dir) return;
+        int dest_dir_fd = dirfd(dest_dir.get());
+
+        owned_fd dest_fd = xopenat(dest_dir_fd, name, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+        if (dest_fd < 0) return;
+        LOGD("Relax encryption=Require in %s/%s\n", dir_path, name);
+        xwrite(dest_fd, content.data(), content.size());
+        fclone_attr(src_rc, dest_fd);
+    }
+}
+
+static void relax_encryption_in_dir(const char *dir_path, bool writable) {
+    auto dir = xopen_dir(dir_path);
+    if (!dir) return;
+    int dir_fd = dirfd(dir.get());
+
+    for (dirent *entry; (entry = readdir(dir.get()));) {
+        auto name = std::string_view(entry->d_name);
+        if (!name.ends_with(".rc") || name == INIT_RC) continue;
+        relax_encryption_in_file(dir_fd, dir_path, entry->d_name, writable);
+    }
+}
 
 static bool unxz(int fd, rust::Slice<const uint8_t> bytes) {
     uint8_t out[8192];
@@ -331,6 +385,12 @@ void MagiskInit::patch_ro_root() noexcept {
     }
     if (p) patch_fissiond(tmp_dir.data());
 
+    relax_encryption_in_dir(NEW_INITRC_DIR, false);
+    relax_encryption_in_dir(SYSTEM_INITRC_DIR, false);
+    relax_encryption_in_dir("/system/system_ext/etc/init", false);
+    relax_encryption_in_dir("/system/product/etc/init", false);
+    relax_encryption_in_dir("/vendor/etc/init", false);
+
 
     extract_files(false);
 
@@ -364,6 +424,12 @@ void MagiskInit::patch_rw_root() noexcept {
 
     if (patch_rc_scripts("/", "/sbin", true))
         patch_fissiond("/sbin");
+
+    relax_encryption_in_dir(NEW_INITRC_DIR, true);
+    relax_encryption_in_dir(SYSTEM_INITRC_DIR, true);
+    relax_encryption_in_dir("/system/system_ext/etc/init", true);
+    relax_encryption_in_dir("/system/product/etc/init", true);
+    relax_encryption_in_dir("/vendor/etc/init", true);
 
     xmkdir(PRE_TMPSRC, 0);
     xmount("tmpfs", PRE_TMPSRC, "tmpfs", 0, "mode=755");
