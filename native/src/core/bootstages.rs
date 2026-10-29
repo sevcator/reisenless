@@ -13,7 +13,7 @@ use crate::mount::{clean_mounts, setup_preinit_dir};
 use crate::resetprop::get_prop;
 use crate::selinux::restorecon;
 use base::const_format::concatcp;
-use base::{BufReadExt, Directory, FsPathBuilder, ResultExt, cstr, error, info};
+use base::{BufReadExt, Directory, FsPathBuilder, ResultExt, Utf8CStr, cstr, error, info};
 use bitflags::bitflags;
 use nix::fcntl::OFlag;
 use std::io::BufReader;
@@ -67,47 +67,44 @@ impl MagiskD {
 
         let adb_dir = cstr!("/data/adb");
         adb_dir.mkdir(0o700).log_ok();
-        adb_dir.chmod(0o700).log_ok();
+        adb_dir.follow_link().chmod(0o700).log_ok();
 
-        let adb_magisk = cstr!("/data/adb/magisk");
-        if !adb_magisk.exists() {
-            adb_magisk.create_symlink_to(cstr!(DATABIN)).log_ok();
-        }
-
-        let adb_modules = cstr!("/data/adb/modules");
-        if !adb_modules.exists() {
-            adb_modules.create_symlink_to(cstr!(MODULEROOT)).log_ok();
-        } else if let Ok(dir) = Directory::open(adb_modules) {
-            let mut entries = 0;
-            for _ in &dir {
-                entries += 1;
+        fn ensure_adb_symlink(source: &Utf8CStr, target: &Utf8CStr) {
+            if let Ok(attr) = source.get_attr() {
+                if attr.is_dir() {
+                    if let Ok(mut dir) = Directory::open(source) {
+                        let is_empty = dir.read().ok().flatten().is_none();
+                        if is_empty {
+                            source.remove_all().log_ok();
+                            source.create_symlink_to(target).log_ok();
+                        }
+                    }
+                } else if attr.is_symlink() {
+                    let mut current = cstr::buf::new::<128>();
+                    if source.read_link(&mut current).is_ok() && current.as_cstr() != target {
+                        source.remove().log_ok();
+                        source.create_symlink_to(target).log_ok();
+                    }
+                }
+            } else {
+                source.create_symlink_to(target).log_ok();
             }
-            if entries == 0 {
-                adb_modules.remove_all().log_ok();
-                adb_modules.create_symlink_to(cstr!(MODULEROOT)).log_ok();
-            }
         }
 
-        let adb_modules_update = cstr!("/data/adb/modules_update");
-        if !adb_modules_update.exists() {
-            adb_modules_update
-                .create_symlink_to(cstr!(concatcp!(SECURE_DIR, "/modules_update")))
-                .log_ok();
-        }
-
-        let adb_pfs = cstr!("/data/adb/post-fs-data.d");
-        if !adb_pfs.exists() {
-            adb_pfs
-                .create_symlink_to(cstr!(concatcp!(SECURE_DIR, "/post-fs-data.d")))
-                .log_ok();
-        }
-
-        let adb_service = cstr!("/data/adb/service.d");
-        if !adb_service.exists() {
-            adb_service
-                .create_symlink_to(cstr!(concatcp!(SECURE_DIR, "/service.d")))
-                .log_ok();
-        }
+        ensure_adb_symlink(cstr!("/data/adb/magisk"), cstr!(DATABIN));
+        ensure_adb_symlink(cstr!("/data/adb/modules"), cstr!(MODULEROOT));
+        ensure_adb_symlink(
+            cstr!("/data/adb/modules_update"),
+            cstr!(concatcp!(SECURE_DIR, "/modules_update")),
+        );
+        ensure_adb_symlink(
+            cstr!("/data/adb/post-fs-data.d"),
+            cstr!(concatcp!(SECURE_DIR, "/post-fs-data.d")),
+        );
+        ensure_adb_symlink(
+            cstr!("/data/adb/service.d"),
+            cstr!(concatcp!(SECURE_DIR, "/service.d")),
+        );
 
         if !busybox.exists() {
             return false;
