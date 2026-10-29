@@ -166,7 +166,8 @@ static void process_main_buffer(struct log_msg *msg) {
     char cmdline[1024];
     sprintf(cmdline, "/proc/%d/cmdline", msg->entry.pid);
     if (auto f = open_file(cmdline, "re")) {
-        fgets(cmdline, sizeof(cmdline), f.get());
+        if (!fgets(cmdline, sizeof(cmdline), f.get()))
+            return;
     } else {
         return;
     }
@@ -198,10 +199,10 @@ static void process_events_buffer(struct log_msg *msg) {
                 ssprintf(path, sizeof(path), "/proc/%d", pid);
                 struct stat st{};
                 int fd = syscall(__NR_pidfd_open, pid, 0);
-                if (fd > 0 && setns(fd, CLONE_NEWNS) == 0) {
+                if (fd >= 0 && setns(fd, CLONE_NEWNS) == 0) {
                     pid = getpid();
                 } else {
-                    close(fd);
+                    if (fd >= 0) close(fd);
                     fd = -1;
                 }
                 while (read_ns(pid, &st) == 0 && it->second.st_ino == st.st_ino) {
@@ -210,9 +211,9 @@ static void process_events_buffer(struct log_msg *msg) {
                     } else {
                         _exit(0);
                     }
-                    if (fd > 0) setns(fd, CLONE_NEWNS);
+                    if (fd >= 0) setns(fd, CLONE_NEWNS);
                 }
-                close(fd);
+                if (fd >= 0) close(fd);
 
                 revert_unmount(pid);
                 _exit(0);

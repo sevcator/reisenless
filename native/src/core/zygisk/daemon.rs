@@ -18,9 +18,11 @@ use std::ptr;
 use std::sync::atomic::Ordering;
 
 const NBPROP: &Utf8CStr = cstr!("ro.dalvik.vm.native.bridge");
+const UNMOUNT_MASK: u32 =
+    ZygiskStateFlags::ProcessOnDenyList.repr | ZygiskStateFlags::DenyListEnforced.repr;
 
 pub fn zygisk_should_load_module(flags: u32) -> bool {
-    flags & ZygiskStateFlags::ProcessIsMagiskApp.repr == 0
+    flags & UNMOUNT_MASK != UNMOUNT_MASK && flags & ZygiskStateFlags::ProcessIsMagiskApp.repr == 0
 }
 
 #[allow(unused_variables)]

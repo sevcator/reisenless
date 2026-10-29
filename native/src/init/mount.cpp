@@ -38,7 +38,7 @@ static void parse_device(devinfo *dev, const char *uevent) {
         else if (key == "DEVNAME")
             strscpy(dev->devname, value.c_str(), sizeof(dev->devname));
         else if (key == "PARTNAME")
-            strscpy(dev->partname, value.c_str(), sizeof(dev->devname));
+            strscpy(dev->partname, value.c_str(), sizeof(dev->partname));
 
         return true;
     });

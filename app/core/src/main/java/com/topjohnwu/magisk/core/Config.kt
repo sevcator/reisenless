@@ -71,7 +71,7 @@ object Config : PreferenceConfig, DBConfig {
     }
 
     @JvmField var keepVerity = false
-    @JvmField var keepEnc = false
+    @JvmField var keepEnc = true
     @JvmField var recovery = false
     var bootloop by dbSettings(Key.BOOTLOOP, 0)
 

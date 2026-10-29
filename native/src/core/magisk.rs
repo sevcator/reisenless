@@ -41,6 +41,7 @@ Advanced Options (Internal APIs):
    --sqlite SQL              exec SQL commands (signed manager only)
    --path                    print Magisk tmpfs mount path
    --sulist ARGS             sulist config CLI (signed manager only)
+   --denylist ARGS           denylist config CLI (alias for --sulist)
    --preinit-device          resolve a device to store preinit files
 
 Available applets:
@@ -78,6 +79,7 @@ enum MagiskAction {
     Sqlite(Sqlite),
     Path(PathCmd),
     SuList(SuList),
+    DenyList(DenyList),
     PreInitDevice(PreInitDevice),
 }
 
@@ -180,6 +182,13 @@ struct SuList {
 }
 
 #[derive(FromArgs)]
+#[argh(subcommand, name = "--denylist")]
+struct DenyList {
+    #[argh(positional, greedy)]
+    args: Vec<String>,
+}
+
+#[derive(FromArgs)]
 #[argh(subcommand, name = "--preinit-device")]
 struct PreInitDevice {}
 
@@ -273,7 +282,7 @@ impl MagiskAction {
                     println!("{tmp}");
                 }
             }
-            SuList(self::SuList { mut args }) => {
+            SuList(self::SuList { mut args }) | DenyList(self::DenyList { mut args }) => {
                 let result = denylist_cli(&mut args);
                 return Ok(if result < 0 {
                     let failure = CLIENT_FAILURE.load(Ordering::Relaxed);

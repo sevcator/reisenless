@@ -14,6 +14,7 @@ using namespace std;
 bool read_string(int fd, std::string &str) {
     str.clear();
     int len = read_int(fd);
+    if (len < 0 || len > 1024 * 1024) return false;
     str.resize(len);
     return xxread(fd, str.data(), len) == len;
 }

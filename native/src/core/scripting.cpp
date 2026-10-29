@@ -10,14 +10,13 @@ using namespace std;
 
 #define BBEXEC_CMD "busybox", "sh"
 
-static const char *bbpath() {
-    static string path;
-    path = get_magisk_tmp();
+static string bbpath() {
+    string path = get_magisk_tmp();
     path += "/" BBPATH "/" BUILD_BUSYBOX_NAME;
     if (access(path.data(), X_OK) != 0) {
         path = DATABIN "/" BUILD_BUSYBOX_NAME;
     }
-    return path.data();
+    return path;
 }
 
 static void set_script_env() {
@@ -37,19 +36,21 @@ static void set_script_env() {
 };
 
 void exec_script(Utf8CStr script) {
+    string bb = bbpath();
     exec_t exec {
         .pre_exec = set_script_env,
         .fork = fork_no_orphan,
-        .path = bbpath(),
+        .path = bb.c_str(),
     };
     exec_command_sync(exec, BBEXEC_CMD, script.c_str());
 }
 
 void exec_script_async(Utf8CStr script) {
+    string bb = bbpath();
     exec_t exec {
         .pre_exec = set_script_env,
         .fork = fork_dont_care,
-        .path = bbpath(),
+        .path = bb.c_str(),
     };
     exec_command(exec, BBEXEC_CMD, script.c_str());
 }
@@ -100,7 +101,8 @@ void exec_common_scripts(Utf8CStr stage) {
     int dfd = dirfd(dir.get());
     vector<string> scripts;
     for (dirent *entry; (entry = xreaddir(dir.get()));) {
-        if (entry->d_type != DT_REG || faccessat(dfd, entry->d_name, X_OK, 0) != 0)
+        if ((entry->d_type != DT_REG && entry->d_type != DT_LNK && entry->d_type != DT_UNKNOWN) ||
+            faccessat(dfd, entry->d_name, X_OK, 0) != 0)
             continue;
         strcpy(name, entry->d_name);
         scripts.emplace_back(path);
@@ -116,11 +118,12 @@ void exec_common_scripts(Utf8CStr stage) {
     }
     PFS_SETUP()
 
+    string bb = bbpath();
     for (const auto &script : scripts) {
         exec_t exec {
             .pre_exec = set_script_env,
             .fork = pfs ? xfork : fork_dont_care,
-            .path = bbpath(),
+            .path = bb.c_str(),
         };
         exec_command(exec, BBEXEC_CMD, script.data());
         PFS_WAIT()
@@ -150,6 +153,7 @@ void exec_module_scripts(Utf8CStr stage, const rust::Vec<ModuleInfo> &module_lis
     int timer_pid = -1;
     PFS_SETUP()
 
+    string bb = bbpath();
     char path[4096];
     for (auto &m : module_list) {
         if (!m.name.empty() && m.name.data()[0] == '@')
@@ -160,7 +164,7 @@ void exec_module_scripts(Utf8CStr stage, const rust::Vec<ModuleInfo> &module_lis
         exec_t exec {
             .pre_exec = set_script_env,
             .fork = pfs ? xfork : fork_dont_care,
-            .path = bbpath(),
+            .path = bb.c_str(),
         };
         exec_command(exec, BBEXEC_CMD, path);
         PFS_WAIT()
@@ -176,6 +180,10 @@ pm clear --user $USER $PKG
 )EOF";
 
 void clear_pkg(const char *pkg, int user_id) {
+    if (!pkg || !*pkg) return;
+    for (const char *p = pkg; *p; ++p) {
+        if (!isalnum(*p) && *p != '.' && *p != '_') return;
+    }
     char cmds[sizeof(clear_script) + 288];
     ssprintf(cmds, sizeof(cmds), clear_script, pkg, user_id);
     exec_command_async("/system/bin/sh", "-c", cmds);
@@ -199,14 +207,17 @@ constexpr char install_module_script[] =
 void install_module(Utf8CStr file) {
     if (getuid() != 0)
         abort_script(stderr, "Run this command with root");
+    string bb = bbpath();
     if (access(DATABIN, F_OK) ||
-        access(bbpath(), X_OK) ||
+        access(bb.c_str(), X_OK) ||
         access(DATABIN "/util_functions.sh", F_OK))
         abort_script(stderr, "Incomplete Magisk install");
     if (access(file.c_str(), F_OK))
         abort_script(stderr, "'%s' does not exist", file.c_str());
 
     char *zip = realpath(file.c_str(), nullptr);
+    if (!zip)
+        abort_script(stderr, "Failed to resolve path for '%s'", file.c_str());
     setenv("OUTFD", "1", 1);
     setenv("ZIPFILE", zip, 1);
     setenv("ASH_STANDALONE", "1", 1);
@@ -215,8 +226,7 @@ void install_module(Utf8CStr file) {
     setenv("MAGISKTMP", get_magisk_tmp(), 1);
     free(zip);
 
-    const char *bb = bbpath();
     const char *argv[] = { "busybox", "sh", "-c", install_module_script, nullptr };
-    execve(bb, (char **) argv, environ);
+    execve(bb.c_str(), (char **) argv, environ);
     abort_script(stdout, "Failed to execute BusyBox shell");
 }

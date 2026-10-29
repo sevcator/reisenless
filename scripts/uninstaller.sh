@@ -149,11 +149,13 @@ if $BOOTMODE; then
 fi
 
 ui_print "- removing files"
+[ -n "$SECURE_DIR" ] && [ "$SECURE_DIR" != "/" ] && rm -rf \
+  "${SECURE_DIR:?}/${DATA_DIR:-magisk}" "${SECURE_DIR:?}/${DB_NAME:-magisk.db}" \
+  "${SECURE_DIR:?}/post-fs-data.d" "${SECURE_DIR:?}/service.d" "${SECURE_DIR:?}"/modules*
 rm -rf \
 /cache/*ma''gisk* /cache/unblock /data/*ma''gisk* /data/cache/*ma''gisk* /data/property/*ma''gisk* \
 /data/Ma''gisk.apk /data/bu''sybox /data/custom_ramdisk_patch.sh /data/a''db/*ma''gisk* \
-${SECURE_DIR}/${DATA_DIR} ${SECURE_DIR}/${DB_NAME} ${SECURE_DIR}/${UDONGE_DIR} ${SECURE_DIR}/udonge ${SECURE_DIR}/post-fs-data.d ${SECURE_DIR}/service.d ${SECURE_DIR}/modules* \
-/data/a''db/ms /data/a''db/ms.db /data/a''db/udonge /data/a''db/post-fs-data.d /data/a''db/service.d /data/a''db/modules* \
+/data/a''db/ms /data/a''db/ms.db /data/a''db/post-fs-data.d /data/a''db/service.d /data/a''db/modules* \
 /data/unencrypted/ma''gisk /data/unencrypted/.mnt \
 /metadata/ma''gisk /metadata/watchdog/ma''gisk /metadata/watchdog/.mnt \
 /persist/ma''gisk /persist/.mnt /mnt/vendor/persist/ma''gisk /mnt/vendor/persist/.mnt

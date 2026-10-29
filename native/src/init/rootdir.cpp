@@ -86,6 +86,14 @@ static bool patch_rc_scripts(const char *src_path, const char *tmp_path, bool wr
                 return true;
             }
 
+            if (line.sv().contains("encryption=Require")) {
+                LOGD("Relax encryption=Require to DeleteIfNecessary\n");
+                string s = line.c_str();
+                replace_all(s, "encryption=Require", "encryption=DeleteIfNecessary");
+                fprintf(dest_rc.get(), "%s", s.c_str());
+                return true;
+            }
+
             fprintf(dest_rc.get(), "%s", line.c_str());
             return true;
         });
@@ -211,7 +219,8 @@ static void recreate_sbin(const char *mirror, bool use_bind_mount) {
         struct stat st;
         fstatat(src, entry->d_name, &st, AT_SYMLINK_NOFOLLOW);
         if (S_ISLNK(st.st_mode)) {
-            xreadlinkat(src, entry->d_name, buf, sizeof(buf));
+            if (xreadlinkat(src, entry->d_name, buf, sizeof(buf)) < 0)
+                continue;
             xsymlink(buf, sbin_path.data());
         } else {
             sprintf(buf, "%s/%s", mirror, entry->d_name);

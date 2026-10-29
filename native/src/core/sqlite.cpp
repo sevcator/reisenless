@@ -47,12 +47,7 @@ constexpr char apex_path[] = "/apex/com.android.runtime/lib64:/apex/com.android.
 constexpr char apex_path[] = "/apex/com.android.runtime/lib:/apex/com.android.art/lib:/apex/com.android.i18n/lib:";
 #endif
 
-static bool load_sqlite() {
-    static int dl_init = 0;
-    if (dl_init)
-        return dl_init > 0;
-    dl_init = -1;
-
+static bool load_sqlite_impl() {
     auto sqlite = dlopen("libsqlite.so", RTLD_LAZY);
     if (!sqlite) {
 
@@ -89,6 +84,19 @@ static bool load_sqlite() {
     DLOAD(sqlite, sqlite3_column_int);
     DLOAD(sqlite, sqlite3_finalize);
 
+    return true;
+}
+
+static pthread_mutex_t sqlite_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static bool load_sqlite() {
+    static int dl_init = 0;
+    mutex_guard lock(sqlite_lock);
+    if (dl_init)
+        return dl_init > 0;
+    dl_init = -1;
+    if (!load_sqlite_impl())
+        return false;
     dl_init = 1;
     return true;
 }

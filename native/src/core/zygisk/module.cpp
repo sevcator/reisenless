@@ -419,8 +419,10 @@ void ZygiskContext::app_specialize_pre() {
     if ((info_flags & UNMOUNT_MASK) == UNMOUNT_MASK) {
         ZLOGI("[%s] is outside sulist\n", process);
         flags |= DO_REVERT_UNMOUNT;
-    }
-    if (fd >= 0) {
+        for (int mod_fd : module_fds) {
+            if (mod_fd >= 0) close(mod_fd);
+        }
+    } else if (fd >= 0) {
         run_modules_pre(module_fds);
     }
 }

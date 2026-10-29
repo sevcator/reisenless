@@ -179,8 +179,13 @@ impl SysProp {
         }
     }
 
-    fn get_context(&self, key: &Utf8CStr) -> &'static Utf8CStr {
-        unsafe { Utf8CStr::from_ptr_unchecked(sys_prop_get_context(key.as_ptr())) }
+    fn get_context(&self, key: &Utf8CStr) -> Option<&'static Utf8CStr> {
+        let ptr = unsafe { sys_prop_get_context(key.as_ptr()) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { Utf8CStr::from_ptr_unchecked(ptr) })
+        }
     }
 
     fn area_serial(&self) -> u32 {

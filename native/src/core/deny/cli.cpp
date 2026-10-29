@@ -78,10 +78,13 @@ int denylist_cli(rust::Vec<rust::String> &args) {
         req = DenyRequest::ENFORCE;
     else if (argv[0] == "disable"sv)
         req = DenyRequest::DISABLE;
-    else if (argv[0] == "add"sv)
+    else if (argv[0] == "add"sv) {
+        if (argc < 2) usage();
         req = DenyRequest::ADD;
-    else if (argv[0] == "rm"sv)
+    } else if (argv[0] == "rm"sv) {
+        if (argc < 2) usage();
         req = DenyRequest::REMOVE;
+    }
     else if (argv[0] == "ls"sv)
         req = DenyRequest::LIST;
     else if (argv[0] == "status"sv)

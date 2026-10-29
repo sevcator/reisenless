@@ -229,7 +229,13 @@ impl MagiskD {
         let mut status = 0;
         let code = unsafe {
             if libc::waitpid(child, &mut status, 0) > 0 {
-                libc::WEXITSTATUS(status)
+                if libc::WIFEXITED(status) {
+                    libc::WEXITSTATUS(status)
+                } else if libc::WIFSIGNALED(status) {
+                    128 + libc::WTERMSIG(status)
+                } else {
+                    -1
+                }
             } else {
                 -1
             }

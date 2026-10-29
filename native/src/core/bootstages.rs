@@ -81,12 +81,16 @@ impl MagiskD {
                     }
                 } else if attr.is_symlink() {
                     let mut current = cstr::buf::new::<128>();
-                    if source.read_link(&mut current).is_ok() && current.as_cstr() != target {
+                    if source.read_link(&mut current).is_err() || current.as_cstr() != target {
                         source.remove().log_ok();
                         source.create_symlink_to(target).log_ok();
                     }
+                } else {
+                    source.remove().log_ok();
+                    source.create_symlink_to(target).log_ok();
                 }
             } else {
+                source.remove().ok();
                 source.create_symlink_to(target).log_ok();
             }
         }

@@ -61,7 +61,9 @@ void write_vector(int fd, const std::vector<T> &vec) {
 }
 template<typename T> requires(std::is_trivially_copyable_v<T>)
 bool read_vector(int fd, std::vector<T> &vec) {
+    vec.clear();
     int size = read_int(fd);
+    if (size < 0 || size > 100'000) return false;
     vec.resize(size);
     return xread(fd, vec.data(), size * sizeof(T)) == size * sizeof(T);
 }

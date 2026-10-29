@@ -324,7 +324,7 @@ get_flags() {
       KEEPFORCEENCRYPT=true
       ui_print "- encrypted data, keep forceencrypt"
     else
-      KEEPFORCEENCRYPT=false
+      KEEPFORCEENCRYPT=true
     fi
   fi
   [ -z $RECOVERYMODE ] && RECOVERYMODE=false
@@ -628,6 +628,19 @@ fix_module_paths() {
   rm -f "$temp"
 }
 
+ensure_adb_link() {
+  local link="$1" target="$2"
+  if [ -L "$link" ]; then
+    [ "$(readlink "$link" 2>/dev/null)" = "$target" ] && return 0
+    rm -f "$link" 2>/dev/null
+  elif [ -d "$link" ]; then
+    rmdir "$link" 2>/dev/null || return 0
+  elif [ -e "$link" ]; then
+    rm -f "$link" 2>/dev/null
+  fi
+  ln -sfn "$target" "$link" 2>/dev/null
+}
+
 install_module() {
   rm -rf $TMPDIR
   mkdir -p $TMPDIR
@@ -660,14 +673,11 @@ install_module() {
 
   mkdir -p /data/adb 2>/dev/null
   chmod 700 /data/adb 2>/dev/null
-  if [ -d /data/adb/modules ] && [ ! -L /data/adb/modules ]; then
-    rmdir /data/adb/modules 2>/dev/null
-  fi
-  [ -e /data/adb/modules ] || ln -sf "$MODULEROOT" /data/adb/modules 2>/dev/null
-  [ -e /data/adb/modules_update ] || ln -sf "${SECURE_DIR}/modules_update" /data/adb/modules_update 2>/dev/null
-  [ -e /data/adb/magisk ] || ln -sf "$MAGISKBIN" /data/adb/magisk 2>/dev/null
-  [ -e /data/adb/post-fs-data.d ] || ln -sf "${SECURE_DIR}/post-fs-data.d" /data/adb/post-fs-data.d 2>/dev/null
-  [ -e /data/adb/service.d ] || ln -sf "${SECURE_DIR}/service.d" /data/adb/service.d 2>/dev/null
+  ensure_adb_link /data/adb/modules "${SECURE_DIR}/modules"
+  ensure_adb_link /data/adb/modules_update "${SECURE_DIR}/modules_update"
+  ensure_adb_link /data/adb/magisk "$MAGISKBIN"
+  ensure_adb_link /data/adb/post-fs-data.d "${SECURE_DIR}/post-fs-data.d"
+  ensure_adb_link /data/adb/service.d "${SECURE_DIR}/service.d"
 
   ui_print "- reisen is fixing module !!"
 

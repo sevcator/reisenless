@@ -127,7 +127,11 @@ int exec_command_sync(exec_t &exec) {
         return -1;
     int status;
     waitpid(pid, &status, 0);
-    return WEXITSTATUS(status);
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+    if (WIFSIGNALED(status))
+        return 128 + WTERMSIG(status);
+    return -1;
 }
 
 int new_daemon_thread(thread_entry entry, void *arg) {

@@ -75,7 +75,7 @@ Write mode flags:
 impl ResetProp {
     fn get(&self, key: &Utf8CStr) -> Option<String> {
         if self.context {
-            return Some(SYS_PROP.get_context(key).to_string());
+            return SYS_PROP.get_context(key).map(|s| s.to_string());
         }
 
         let mut val = if !self.persist_only {
@@ -110,10 +110,11 @@ impl ResetProp {
         }
         for (mut k, v) in map.into_iter() {
             if self.context {
-                println!(
-                    "[{k}]: [{}]",
-                    SYS_PROP.get_context(Utf8CStr::from_string(&mut k))
-                );
+                let ctx = SYS_PROP
+                    .get_context(Utf8CStr::from_string(&mut k))
+                    .map(|s| s.as_str())
+                    .unwrap_or("u:object_r:default_prop:s0");
+                println!("[{k}]: [{ctx}]");
             } else {
                 println!("[{k}]: [{v}]");
             }

@@ -44,7 +44,7 @@ fn remove_pattern(buf: &mut [u8], pattern_matcher: unsafe fn(&[u8]) -> Option<us
             if let Some(len) = pattern_matcher(buf.get_unchecked(read..)) {
                 let skipped = buf.get_unchecked(read..(read + len));
 
-                let skipped = std::str::from_utf8_unchecked(skipped);
+                let skipped = String::from_utf8_lossy(skipped);
                 eprintln!("Remove pattern [{skipped}]");
                 sz -= len;
                 read += len;
@@ -93,10 +93,14 @@ fn hex2byte(hex: &[u8]) -> Vec<u8> {
         if bytes.len() != 2 {
             break;
         }
-        let high = bytes[0].to_ascii_uppercase() - b'0';
-        let low = bytes[1].to_ascii_uppercase() - b'0';
-        let h = if high > 9 { high - 7 } else { high };
-        let l = if low > 9 { low - 7 } else { low };
+        let parse_nibble = |b: u8| match b {
+            b'0'..=b'9' => b - b'0',
+            b'a'..=b'f' => b - b'a' + 10,
+            b'A'..=b'F' => b - b'A' + 10,
+            _ => 0,
+        };
+        let h = parse_nibble(bytes[0]);
+        let l = parse_nibble(bytes[1]);
         v.push((h << 4) | l);
     }
     v

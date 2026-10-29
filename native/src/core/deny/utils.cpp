@@ -94,9 +94,10 @@ static bool proc_name_match(int pid, string_view name) {
     char buf[4019];
     sprintf(buf, "/proc/%d/cmdline", pid);
     if (auto fp = open_file(buf, "re")) {
-        fgets(buf, sizeof(buf), fp.get());
-        if (str_op(buf, name)) {
-            return true;
+        if (fgets(buf, sizeof(buf), fp.get())) {
+            if (str_op(buf, name)) {
+                return true;
+            }
         }
     }
     return false;
@@ -276,6 +277,9 @@ int add_list(int client) {
 }
 
 static int rm_list(const char *pkg, const char *proc) {
+    if (!validate(pkg, proc))
+        return DenyResponse::INVALID_PKG;
+
     {
         mutex_guard lock(data_lock);
         if (!ensure_data())
