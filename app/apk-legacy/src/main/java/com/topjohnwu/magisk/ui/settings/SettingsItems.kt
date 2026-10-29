@@ -1,25 +1,15 @@
 package com.topjohnwu.magisk.ui.settings
 
-import android.content.Context
 import android.content.res.Resources
 import android.os.Build
-import android.text.InputType
-import android.view.LayoutInflater
-import android.view.View
-import android.widget.EditText
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.R
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
-import com.topjohnwu.magisk.core.Udonge
-import com.topjohnwu.magisk.core.ktx.activity
 import com.topjohnwu.magisk.core.utils.LocaleSetting
 import com.topjohnwu.magisk.core.utils.TextHolder
 import com.topjohnwu.magisk.core.utils.asText
-import com.topjohnwu.magisk.ui.hideapps.HideAppsRootClient
-import com.topjohnwu.magisk.view.MagiskDialog
-import com.topjohnwu.superuser.Shell
 import com.topjohnwu.magisk.core.R as CoreR
 
 object Customization : BaseSettingsItem.Section() {
@@ -102,104 +92,6 @@ object SuListConfig : BaseSettingsItem.Blank() {
 object HideAppsConfig : BaseSettingsItem.Blank() {
     override val title = CoreR.string.hide_apps_title.asText()
     override val description = CoreR.string.hide_apps_summary.asText()
-}
-
-object UdongeSettings : BaseSettingsItem.Section() {
-    override val title = CoreR.string.udonge.asText()
-}
-
-object UdongeEnabled : BaseSettingsItem.Toggle() {
-    override val title = CoreR.string.udonge_integrity_title.asText()
-    override val description = CoreR.string.udonge_integrity_summary.asText()
-    override var value
-        get() = Config.udongeEnabled
-        set(value) { Shell.EXECUTOR.execute { Udonge.setEnabled(value) } }
-}
-
-object UdongeBackgroundUpdates : BaseSettingsItem.Toggle() {
-    override val title = CoreR.string.udonge_background_updates_title.asText()
-    override val description = CoreR.string.udonge_background_updates_summary.asText()
-    override var value
-        get() = Config.udongeBackgroundUpdates
-        set(value) { Shell.EXECUTOR.execute { Udonge.setBackgroundUpdates(value) } }
-}
-
-private fun textListDialog(
-    view: View,
-    title: Int,
-    hint: Int,
-    initial: String,
-    save: (String) -> Unit,
-) = MagiskDialog(view.activity).apply {
-    val input = EditText(view.context).apply {
-        this.hint = resources.getString(hint)
-        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-        minLines = 4
-        maxLines = 10
-        setText(initial)
-    }
-    setTitle(title)
-    setView(input)
-    setButton(MagiskDialog.ButtonType.POSITIVE) {
-        text = android.R.string.ok
-        onClick { save(input.text.toString()) }
-    }
-    setButton(MagiskDialog.ButtonType.NEGATIVE) { text = android.R.string.cancel }
-    show()
-}
-
-object UdongeKeyboxes : BaseSettingsItem.Blank() {
-    override val title = CoreR.string.udonge_keybox_list_title.asText()
-    override val description = CoreR.string.udonge_keybox_list_summary.asText()
-
-    override fun onPressed(view: View, handler: Handler) {
-        textListDialog(
-            view,
-            CoreR.string.udonge_keybox_list_title,
-            CoreR.string.udonge_keybox_hint,
-            Config.udongeKeyboxUrls,
-        ) { value ->
-            Shell.EXECUTOR.execute {
-                if (Udonge.setKeyboxUrls(value)) Udonge.refreshKeyboxes()
-            }
-        }
-    }
-}
-
-object UdongeRomHiding : BaseSettingsItem.Toggle() {
-    override val title = CoreR.string.udonge_rom_keywords_title.asText()
-    override val description = CoreR.string.udonge_rom_keywords_summary.asText()
-    override var value
-        get() = Config.udongeRomHidingEnabled
-        set(value) {
-            Shell.EXECUTOR.execute {
-                if (Udonge.setRomHidingEnabled(value)) {
-                    HideAppsRootClient.syncRomKeywordsHideApps(
-                        if (value) Config.udongeRomKeywords else "",
-                    )
-                }
-            }
-        }
-}
-
-object UdongeRomKeywords : BaseSettingsItem.Blank() {
-    override val title = CoreR.string.udonge_rom_keywords_config_title.asText()
-    override val description = CoreR.string.udonge_rom_keywords_config_summary.asText()
-
-    override fun onPressed(view: View, handler: Handler) {
-        textListDialog(
-            view,
-            CoreR.string.udonge_rom_keywords_config_title,
-            CoreR.string.udonge_rom_keywords_hint,
-            Config.udongeRomKeywords,
-        ) { value ->
-            Shell.EXECUTOR.execute {
-                if (Udonge.setRomKeywords(value)) {
-                    HideAppsRootClient.syncRomKeywordsHideApps(value)
-                }
-            }
-        }
-    }
 }
 
 object Tapjack : BaseSettingsItem.Toggle() {

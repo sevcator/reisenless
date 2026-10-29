@@ -122,7 +122,7 @@ rewrite_migration_paths() (
   if [ -n "${4:-}" ]; then
     set -- -e "s|$pattern\([/[:space:]\"';:)]\)|$replacement\1|g" -e "s|$pattern$|$replacement|g"
   else
-    set -- -e "s|$pattern/$runtime/|$replacement/$UDONGE_DIR/|g" -e "s|$pattern/|$replacement/|g"
+    set -- -e "s|$pattern/|$replacement/|g"
   fi
   find "$root" -type f | while IFS= read -r file; do
     grep -Fq "$source" "$file" || continue
@@ -138,7 +138,6 @@ rewrite_migration_paths() (
     target=$(readlink "$file") || exit 1
     case "$target" in
       "$source") target="$destination";;
-      "$source/$old_runtime"/*) target="$destination/$UDONGE_DIR/${target#"$source/$old_runtime"/}";;
       "$source"/*) target="$destination/${target#"$source"/}";;
       *) continue;;
     esac
@@ -194,14 +193,9 @@ transactional_migrate_layout() {
   [ -d "$source" ] || return 0
   [ ! -L "$source" ] || return 1
   [ -n "$source_db" ] || return 1
-  [ -n "$source_udonge" ] || return 1
-  for dir in modules modules_update post-fs-data.d service.d "$source_udonge"; do
+  for dir in modules modules_update post-fs-data.d service.d; do
     destination="$SECURE_DIR/$dir"
-    [ "$dir" != "$source_udonge" ] || destination="$SECURE_DIR/$UDONGE_DIR"
     validate_migration_directory "$source/$dir" "$destination" || return 1
-  done
-  for dir in state tee-state; do
-    validate_migration_directory "$source/$source_udonge/$dir" "$SECURE_DIR/$UDONGE_DIR/$dir" || return 1
   done
   mkdir -p "$SECURE_DIR" || return 1
   remove_migrated_stage_hooks "$SECURE_DIR" "$source" || return 1
@@ -213,8 +207,6 @@ transactional_migrate_layout() {
     for dir in modules modules_update post-fs-data.d service.d; do
       migration_hash_tree "$source/$dir" || exit 1
     done
-    migration_hash_tree "$source/$source_udonge/state" true || exit 1
-    migration_hash_tree "$source/$source_udonge/tee-state" true || exit 1
   ) > "$manifest" || { rm -rf "$stage"; return 1; }
 
   if [ -f "$marker" ]; then
@@ -241,14 +233,8 @@ transactional_migrate_layout() {
   done
   validate_migration_modules "$stage/modules" || { rm -rf "$stage"; return 1; }
   validate_migration_modules "$stage/modules_update" || { rm -rf "$stage"; return 1; }
-  copy_durable_tree "$source/$source_udonge/state" "$stage/$UDONGE_DIR/state" true || {
-    rm -rf "$stage"; return 1;
-  }
-  copy_durable_tree "$source/$source_udonge/tee-state" "$stage/$UDONGE_DIR/tee-state" true || {
-    rm -rf "$stage"; return 1;
-  }
-  for dir in modules modules_update post-fs-data.d service.d "$UDONGE_DIR"; do
-    rewrite_migration_paths "$stage/$dir" "$source" "$source_udonge" || { rm -rf "$stage"; return 1; }
+  for dir in modules modules_update post-fs-data.d service.d; do
+    rewrite_migration_paths "$stage/$dir" "$source" "${source_udonge:-udonge}" || { rm -rf "$stage"; return 1; }
   done
   remove_migrated_stage_hooks "$stage" "$source" || { rm -rf "$stage"; return 1; }
 
@@ -258,7 +244,7 @@ transactional_migrate_layout() {
     fi
     mv "$stage/$DB_NAME" "$SECURE_DIR/$DB_NAME" || { rm -rf "$stage"; return 1; }
   fi
-  for dir in modules modules_update post-fs-data.d service.d "$UDONGE_DIR"; do
+  for dir in modules modules_update post-fs-data.d service.d; do
     [ -d "$stage/$dir" ] || continue
     merge_missing_tree "$stage/$dir" "$SECURE_DIR/$dir" || { rm -rf "$stage"; return 1; }
   done
@@ -278,7 +264,7 @@ run_delay() {
 }
 
 env_check() {
-  for file in "$MAIN_BIN_NAME" "$BUSYBOX_NAME" mboot minit util_functions.sh app_functions.sh boot_patch.sh "$UDONGE_ARCHIVE"; do
+  for file in "$MAIN_BIN_NAME" "$BUSYBOX_NAME" mboot minit util_functions.sh app_functions.sh boot_patch.sh; do
     [ -f "$MAGISKBIN/$file" ] || return 1
   done
   if [ "$2" -ge 25000 ]; then
@@ -410,12 +396,13 @@ cleanup_migrated_layout() {
   for dir in modules modules_update post-fs-data.d service.d; do
     preserve_upgrade_tree "$source/$dir" "$SECURE_DIR/$dir" "$backup/$dir" || return 1
   done
-  preserve_upgrade_tree "$source/$runtime" "$SECURE_DIR/$UDONGE_DIR" "$backup/$runtime" true || return 1
+  [ -n "$runtime" ] && { preserve_upgrade_tree "$source/$runtime" "$SECURE_DIR/$runtime" "$backup/$runtime" true || return 1; }
   preserve_upgrade_file "$source/$database" "$SECURE_DIR/$DB_NAME" "$backup/$database" || return 1
   preserve_upgrade_file "$source/$database-wal" "$SECURE_DIR/$DB_NAME-wal" "$backup/$database-wal" || return 1
-  for dir in modules modules_update post-fs-data.d service.d "$runtime"; do
+  for dir in modules modules_update post-fs-data.d service.d; do
     rm -rf "$source/$dir" || return 1
   done
+  [ -n "$runtime" ] && rm -rf "$source/$runtime"
   rm -f "$source/$database" "$source/$database-wal" "$source/$database-shm" || return 1
   for item in "$source"/* "$source"/.[!.]*; do
     is_legacy_payload_dir "$source" "$item" || continue
@@ -655,7 +642,7 @@ cleanup_upgrade() {
   migrate_private_layout && migrate_legacy_layout || return 1
   if [ -n "$LEGACY_SECURE_DIR" ] && [ "$LEGACY_SECURE_DIR" != "$SECURE_DIR" ]; then
     cleanup_migrated_layout "$LEGACY_SECURE_DIR" "$LEGACY_DB_NAME" \
-      "$LEGACY_UDONGE_DIR" .migration-private.complete private || return 1
+      "" .migration-private.complete private || return 1
   fi
   for old in /data/magisk /data/ms /cache/data_adb/magisk /cache/data_adb/ms; do
     [ -d "$old" ] && [ ! -L "$old" ] || continue
@@ -687,8 +674,7 @@ cleanup_upgrade() {
     [ ! -d "/proc/$suffix" ] || continue
     rm -rf "$old" || return 1
   done
-  rm -rf "$MAGISKBIN.old" "$MAGISKBIN.new" \
-    "$SECURE_DIR/$UDONGE_DIR/runtime.old" "$SECURE_DIR/$UDONGE_DIR/runtime.new" || return 1
+  rm -rf "$MAGISKBIN.old" "$MAGISKBIN.new" || return 1
   record_upgrade_cleanup "$version" "$current_code" "$current_boot" "$current_package"
 }
 
@@ -696,96 +682,19 @@ migrate_private_layout() {
   [ -n "$LEGACY_SECURE_DIR" ] || return 0
   [ "$LEGACY_SECURE_DIR" != "$SECURE_DIR" ] || return 0
   [ -d "$LEGACY_SECURE_DIR" ] || return 0
-  [ -n "$LEGACY_DB_NAME" ] || return 1
-  [ -n "$LEGACY_UDONGE_DIR" ] || return 1
+  [ -n "$LEGACY_DB_NAME" ] || return 0
 
   transactional_migrate_layout "$LEGACY_SECURE_DIR" "$LEGACY_DB_NAME" \
-    "$LEGACY_UDONGE_DIR" .migration-private.complete
+    "" .migration-private.complete || return 0
 }
 
 refresh_udonge_runtime() {
-  local root=${SECURE_DIR}/${UDONGE_DIR}
-  local runtime=$root/runtime
-  local next=$root/runtime.new
-  local old=$root/runtime.old
-  local archive=$MAGISKBIN/$UDONGE_ARCHIVE
-  local version required file
-
-  [ -f "$archive" ] || {
-    ui_print "! protection payload is missing"
-    return 1
-  }
-  [ -x "$MAGISKBIN/$BUSYBOX_NAME" ] || {
-    ui_print "! installer utility is missing"
-    return 1
-  }
-  version=$(run_busybox "$MAGISKBIN/$BUSYBOX_NAME" unzip -p "$archive" version 2>/dev/null | tr -d '\r\n')
-  [ -n "$version" ] || {
-    ui_print "! protection payload has no version"
-    return 1
-  }
-
-  rm -rf "$next"
-  mkdir -p "$next" || return 1
-  run_busybox "$MAGISKBIN/$BUSYBOX_NAME" unzip -oq "$archive" -d "$next" || {
-    ui_print "! protection payload extraction failed"
-    rm -rf "$next"
-    return 1
-  }
-
-  required="payload.id version hideapps.dex post-fs-data.sh service.sh stop.sh keybox_heal.sh worker.sh defaults/keybox.xml defaults/keybox_urls.conf defaults/pif.conf defaults/props.conf defaults/targets.conf"
-  case "$ARCH" in
-    arm64)
-      required="$required zygisk/arm64-v8a.so tee/arm64-v8a/inject tee/arm64-v8a/libTEESimulator.so tee/arm64-v8a/libcertgen.so tee/arm64-v8a/supervisor tee/classes.dex tee/daemon"
-      ;;
-    arm)
-      required="$required zygisk/armeabi-v7a.so tee/armeabi-v7a/inject tee/armeabi-v7a/libTEESimulator.so tee/armeabi-v7a/supervisor tee/classes.dex tee/daemon"
-      ;;
-    x64)
-      required="$required zygisk/x86_64.so"
-      ;;
-    x86)
-      required="$required zygisk/x86.so"
-      ;;
-  esac
-  for file in $required; do
-    [ -f "$next/$file" ] || {
-      ui_print "! protection payload is incomplete: $file"
-      rm -rf "$next"
-      return 1
-    }
-  done
-  [ "$(cat "$next/version" 2>/dev/null)" = "$version" ] || {
-    ui_print "! protection payload version mismatch"
-    rm -rf "$next"
-    return 1
-  }
-  if ! chmod -R 600 "$next" ||
-      ! find "$next" -type d -exec chmod 700 {} + ||
-      ! chmod 700 "$next/post-fs-data.sh" "$next/service.sh" "$next/stop.sh" "$next/keybox_heal.sh"; then
-    ui_print "! protection payload permissions failed"
-    rm -rf "$next"
-    return 1
-  fi
-
-  mkdir -p "$root" || return 1
-  rm -rf "$old"
-  [ ! -d "$runtime" ] || mv "$runtime" "$old" || {
-    rm -rf "$next"
-    return 1
-  }
-  if mv "$next" "$runtime"; then
-    rm -rf "$old"
-    return 0
-  fi
-  [ -d "$runtime" ] || [ ! -d "$old" ] || mv "$old" "$runtime"
-  rm -rf "$next"
-  return 1
+  return 0
 }
 
 direct_install() {
   local image="$1/new-boot.img" image_size status file
-  for file in "$MAIN_BIN_NAME" "$BUSYBOX_NAME" mboot minit util_functions.sh app_functions.sh boot_patch.sh "$UDONGE_ARCHIVE"; do
+  for file in "$MAIN_BIN_NAME" "$BUSYBOX_NAME" mboot minit util_functions.sh app_functions.sh boot_patch.sh; do
     if [ ! -s "$1/$file" ]; then
       echo "! missing installation payload: $file"
       return 3
@@ -821,10 +730,10 @@ direct_install() {
 
   rm -f "$image" || return 3
   fix_env "$1" || return 3
-  refresh_udonge_runtime || return 3
 
-  rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh"
-  rm -f "$SECURE_DIR/post-fs-data.d/$STAGE_SCRIPT" "$SECURE_DIR/service.d/$STAGE_SCRIPT"
+  rm -f "$SECURE_DIR/post-fs-data.d/udonge.sh" "$SECURE_DIR/service.d/udonge.sh" 2>/dev/null
+  rm -f "$SECURE_DIR/post-fs-data.d/$STAGE_SCRIPT" "$SECURE_DIR/service.d/$STAGE_SCRIPT" 2>/dev/null
+  rm -rf "$SECURE_DIR/udonge" "$SECURE_DIR/.thj" 2>/dev/null
   run_migrations
 
   return 0

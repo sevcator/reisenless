@@ -537,15 +537,6 @@ private fun StatusCard(
                 )
             )
         }
-        add(
-            StatusInfo(
-                label = stringResource(CoreR.string.udonge),
-                status = stringResource(
-                    if (Config.udongeEnabled) CoreR.string.on
-                    else CoreR.string.off
-                )
-            )
-        )
     }
 
     Card(

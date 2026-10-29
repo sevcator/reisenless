@@ -176,7 +176,7 @@ abstract class MagiskInstallImpl protected constructor(
             ZipFile.builder().setFile(sourceApk).get().use { zf ->
                 for (asset in listOf(
                     "util_functions.sh", "app_functions.sh", "boot_patch.sh", "addon.d.sh",
-                    BuildConfig.STUB_NAME, BuildConfig.UDONGE_ARCHIVE,
+                    BuildConfig.STUB_NAME,
                     "chromeos/futility", "chromeos/kernel_data_key.vbprivk",
                     "chromeos/kernel.keyblock"
                 )) {

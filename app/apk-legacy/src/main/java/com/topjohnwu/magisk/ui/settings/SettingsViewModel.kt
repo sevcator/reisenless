@@ -50,10 +50,6 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             if (Const.Version.atLeast_24_0()) {
                 list.addAll(listOf(Zygisk, SuList, SuListConfig, HideAppsConfig))
             }
-            list.addAll(listOf(
-                UdongeSettings, UdongeEnabled, UdongeBackgroundUpdates,
-                UdongeKeyboxes, UdongeRomHiding, UdongeRomKeywords,
-            ))
         }
 
         if (Info.showSuperUser) {

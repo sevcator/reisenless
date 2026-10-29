@@ -4,10 +4,6 @@ use crate::consts::{MAIN_BIN_NAME, MODULEROOT, ZYGISKLDR};
 use crate::daemon::{MagiskD, to_user_id};
 use crate::ffi::{ZygiskRequest, ZygiskStateFlags, get_magisk_tmp, update_deny_flags};
 use crate::resetprop::{get_prop, set_prop};
-use crate::udonge::{
-    UDONGE_MODULE_NAME, UDONGE_ROOT, UDONGE_RUNTIME, transport_enabled as udonge_enabled,
-    should_load as udonge_should_load,
-};
 use crate::socket::{IpcRead, UnixSocketExt};
 use base::libc::STDOUT_FILENO;
 use base::{
@@ -16,8 +12,7 @@ use base::{
 };
 use nix::fcntl::OFlag;
 use std::fmt::Write;
-use std::fs::File;
-use std::os::fd::{AsRawFd, FromRawFd, RawFd};
+use std::os::fd::{AsRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::ptr;
 use std::sync::atomic::Ordering;
@@ -103,7 +98,7 @@ impl ZygiskState {
             if fork_dont_care() == 0 {
                 exec_zygiskd(is_64_bit, remote);
             }
-            if let Some((module_fds, _opened)) = daemon.get_module_fds(is_64_bit, false, true) {
+            if let Some(module_fds) = daemon.get_module_fds(is_64_bit) {
                 local.send_fds(&module_fds)?;
             }
             if local.read_decodable::<i32>()? != 0 {
@@ -180,86 +175,15 @@ impl MagiskD {
         }();
     }
 
-    fn open_udonge_module(is_64_bit: bool) -> Option<File> {
-        #[cfg(target_arch = "aarch64")]
-        let abi = if is_64_bit {
-            "arm64-v8a.so"
-        } else {
-            "armeabi-v7a.so"
-        };
-        #[cfg(target_arch = "arm")]
-        let abi = if is_64_bit { return None } else { "armeabi-v7a.so" };
-        #[cfg(target_arch = "x86_64")]
-        let abi = if is_64_bit { "x86_64.so" } else { "x86.so" };
-        #[cfg(target_arch = "x86")]
-        let abi = if is_64_bit { return None } else { "x86.so" };
-        #[cfg(target_arch = "riscv64")]
-        return None;
-
-        let source = File::open(format!("{UDONGE_RUNTIME}/zygisk/{abi}")).ok()?;
-        let memfd = unsafe {
-            libc::syscall(
-                libc::SYS_memfd_create,
-                raw_cstr!("jit-cache"),
-                libc::MFD_CLOEXEC,
-            ) as RawFd
-        };
-        if memfd < 0 {
-            return None;
-        }
-        let copied = unsafe {
-            libc::sendfile(
-                memfd,
-                source.as_raw_fd(),
-                ptr::null_mut(),
-                i32::MAX as usize,
-            ) >= 0
-                && libc::lseek(memfd, 0, libc::SEEK_SET) >= 0
-        };
-        if !copied {
-            unsafe { libc::close(memfd) };
-            return None;
-        }
-        Some(unsafe { File::from_raw_fd(memfd) })
-    }
-
-    fn get_module_fds(
-        &self,
-        is_64_bit: bool,
-        udonge_only: bool,
-        allow_udonge: bool,
-    ) -> Option<(Vec<RawFd>, Vec<File>)> {
+    fn get_module_fds(&self, is_64_bit: bool) -> Option<Vec<RawFd>> {
         self.module_list.get().map(|module_list| {
-            let mut fds = Vec::with_capacity(module_list.len() + 1);
-            let mut opened = Vec::with_capacity(1);
-            let mut has_udonge = false;
-            for module in module_list {
-                let mut fd = if is_64_bit { module.z64 } else { module.z32 };
-                if module.name == UDONGE_MODULE_NAME {
-
-                    has_udonge = true;
-                    if !udonge_enabled() || (udonge_only && !allow_udonge) {
-                        fd = -1;
-                    } else if let Some(file) = Self::open_udonge_module(is_64_bit) {
-                        fd = file.as_raw_fd();
-                        opened.push(file);
-                    }
-                } else if udonge_only {
-                    fd = -1;
-                }
-                fds.push(if fd < 0 { STDOUT_FILENO } else { fd });
-            }
-            if !has_udonge && udonge_enabled() && (!udonge_only || allow_udonge) {
-                let fd = Self::open_udonge_module(is_64_bit)
-                    .map(|file| {
-                        let fd = file.as_raw_fd();
-                        opened.push(file);
-                        fd
-                    })
-                    .unwrap_or(STDOUT_FILENO);
-                fds.push(fd);
-            }
-            (fds, opened)
+            module_list
+                .iter()
+                .map(|module| {
+                    let fd = if is_64_bit { module.z64 } else { module.z32 };
+                    if fd < 0 { STDOUT_FILENO } else { fd }
+                })
+                .collect()
         })
     }
 
@@ -282,11 +206,7 @@ impl MagiskD {
         client.write_pod(&flags)?;
 
         if zygisk_should_load_module(flags)
-            && let Some((module_fds, _opened)) = self.get_module_fds(
-                is_64_bit,
-                flags & UNMOUNT_MASK == UNMOUNT_MASK,
-                udonge_should_load(uid, &process),
-            )
+            && let Some(module_fds) = self.get_module_fds(is_64_bit)
         {
             client.send_fds(&module_fds)?;
         }
@@ -301,14 +221,10 @@ impl MagiskD {
                 let Some(module) = module_list.get(id as usize) else {
                     continue;
                 };
-                let path = if module.name == UDONGE_MODULE_NAME {
-                    cstr::buf::default().join_path(UDONGE_ROOT).join_path("state")
-                } else {
-                    cstr::buf::default()
-                        .join_path(MODULEROOT)
-                        .join_path(&module.name)
-                        .join_path("zygisk")
-                };
+                let path = cstr::buf::default()
+                    .join_path(MODULEROOT)
+                    .join_path(&module.name)
+                    .join_path("zygisk");
 
                 if let Ok(dir) = Directory::open(&path) {
                     dir.open_as_file_at(cstr!("unloaded"), OFlag::O_CREAT | OFlag::O_RDONLY, 0o644)
@@ -330,13 +246,9 @@ impl MagiskD {
         else {
             return Ok(());
         };
-        let dir = if module.name == UDONGE_MODULE_NAME {
-            cstr::buf::default().join_path(UDONGE_RUNTIME)
-        } else {
-            cstr::buf::default()
-                .join_path(MODULEROOT)
-                .join_path(&module.name)
-        };
+        let dir = cstr::buf::default()
+            .join_path(MODULEROOT)
+            .join_path(&module.name);
         let fd = dir.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC)?;
         client.send_fds(&[fd.as_raw_fd()])?;
         Ok(())

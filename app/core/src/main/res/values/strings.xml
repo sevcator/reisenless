@@ -104,23 +104,6 @@
     <string name="theme_light" tools:ignore="MissingTranslation">light</string>
     <string name="theme_dark" tools:ignore="MissingTranslation">dark</string>
     <string name="settings_accent_color" tools:ignore="MissingTranslation">accent color</string>
-    <string name="udonge" tools:ignore="MissingTranslation">udonge</string>
-    <string name="udonge_background_updates_title" tools:ignore="MissingTranslation">eirin</string>
-    <string name="udonge_background_updates_summary" tools:ignore="MissingTranslation">allow udonge to regularly check and restore your integrity</string>
-    <string name="udonge_reheal_title" tools:ignore="MissingTranslation">udonge reheal</string>
-    <string name="udonge_reheal_summary" tools:ignore="MissingTranslation">when udonge reheal the fingerprints to pass integrity?</string>
-    <string name="udonge_reheal_boot_only" tools:ignore="MissingTranslation">only when booted</string>
-    <string name="udonge_reheal_daily" tools:ignore="MissingTranslation">daily check</string>
-    <string name="udonge_integrity_title" tools:ignore="MissingTranslation">udonge</string>
-    <string name="udonge_integrity_summary" tools:ignore="MissingTranslation">make your device as sweet like jelly &gt;w&lt;</string>
-    <string name="udonge_keybox_list_title" tools:ignore="MissingTranslation">keybox list</string>
-    <string name="udonge_keybox_list_summary" tools:ignore="MissingTranslation">add or remove keybox links</string>
-    <string name="udonge_keybox_hint" tools:ignore="MissingTranslation">one https link per line</string>
-    <string name="udonge_rom_keywords_title" tools:ignore="MissingTranslation">hide suspicious things</string>
-    <string name="udonge_rom_keywords_summary" tools:ignore="MissingTranslation">hide custom ROM paths, packages, properties, and framework traces</string>
-    <string name="udonge_rom_keywords_config_title" tools:ignore="MissingTranslation">configure hidden system items</string>
-    <string name="udonge_rom_keywords_config_summary" tools:ignore="MissingTranslation">one ROM name per line</string>
-    <string name="udonge_rom_keywords_hint" tools:ignore="MissingTranslation">one ROM name per line</string>
     <string name="color_preview" tools:ignore="MissingTranslation">color preview</string>
     <string name="color_white" tools:ignore="MissingTranslation">white</string>
     <string name="color_blue" tools:ignore="MissingTranslation">blue</string>
@@ -199,7 +182,6 @@
     <string name="env_fix_msg">your device needs additional setup for reisenless to work properly. do you want to proceed and reboot?</string>
     <string name="env_full_fix_msg">your device needs reflash reisenless to work properly. please reinstall reisenless within app, recovery mode cannot get correct device info.</string>
     <string name="hide_apps_all_apps" tools:ignore="MissingTranslation">all apps (global)</string>
-    <string name="udonge_version_label" tools:ignore="MissingTranslation">udonge %1$s</string>
     <string name="setup_msg">running environment setup…</string>
     <string name="unsupport_magisk_title">unsupported magisk version</string>
     <string name="unsupport_magisk_msg">this version of the app doesn\'t support magisk versions lower than %1$s.\n\nthe app will behave as if no magisk is installed. please update magisk as soon as possible.</string>

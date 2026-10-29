@@ -157,7 +157,6 @@ object AppContext : ContextWrapper(null),
             RootUtils.Connection
         )
         networkObserver = NetworkObserver(this)
-        Udonge.scheduleBackgroundUpdates(this)
     }
 
     override fun createDeviceProtectedStorageContext(): Context {

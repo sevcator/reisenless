@@ -222,9 +222,6 @@ fun Project.setupCoreLib() {
                     include { it.name.endsWith(".apk") }
                     rename { Config.stubName }
                 }
-                from(rootFile("${Config["outdir"] ?: "out"}/udonge.bin")) {
-                    rename { Config.udongeArchive }
-                }
                 val secureDirLine = "SECURE_DIR='${Config.secureDir}'"
                 val mainBinNameLine = "MAIN_BIN_NAME='${Config.mainBinName}'"
                 val identityLines = listOf(
@@ -245,8 +242,6 @@ fun Project.setupCoreLib() {
                     "RAMDISK_NAME='${Config.ramdiskName}'",
                     "STUB_NAME='${Config.stubName}'",
                     "INIT_LD_NAME='${Config.initLdName}'",
-                    "UDONGE_DIR='${Config.udongeDir}'",
-                    "UDONGE_ARCHIVE='${Config.udongeArchive}'",
                     "BACKUP_CONFIG='${Config.backupConfig}'",
                     "REDIR_PATH='${Config.redirPath}'",
                     "SU_CACHE='${Config.suCache}'",
@@ -255,7 +250,6 @@ fun Project.setupCoreLib() {
                     "STAGE_SCRIPT='${Config.stageScript}'",
                     "LEGACY_SECURE_DIR='${Config.legacySecureDir}'",
                     "LEGACY_DB_NAME='${Config.legacyDbName}'",
-                    "LEGACY_UDONGE_DIR='${Config.legacyUdongeDir}'",
                     "LEGACY_BACKUP_CONFIG='${Config.legacyBackupConfig}'",
                 ).joinToString("\n")
                 filesMatching("**/*.sh") {
@@ -363,9 +357,6 @@ fun Project.setupAppCommon() {
                     "Zygisk" to Config.brandInject.replaceFirstChar { it.uppercase() },
                     "zygisk" to Config.brandInject,
                     "ZYGISK" to Config.brandInject.uppercase(),
-                    "Udonge" to Config.brandInject.replaceFirstChar { it.uppercase() },
-                    "udonge" to Config.brandInject,
-                    "UDONGE" to Config.brandInject.uppercase(),
                 ))
                 this.globalBrandingMappings.set(mapOf(
                     "topjohnwu" to Config.brandAuthor,

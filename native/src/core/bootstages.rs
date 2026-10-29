@@ -12,12 +12,8 @@ use crate::module::disable_modules;
 use crate::mount::{clean_mounts, setup_preinit_dir};
 use crate::resetprop::get_prop;
 use crate::selinux::restorecon;
-use crate::udonge::{
-    is_requested as udonge_requested, run_service as run_udonge_service,
-    setup_runtime as setup_udonge_runtime,
-};
 use base::const_format::concatcp;
-use base::{BufReadExt, FsPathBuilder, ResultExt, cstr, error, info};
+use base::{BufReadExt, Directory, FsPathBuilder, ResultExt, cstr, error, info};
 use bitflags::bitflags;
 use nix::fcntl::OFlag;
 use std::io::BufReader;
@@ -68,6 +64,50 @@ impl MagiskD {
             .mkdir(0o755)
             .log_ok();
         restorecon();
+
+        let adb_dir = cstr!("/data/adb");
+        adb_dir.mkdir(0o700).log_ok();
+        adb_dir.chmod(0o700).log_ok();
+
+        let adb_magisk = cstr!("/data/adb/magisk");
+        if !adb_magisk.exists() {
+            adb_magisk.create_symlink_to(cstr!(DATABIN)).log_ok();
+        }
+
+        let adb_modules = cstr!("/data/adb/modules");
+        if !adb_modules.exists() {
+            adb_modules.create_symlink_to(cstr!(MODULEROOT)).log_ok();
+        } else if let Ok(dir) = Directory::open(adb_modules) {
+            let mut entries = 0;
+            for _ in &dir {
+                entries += 1;
+            }
+            if entries == 0 {
+                adb_modules.remove_all().log_ok();
+                adb_modules.create_symlink_to(cstr!(MODULEROOT)).log_ok();
+            }
+        }
+
+        let adb_modules_update = cstr!("/data/adb/modules_update");
+        if !adb_modules_update.exists() {
+            adb_modules_update
+                .create_symlink_to(cstr!(concatcp!(SECURE_DIR, "/modules_update")))
+                .log_ok();
+        }
+
+        let adb_pfs = cstr!("/data/adb/post-fs-data.d");
+        if !adb_pfs.exists() {
+            adb_pfs
+                .create_symlink_to(cstr!(concatcp!(SECURE_DIR, "/post-fs-data.d")))
+                .log_ok();
+        }
+
+        let adb_service = cstr!("/data/adb/service.d");
+        if !adb_service.exists() {
+            adb_service
+                .create_symlink_to(cstr!(concatcp!(SECURE_DIR, "/service.d")))
+                .log_ok();
+        }
 
         if !busybox.exists() {
             return false;
@@ -172,7 +212,6 @@ impl MagiskD {
             disable_modules();
             self.set_db_setting(DbEntryKey::ZygiskConfig, 0).log_ok();
 
-            setup_udonge_runtime(false);
             self.zygisk_enabled.store(false, Ordering::Release);
             self.zygote_injection_enabled
                 .store(false, Ordering::Release);
@@ -184,10 +223,7 @@ impl MagiskD {
         exec_common_scripts(cstr!("post-fs-data"));
 
         let features = self.get_db_settings().unwrap_or_default();
-        if udonge_requested() {
-            setup_udonge_runtime(true);
-        }
-        let enable_zygisk = features.zygisk || crate::udonge::transport_enabled();
+        let enable_zygisk = features.zygisk;
         self.zygisk_enabled
             .store(enable_zygisk, Ordering::Release);
 
@@ -213,7 +249,6 @@ impl MagiskD {
         {
             exec_module_scripts(cstr!("service"), module_list);
         }
-        run_udonge_service();
     }
 
     fn boot_complete(&self) {
@@ -302,10 +337,6 @@ impl MagiskD {
                     state.insert(BootState::BootComplete);
                     self.boot_complete();
                     if !state.contains(BootState::SafeMode) {
-                        // Some MIUI FBE builds do not emit the late-start init triggers.
-                        if !state.contains(BootState::LateStartDone) {
-                            run_udonge_service();
-                        }
                         self.cleanup_upgrade();
                     }
                 }

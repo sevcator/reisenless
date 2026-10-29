@@ -2,8 +2,8 @@ package com.topjohnwu.magisk.ui.hideapps
 
 import android.util.Base64
 import com.topjohnwu.magisk.core.AppContext
+import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
-import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.hideapps.HideAppsConfig
 import com.topjohnwu.magisk.hideapps.HideAppsConstants
 import com.topjohnwu.magisk.hideapps.HideAppsRepository
@@ -11,7 +11,7 @@ import com.topjohnwu.magisk.hideapps.HideAppsStatus
 import com.topjohnwu.superuser.Shell
 
 object HideAppsRootClient {
-    private val root = "${Const.SECURE_DIR}/${Const.UDONGE_DIR}"
+    private val root = "${Const.SECURE_DIR}/hideapps"
     private val state = "$root/state"
     private val runtime = "$root/runtime"
     private val legacyManagers = "$state/legacy-managers.conf"
@@ -63,7 +63,7 @@ object HideAppsRootClient {
 
     fun syncRomKeywordsHideApps(keywords: String): Boolean {
         val enabled = keywords.isNotBlank()
-        val matches = (if (enabled) keywords else Udonge.DEFAULT_ROM_KEYWORDS).lineSequence()
+        val matches = (if (enabled) keywords else Config.DEFAULT_ROM_KEYWORDS).lineSequence()
             .map(String::trim)
             .filter { it.length >= 3 && it.none(Char::isWhitespace) }
             .toList()

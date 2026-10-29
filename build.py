@@ -100,7 +100,6 @@ config = {}
 args: argparse.Namespace
 build_abis: dict[str, str]
 force_out = False
-udonge_built = False
 signing_config = None
 
 SIGNING_SECRET_KEYS = (
@@ -419,7 +418,6 @@ def _build_identity() -> dict[str, str]:
             "brandCore": "kernel",
             "brandInject": "inject",
             "brandAuthor": "developer",
-            "udongeJavaNamespace": "com.ifiaqqtiy.xnvvxjwamf.iyjzovve",
             "appClass": "com.xzqykkijp.lueqsq.qjrndhoj",
             "mainActivityClass": "com.xzqykkijp.lueqsq.fjwlgfofictgiyk",
             "suRequestActivityClass": "com.xzqykkijp.lueqsq.xustuqergvsavosudicrsipvgvobrm",
@@ -440,10 +438,9 @@ def _build_identity() -> dict[str, str]:
             "bootctlLibName": "nufnrnjtd",
             "ramdiskName": "lnnqjjk",
             "stubName": "fngkzdbg.apk", "initLdName": "yhdojpvia",
-            "udongeDir": ".thj", "udongeArchive": "yhgkxgk.bin",
             "backupConfig": ".surwuf", "redirPath": "/data/.sazhlix",
             "procDomain": "proc_d", "fileType": "file_f",
-            "udongeFileType": "trcbnnlr_f", "suCache": ".uzkiihkp",
+            "suCache": ".uzkiihkp",
             "tmpDir": "/dev/.negvfjvf", "backupPrefix": "/data/.pwrxjpktew_",
             "preloadLib": "/dev/.preload.so", "preloadPolicy": "/dev/.sepolicy",
             "preloadAck": "/dev/.ack", "stageScript": ".zgfoyjozu.sh",
@@ -466,7 +463,6 @@ def _build_identity() -> dict[str, str]:
             "brandCore": "kernel",
             "brandInject": "inject",
             "brandAuthor": "developer",
-            "udongeJavaNamespace": "com.topjohnwu.reisenless.hideapps",
             "appClass": "com.topjohnwu.magisk.core.App",
             "mainActivityClass": "com.topjohnwu.magisk.ui.MainActivity",
             "suRequestActivityClass": "com.topjohnwu.magisk.ui.surequest.SuRequestActivity",
@@ -487,13 +483,12 @@ def _build_identity() -> dict[str, str]:
             "bootctlLibName": "bootctl",
             "ramdiskName": "ms",
             "stubName": "stub.apk", "initLdName": "init-ld",
-            "udongeDir": "udonge", "udongeArchive": "udonge.bin",
             "backupConfig": ".cfg", "redirPath": "/data/._init",
             "procDomain": "ms", "fileType": "ms_file",
-            "udongeFileType": "udonge_lib_file", "suCache": ".su_cache",
+            "suCache": ".su_cache",
             "tmpDir": "/dev/tmp", "backupPrefix": "/data/ms_backup_",
             "preloadLib": "/dev/preload.so", "preloadPolicy": "/dev/sepolicy",
-            "preloadAck": "/dev/ack", "stageScript": "udonge.sh",
+            "preloadAck": "/dev/ack", "stageScript": "stage.sh",
         }
 
     configured_seed = (
@@ -542,7 +537,6 @@ def _build_identity() -> dict[str, str]:
         error("Refusing to create a release with a public secure directory")
     proc = token("policy-domain", 6, 9)
     file_type = token("policy-file", 6, 9)
-    udonge_type = token("policy-udonge", 6, 9)
     main_binary = token("main-binary", 5, 8)
     class_namespace = "com." + token("class-owner", 9, 9) \
         + "." + token("class-package", 6, 6)
@@ -572,9 +566,6 @@ def _build_identity() -> dict[str, str]:
         "brandCore": token("visible-brand-core", 6, 6),
         "brandInject": token("visible-brand-inject", 6, 6),
         "brandAuthor": token("visible-brand-author", 9, 9),
-        "udongeJavaNamespace": "com." + token("hide-owner", 9, 9)
-            + "." + token("hide-core", 10, 10)
-            + "." + token("hide-package", 8, 8),
         "appClass": component("com.topjohnwu.magisk.core.App", "component-app"),
         "mainActivityClass": component(
             "com.topjohnwu.magisk.ui.MainActivity", "component-main-activity"
@@ -625,20 +616,17 @@ def _build_identity() -> dict[str, str]:
         "ramdiskName": main_binary,
         "stubName": token("stub-apk", 6, 10) + ".apk",
         "initLdName": token("init-loader", 6, 10),
-        "udongeDir": "." + token("udonge-root", 3, 3),
-        "udongeArchive": token("udonge-archive", 7, 11) + ".bin",
         "backupConfig": "." + token("backup-config", 6, 10),
 
         "redirPath": "/data/." + token("init-redirect", 7, 9),
         "procDomain": proc + "_d", "fileType": file_type + "_f",
-        "udongeFileType": udonge_type + "_f",
         "suCache": "." + token("package-cache", 6, 10),
         "tmpDir": "/dev/." + token("installer-temp", 6, 10),
         "backupPrefix": "/data/." + token("backup-prefix", 6, 10) + "_",
         "preloadLib": "/dev/." + token("preload-lib", 6, 10) + ".so",
         "preloadPolicy": "/dev/." + token("preload-policy", 6, 10),
         "preloadAck": "/dev/." + token("preload-ack", 6, 10),
-        "stageScript": "." + token("udonge-stage", 6, 10) + ".sh",
+        "stageScript": "." + token("reisen-stage", 6, 10) + ".sh",
     }
 
 def _build_flag_metadata():
@@ -676,16 +664,15 @@ def _validate_legacy_identity_config():
     values = {
         "legacySecureDir": config.get("legacySecureDir", "").strip(),
         "legacyDbName": config.get("legacyDbName", "").strip(),
-        "legacyUdongeDir": config.get("legacyUdongeDir", "").strip(),
         "legacyBackupConfig": config.get("legacyBackupConfig", "").strip(),
     }
     if not any(values.values()):
         return
     if not all(values.values()):
-        error("Legacy migration requires secure dir, database, runtime dir, and boot marker")
+        error("Legacy migration requires secure dir, database, and boot marker")
     if not re.fullmatch(r"/data/\.[a-z]{3,16}", values["legacySecureDir"]):
         error("Invalid legacySecureDir")
-    for key in ("legacyDbName", "legacyUdongeDir", "legacyBackupConfig"):
+    for key in ("legacyDbName", "legacyBackupConfig"):
         if not re.fullmatch(r"\.[a-z]{2,16}", values[key]):
             error(f"Invalid {key}")
     if values["legacyBackupConfig"] == _build_identity()["backupConfig"]:
@@ -743,10 +730,9 @@ def dump_flag_header():
         "bootctlLibName": "BUILD_BOOTCTL_LIB_NAME",
         "ramdiskName": "BUILD_RAMDISK_NAME",
         "stubName": "BUILD_STUB_NAME", "initLdName": "BUILD_INIT_LD_NAME",
-        "udongeDir": "BUILD_UDONGE_DIR", "udongeArchive": "BUILD_UDONGE_ARCHIVE",
         "backupConfig": "BUILD_BACKUP_CONFIG", "redirPath": "BUILD_REDIR_PATH",
         "procDomain": "BUILD_PROC_DOMAIN", "fileType": "BUILD_FILE_TYPE",
-        "udongeFileType": "BUILD_UDONGE_FILE_TYPE", "suCache": "BUILD_SU_CACHE",
+        "suCache": "BUILD_SU_CACHE",
         "tmpDir": "BUILD_TMP_DIR", "backupPrefix": "BUILD_BACKUP_PREFIX",
         "preloadLib": "BUILD_PRELOAD_LIB", "preloadPolicy": "BUILD_PRELOAD_POLICY",
         "preloadAck": "BUILD_PRELOAD_ACK", "stageScript": "BUILD_STAGE_SCRIPT",
@@ -1148,416 +1134,6 @@ def _zip_bytes(zf: ZipFile, name: str, data: bytes, mode: int = 0o644):
     info.external_attr = (stat.S_IFREG | mode) << 16
     zf.writestr(info, data)
 
-def _fit_tee_path(path: str, size: int, pad_after: str | None = None) -> bytes:
-    encoded = path.encode()
-    if len(encoded) > size:
-        error(f"Generated Udonge path is too long for TEE payload: {path}")
-
-    if pad_after is not None:
-        prefix = (pad_after.rstrip("/") + "/").encode()
-        if not encoded.startswith(prefix):
-            error(f"Invalid Udonge path padding prefix: {pad_after}")
-        split = len(prefix)
-    else:
-        split = encoded.find(b"/", len(b"/data/"))
-        if split < 0:
-            split = len(encoded)
-    return encoded[:split] + b"/" * (size - len(encoded)) + encoded[split:]
-
-
-def _patch_tee_native_paths(data: bytes, udonge_root: str) -> bytes:
-    source = b"/data/adb/tricky_store"
-    if source not in data:
-        return data
-    target = _fit_tee_path(f"{udonge_root}/state", len(source))
-    return data.replace(source, target)
-
-
-def _patch_tee_dex(data: bytes, udonge_root: str) -> bytes:
-
-    state_source = b"/data/adb/tricky_store"
-    library_source = b"/data/adb/modules/tricky_store/libcertgen.so"
-    replacements = (
-        (state_source, _fit_tee_path(f"{udonge_root}/state", len(state_source))),
-        (
-            library_source,
-            _fit_tee_path(
-                f"{udonge_root}/tee-runtime/libcertgen.so",
-                len(library_source),
-                udonge_root,
-            ),
-        ),
-    )
-    for source, target in replacements:
-        if len(source) != len(target):
-            error("Udonge TEE path replacements must preserve DEX string lengths")
-        if source not in data:
-            error(f"Udonge TEE path is missing from classes.dex: {source.decode()}")
-        data = data.replace(source, target)
-
-    cached_attest_src = bytes.fromhex("620035136e100a0000000c001f00500c1100")
-    cached_attest_dst = bytes.fromhex("120011000000000000000000000000000000")
-    if cached_attest_src in data:
-        data = data.replace(cached_attest_src, cached_attest_dst)
-
-    device_id_stores_src = bytes.fromhex(
-        "080211005b125713080212005b125813080213005b125913"
-        "080214005b125a13080215005b125b13080216005b125c13"
-        "080217005b125d13080218005b125e13080219005b125f13"
-    )
-    device_id_stores_dst = b"\x00" * len(device_id_stores_src)
-    if device_id_stores_src in data:
-        data = data.replace(device_id_stores_src, device_id_stores_dst)
-
-    patch_src = bytes.fromhex("140411d83401")
-    patch_target = 20260905
-    pif_conf = Path("udonge", "payload", "defaults", "pif.conf")
-    if pif_conf.exists():
-        for line in pif_conf.read_text(encoding="utf-8").splitlines():
-            if line.startswith("SECURITY_PATCH="):
-                sval = line.split("=", 1)[1].strip().replace("-", "")
-                if sval.isdigit() and len(sval) >= 8:
-                    patch_target = int(sval[:8])
-                break
-    patch_dst = b"\x14\x04" + struct.pack("<i", patch_target)
-    if patch_src in data:
-        data = data.replace(patch_src, patch_dst)
-
-    patched = bytearray(data)
-    patched[12:32] = hashlib.sha1(patched[32:]).digest()
-    patched[8:12] = struct.pack("<I", zlib.adler32(patched[12:]) & 0xFFFFFFFF)
-    return bytes(patched)
-
-def _patch_hideapps_dex(data: bytes, namespace: str) -> bytes:
-    source = "com.topjohnwu.reisenless.hideapps"
-    if len(source) != len(namespace):
-        error("Generated package-filter namespace has an invalid length")
-    patched = bytearray(data)
-    replacements = (
-        (source.encode(), namespace.encode()),
-        (source.replace(".", "/").encode(), namespace.replace(".", "/").encode()),
-        (source.replace(".", "-").encode(), namespace.replace(".", "-").encode()),
-    )
-    changed = 0
-    for old, new in replacements:
-        changed += patched.count(old)
-        patched[:] = patched.replace(old, new)
-    if changed == 0:
-        error("Package-filter DEX namespace marker is missing")
-    patched[12:32] = hashlib.sha1(patched[32:]).digest()
-    patched[8:12] = struct.pack("<I", zlib.adler32(patched[12:]) & 0xFFFFFFFF)
-    return bytes(patched)
-
-def build_udonge():
-    global udonge_built
-    if udonge_built:
-        return
-
-    ensure_paths()
-    header("* Building the built-in Udonge payload")
-
-    host = {
-        "windows": "windows-x86_64",
-        "linux": "linux-x86_64",
-        "darwin": "darwin-x86_64",
-    }[os_name]
-    tool_bin = ndk_path / "toolchains" / "llvm" / "prebuilt" / host / "bin"
-    work = config["outdir"] / ".udonge-build"
-    if work.exists():
-        rm_rf(work)
-    zygisk_out = work / "zygisk"
-    zygisk_out.mkdir(parents=True)
-
-    java_out = work / "java"
-    java_out.mkdir(parents=True)
-    android_jar = _latest_android_tool(sdk_path / "platforms") / "android.jar"
-    build_tools = _latest_android_tool(sdk_path / "build-tools")
-    d8 = build_tools / ("d8.bat" if is_windows else "d8")
-    java_source = Path(
-        "udonge", "java", "com", "topjohnwu", "reisenless", "hideapps",
-        "PackageManagerProxy.java",
-    )
-    env = find_jdk()
-    proc = execv(
-        [
-            "javac",
-            "--release", "8",
-            "-classpath", android_jar,
-            "-d", java_out,
-            java_source,
-        ],
-        env=env,
-    )
-    if proc.returncode != 0:
-        error("Build Hide Apps Java runtime failed!")
-    class_files = sorted(java_out.rglob("*.class"))
-    proc = execv(
-        [d8, "--min-api", "26", "--output", java_out, *class_files],
-        env=env,
-    )
-    if proc.returncode != 0:
-        error("Build Hide Apps DEX runtime failed!")
-    hideapps_dex = java_out / "classes.dex"
-    hideapps_dex.write_bytes(
-        _patch_hideapps_dex(
-            hideapps_dex.read_bytes(),
-            _build_identity()["udongeJavaNamespace"],
-        )
-    )
-
-    native_sources = [
-        Path("udonge", "native", name)
-        for name in ("main.cpp", "config.cpp", "hideapps.cpp", "hooks.cpp", "spoof.cpp")
-    ]
-    native_sources.extend([
-        Path("native", "src", "external", "lsplt", "lsplt", "src", "main", "jni", "elf_util.cc"),
-        Path("native", "src", "external", "lsplt", "lsplt", "src", "main", "jni", "lsplt.cc"),
-    ])
-    api = "23"
-    identity = _build_identity()
-    secure_dir = identity["secureDir"].rstrip("/")
-    udonge_root = f'{secure_dir}/{identity["udongeDir"]}'
-    drivers = {
-        "armeabi-v7a": "armv7a-linux-androideabi",
-        "arm64-v8a": "aarch64-linux-android",
-        "x86": "i686-linux-android",
-        "x86_64": "x86_64-linux-android",
-    }
-    for abi in build_abis:
-        if abi == "riscv64":
-            continue
-        driver_ext = ".cmd" if is_windows else ""
-        clang = tool_bin / f"{drivers[abi]}{api}-clang++{driver_ext}"
-        if not clang.exists():
-            error(f"Udonge compiler is missing: {clang}")
-        output = zygisk_out / f"{abi}.so"
-        cmd = [
-            clang,
-            "-std=c++20",
-            "-Oz",
-            "-fPIC",
-            "-fvisibility=hidden",
-            "-fno-exceptions",
-            "-fno-rtti",
-            "-ffunction-sections",
-            "-fdata-sections",
-            "-static-libstdc++",
-            "-shared",
-            "-Wl,--gc-sections",
-            "-Wl,--build-id=none",
-            f'-DUDONGE_ROOT="{udonge_root}"',
-            f'-DHIDEAPPS_CLASS_NAME="{identity["udongeJavaNamespace"]}"',
-            *native_sources,
-            "-ldl",
-            "-llog",
-            "-o",
-            output,
-        ]
-        proc = execv(cmd)
-        if proc.returncode != 0:
-            error(f"Build Udonge for {abi} failed!")
-
-    output = config["outdir"] / "udonge.bin"
-    payload = Path("udonge", "payload")
-    entries: list[tuple[str, bytes, int]] = [
-        ("version", f"{config['version']}\n".encode(), 0o644),
-        ("hideapps.dex", hideapps_dex.read_bytes(), 0o644),
-    ]
-    for lib in sorted(zygisk_out.glob("*.so")):
-        entries.append((f"zygisk/{lib.name}", lib.read_bytes(), 0o644))
-    for source in sorted(item for item in payload.rglob("*") if item.is_file()):
-        name = source.relative_to(payload).as_posix()
-        data = source.read_bytes()
-        if name == "tee/classes.dex":
-            data = _patch_tee_dex(data, udonge_root)
-        elif name.startswith("tee/") and name.endswith(".so"):
-            data = _patch_tee_native_paths(data, udonge_root)
-        if name.endswith(".sh") or name in {"tee/daemon"} or name.endswith("/inject") or name.endswith("/supervisor"):
-            mode = 0o700
-        else:
-            mode = 0o600 if name.startswith("defaults/") else 0o644
-        if name.endswith(".sh"):
-            data = data.replace(b"root=UDONGE_ROOT_STUB", f"root={udonge_root}".encode())
-            data = data.replace(b"udonge_lib_file", identity["udongeFileType"].encode())
-        entries.append((name, data, mode))
-
-    payload_hash = hashlib.sha256()
-    for name, data, mode in entries:
-        payload_hash.update(name.encode())
-        payload_hash.update(b"\0")
-        payload_hash.update(mode.to_bytes(4, "little"))
-        payload_hash.update(len(data).to_bytes(8, "little"))
-        payload_hash.update(data)
-    payload_id = f"{payload_hash.hexdigest()}\n".encode()
-
-    with ZipFile(output, "w") as zf:
-        _zip_bytes(zf, "payload.id", payload_id)
-        for name, data, mode in entries:
-            _zip_bytes(zf, name, data, mode)
-
-    rm_rf(work)
-    udonge_built = True
-    header(f"Output: {output}")
-
-def _udonge_sync_script(identity: dict[str, str]) -> str:
-    root = f"{identity['secureDir'].rstrip('/')}/{identity['udongeDir']}"
-    bb_name = identity["busyboxName"]
-    secure = identity["secureDir"].rstrip("/")
-    archive = f"{secure}/{identity['dataDir']}/{identity['udongeArchive']}"
-    file_type = identity["udongeFileType"]
-    return f'''#!/system/bin/sh
-set -e
-root={root}
-archive={archive}
-next_archive="$archive.next.$$"
-if [ ! -d "$root/runtime" ] && [ -d "$root/runtime.old" ]; then
-    mv "$root/runtime.old" "$root/runtime"
-fi
-[ -d "$root/runtime" ] || {{ echo UDONGE_NOT_INITIALIZED; exit 0; }}
-work=/data/local/tmp/reisenless-unpack
-trap 'status=$?; if [ ! -d "$root/runtime" ] && [ -d "$root/runtime.old" ]; then mv "$root/runtime.old" "$root/runtime" || true; fi; rm -rf "$root/runtime.new" "$work"; rm -f "$next_archive" /data/local/tmp/udonge.bin /data/local/tmp/unpack_udonge.sh; exit "$status"' EXIT
-mkdir -p "$work"
-rm -rf "$root/runtime.new"
-mkdir -p "$root/runtime.new"
-unpacked=0
-for bb in {secure}/{bb_name} {secure}/*/{bb_name} /system/bin/busybox; do
-    if [ -x "$bb" ]; then
-        ln -sf "$bb" "$work/busybox"
-        if "$work/busybox" unzip -oq /data/local/tmp/udonge.bin -d "$root/runtime.new"; then
-            unpacked=1
-            break
-        fi
-    fi
-done
-[ "$unpacked" = 1 ] || unzip -oq /data/local/tmp/udonge.bin -d "$root/runtime.new"
-for required in service.sh worker.sh hideapps.dex payload.id; do
-    [ -s "$root/runtime.new/$required" ] || {{ rm -rf "$root/runtime.new"; exit 1; }}
-done
-mkdir -p "$(dirname "$archive")"
-cp /data/local/tmp/udonge.bin "$next_archive"
-chmod 600 "$next_archive"
-if [ -x "$root/runtime/keybox_heal.sh" ] && [ -f "$root/runtime/worker.sh" ]; then
-    "$root/runtime/keybox_heal.sh" stop_daemon || true
-fi
-runtime="$root/runtime"
-state="$root/state"
-boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
-worker_busybox_name={bb_name}
-. "$root/runtime.new/worker.sh"
-worker_stop_legacy_hunters
-chmod -R 700 "$root/runtime.new"
-chcon -R u:object_r:system_file:s0 "$root/runtime.new" 2>/dev/null || true
-chcon u:object_r:system_file:s0 "$root/runtime.new/tee/"*"/libTEESimulator.so" 2>/dev/null || true
-rm -rf "$root/runtime.old"
-mv "$root/runtime" "$root/runtime.old"
-mv "$root/runtime.new" "$root/runtime"
-mv -f "$next_archive" "$archive"
-rm -rf "$root/runtime.old"
-echo UDONGE_SYNCED
-'''
-
-def _sync_udonge_to_device(udonge_bin: Path, *, installed_apk: Path = None):
-    if installed_apk is None or not udonge_bin.exists():
-        return
-    try:
-        identity = _build_identity()
-        with ZipFile(installed_apk) as apk:
-
-            archive = f"assets/{identity['udongeArchive']}"
-            if archive not in apk.namelist() or apk.read(archive) != udonge_bin.read_bytes():
-                color_print("\033[36m", "* Installed APK has a different payload; runtime unchanged.\n")
-                return
-        ensure_adb()
-        device = ["-s", args.serial] if getattr(args, "serial", None) else []
-        su_check = subprocess.run(
-            [str(adb_path), *device, "shell", "su -c id"],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, shell=is_windows, timeout=15
-        )
-        if "uid=0" in su_check.stdout:
-            exec_prefix = ["su", "-c"]
-        else:
-            adb_id = subprocess.run(
-                [str(adb_path), *device, "shell", "id"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, shell=is_windows, timeout=15
-            )
-            if "uid=0" in adb_id.stdout:
-                exec_prefix = []
-            else:
-                return
-        color_print("\033[36m", "* Updating this build's Udonge runtime via root ADB...")
-        script_path = config["outdir"] / "unpack_udonge.sh"
-        script_path.write_bytes(_udonge_sync_script(identity).encode("utf-8"))
-        for source, target in ((udonge_bin, "udonge.bin"), (script_path, "unpack_udonge.sh")):
-            result = execv([str(adb_path), *device, "push", str(source), f"/data/local/tmp/{target}"])
-            if result.returncode != 0:
-                error("Unable to stage Udonge runtime update")
-        run_cmd = [*exec_prefix, "sh /data/local/tmp/unpack_udonge.sh"] if exec_prefix else ["sh", "/data/local/tmp/unpack_udonge.sh"]
-        result = subprocess.run(
-            [str(adb_path), *device, "shell", *run_cmd],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=is_windows, timeout=180
-        )
-        if result.returncode == 0 and "UDONGE_SYNCED" in result.stdout:
-            color_print("\033[32;1m", "[+] Updated this build's Udonge runtime!\n")
-        elif result.returncode == 0 and "UDONGE_NOT_INITIALIZED" in result.stdout:
-            color_print("\033[36m", "* Runtime will be initialized by the app.\n")
-        else:
-            error(f"Udonge runtime update failed: {result.stdout.strip()} {result.stderr.strip()}")
-    except Exception as exc:
-        error(f"Udonge runtime update failed: {exc}")
-
-def _validate_packaged_udonge(apk: Path):
-    identity = _build_identity()
-    archive_name = identity["udongeArchive"]
-    archive_path = f"assets/{archive_name}"
-    payload = config["outdir"] / "udonge.bin"
-    if not payload.is_file():
-        error("Build the Udonge payload before packaging the app")
-
-    required_script_markers = {
-        "META-INF/com/google/android/update-binary":
-            '$BBBIN unzip -o "$3" "assets/*" "lib/*" "META-INF/com/google/*" -d $INSTALLER',
-        "META-INF/com/google/android/updater-script":
-            '[ -f "$BINDIR/$PACKAGED_BUSYBOX_LIB" ] && mv "$BINDIR/$PACKAGED_BUSYBOX_LIB" "$BINDIR/$BUSYBOX_NAME"',
-        "assets/util_functions.sh":
-            'mkdir -p "${SECURE_DIR}" 2>/dev/null',
-        "assets/boot_patch.sh":
-            'overlay.d/sbin/$UDONGE_ARCHIVE.xz',
-    }
-    try:
-        with ZipFile(apk) as zf:
-            corrupt = zf.testzip()
-            if corrupt:
-                error(f"Corrupt APK entry: {corrupt}")
-            packaged = zf.read(archive_path)
-            expected = payload.read_bytes()
-            if packaged != expected:
-                error(f"Packaged Udonge payload does not match {payload}")
-            if archive_name != "udonge.bin" and "assets/udonge.bin" in zf.namelist():
-                error("Unrandomized Udonge asset leaked into the APK")
-            for script, marker in required_script_markers.items():
-                contents = zf.read(script).decode("utf-8")
-                if marker not in contents:
-                    error(f"Udonge installer handoff is missing from {script}")
-            bootstrap = zf.read("META-INF/com/google/android/update-binary").decode("utf-8")
-            if f'-x "lib/*/lib{identity["busyboxLibName"]}.so"' in bootstrap:
-                error("Installer bootstrap excludes the packaged BusyBox handoff")
-            utilities = zf.read("assets/util_functions.sh").decode("utf-8")
-            if '/data/local/tmp/*)' not in utilities or \
-                    'staged patched image without writing the boot partition' not in utilities:
-                error("Safe patch-only boot staging is missing from the installer")
-            legacy_marker = config.get("legacyBackupConfig", "").strip()
-            if legacy_marker:
-                boot_patch = zf.read("assets/boot_patch.sh").decode("utf-8")
-                if f"LEGACY_BACKUP_CONFIG='{legacy_marker}'" not in utilities \
-                        or 'exists .backup/$LEGACY_BACKUP_CONFIG' not in boot_patch \
-                        or '[[:space:]]\\.backup/\\(\\.[[:alnum:]_-]*\\)' not in boot_patch \
-                        or '"rm .backup/$LEGACY_BACKUP_CONFIG" "restore"' not in boot_patch:
-                    error("Legacy randomized boot marker is missing from the installer")
-    except (BadZipFile, KeyError, OSError, UnicodeDecodeError) as exc:
-        error(f"Invalid packaged Udonge payload in {apk}: {exc}")
-
-    header(f"Verified randomized Udonge payload: {archive_path}")
-
 def _validate_packaged_binary_identity(apk: Path):
     identity = _build_identity()
     aliases = {
@@ -1828,7 +1404,6 @@ def _validate_release_artifact(apk: Path):
         error(f"Release APK is not fully ZIP/page aligned: {apk}\n{aligned.stdout}")
 
     identity = _build_identity()
-    payload_prefix = re.escape(f"assets/{identity['udongeArchive']}!/")
 
     compatibility_allowlist = {
         "magisk": (
@@ -1845,12 +1420,10 @@ def _validate_release_artifact(apk: Path):
                 )
                 + r")\.so"
             ),
-            re.compile(payload_prefix + r"zygisk/[^/]+\.so"),
         ),
         "zygisk": (
             re.compile(r"assets/app_functions\.sh"),
             re.compile(r"lib/[^/]+/lib" + re.escape(identity["mainLibName"]) + r"\.so"),
-            re.compile(payload_prefix + r"zygisk/[^/]+\.so"),
         ),
     }
 
@@ -2070,7 +1643,6 @@ def build_apk(module: str):
     _validate_packaged_signing(target, signing["certificateSha256"], env)
     if module in {":apk", ":apk-legacy"}:
         _validate_embedded_trust_anchor(target, signing["certificateSha256"], env)
-        _validate_packaged_udonge(target)
         _validate_packaged_binary_identity(target)
         _validate_packaged_app_identity(target)
         if args.release:
@@ -2081,7 +1653,6 @@ def build_app():
     _validate_generated_flags(
         "Build native binaries with the same mode and configuration first."
     )
-    build_udonge()
     header("* Building the manager app")
     apk = build_apk(":apk")
 
@@ -2171,8 +1742,6 @@ def install_apk(apk_path: Path = None):
         error(f"Failed to install {apk_path.name} on device!")
     color_print("\033[32;1m", f"\n[+] Successfully installed {apk_path.name} on device ({online_devices[0]})!\n")
 
-    _sync_udonge_to_device(config["outdir"] / "udonge.bin", installed_apk=apk_path)
-
 def build_all():
     check_environment()
     build_native()
@@ -2183,7 +1752,6 @@ def build_legacy():
     _validate_generated_flags(
         "Build native binaries with the same mode and configuration first."
     )
-    build_udonge()
     header("* Building the legacy manager app")
     apk = build_apk(":apk-legacy")
     header(f"Output: {apk}")
@@ -2554,7 +2122,7 @@ def parse_args():
     parser.set_defaults(func=lambda: None)
     subparsers = parser.add_subparsers(title="actions")
 
-    all_parser = subparsers.add_parser("all", parents=[sub_common], help="build everything (native, udonge, stub, app)")
+    all_parser = subparsers.add_parser("all", parents=[sub_common], help="build everything (native, stub, app)")
 
     gen_parser = subparsers.add_parser("gen", parents=[sub_common], help="generate native flags and bindings without packaging")
     gen_parser.set_defaults(func=generate_native)
@@ -2579,8 +2147,6 @@ def parse_args():
     app_parser = subparsers.add_parser("app", parents=[sub_common], help="build the manager app")
 
     stub_parser = subparsers.add_parser("stub", parents=[sub_common], help="build the manager trust anchor")
-
-    udonge_parser = subparsers.add_parser("udonge", parents=[sub_common], help="build the built-in Udonge payload")
 
     legacy_parser = subparsers.add_parser("legacy", parents=[sub_common], help="build the legacy manager app")
 
@@ -2621,13 +2187,12 @@ def parse_args():
     rustup_parser.set_defaults(func=setup_rustup)
     app_parser.set_defaults(func=build_app)
     stub_parser.set_defaults(func=build_stub)
-    udonge_parser.set_defaults(func=build_udonge)
     legacy_parser.set_defaults(func=build_legacy)
     clean_parser.set_defaults(func=cleanup)
     ndk_parser.set_defaults(func=setup_ndk)
 
     known_actions = {
-        "all", "gen", "native", "app", "stub", "udonge", "legacy", "clean", "ndk",
+        "all", "gen", "native", "app", "stub", "legacy", "clean", "ndk",
         "install", "check", "clippy", "cargo", "rustup",
     }
     cmd_args = sys.argv[1:]

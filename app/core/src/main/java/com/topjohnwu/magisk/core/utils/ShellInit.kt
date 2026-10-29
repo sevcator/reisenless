@@ -5,7 +5,6 @@ import android.widget.Toast
 import com.topjohnwu.magisk.core.BuildConfig
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
-import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.core.ktx.toast
 import com.topjohnwu.superuser.Shell
 import java.io.File
@@ -58,7 +57,6 @@ class ShellInit : Shell.Initializer() {
         Info.init(shell)
 
         if (shell.isRoot) {
-            Udonge.syncState(context, shell)
             cleanupObsoleteInstallations(context, shell)
         }
 

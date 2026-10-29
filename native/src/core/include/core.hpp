@@ -71,6 +71,7 @@ void exec_common_scripts(Utf8CStr stage);
 void exec_module_scripts(Utf8CStr stage, const rust::Vec<ModuleInfo> &module_list);
 void exec_script(Utf8CStr script);
 void exec_script_async(Utf8CStr script);
+void install_module(Utf8CStr file);
 void clear_pkg(const char *pkg, int user_id);
 
 

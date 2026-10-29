@@ -8,7 +8,6 @@ import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.R
-import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.core.ktx.toast
 import com.topjohnwu.magisk.core.utils.RootUtils
 import com.topjohnwu.magisk.hideapps.HideAppsRepository
@@ -26,12 +25,6 @@ class SettingsViewModel : BaseViewModel() {
     private val hideAppsRepo = HideAppsRepository(AppContext)
     private val _hideAppsEnabled = MutableStateFlow(hideAppsRepo.config.enabled)
     val hideAppsEnabled: StateFlow<Boolean> = _hideAppsEnabled.asStateFlow()
-
-    private val _udongeEnabled = MutableStateFlow(Config.udongeEnabled)
-    val udongeEnabled: StateFlow<Boolean> = _udongeEnabled.asStateFlow()
-
-    private val _udongeRehealMode = MutableStateFlow(Config.udongeRehealMode)
-    val udongeRehealMode: StateFlow<Int> = _udongeRehealMode.asStateFlow()
 
     val zygiskMismatch get() = Config.zygisk != Info.isZygiskEnabled
 
@@ -51,38 +44,6 @@ class SettingsViewModel : BaseViewModel() {
         }
     }
 
-    fun toggleUdonge(enabled: Boolean) {
-        viewModelScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                if (enabled) {
-                    Udonge.setEnabled(true)
-                } else {
-                    Udonge.setBackgroundUpdates(false) && Udonge.setEnabled(false)
-                }
-            }
-            if (success) {
-                _udongeEnabled.value = enabled
-                if (!enabled) _udongeRehealMode.value = Config.Value.REHEAL_BOOT_ONLY
-            } else {
-                _udongeEnabled.value = Config.udongeEnabled
-                showSnackbar(R.string.failure)
-            }
-        }
-    }
-
-    fun setUdongeRehealMode(mode: Int) {
-        viewModelScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                Udonge.setRehealMode(mode)
-            }
-            if (success) {
-                _udongeRehealMode.value = mode
-            } else {
-                _udongeRehealMode.value = Config.udongeRehealMode
-                showSnackbar(R.string.failure)
-            }
-        }
-    }
 
     fun navigateToHideApps() {
         navigateTo(Route.HideApps)

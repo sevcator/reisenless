@@ -156,11 +156,11 @@ if [ "$MAIN_BIN_NAME" != "$RAMDISK_NAME" ]; then
   cp "$MAIN_BIN_NAME" "$RAMDISK_NAME" || abort "! unable to prepare ramdisk payload"
 fi
 
-for file in "$RAMDISK_NAME" "$STUB_NAME" "$INIT_LD_NAME" "$UDONGE_ARCHIVE"; do
+for file in "$RAMDISK_NAME" "$STUB_NAME" "$INIT_LD_NAME"; do
   [ -f "$file" ] || abort "! missing installer payload: $file"
 done
 
-for file in "$RAMDISK_NAME" "$STUB_NAME" "$INIT_LD_NAME" "$UDONGE_ARCHIVE"; do
+for file in "$RAMDISK_NAME" "$STUB_NAME" "$INIT_LD_NAME"; do
   ./mboot compress=xz "$file" "$file.xz" || abort "! unable to compress installer payload: $file"
 done
 
@@ -181,7 +181,6 @@ fi
 "add 0644 overlay.d/sbin/$RAMDISK_NAME.xz $RAMDISK_NAME.xz" \
 "add 0644 overlay.d/sbin/$STUB_NAME.xz $STUB_NAME.xz" \
 "add 0644 overlay.d/sbin/$INIT_LD_NAME.xz $INIT_LD_NAME.xz" \
-"add 0600 overlay.d/sbin/$UDONGE_ARCHIVE.xz $UDONGE_ARCHIVE.xz" \
 "patch" \
 "$SKIP_BACKUP backup ramdisk.cpio.orig" \
 "mkdir 000 .backup" \

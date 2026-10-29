@@ -7,7 +7,6 @@ on:
       - "app/**"
       - "native/**"
       - "scripts/**"
-      - "udonge/**"
       - "tools/**"
       - ".gitmodules"
       - "build.py"

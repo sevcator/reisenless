@@ -5,7 +5,6 @@ import com.topjohnwu.magisk.core.AppContext
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
-import com.topjohnwu.magisk.core.Udonge
 import com.topjohnwu.magisk.hideapps.HideAppsConfig
 import com.topjohnwu.magisk.hideapps.HideAppsConstants
 import com.topjohnwu.magisk.hideapps.HideAppsRepository
@@ -13,7 +12,7 @@ import com.topjohnwu.magisk.hideapps.HideAppsStatus
 import com.topjohnwu.superuser.Shell
 
 object HideAppsRootClient {
-    private val root = "${Const.SECURE_DIR}/${Const.UDONGE_DIR}"
+    private val root = "${Const.SECURE_DIR}/hideapps"
     private val state = "$root/state"
     private val runtime = "$root/runtime"
     private val globalLoaderMarker = "$state/hideapps-global-loader-v2"
@@ -24,9 +23,8 @@ object HideAppsRootClient {
         installedPackages: Set<String>,
         systemPackages: Set<String>,
     ): Boolean {
-        if (config.enabled) {
-            Udonge.setEnabled(true)
-            if (!Config.zygisk) Config.zygisk = true
+        if (config.enabled && !Config.zygisk) {
+            Config.zygisk = true
         }
         val hasGlobalLoader = Shell.cmd(
             "test \"\$(cat '$globalLoaderMarker' 2>/dev/null)\" = " +
@@ -72,7 +70,7 @@ object HideAppsRootClient {
 
     fun syncRomKeywordsHideApps(keywords: String): Boolean {
         val enabled = keywords.isNotBlank()
-        val matches = (if (enabled) keywords else Udonge.DEFAULT_ROM_KEYWORDS).lineSequence()
+        val matches = (if (enabled) keywords else Config.DEFAULT_ROM_KEYWORDS).lineSequence()
             .map(String::trim)
             .filter { it.length >= 3 && it.none(Char::isWhitespace) }
             .toList()

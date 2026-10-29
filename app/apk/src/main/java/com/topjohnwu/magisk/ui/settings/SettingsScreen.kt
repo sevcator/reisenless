@@ -192,36 +192,6 @@ private fun ReisenlessSection(
                 onClick = viewModel::navigateToHideApps,
                 onCheckedChange = viewModel::toggleHideApps,
             )
-
-            val udongeEnabled by viewModel.udongeEnabled.collectAsStateWithLifecycle()
-            SettingsSwitch(
-                title = stringResource(CoreR.string.udonge_integrity_title),
-                summary = stringResource(CoreR.string.udonge_integrity_summary),
-                checked = udongeEnabled,
-                onCheckedChange = { viewModel.toggleUdonge(it) },
-            )
-
-            val rehealMode by viewModel.udongeRehealMode.collectAsStateWithLifecycle()
-            val rehealBootOnly = stringResource(CoreR.string.udonge_reheal_boot_only)
-            val rehealDaily = stringResource(CoreR.string.udonge_reheal_daily)
-            val rehealEntries = remember(rehealBootOnly, rehealDaily) {
-                listOf(rehealBootOnly, rehealDaily)
-            }
-            val rehealSummary = stringResource(CoreR.string.udonge_reheal_summary)
-            val selectedRehealText = rehealEntries.getOrNull(rehealMode).orEmpty()
-            val displaySummary = if (selectedRehealText.isNotEmpty()) {
-                "$rehealSummary ($selectedRehealText)"
-            } else {
-                rehealSummary
-            }
-            SettingsDropdown(
-                title = stringResource(CoreR.string.udonge_reheal_title),
-                summary = displaySummary,
-                items = rehealEntries,
-                selectedIndex = rehealMode.coerceIn(0, rehealEntries.lastIndex),
-                enabled = udongeEnabled,
-                onSelectedIndexChange = { viewModel.setUdongeRehealMode(it) },
-            )
         }
     }
 }

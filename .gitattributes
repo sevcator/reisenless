@@ -14,5 +14,3 @@
 *.png binary
 *.jpg binary
 *.ttf binary
-udonge/payload/tee/**/inject binary
-udonge/payload/tee/**/supervisor binary

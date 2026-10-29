@@ -23,8 +23,6 @@ object Const {
     val BUSYBOX_NAME = BuildConfig.BUSYBOX_NAME
     val INTERNAL_DIR = BuildConfig.INTERNAL_DIR
     val STUB_NAME    = BuildConfig.STUB_NAME
-    val UDONGE_DIR   = BuildConfig.UDONGE_DIR
-    val UDONGE_ARCHIVE = BuildConfig.UDONGE_ARCHIVE
     val TMPDIR       = BuildConfig.TMP_DIR
     val BACKUP_PREFIX = BuildConfig.BACKUP_PREFIX
 

@@ -63,17 +63,14 @@ object Config {
     val ramdiskName: String get() = get("ramdiskName") ?: "ms"
     val stubName: String get() = get("stubName") ?: "stub.apk"
     val initLdName: String get() = get("initLdName") ?: "init-ld"
-    val udongeDir: String get() = get("udongeDir") ?: "udonge"
-    val udongeArchive: String get() = get("udongeArchive") ?: "udonge.bin"
     val backupConfig: String get() = get("backupConfig") ?: ".cfg"
     val redirPath: String get() = get("redirPath") ?: "/data/._init"
     val suCache: String get() = get("suCache") ?: ".su_cache"
     val tmpDir: String get() = get("tmpDir") ?: "/dev/tmp"
     val backupPrefix: String get() = get("backupPrefix") ?: "/data/ms_backup_"
-    val stageScript: String get() = get("stageScript") ?: "udonge.sh"
+    val stageScript: String get() = get("stageScript") ?: "stage.sh"
     val legacySecureDir: String get() = get("legacySecureDir") ?: ""
     val legacyDbName: String get() = get("legacyDbName") ?: ""
-    val legacyUdongeDir: String get() = get("legacyUdongeDir") ?: ""
     val legacyBackupConfig: String get() = get("legacyBackupConfig") ?: ""
 
     val versionCode: Int get() = get("magisk.versionCode")!!.toInt()

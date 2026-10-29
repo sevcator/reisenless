@@ -22,8 +22,15 @@ static const char *bbpath() {
 
 static void set_script_env() {
     setenv("ASH_STANDALONE", "1", 1);
+    setenv("NVBASE", SECURE_DIR, 1);
+    setenv("MAGISKBIN", DATABIN, 1);
+    setenv("MAGISKTMP", get_magisk_tmp(), 1);
+    const char *old_path = getenv("PATH");
+    if (!old_path || !*old_path) {
+        old_path = "/product/bin:/apex/com.android.runtime/bin:/apex/com.android.art/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/vendor/xbin";
+    }
     char new_path[4096];
-    ssprintf(new_path, sizeof(new_path), "%s/%s:%s:%s", get_magisk_tmp(), BBPATH, get_magisk_tmp(), getenv("PATH"));
+    ssprintf(new_path, sizeof(new_path), "%s/%s:%s:%s", get_magisk_tmp(), BBPATH, get_magisk_tmp(), old_path);
     setenv("PATH", new_path, 1);
     if (MagiskD::Get().zygisk_enabled())
         setenv("ZYG_ENABLED", "1", 1);
@@ -172,4 +179,48 @@ void clear_pkg(const char *pkg, int user_id) {
     char cmds[sizeof(clear_script) + 288];
     ssprintf(cmds, sizeof(cmds), clear_script, pkg, user_id);
     exec_command_async("/system/bin/sh", "-c", cmds);
+}
+
+[[noreturn]] __printflike(2, 3)
+static void abort_script(FILE *fp, const char *fmt, ...) {
+    va_list valist;
+    va_start(valist, fmt);
+    vfprintf(fp, fmt, valist);
+    fprintf(fp, "\n\n");
+    va_end(valist);
+    exit(1);
+}
+
+constexpr char install_module_script[] =
+        ". " DATABIN "/util_functions.sh\n"
+        "install_module\n"
+        "exit 0\n";
+
+void install_module(Utf8CStr file) {
+    if (getuid() != 0)
+        abort_script(stderr, "Run this command with root");
+    if (access(DATABIN, F_OK) ||
+        access(bbpath(), X_OK) ||
+        access(DATABIN "/util_functions.sh", F_OK))
+        abort_script(stderr, "Incomplete Magisk install");
+    if (access(file.c_str(), F_OK))
+        abort_script(stderr, "'%s' does not exist", file.c_str());
+
+    char *zip = realpath(file.c_str(), nullptr);
+    setenv("OUTFD", "1", 1);
+    setenv("ZIPFILE", zip, 1);
+    setenv("ASH_STANDALONE", "1", 1);
+    setenv("NVBASE", SECURE_DIR, 1);
+    setenv("MAGISKBIN", DATABIN, 1);
+    setenv("MAGISKTMP", get_magisk_tmp(), 1);
+    free(zip);
+
+    int fd = xopen("/dev/null", O_RDONLY);
+    xdup2(fd, STDERR_FILENO);
+    close(fd);
+
+    const char *bb = bbpath();
+    const char *argv[] = { bb, "sh", "-c", install_module_script, nullptr };
+    execve(bb, (char **) argv, environ);
+    abort_script(stdout, "Failed to execute BusyBox shell");
 }

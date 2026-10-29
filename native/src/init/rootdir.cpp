@@ -235,7 +235,6 @@ static void extract_files(bool sbin) {
     const char *magisk_xz = sbin ? "/sbin/" RAMDISK_BIN_NAME ".xz" : RAMDISK_BIN_NAME ".xz";
     const char *stub_xz = sbin ? "/sbin/" BUILD_STUB_NAME ".xz" : BUILD_STUB_NAME ".xz";
     const char *init_ld_xz = sbin ? "/sbin/" BUILD_INIT_LD_NAME ".xz" : BUILD_INIT_LD_NAME ".xz";
-    const char *udonge_xz = sbin ? "/sbin/" BUILD_UDONGE_ARCHIVE ".xz" : BUILD_UDONGE_ARCHIVE ".xz";
 
     if (access(magisk_xz, F_OK) == 0) {
         mmap_data magisk(magisk_xz);
@@ -256,13 +255,6 @@ static void extract_files(bool sbin) {
         unlink(init_ld_xz);
         int fd = xopen(BUILD_INIT_LD_NAME, O_WRONLY | O_CREAT, 0);
         unxz(fd, init_ld);
-        close(fd);
-    }
-    if (access(udonge_xz, F_OK) == 0) {
-        mmap_data udonge(udonge_xz);
-        unlink(udonge_xz);
-        int fd = xopen(BUILD_UDONGE_ARCHIVE, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-        unxz(fd, udonge);
         close(fd);
     }
 }

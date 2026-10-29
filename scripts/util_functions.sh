@@ -538,10 +538,22 @@ run_migrations() {
 }
 
 copy_preinit_files() {
-  local PREINITDIR=$MAGISKTMP/$INTERNAL_DIR/preinit
-  if [ ! -d $PREINITDIR ]; then
-    ui_print "- unable to find preinit dir"
-    return 1
+  local PREINITDIR=""
+  if [ -n "$MAGISKTMP" ] && [ -d "$MAGISKTMP/$INTERNAL_DIR/preinit" ]; then
+    PREINITDIR="$MAGISKTMP/$INTERNAL_DIR/preinit"
+  elif [ -d "/debug_ramdisk/$INTERNAL_DIR/preinit" ]; then
+    PREINITDIR="/debug_ramdisk/$INTERNAL_DIR/preinit"
+  elif [ -d "/sbin/$INTERNAL_DIR/preinit" ]; then
+    PREINITDIR="/sbin/$INTERNAL_DIR/preinit"
+  elif command -v "$MAIN_BIN_NAME" >/dev/null 2>&1; then
+    local tmp
+    tmp=$("$MAIN_BIN_NAME" --path 2>/dev/null)
+    [ -n "$tmp" ] && [ -d "$tmp/$INTERNAL_DIR/preinit" ] && PREINITDIR="$tmp/$INTERNAL_DIR/preinit"
+  fi
+
+  if [ -z "$PREINITDIR" ] || [ ! -d "$PREINITDIR" ]; then
+    ui_print "- preinit dir not found, skipping sepolicy rules cache"
+    return 0
   fi
 
   for r in ${SECURE_DIR}/modules*/*/sepolicy.rule; do
@@ -552,7 +564,7 @@ copy_preinit_files() {
     [ -f $MODDIR/update ] && continue
     cat $r
     echo
-  done > $PREINITDIR/sepolicy.rule
+  done > "$PREINITDIR/sepolicy.rule"
 }
 
 set_perm() {
@@ -595,31 +607,25 @@ set_default_perm() {
 
 fix_module_paths() {
   local root="$1"
-  local file replacement temp failed
+  local file replacement temp
 
   [ "$SECURE_DIR" = /data/adb ] && return 0
   replacement=$(printf '%s\n' "$SECURE_DIR" | sed 's/[&|\\]/\\&/g')
   temp="$TMPDIR/.module-path-fix.$$"
-  failed="$TMPDIR/.module-path-fix-failed.$$"
-  rm -f "$temp" "$failed"
+  rm -f "$temp"
 
   find "$root" -type f ! -name '.module-path-fix.*' 2>/dev/null |
   while IFS= read -r file; do
     grep -Fq '/data/adb' "$file" 2>/dev/null || continue
 
     od -An -v -N 8192 -tx1 "$file" 2>/dev/null | grep -q ' 00' && continue
-    if ! sed "s|/data/adb|$replacement|g" "$file" > "$temp" ||
-       ! cat "$temp" > "$file"; then
-      : > "$failed"
-      break
+    if sed "s|/data/adb|$replacement|g" "$file" > "$temp" 2>/dev/null &&
+       cat "$temp" > "$file" 2>/dev/null; then
+      :
     fi
   done
 
   rm -f "$temp"
-  [ ! -f "$failed" ] || {
-    rm -f "$failed"
-    abort "! unable to update module paths"
-  }
 }
 
 install_module() {
@@ -651,6 +657,17 @@ install_module() {
   MODNAME=$(grep_prop name $TMPDIR/module.prop)
   MODAUTH=$(grep_prop author $TMPDIR/module.prop)
   MODPATH=$MODULEROOT/$MODID
+
+  mkdir -p /data/adb 2>/dev/null
+  chmod 700 /data/adb 2>/dev/null
+  if [ -d /data/adb/modules ] && [ ! -L /data/adb/modules ]; then
+    rmdir /data/adb/modules 2>/dev/null
+  fi
+  [ -e /data/adb/modules ] || ln -sf "$MODULEROOT" /data/adb/modules 2>/dev/null
+  [ -e /data/adb/modules_update ] || ln -sf "${SECURE_DIR}/modules_update" /data/adb/modules_update 2>/dev/null
+  [ -e /data/adb/magisk ] || ln -sf "$MAGISKBIN" /data/adb/magisk 2>/dev/null
+  [ -e /data/adb/post-fs-data.d ] || ln -sf "${SECURE_DIR}/post-fs-data.d" /data/adb/post-fs-data.d 2>/dev/null
+  [ -e /data/adb/service.d ] || ln -sf "${SECURE_DIR}/service.d" /data/adb/service.d 2>/dev/null
 
   ui_print "- reisen is fixing module !!"
 

@@ -178,8 +178,6 @@ private fun ZFile.rewriteVisibleBranding(
             listOf(
                 "zygisk" to "zYgIsK",
                 "Zygisk" to "ZyGiSk",
-                "udonge" to "uDoNgE",
-                "Udonge" to "UdOnGe",
             ).map { (label, placeholder) ->
                 label.toByteArray() to placeholder.toByteArray()
             }

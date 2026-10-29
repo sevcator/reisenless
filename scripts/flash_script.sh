@@ -89,7 +89,6 @@ fi
 migrate_private_layout || abort "! unable to migrate existing root state"
 migrate_legacy_layout || abort "! unable to migrate legacy root state"
 install_magisk
-refresh_udonge_runtime || abort "! unable to install protection runtime"
 
 $BOOTMODE || recovery_cleanup
 rm -rf $TMPDIR

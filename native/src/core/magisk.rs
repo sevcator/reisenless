@@ -27,6 +27,7 @@ Options:
    -V                        print running daemon version code
    --list                    list all available applets
    --remove-modules [-n]     remove all modules, reboot if -n is not provided
+   --install-module ZIP      install a module zip file
 
 Advanced Options (Internal APIs):
    --daemon                  manually start ms daemon
@@ -63,6 +64,7 @@ enum MagiskAction {
     VersionCode(VersionCode),
     List(ListApplets),
     RemoveModules(RemoveModules),
+    InstallModule(InstallModule),
     Daemon(StartDaemon),
     Stop(StopDaemon),
     PostFsData(PostFsData),
@@ -100,6 +102,13 @@ struct ListApplets {}
 struct RemoveModules {
     #[argh(switch, short = 'n')]
     no_reboot: bool,
+}
+
+#[derive(FromArgs)]
+#[argh(subcommand, name = "--install-module")]
+struct InstallModule {
+    #[argh(positional)]
+    zip: Utf8CString,
 }
 
 #[derive(FromArgs)]
@@ -204,6 +213,9 @@ impl MagiskAction {
                 let do_reboot = !no_reboot;
                 do_reboot.encode(&mut fd)?;
                 return Ok(i32::decode(&mut fd)?);
+            }
+            InstallModule(self::InstallModule { zip }) => {
+                crate::ffi::install_module(zip.as_ref());
             }
             Daemon(_) => {
                 let _ = connect_daemon(RequestCode::START_DAEMON, true)?;

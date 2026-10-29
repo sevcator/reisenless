@@ -1,5 +1,5 @@
 use crate::SePolicy;
-use crate::consts::{BUILD_UDONGE_FILE_TYPE, SEPOL_FILE_TYPE, SEPOL_PROC_DOMAIN};
+use crate::consts::{SEPOL_FILE_TYPE, SEPOL_PROC_DOMAIN};
 use crate::ffi::Xperm;
 use base::{LogLevel, set_log_level_state};
 
@@ -53,11 +53,6 @@ impl SePolicy {
             typeattribute([proc], ["mlstrustedsubject", "netdomain", "appdomain"]);
             type_(file, ["file_type"]);
             typeattribute([file], ["mlstrustedobject"]);
-
-            type_(BUILD_UDONGE_FILE_TYPE, ["file_type"]);
-            allow(["keystore", "keystore2"], [BUILD_UDONGE_FILE_TYPE], ["file"],
-                ["open", "read", "getattr", "map", "execute"]);
-
 
             allow(["domain"], [file],
                 ["file", "dir", "fifo_file", "chr_file", "lnk_file", "sock_file"], all);

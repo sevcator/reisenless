@@ -31,8 +31,10 @@ ZIPFILE=$3
 
 mount /data 2>/dev/null
 
-[ -f ${SECURE_DIR}/${DATA_DIR}/util_functions.sh ] || require_new_magisk
-. ${SECURE_DIR}/${DATA_DIR}/util_functions.sh
+UTIL_FUNCS="${SECURE_DIR}/${DATA_DIR}/util_functions.sh"
+[ -f "$UTIL_FUNCS" ] || UTIL_FUNCS="/data/adb/magisk/util_functions.sh"
+[ -f "$UTIL_FUNCS" ] || require_new_magisk
+. "$UTIL_FUNCS"
 [ $MAGISK_VER_CODE -lt 20400 ] && require_new_magisk
 
 install_module
