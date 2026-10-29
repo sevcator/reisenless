@@ -215,12 +215,8 @@ void install_module(Utf8CStr file) {
     setenv("MAGISKTMP", get_magisk_tmp(), 1);
     free(zip);
 
-    int fd = xopen("/dev/null", O_RDONLY);
-    xdup2(fd, STDERR_FILENO);
-    close(fd);
-
     const char *bb = bbpath();
-    const char *argv[] = { bb, "sh", "-c", install_module_script, nullptr };
+    const char *argv[] = { "busybox", "sh", "-c", install_module_script, nullptr };
     execve(bb, (char **) argv, environ);
     abort_script(stdout, "Failed to execute BusyBox shell");
 }
