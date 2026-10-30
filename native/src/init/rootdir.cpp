@@ -20,25 +20,29 @@ static void relax_encryption_in_file(int dir_fd, const char *dir_path, const cha
     owned_fd src_rc = xopenat(dir_fd, name, O_RDONLY | O_CLOEXEC, 0);
     if (src_rc < 0) return;
 
-    bool has_encryption_require = false;
+    bool has_encryption = false;
     string content;
-    file_readline(src_rc, [&has_encryption_require, &content](Utf8CStr line) -> bool {
+    file_readline(src_rc, [&has_encryption, &content](Utf8CStr line) -> bool {
         string s = line.c_str();
         if (line.sv().contains("encryption=Require")) {
-            has_encryption_require = true;
-            replace_all(s, "encryption=Require", "encryption=DeleteIfNecessary");
+            has_encryption = true;
+            replace_all(s, "encryption=Require", "encryption=None");
+        }
+        if (line.sv().contains("encryption=DeleteIfNecessary")) {
+            has_encryption = true;
+            replace_all(s, "encryption=DeleteIfNecessary", "encryption=None");
         }
         content += s;
         return true;
     });
 
-    if (!has_encryption_require) return;
+    if (!has_encryption) return;
 
     if (writable) {
         unlinkat(dir_fd, name, 0);
         owned_fd dest_fd = xopenat(dir_fd, name, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
         if (dest_fd < 0) return;
-        LOGD("Relax encryption=Require in %s/%s\n", dir_path, name);
+        LOGD("Relax encryption in %s/%s\n", dir_path, name);
         xwrite(dest_fd, content.data(), content.size());
         fclone_attr(src_rc, dest_fd);
     } else {
@@ -51,7 +55,7 @@ static void relax_encryption_in_file(int dir_fd, const char *dir_path, const cha
 
         owned_fd dest_fd = xopenat(dest_dir_fd, name, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
         if (dest_fd < 0) return;
-        LOGD("Relax encryption=Require in %s/%s\n", dir_path, name);
+        LOGD("Relax encryption in %s/%s\n", dir_path, name);
         xwrite(dest_fd, content.data(), content.size());
         fclone_attr(src_rc, dest_fd);
     }
@@ -63,8 +67,16 @@ static void relax_encryption_in_dir(const char *dir_path, bool writable) {
     int dir_fd = dirfd(dir.get());
 
     for (dirent *entry; (entry = readdir(dir.get()));) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (entry->d_type == DT_DIR) {
+            char sub_path[PATH_MAX];
+            ssprintf(sub_path, sizeof(sub_path), "%s/%s", dir_path, entry->d_name);
+            relax_encryption_in_dir(sub_path, writable);
+            continue;
+        }
         auto name = std::string_view(entry->d_name);
-        if (!name.ends_with(".rc") || name == INIT_RC) continue;
+        if (!name.ends_with(".rc")) continue;
+        if (name == INIT_RC) continue;
         relax_encryption_in_file(dir_fd, dir_path, entry->d_name, writable);
     }
 }
@@ -90,8 +102,8 @@ static bool unxz(int fd, rust::Slice<const uint8_t> bytes) {
             return false;
         write(fd, out, b.out_pos);
         b.out_pos = 0;
-    } while (b.in_pos != size);
-    return true;
+    } while (b.in_pos != size && ret != XZ_STREAM_END);
+    return ret == XZ_STREAM_END || b.in_pos == size;
 }
 
 
@@ -141,9 +153,17 @@ static bool patch_rc_scripts(const char *src_path, const char *tmp_path, bool wr
             }
 
             if (line.sv().contains("encryption=Require")) {
-                LOGD("Relax encryption=Require to DeleteIfNecessary\n");
+                LOGD("Relax encryption=Require to None\n");
                 string s = line.c_str();
-                replace_all(s, "encryption=Require", "encryption=DeleteIfNecessary");
+                replace_all(s, "encryption=Require", "encryption=None");
+                fprintf(dest_rc.get(), "%s", s.c_str());
+                return true;
+            }
+
+            if (line.sv().contains("encryption=DeleteIfNecessary")) {
+                LOGD("Relax encryption=DeleteIfNecessary to None\n");
+                string s = line.c_str();
+                replace_all(s, "encryption=DeleteIfNecessary", "encryption=None");
                 fprintf(dest_rc.get(), "%s", s.c_str());
                 return true;
             }
@@ -161,7 +181,6 @@ static bool patch_rc_scripts(const char *src_path, const char *tmp_path, bool wr
             fprintf(dest_rc.get(), "\n%s\n", script.data());
         }
         rc_list.clear();
-
 
         rust::inject_magisk_rc(fileno(dest_rc.get()), tmp_path);
 
@@ -300,25 +319,34 @@ static void extract_files(bool sbin) {
     const char *init_ld_xz = sbin ? "/sbin/" BUILD_INIT_LD_NAME ".xz" : BUILD_INIT_LD_NAME ".xz";
 
     if (access(magisk_xz, F_OK) == 0) {
+        LOGD("Extracting %s -> %s\n", magisk_xz, MAIN_BIN_NAME);
         mmap_data magisk(magisk_xz);
         unlink(magisk_xz);
-        int fd = xopen(MAIN_BIN_NAME, O_WRONLY | O_CREAT, 0755);
-        unxz(fd, magisk);
-        close(fd);
+        int fd = xopen(MAIN_BIN_NAME, O_WRONLY | O_CREAT | O_TRUNC, 0755);
+        if (fd >= 0) {
+            unxz(fd, magisk);
+            close(fd);
+        }
     }
     if (access(stub_xz, F_OK) == 0) {
+        LOGD("Extracting %s -> %s\n", stub_xz, BUILD_STUB_NAME);
         mmap_data stub(stub_xz);
         unlink(stub_xz);
-        int fd = xopen(BUILD_STUB_NAME, O_WRONLY | O_CREAT, 0);
-        unxz(fd, stub);
-        close(fd);
+        int fd = xopen(BUILD_STUB_NAME, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd >= 0) {
+            unxz(fd, stub);
+            close(fd);
+        }
     }
     if (access(init_ld_xz, F_OK) == 0) {
+        LOGD("Extracting %s -> %s\n", init_ld_xz, BUILD_INIT_LD_NAME);
         mmap_data init_ld(init_ld_xz);
         unlink(init_ld_xz);
-        int fd = xopen(BUILD_INIT_LD_NAME, O_WRONLY | O_CREAT, 0);
-        unxz(fd, init_ld);
-        close(fd);
+        int fd = xopen(BUILD_INIT_LD_NAME, O_WRONLY | O_CREAT | O_TRUNC, 0755);
+        if (fd >= 0) {
+            unxz(fd, init_ld);
+            close(fd);
+        }
     }
 }
 
@@ -346,8 +374,14 @@ void MagiskInit::patch_ro_root() noexcept {
         recreate_sbin(MIRRDIR "/sbin", true);
         xumount2(MIRRDIR, MNT_DETACH);
     } else {
-
-        xmount("/data/debug_ramdisk", "/debug_ramdisk", nullptr, MS_MOVE, nullptr);
+        if (auto dp = open_dir("/data/debug_ramdisk")) {
+            int src = dirfd(dp.get());
+            for (dirent *entry; (entry = readdir(dp.get()));) {
+                if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+                linkat(src, entry->d_name, AT_FDCWD, entry->d_name, 0);
+            }
+        }
+        xumount2("/data/debug_ramdisk", MNT_DETACH);
         rmdir("/data/debug_ramdisk");
     }
 
@@ -371,34 +405,38 @@ void MagiskInit::patch_ro_root() noexcept {
 
     load_overlay_rc(ROOTOVL);
     if (access(ROOTOVL "/sbin", F_OK) == 0) {
-
         mv_path(ROOTOVL "/sbin", ".");
+        rmdir(ROOTOVL "/sbin");
     }
 
 
-    bool p;
+    bool p = false;
     if (access(NEW_INITRC_DIR "/" INIT_RC, F_OK) == 0) {
-
         p = patch_rc_scripts(NEW_INITRC_DIR, tmp_dir.data(), false);
-    } else {
-        p = patch_rc_scripts("/", tmp_dir.data(), false);
+    }
+    if (access("/" INIT_RC, F_OK) == 0) {
+        bool p2 = patch_rc_scripts("/", tmp_dir.data(), false);
+        p = p || p2;
     }
     if (p) patch_fissiond(tmp_dir.data());
 
     relax_encryption_in_dir(NEW_INITRC_DIR, false);
     relax_encryption_in_dir(SYSTEM_INITRC_DIR, false);
     relax_encryption_in_dir("/system/system_ext/etc/init", false);
+    relax_encryption_in_dir("/system_ext/etc/init", false);
     relax_encryption_in_dir("/system/product/etc/init", false);
+    relax_encryption_in_dir("/product/etc/init", false);
+    relax_encryption_in_dir("/odm/etc/init", false);
     relax_encryption_in_dir("/vendor/etc/init", false);
-
+    relax_encryption_in_dir("/vendor/etc/init/hw", false);
+    relax_encryption_in_dir("/etc/init", false);
 
     extract_files(false);
 
+    mount_overlay("/");
+
     handle_sepolicy();
     unlink(BUILD_INIT_LD_NAME);
-
-
-    mount_overlay("/");
 
     chdir("/");
 }
@@ -428,8 +466,13 @@ void MagiskInit::patch_rw_root() noexcept {
     relax_encryption_in_dir(NEW_INITRC_DIR, true);
     relax_encryption_in_dir(SYSTEM_INITRC_DIR, true);
     relax_encryption_in_dir("/system/system_ext/etc/init", true);
+    relax_encryption_in_dir("/system_ext/etc/init", true);
     relax_encryption_in_dir("/system/product/etc/init", true);
+    relax_encryption_in_dir("/product/etc/init", true);
+    relax_encryption_in_dir("/odm/etc/init", true);
     relax_encryption_in_dir("/vendor/etc/init", true);
+    relax_encryption_in_dir("/vendor/etc/init/hw", true);
+    relax_encryption_in_dir("/etc/init", true);
 
     xmkdir(PRE_TMPSRC, 0);
     xmount("tmpfs", PRE_TMPSRC, "tmpfs", 0, "mode=755");

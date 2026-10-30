@@ -79,6 +79,7 @@ impl MagiskInit {
                             debug!("Mount [{}] -> [{}]", src, dest);
                             clone_attr(&dest, &src)?;
                             dest.get_secontext(&mut con)?;
+                            src.set_secontext(&con).log_ok();
                             src.bind_mount_to(&dest, false)?;
                             self.overlay_con
                                 .push(OverlayAttr(dest.to_owned(), con.to_owned()));
@@ -103,7 +104,9 @@ impl MagiskInit {
     pub(crate) fn restore_overlay_contexts(&self) {
         self.overlay_con.iter().for_each(|attr| {
             let OverlayAttr(path, con) = attr;
-            path.set_secontext(con).log_ok();
+            if !con.is_empty() {
+                path.set_secontext(con).log_ok();
+            }
         })
     }
 }

@@ -99,7 +99,7 @@ impl SePolicy {
             allow(["rootfs"], ["labeledfs", "tmpfs"], ["filesystem"], ["associate"]);
             allow([file], ["pipefs", "devpts"], ["filesystem"], ["associate"]);
             allow(["kernel"], all, ["file"], ["relabelto"]);
-            allow(["kernel"], ["tmpfs"], ["file"], ["relabelfrom"]);
+            allow(["kernel"], all, ["file"], ["relabelfrom"]);
 
 
             allow(["kernel"], ["kernel"], ["process"], ["setcurrent"]);

@@ -305,11 +305,11 @@ impl Directory {
     pub fn move_into(&mut self, dir: &Directory) -> LoggedResult<()> {
         while let Some(ref e) = self.read()? {
             if e.is_dir() && dir.contains_path(e.name()) {
-
                 let mut src = e.open_as_dir()?;
                 let dest = dir.open_as_dir_at(e.name())?;
                 src.move_into(&dest)?;
-                return Ok(e.unlink()?);
+                e.unlink()?;
+                continue;
             }
             e.rename_to(dir, e.name())?;
         }

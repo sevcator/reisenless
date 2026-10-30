@@ -340,25 +340,41 @@ impl Utf8CStr {
         };
 
         match result {
-            Ok(_) => {
+            Ok(sz) => {
+                let sz = sz as usize;
+                if sz < con.capacity() {
+                    unsafe {
+                        *con.as_mut_ptr().add(sz) = 0;
+                    }
+                }
                 con.rebuild().ok();
                 Ok(())
             }
-            Err(Errno::ENODATA) => Ok(()),
+            Err(Errno::ENODATA | Errno::EOPNOTSUPP | Errno::ENOSYS | Errno::EINVAL) => {
+                con.clear();
+                Ok(())
+            }
             Err(e) => Err(OsError::new(e, "lgetxattr", Some(self), None)),
         }
     }
 
     pub fn set_secontext<'a>(&'a self, con: &'a Utf8CStr) -> OsResult<'a, ()> {
         unsafe {
-            libc::lsetxattr(
+            let res = libc::lsetxattr(
                 self.as_ptr(),
                 XATTR_NAME_SELINUX.as_ptr(),
                 con.as_ptr().cast(),
                 con.len() + 1,
                 0,
-            )
-            .check_os_err("lsetxattr", Some(self), Some(con))
+            );
+            if res < 0 {
+                let err = nix::errno::Errno::last();
+                if matches!(err, Errno::EOPNOTSUPP | Errno::ENOSYS | Errno::EROFS) {
+                    return Ok(());
+                }
+                return Err(OsError::new(err, "lsetxattr", Some(self), Some(con)));
+            }
+            Ok(())
         }
     }
 
@@ -568,25 +584,41 @@ impl FsPathFollow {
         };
 
         match result {
-            Ok(_) => {
+            Ok(sz) => {
+                let sz = sz as usize;
+                if sz < con.capacity() {
+                    unsafe {
+                        *con.as_mut_ptr().add(sz) = 0;
+                    }
+                }
                 con.rebuild().ok();
                 Ok(())
             }
-            Err(Errno::ENODATA) => Ok(()),
+            Err(Errno::ENODATA | Errno::EOPNOTSUPP | Errno::ENOSYS | Errno::EINVAL) => {
+                con.clear();
+                Ok(())
+            }
             Err(e) => Err(OsError::new(e, "getxattr", Some(self), None)),
         }
     }
 
     pub fn set_secontext<'a>(&'a self, con: &'a Utf8CStr) -> OsResult<'a, ()> {
         unsafe {
-            libc::setxattr(
+            let res = libc::setxattr(
                 self.as_ptr(),
                 XATTR_NAME_SELINUX.as_ptr(),
                 con.as_ptr().cast(),
                 con.len() + 1,
                 0,
-            )
-            .check_os_err("setxattr", Some(self), Some(con))
+            );
+            if res < 0 {
+                let err = nix::errno::Errno::last();
+                if matches!(err, Errno::EOPNOTSUPP | Errno::ENOSYS | Errno::EROFS) {
+                    return Ok(());
+                }
+                return Err(OsError::new(err, "setxattr", Some(self), Some(con)));
+            }
+            Ok(())
         }
     }
 }
@@ -681,25 +713,41 @@ pub fn fd_get_secontext(fd: RawFd, con: &mut dyn Utf8CStrBuf) -> OsResult<'stati
     };
 
     match result {
-        Ok(_) => {
+        Ok(sz) => {
+            let sz = sz as usize;
+            if sz < con.capacity() {
+                unsafe {
+                    *con.as_mut_ptr().add(sz) = 0;
+                }
+            }
             con.rebuild().ok();
             Ok(())
         }
-        Err(Errno::ENODATA) => Ok(()),
+        Err(Errno::ENODATA | Errno::EOPNOTSUPP | Errno::ENOSYS | Errno::EINVAL) => {
+            con.clear();
+            Ok(())
+        }
         Err(e) => Err(OsError::new(e, "fgetxattr", None, None)),
     }
 }
 
 pub fn fd_set_secontext(fd: RawFd, con: &Utf8CStr) -> OsResult<'_, ()> {
     unsafe {
-        libc::fsetxattr(
+        let res = libc::fsetxattr(
             fd,
             XATTR_NAME_SELINUX.as_ptr(),
             con.as_ptr().cast(),
             con.len() + 1,
             0,
-        )
-        .check_os_err("fsetxattr", Some(con), None)
+        );
+        if res < 0 {
+            let err = nix::errno::Errno::last();
+            if matches!(err, Errno::EOPNOTSUPP | Errno::ENOSYS | Errno::EROFS) {
+                return Ok(());
+            }
+            return Err(OsError::new(err, "fsetxattr", Some(con), None));
+        }
+        Ok(())
     }
 }
 
