@@ -112,6 +112,37 @@ impl SePolicy {
             allow(["zygote"], ["zygote"], ["process"], ["execmem"]);
             allow(["zygote"], ["fs_type"], ["filesystem"], ["unmount"]);
 
+            allow(
+                [
+                    "appdomain",
+                    "gmscore_app",
+                    "priv_app",
+                    "untrusted_app",
+                    "untrusted_app_all",
+                    "zygote",
+                    "keystore",
+                    "system_server"
+                ],
+                ["adb_data_file"],
+                ["dir"],
+                ["search", "read", "open", "getattr"]
+            );
+            allow(
+                [
+                    "appdomain",
+                    "gmscore_app",
+                    "priv_app",
+                    "untrusted_app",
+                    "untrusted_app_all",
+                    "zygote",
+                    "keystore",
+                    "system_server"
+                ],
+                ["adb_data_file"],
+                ["file", "lnk_file"],
+                ["read", "open", "getattr", "map"]
+            );
+
 
             dontaudit(["llkd"], [proc], ["process"], ["ptrace"]);
 

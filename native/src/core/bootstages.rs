@@ -211,7 +211,6 @@ impl MagiskD {
             info!("* Safe mode triggered");
 
             disable_modules();
-            self.set_db_setting(DbEntryKey::ZygiskConfig, 0).log_ok();
 
             self.zygisk_enabled.store(false, Ordering::Release);
             self.zygote_injection_enabled

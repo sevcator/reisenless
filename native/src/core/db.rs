@@ -55,7 +55,6 @@ where
     }
 }
 
-#[derive(Default)]
 pub struct DbSettings {
     pub root_access: RootAccess,
     pub multiuser_mode: MultiuserMode,
@@ -63,6 +62,19 @@ pub struct DbSettings {
     pub boot_count: i32,
     pub sulist: bool,
     pub zygisk: bool,
+}
+
+impl Default for DbSettings {
+    fn default() -> Self {
+        Self {
+            root_access: RootAccess::default(),
+            multiuser_mode: MultiuserMode::default(),
+            mnt_ns: MntNsMode::default(),
+            boot_count: 0,
+            sulist: false,
+            zygisk: true,
+        }
+    }
 }
 
 #[repr(i32)]
@@ -250,8 +262,8 @@ impl MagiskD {
             DbEntryKey::RootAccess => RootAccess::default() as i32,
             DbEntryKey::SuMultiuserMode => MultiuserMode::default() as i32,
             DbEntryKey::SuMntNs => MntNsMode::default().repr,
-            DbEntryKey::SulistConfig => 1,
-            DbEntryKey::ZygiskConfig => self.is_emulator as i32,
+            DbEntryKey::SulistConfig => 0,
+            DbEntryKey::ZygiskConfig => 1,
             DbEntryKey::BootloopCount => 0,
             _ => -1,
         };
