@@ -228,21 +228,10 @@ void MagiskInit::setup_tmp(const char *path) noexcept {
     xsymlink("./" POLICY_BIN_NAME, "supolicy");
 
     xmount(".", path, nullptr, MS_BIND, nullptr);
-
-    chdir(path);
-
-
-    xmount(WORKER_SOURCE, WORKERDIR, "tmpfs", 0, "mode=755");
-
-
-    if (access("/dev/pts/ptmx", F_OK) == 0) {
-        xmkdirs(SHELLPTS, 0755);
-        xmount("devpts", SHELLPTS, "devpts", MS_NOSUID | MS_NOEXEC, "newinstance");
-        xmount(nullptr, SHELLPTS, nullptr, MS_PRIVATE, nullptr);
-        if (access(SHELLPTS "/ptmx", F_OK)) {
-            umount2(SHELLPTS, MNT_DETACH);
-            rmdir(SHELLPTS);
-        }
+    if (strcmp(path, "/debug_ramdisk") == 0) {
+        // Stack a second bind mount so second-stage init's single umount("/debug_ramdisk")
+        // pops only the top layer while preserving /debug_ramdisk without early submounts.
+        xmount(path, path, nullptr, MS_BIND, nullptr);
     }
 
     chdir("/");

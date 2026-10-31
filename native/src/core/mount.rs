@@ -1,4 +1,6 @@
-use crate::consts::{MODULEMNT, MODULEROOT, PREINITDEV, PREINITMIRR, WORKER_SOURCE, WORKERDIR};
+use crate::consts::{
+    MODULEMNT, MODULEROOT, PREINITDEV, PREINITMIRR, SHELLPTS, WORKER_SOURCE, WORKERDIR,
+};
 use crate::ffi::{get_magisk_tmp, resolve_preinit_dir, switch_mnt_ns};
 use crate::resetprop::get_prop;
 use base::{
@@ -6,7 +8,7 @@ use base::{
     debug, info, libc, parse_mount_info, warn,
 };
 use libc::{c_uint, dev_t, major};
-use nix::mount::MsFlags;
+use nix::mount::{MsFlags, mount};
 use nix::sys::stat::{Mode, SFlag, mknod};
 use num_traits::AsPrimitive;
 use std::cmp::Ordering::{Greater, Less};
@@ -62,6 +64,52 @@ pub fn setup_preinit_dir() {
     }
 
     warn!("mount: preinit dir not found");
+}
+
+pub fn setup_runtime_mounts() {
+    let magisk_tmp = get_magisk_tmp();
+
+    let worker_dir = cstr::buf::default()
+        .join_path(magisk_tmp)
+        .join_path(WORKERDIR);
+    let _ = || -> LoggedResult<()> {
+        worker_dir.mkdirs(0o755)?;
+        mount(
+            Some(cstr!(WORKER_SOURCE)),
+            worker_dir.as_utf8_cstr(),
+            Some(cstr!("tmpfs")),
+            MsFlags::empty(),
+            Some(cstr!("mode=755")),
+        )
+        .check_os_err("mount", Some(&worker_dir), None)?;
+        Ok(())
+    }();
+
+    if cstr!("/dev/pts/ptmx").exists() {
+        let shell_pts = cstr::buf::default()
+            .join_path(magisk_tmp)
+            .join_path(SHELLPTS);
+        let _ = || -> LoggedResult<()> {
+            shell_pts.mkdirs(0o755)?;
+            mount(
+                Some(cstr!("devpts")),
+                shell_pts.as_utf8_cstr(),
+                Some(cstr!("devpts")),
+                MsFlags::MS_NOSUID | MsFlags::MS_NOEXEC,
+                Some(cstr!("newinstance")),
+            )
+            .check_os_err("mount", Some(&shell_pts), None)?;
+            shell_pts.set_mount_private(false)?;
+            let ptmx = cstr::buf::default()
+                .join_path(&shell_pts)
+                .join_path("ptmx");
+            if !ptmx.exists() {
+                shell_pts.unmount().ok();
+                shell_pts.remove().ok();
+            }
+            Ok(())
+        }();
+    }
 }
 
 pub fn setup_module_mount() {
@@ -231,11 +279,17 @@ pub fn revert_unmount(pid: i32) {
         debug!("denylist: handling PID=[{}]", pid);
     }
 
+    let shell_pts = cstr::buf::default()
+        .join_path(get_magisk_tmp())
+        .join_path(SHELLPTS);
     let mut targets = Vec::new();
 
 
     for info in parse_mount_info("self") {
-        if info.source == WORKER_SOURCE || info.root.contains("/modules") {
+        if info.source == WORKER_SOURCE
+            || info.root.contains("/modules")
+            || Path::new(&info.target).starts_with(shell_pts.as_str())
+        {
             targets.push(info.target);
         }
     }

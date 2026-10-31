@@ -135,9 +135,6 @@ impl MagiskD {
                 info!("** zygote restarted");
                 self.prune_su_access();
                 scan_deny_apps();
-                if self.zygote_injection_enabled.load(Ordering::Relaxed) {
-                    self.zygisk.lock().reset(false);
-                }
             }
             RequestCode::SQLITE_CMD => {
                 self.db_exec_for_cli(client).ok();
@@ -260,6 +257,12 @@ impl MagiskD {
                 return;
             }
             _ => {}
+        }
+
+        if code == RequestCode::ZYGOTE_RESTART
+            && self.zygote_injection_enabled.load(Ordering::Relaxed)
+        {
+            self.zygisk.lock().reset(false);
         }
 
         if client.write_pod(&RespondCode::OK.repr).is_err() {

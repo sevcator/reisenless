@@ -319,9 +319,21 @@ pub fn load_prop_file(file: &Utf8CStr) {
 }
 
 pub fn get_prop(key: &Utf8CStr) -> String {
+    find_prop(key).unwrap_or_default()
+}
+
+pub fn find_prop(key: &Utf8CStr) -> Option<String> {
     let prop = ResetProp {
         persist: key.starts_with("persist."),
         ..Default::default()
     };
-    prop.get(key).unwrap_or_default()
+    prop.get(key)
+}
+
+pub fn delete_prop(key: &Utf8CStr) {
+    let prop = ResetProp {
+        persist: key.starts_with("persist."),
+        ..Default::default()
+    };
+    prop.delete(key);
 }

@@ -3,8 +3,9 @@ use crate::consts::MAIN_BIN_NAME_32;
 use crate::consts::{MAIN_BIN_NAME, MODULEROOT, ZYGISKLDR};
 use crate::daemon::{MagiskD, to_user_id};
 use crate::ffi::{ZygiskRequest, ZygiskStateFlags, get_magisk_tmp, update_deny_flags};
-use crate::resetprop::{get_prop, set_prop};
+use crate::resetprop::{delete_prop, find_prop, get_prop, set_prop};
 use crate::socket::{IpcRead, UnixSocketExt};
+use crate::thread::ThreadPool;
 use base::libc::STDOUT_FILENO;
 use base::{
     Directory, FsPathBuilder, LoggedResult, ResultExt, Utf8CStr, WriteExt, cstr, fork_dont_care,
@@ -16,6 +17,7 @@ use std::os::fd::{AsRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::ptr;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 const NBPROP: &Utf8CStr = cstr!("ro.dalvik.vm.native.bridge");
 const UNMOUNT_MASK: u32 =
@@ -64,6 +66,9 @@ fn exec_zygiskd(is_64_bit: bool, remote: UnixStream) {
 #[derive(Default)]
 pub struct ZygiskState {
     pub lib_name: String,
+    orig_prop: Option<Option<String>>,
+    boot_completed: bool,
+    restart_epoch: u64,
     sockets: (Option<UnixStream>, Option<UnixStream>),
     start_count: u32 = 1,
 }
@@ -110,7 +115,14 @@ impl ZygiskState {
         Ok(())
     }
 
+    pub fn on_boot_complete(&mut self) {
+        self.boot_completed = true;
+        self.start_count = 1;
+        self.restore_prop();
+    }
+
     pub fn reset(&mut self, restore: bool) {
+        self.restart_epoch = self.restart_epoch.wrapping_add(1);
         if restore {
 
             self.start_count = 1;
@@ -132,11 +144,18 @@ impl ZygiskState {
         if !self.lib_name.is_empty() {
             return;
         }
-        let orig = get_prop(NBPROP);
+        if self.orig_prop.is_none() {
+            self.orig_prop = Some(find_prop(NBPROP));
+        }
+        let orig = self
+            .orig_prop
+            .as_ref()
+            .and_then(|o| o.as_deref())
+            .unwrap_or("");
         self.lib_name = if orig.is_empty() || orig == "0" {
             ZYGISKLDR.to_string()
         } else {
-            ZYGISKLDR.to_string() + &orig
+            ZYGISKLDR.to_string() + orig
         };
         set_prop(NBPROP, Utf8CStr::from_string(&mut self.lib_name));
 
@@ -146,11 +165,25 @@ impl ZygiskState {
     }
 
     pub fn restore_prop(&mut self) {
-        let mut orig = "0".to_string();
-        if self.lib_name.len() > ZYGISKLDR.len() {
-            orig = self.lib_name[ZYGISKLDR.len()..].to_string();
+        if self.lib_name.is_empty() {
+            return;
         }
-        set_prop(NBPROP, Utf8CStr::from_string(&mut orig));
+        match &self.orig_prop {
+            Some(Some(orig)) => {
+                let mut val = orig.clone();
+                set_prop(NBPROP, Utf8CStr::from_string(&mut val));
+            }
+            Some(None) => {
+                delete_prop(NBPROP);
+            }
+            None => {
+                let mut orig = "0".to_string();
+                if self.lib_name.len() > ZYGISKLDR.len() {
+                    orig = self.lib_name[ZYGISKLDR.len()..].to_string();
+                }
+                set_prop(NBPROP, Utf8CStr::from_string(&mut orig));
+            }
+        }
         self.lib_name.clear();
     }
 }
@@ -194,7 +227,8 @@ impl MagiskD {
         let mut flags: u32 = 0;
         update_deny_flags(uid, &process, &mut flags);
         if self.get_manager_uid(to_user_id(uid)) == uid {
-            flags |= ZygiskStateFlags::ProcessIsMagiskApp.repr
+            flags |= ZygiskStateFlags::ProcessIsMagiskApp.repr;
+            flags &= !ZygiskStateFlags::ProcessOnDenyList.repr;
         }
         if self.uid_granted_root(uid) {
             flags |= ZygiskStateFlags::ProcessGrantedRoot.repr
@@ -232,6 +266,25 @@ impl MagiskD {
                         .ok();
                 }
             }
+        }
+
+        let post_boot_epoch = {
+            let z = self.zygisk.lock();
+            if z.boot_completed && !z.lib_name.is_empty() {
+                Some(z.restart_epoch)
+            } else {
+                None
+            }
+        };
+        if let Some(epoch) = post_boot_epoch {
+            ThreadPool::exec_task(move || {
+                std::thread::sleep(Duration::from_secs(5));
+                let mut z = MagiskD::get().zygisk.lock();
+                if z.boot_completed && z.restart_epoch == epoch {
+                    z.start_count = 1;
+                    z.restore_prop();
+                }
+            });
         }
 
         Ok(())

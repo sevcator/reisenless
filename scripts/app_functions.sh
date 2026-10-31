@@ -608,12 +608,67 @@ EOF
   return "$failed"
 }
 
+cleanup_legacy_integrity_hooks() {
+  local hook
+  [ ! -L "$SECURE_DIR" ] && [ "$(readlink -f "$SECURE_DIR")" = "$SECURE_DIR" ] || return 1
+  if [ -e "$SECURE_DIR/post-fs-data.d" ]; then
+    [ ! -L "$SECURE_DIR/post-fs-data.d" ] || return 1
+    rm -f "$SECURE_DIR/post-fs-data.d/01-integrity-props.sh" || return 1
+  fi
+  for hook in fix_integrity.sh fix_integrity_boot.log integrity_watchdog.sh; do
+    rm -f "$SECURE_DIR/$hook" || return 1
+  done
+}
+
+is_obsolete_secure_dir() {
+  local dir="$1" sub db
+  case "$dir" in /data/.[a-z]*) ;; *) return 1;; esac
+  case "$dir" in *[!a-z/.]*) return 1;; esac
+  [ "$dir" != "$SECURE_DIR" ] && [ "$dir" != "$LEGACY_SECURE_DIR" ] || return 1
+  [ -d "$dir" ] && [ ! -L "$dir" ] && [ "$(readlink -f "$dir")" = "$dir" ] || return 1
+  [ "${SECURE_DIR#"$dir"/}" = "$SECURE_DIR" ] && [ "${dir#"$SECURE_DIR"/}" = "$dir" ] || return 1
+  [ "$(stat -c '%u' "$dir")" = 0 ] || return 1
+  [ -d "$dir/modules" ] && [ -d "$dir/post-fs-data.d" ] && [ -d "$dir/service.d" ] || return 1
+  awk -v root="$dir" '$2 == root || index($2, root "/") == 1 { mounted=1 }
+    END { exit mounted ? 1 : 0 }' /proc/mounts || return 1
+  for sub in "$dir"/* "$dir"/.[!.]*; do
+    if is_legacy_payload_dir "$dir" "$sub"; then
+      return 0
+    fi
+  done
+  for db in "$dir"/.[!.]*; do
+    [ -f "$db" ] && [ ! -L "$db" ] || continue
+    [ "$(stat -c '%u:%a' "$db")" = "0:0" ] || continue
+    [ "$(head -c 15 "$db" 2>/dev/null)" = "SQLite format 3" ] || continue
+    if grep -aq 'CREATE TABLE settings' "$db" 2>/dev/null &&
+        grep -aq 'CREATE TABLE policies' "$db" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+cleanup_obsolete_secure_dirs() {
+  local old sub label
+  for old in /data/.[a-z]*; do
+    is_obsolete_secure_dir "$old" || continue
+    label=${old#/data/.}
+    for sub in "$old"/* "$old"/.[!.]*; do
+      is_legacy_payload_dir "$old" "$sub" || continue
+      preserve_upgrade_boot_files "$sub" "$SECURE_DIR/.upgrade-preserved/boot/$label" || return 1
+    done
+    rm -rf "$old" || return 1
+  done
+}
+
 record_upgrade_cleanup() (
   local version="$1" current_code="$2" current_boot="$3" current_package="$4"
   umask 077
   [ ! -L "$SECURE_DIR/.upgrade-cleanup.lock" ] || return 1
   exec 9>"$SECURE_DIR/.upgrade-cleanup.lock" || return 1
   flock -x 9 || return 1
+  cleanup_legacy_integrity_hooks || return 1
+  cleanup_obsolete_secure_dirs || return 1
   printf '%s\n%s\n%s\n' "$version" "$current_boot" "$current_code" > "$SECURE_DIR/.upgrade-cleanup.complete.new" || return 1
   mv "$SECURE_DIR/.upgrade-cleanup.complete.new" "$SECURE_DIR/.upgrade-cleanup.complete" || return 1
   chmod 600 "$SECURE_DIR/.upgrade-cleanup.complete" || return 1

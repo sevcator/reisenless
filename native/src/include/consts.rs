@@ -34,6 +34,7 @@ pub const MAIN_CONFIG: &str = concatcp!(INTERNAL_DIR, "/config");
 pub const PREINITMIRR: &str = concatcp!(INTERNAL_DIR, "/preinit");
 pub const MODULEMNT: &str = concatcp!(INTERNAL_DIR, "/modules");
 pub const WORKERDIR: &str = concatcp!(INTERNAL_DIR, "/worker");
+pub const SHELLPTS: &str = concatcp!(INTERNAL_DIR, "/pts");
 pub const BBPATH: &str = concatcp!(INTERNAL_DIR, "/", BUILD_BUSYBOX_NAME);
 pub const DEVICEDIR: &str = concatcp!(INTERNAL_DIR, "/device");
 pub const MAIN_SOCKET: &str = concatcp!(DEVICEDIR, "/", BUILD_SOCKET_NAME);

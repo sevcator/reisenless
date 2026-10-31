@@ -9,7 +9,7 @@ use crate::ffi::{
     get_magisk_tmp, initialize_denylist,
 };
 use crate::module::disable_modules;
-use crate::mount::{clean_mounts, setup_preinit_dir};
+use crate::mount::{clean_mounts, setup_preinit_dir, setup_runtime_mounts};
 use crate::resetprop::get_prop;
 use crate::selinux::restorecon;
 use base::const_format::concatcp;
@@ -180,6 +180,7 @@ impl MagiskD {
     fn post_fs_data(&self) -> bool {
         info!("** post-fs-data mode running");
 
+        setup_runtime_mounts();
         self.preserve_stub_apk();
 
         let secure_dir = cstr!(SECURE_DIR);
@@ -264,7 +265,7 @@ impl MagiskD {
         setup_preinit_dir();
         self.ensure_manager();
         if self.zygote_injection_enabled.load(Ordering::Relaxed) {
-            self.zygisk.lock().reset(true);
+            self.zygisk.lock().on_boot_complete();
         }
     }
 

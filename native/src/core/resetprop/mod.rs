@@ -1,6 +1,6 @@
 use base::libc::c_char;
 use base::{Utf8CStr, libc};
-pub use cli::{get_prop, load_prop_file, resetprop_main, set_prop};
+pub use cli::{delete_prop, find_prop, get_prop, load_prop_file, resetprop_main, set_prop};
 use libc::timespec;
 use std::collections::BTreeMap;
 use std::ffi::CStr;
