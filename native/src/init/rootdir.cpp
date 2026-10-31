@@ -1,5 +1,7 @@
 #include <sys/mount.h>
 #include <libgen.h>
+#include <set>
+#include <utility>
 
 #include <sepolicy.hpp>
 #include <consts.hpp>
@@ -61,23 +63,48 @@ static void relax_encryption_in_file(int dir_fd, const char *dir_path, const cha
     }
 }
 
-static void relax_encryption_in_dir(const char *dir_path, bool writable) {
+static void relax_encryption_in_dir(const char *dir_path, bool writable, std::set<std::pair<dev_t, ino_t>> &visited) {
+    struct stat st{};
+    if (stat(dir_path, &st) != 0 || !visited.emplace(st.st_dev, st.st_ino).second)
+        return;
+
     auto dir = xopen_dir(dir_path);
     if (!dir) return;
     int dir_fd = dirfd(dir.get());
 
     for (dirent *entry; (entry = readdir(dir.get()));) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
-        if (entry->d_type == DT_DIR) {
+        struct stat entry_st{};
+        if (fstatat(dir_fd, entry->d_name, &entry_st, AT_SYMLINK_NOFOLLOW) != 0) continue;
+        if (S_ISDIR(entry_st.st_mode)) {
             char sub_path[PATH_MAX];
             ssprintf(sub_path, sizeof(sub_path), "%s/%s", dir_path, entry->d_name);
-            relax_encryption_in_dir(sub_path, writable);
+            relax_encryption_in_dir(sub_path, writable, visited);
             continue;
         }
+        if (!S_ISREG(entry_st.st_mode)) continue;
         auto name = std::string_view(entry->d_name);
         if (!name.ends_with(".rc")) continue;
         if (name == INIT_RC) continue;
         relax_encryption_in_file(dir_fd, dir_path, entry->d_name, writable);
+    }
+}
+
+static void relax_encryption_all(bool writable) {
+    std::set<std::pair<dev_t, ino_t>> visited;
+    const char *paths[] = {
+        SYSTEM_INITRC_DIR,
+        "/system/system_ext/etc/init",
+        "/system/product/etc/init",
+        "/vendor/etc/init",
+        "/odm/etc/init",
+        "/system_ext/etc/init",
+        "/product/etc/init",
+        "/etc/init",
+        nullptr
+    };
+    for (int i = 0; paths[i]; ++i) {
+        relax_encryption_in_dir(paths[i], writable, visited);
     }
 }
 
@@ -420,16 +447,7 @@ void MagiskInit::patch_ro_root() noexcept {
     }
     if (p) patch_fissiond(tmp_dir.data());
 
-    relax_encryption_in_dir(NEW_INITRC_DIR, false);
-    relax_encryption_in_dir(SYSTEM_INITRC_DIR, false);
-    relax_encryption_in_dir("/system/system_ext/etc/init", false);
-    relax_encryption_in_dir("/system_ext/etc/init", false);
-    relax_encryption_in_dir("/system/product/etc/init", false);
-    relax_encryption_in_dir("/product/etc/init", false);
-    relax_encryption_in_dir("/odm/etc/init", false);
-    relax_encryption_in_dir("/vendor/etc/init", false);
-    relax_encryption_in_dir("/vendor/etc/init/hw", false);
-    relax_encryption_in_dir("/etc/init", false);
+    relax_encryption_all(false);
 
     extract_files(false);
 
@@ -463,16 +481,7 @@ void MagiskInit::patch_rw_root() noexcept {
     if (patch_rc_scripts("/", "/sbin", true))
         patch_fissiond("/sbin");
 
-    relax_encryption_in_dir(NEW_INITRC_DIR, true);
-    relax_encryption_in_dir(SYSTEM_INITRC_DIR, true);
-    relax_encryption_in_dir("/system/system_ext/etc/init", true);
-    relax_encryption_in_dir("/system_ext/etc/init", true);
-    relax_encryption_in_dir("/system/product/etc/init", true);
-    relax_encryption_in_dir("/product/etc/init", true);
-    relax_encryption_in_dir("/odm/etc/init", true);
-    relax_encryption_in_dir("/vendor/etc/init", true);
-    relax_encryption_in_dir("/vendor/etc/init/hw", true);
-    relax_encryption_in_dir("/etc/init", true);
+    relax_encryption_all(true);
 
     xmkdir(PRE_TMPSRC, 0);
     xmount("tmpfs", PRE_TMPSRC, "tmpfs", 0, "mode=755");

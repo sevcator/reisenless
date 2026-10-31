@@ -72,14 +72,14 @@ static void update_app_id(int app_id, const string &pkg, bool remove) {
     }
 }
 
-static DIR *procfp;
-
 template<class F>
 static void crawl_procfs(const F &fn) {
-    rewinddir(procfp);
+    auto procfp = open_dir("/proc");
+    if (!procfp)
+        return;
     dirent *dp;
     int pid;
-    while ((dp = readdir(procfp))) {
+    while ((dp = readdir(procfp.get()))) {
         pid = parse_int(dp->d_name);
         if (pid > 0 && !fn(pid))
             break;
@@ -371,9 +371,6 @@ int enable_deny() {
             LOGW("The kernel does not support mount namespace\n");
             return DenyResponse::NO_NS;
         }
-
-        if (procfp == nullptr && (procfp = opendir("/proc")) == nullptr)
-            return DenyResponse::ERROR;
 
         LOGI("* enable sulist\n");
 

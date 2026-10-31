@@ -179,8 +179,6 @@ impl MagiskInit {
 
                 let mut sepol = SePolicy::from_file(preload_policy());
 
-                preload_policy().copy_to(MOCK_LOAD)?;
-
                 preload_policy().remove()?;
                 preload_ack().remove()?;
 

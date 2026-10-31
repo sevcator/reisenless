@@ -233,6 +233,23 @@ def clean_elf():
     cmds.extend(glob.glob("native/out/*/mpol"))
     run_cargo(cmds)
 
+def strip_native_bins():
+    host = {
+        "windows": "windows-x86_64",
+        "linux": "linux-x86_64",
+        "darwin": "darwin-x86_64",
+    }[os_name]
+    strip_bin = ndk_path / "toolchains" / "llvm" / "prebuilt" / host / "bin" / f"llvm-strip{EXE_EXT}"
+    if not strip_bin.is_file():
+        return
+    for arch in build_abis.keys():
+        out_dir = Path("native", "out", arch)
+        if not out_dir.is_dir():
+            continue
+        for file in out_dir.iterdir():
+            if file.is_file() and not file.name.endswith(".a") and not file.name.endswith(".txt"):
+                execv([str(strip_bin), "--strip-unneeded", str(file)])
+
 def collect_ndk_build():
     for arch in build_abis.keys():
         arch_dir = Path("native", "libs", arch)
@@ -290,6 +307,8 @@ def build_cpp_src(targets: set[str]):
 
     if clean:
         clean_elf()
+    if args.release:
+        strip_native_bins()
 
 def _cargo_target_dir() -> Path:
     repo = Path(__file__).absolute().parent

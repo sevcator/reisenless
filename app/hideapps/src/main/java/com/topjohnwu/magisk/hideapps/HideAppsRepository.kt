@@ -75,7 +75,13 @@ class HideAppsRepository(private val context: Context) {
 
     private fun update(transform: (HideAppsConfig) -> HideAppsConfig) {
         synchronized(storageLock) {
-            file.writeText(transform(load()).toJson())
+            val json = transform(load()).toJson()
+            val tmp = File(file.parentFile, "${file.name}.tmp")
+            tmp.writeText(json)
+            if (!tmp.renameTo(file)) {
+                file.writeText(json)
+                tmp.delete()
+            }
         }
     }
 }

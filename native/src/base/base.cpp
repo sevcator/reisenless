@@ -201,7 +201,7 @@ int switch_mnt_ns(int pid) {
     if (ret < 0) {
         char mnt[32];
         ssprintf(mnt, sizeof(mnt), "/proc/%d/ns/mnt", pid);
-        fd = open(mnt, O_RDONLY);
+        fd = open(mnt, O_RDONLY | O_CLOEXEC);
         if (fd < 0) return 1;
 
 

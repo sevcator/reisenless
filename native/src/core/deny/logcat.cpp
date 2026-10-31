@@ -195,7 +195,7 @@ static void process_events_buffer(struct log_msg *msg) {
                     _exit(0);
                 }
 
-                char path[16];
+                char path[32];
                 ssprintf(path, sizeof(path), "/proc/%d", pid);
                 struct stat st{};
                 int fd = syscall(__NR_pidfd_open, pid, 0);

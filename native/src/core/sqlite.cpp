@@ -67,6 +67,7 @@ static bool load_sqlite_impl() {
 
 
         android_update_LD_LIBRARY_PATH(ld_path + len);
+        dlclose(dl);
     }
     DLERR(sqlite);
 

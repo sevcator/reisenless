@@ -100,6 +100,7 @@ impl SePolicy {
             allow([file], ["pipefs", "devpts"], ["filesystem"], ["associate"]);
             allow(["kernel"], all, ["file"], ["relabelto"]);
             allow(["kernel"], all, ["file"], ["relabelfrom"]);
+            allow(["kernel"], ["kernel"], ["capability2"], ["mac_admin"]);
 
 
             allow(["kernel"], ["kernel"], ["process"], ["setcurrent"]);
