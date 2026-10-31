@@ -2056,16 +2056,19 @@ def load_config():
             if key.startswith("magisk."):
                 config[key[7:]] = value
 
-    if commit_ts.isdigit():
-        config["versionCode"] = int(commit_ts)
-        config["version"] = commit_hash
+    if "versionCode" not in config or not str(config["versionCode"]).strip():
+        if commit_ts.isdigit():
+            config["versionCode"] = int(commit_ts)
+        else:
+            config["versionCode"] = 1000000
     else:
         try:
-            config["versionCode"] = int(config.get("versionCode", 1000000))
+            config["versionCode"] = int(config["versionCode"])
         except (ValueError, TypeError):
             config["versionCode"] = 1000000
-        if "version" not in config or not config["version"]:
-            config["version"] = commit_hash
+
+    if "version" not in config or not str(config["version"]).strip():
+        config["version"] = commit_hash
 
     config["outdir"] = Path(config["outdir"])
     config["outdir"].mkdir(mode=0o755, parents=True, exist_ok=True)
