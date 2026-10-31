@@ -8,7 +8,6 @@ use nix::sys::termios::{SetArg, Termios, cfmakeraw, tcgetattr, tcsetattr};
 use nix::unistd::pipe2;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::mem::MaybeUninit;
 use std::os::fd::{AsFd, AsRawFd, FromRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -41,9 +40,8 @@ fn splice(fd_in: impl AsFd, fd_out: impl AsFd, len: usize) -> OsResult<'static, 
 }
 
 fn pump_via_copy(mut fd_in: &File, mut fd_out: &File) -> LoggedResult<()> {
-    let mut buf = MaybeUninit::<[u8; 4096]>::uninit();
-    let buf = unsafe { buf.assume_init_mut() };
-    let len = fd_in.read(buf)?;
+    let mut buf = [0_u8; 4096];
+    let len = fd_in.read(&mut buf)?;
     fd_out.write_all(&buf[..len])?;
     Ok(())
 }

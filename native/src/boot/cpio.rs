@@ -227,12 +227,22 @@ impl Cpio {
         let mut pos = 0_usize;
         while pos < data.len() {
             let hdr_sz = size_of::<CpioHeader>();
+            if pos + hdr_sz > data.len() {
+                break;
+            }
+            if data[pos..].starts_with(&[0; 6]) {
+                // Trailing null padding
+                break;
+            }
             let hdr = from_bytes::<CpioHeader>(&data[pos..(pos + hdr_sz)]);
             if &hdr.magic != b"070701" {
                 return log_err!("invalid cpio magic");
             }
             pos += hdr_sz;
             let name_sz = x8u(&hdr.namesize)? as usize;
+            if pos + name_sz > data.len() {
+                return log_err!("truncated cpio entry name");
+            }
             let name = Utf8CStr::from_bytes(&data[pos..(pos + name_sz)])?.to_string();
             pos += name_sz;
             pos = align_4(pos);
@@ -247,6 +257,9 @@ impl Cpio {
                 continue;
             }
             let file_sz = x8u(&hdr.filesize)? as usize;
+            if pos + file_sz > data.len() {
+                return log_err!("truncated cpio file data");
+            }
             let entry = Box::new(CpioEntry {
                 mode: x8u(&hdr.mode)?.as_(),
                 uid: x8u(&hdr.uid)?.as_(),

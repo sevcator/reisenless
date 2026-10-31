@@ -46,11 +46,11 @@ static void parse_device(devinfo *dev, const char *uevent) {
 
 void MagiskInit::collect_devices() const noexcept {
     char path[PATH_MAX];
-    devinfo dev{};
     if (auto dir = xopen_dir("/sys/dev/block"); dir) {
         for (dirent *entry; (entry = readdir(dir.get()));) {
             if (entry->d_name == "."sv || entry->d_name == ".."sv)
                 continue;
+            devinfo dev{};
             sprintf(path, "/sys/dev/block/%s/uevent", entry->d_name);
             parse_device(&dev, path);
             sprintf(path, "/sys/dev/block/%s/dm/name", entry->d_name);

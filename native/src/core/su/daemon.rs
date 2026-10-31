@@ -228,17 +228,25 @@ impl MagiskD {
         debug!("su: waiting child pid=[{}]", child);
         let mut status = 0;
         let code = unsafe {
-            if libc::waitpid(child, &mut status, 0) > 0 {
-                if libc::WIFEXITED(status) {
-                    libc::WEXITSTATUS(status)
-                } else if libc::WIFSIGNALED(status) {
-                    128 + libc::WTERMSIG(status)
-                } else {
-                    -1
+            let mut ret = -1;
+            loop {
+                let res = libc::waitpid(child, &mut status, 0);
+                if res > 0 {
+                    ret = if libc::WIFEXITED(status) {
+                        libc::WEXITSTATUS(status)
+                    } else if libc::WIFSIGNALED(status) {
+                        128 + libc::WTERMSIG(status)
+                    } else {
+                        -1
+                    };
+                    break;
                 }
-            } else {
-                -1
+                if res < 0 && std::io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
+                    continue;
+                }
+                break;
             }
+            ret
         };
         debug!("su: return code=[{}]", code);
         client.write_pod(&code).ok();

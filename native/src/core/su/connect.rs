@@ -187,6 +187,13 @@ impl SuAppContext<'_> {
                 PollTimeout::try_from(15 * 1000).unwrap_or(PollTimeout::NONE),
             )
             .check_os_err("poll", None, None)?;
+            if !pfd[0]
+                .revents()
+                .unwrap_or(PollFlags::empty())
+                .contains(PollFlags::POLLIN)
+            {
+                return Err(LoggedError::default());
+            }
             Ok(fd)
         }();
 

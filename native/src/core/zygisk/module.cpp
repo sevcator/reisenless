@@ -435,7 +435,10 @@ void ZygiskContext::app_specialize_post() {
     }
 
 
-    env->ReleaseStringUTFChars(args.app->nice_name, process);
+    if (args.app->nice_name && process && process[0] != '\0') {
+        env->ReleaseStringUTFChars(args.app->nice_name, process);
+        process = nullptr;
+    }
 }
 
 void ZygiskContext::server_specialize_pre() {
@@ -465,7 +468,12 @@ void ZygiskContext::server_specialize_post() {
 
 
 void ZygiskContext::nativeSpecializeAppProcess_pre() {
-    process = env->GetStringUTFChars(args.app->nice_name, nullptr);
+    if (args.app->nice_name) {
+        process = env->GetStringUTFChars(args.app->nice_name, nullptr);
+    }
+    if (!process) {
+        process = "";
+    }
     ZLOGV("pre  specialize [%s]\n", process);
     app_specialize_pre();
 }
@@ -496,7 +504,12 @@ void ZygiskContext::nativeForkSystemServer_post() {
 }
 
 void ZygiskContext::nativeForkAndSpecialize_pre() {
-    process = env->GetStringUTFChars(args.app->nice_name, nullptr);
+    if (args.app->nice_name) {
+        process = env->GetStringUTFChars(args.app->nice_name, nullptr);
+    }
+    if (!process) {
+        process = "";
+    }
     ZLOGV("pre  forkAndSpecialize [%s]\n", process);
     flags |= APP_FORK_AND_SPECIALIZE;
 

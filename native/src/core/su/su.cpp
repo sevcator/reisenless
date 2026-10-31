@@ -295,6 +295,8 @@ static bool proc_is_restricted(pid_t pid) {
             advance(p, bnd.size());
             while (isspace(*p)) advance(p, 1);
             line.remove_prefix(distance(line.begin(), p));
+            if (line.size() < _LINUX_CAPABILITY_U32S_3 * 8)
+                return false;
             for (int i = 0; i < _LINUX_CAPABILITY_U32S_3; i++) {
                 auto cap = line.substr((_LINUX_CAPABILITY_U32S_3 - 1 - i) * 8, 8);
                 data[i] = parse_uint32_hex(cap);
@@ -441,11 +443,15 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
     ssprintf(path, sizeof(path), "/proc/%d/environ", pid);
     auto env = full_read(path);
     clearenv();
-    for (size_t pos = 0; pos < env.size(); ++pos) {
-        putenv(env.data() + pos);
-        pos = env.find_first_of('\0', pos);
-        if (pos == std::string::npos)
+    for (size_t pos = 0; pos < env.size();) {
+        const char *entry = env.data() + pos;
+        size_t next = env.find_first_of('\0', pos);
+        if (strchr(entry, '=')) {
+            putenv(const_cast<char *>(entry));
+        }
+        if (next == std::string::npos)
             break;
+        pos = next + 1;
     }
     std::string su_path = std::string(get_magisk_tmp()) + "/" BBPATH ":" + get_magisk_tmp();
     const char *cur_path = getenv("PATH");

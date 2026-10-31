@@ -125,7 +125,8 @@ static void check_zygote() {
 static void process_main_buffer(struct log_msg *msg) {
     AndroidLogEntry entry{};
     if (android_log_processLogBuffer(&msg->entry, &entry) < 0) return;
-    entry.tagLen--;
+    if (entry.tagLen > 0)
+        entry.tagLen--;
     auto tag = string_view(entry.tag, entry.tagLen);
     auto revert = [](int pid) {
         kill(pid, SIGSTOP);
@@ -180,10 +181,14 @@ static void process_main_buffer(struct log_msg *msg) {
 
 static void process_events_buffer(struct log_msg *msg) {
     if (msg->entry.uid != 1000) return;
+    if (msg->entry.len < sizeof(android_event_header_t)) return;
     auto event_data = &msg->buf[msg->entry.hdr_size];
     auto event_header = reinterpret_cast<const android_event_header_t *>(event_data);
     if (event_header->tag == 30014) {
+        if (msg->entry.len < sizeof(android_event_am_proc_start)) return;
         auto am_proc_start = reinterpret_cast<const android_event_am_proc_start *>(event_data);
+        if (am_proc_start->process_name.length <= 0) return;
+        if (sizeof(android_event_am_proc_start) + am_proc_start->process_name.length > msg->entry.len) return;
         auto proc = string_view(am_proc_start->process_name.data,
                                 am_proc_start->process_name.length);
         if (!is_deny_target(am_proc_start->uid.data, proc)) {

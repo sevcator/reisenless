@@ -429,7 +429,8 @@ bool is_deny_target(int uid, string_view process) {
         if (it == app_id_to_pkgs.end())
             return false;
         for (const auto &pkg : it->second) {
-            if (pkg_to_procs.find(pkg)->second.count(process))
+            auto pit = pkg_to_procs.find(pkg);
+            if (pit != pkg_to_procs.end() && pit->second.count(process))
                 return true;
         }
     }

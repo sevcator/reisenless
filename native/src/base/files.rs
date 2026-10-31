@@ -14,7 +14,6 @@ use std::ffi::CStr;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
-use std::mem::MaybeUninit;
 use std::os::fd::{AsFd, BorrowedFd};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, OwnedFd, RawFd};
@@ -28,8 +27,7 @@ pub trait ReadExt {
 
 impl<T: Read> ReadExt for T {
     fn skip(&mut self, mut len: usize) -> io::Result<()> {
-        let mut buf = MaybeUninit::<[u8; 4096]>::uninit();
-        let buf = unsafe { buf.assume_init_mut() };
+        let mut buf = [0_u8; 4096];
         while len > 0 {
             let l = min(buf.len(), len);
             self.read_exact(&mut buf[..l])?;

@@ -3,33 +3,37 @@ use base::{LoggedResult, MappedFile, MutBytesExt, Utf8CStr};
 
 macro_rules! match_patterns {
     ($buf:ident, $($str:literal), *) => {{
-        let mut len = if *$buf.get_unchecked(0) == b',' { 1 } else { 0 };
-        let b = $buf.get_unchecked(len..);
-        let found = if b.is_empty() {
-            false
-        }
-        $(
-        else if b.starts_with($str) {
-            len += $str.len();
-            true
-        }
-        )*
-        else {
-            false
-        };
-        if found {
-            let b = $buf.get_unchecked(len..);
-            if !b.is_empty() && b[0] == b'=' {
-                for c in b.iter() {
-                    if b" \n\0".contains(c) {
-                        break;
-                    }
-                    len += 1;
-                }
-            }
-            Some(len)
-        } else {
+        if $buf.is_empty() {
             None
+        } else {
+            let mut len = if *$buf.get_unchecked(0) == b',' { 1 } else { 0 };
+            let b = $buf.get_unchecked(len..);
+            let found = if b.is_empty() {
+                false
+            }
+            $(
+            else if b.starts_with($str) {
+                len += $str.len();
+                true
+            }
+            )*
+            else {
+                false
+            };
+            if found {
+                let b = $buf.get_unchecked(len..);
+                if !b.is_empty() && b[0] == b'=' {
+                    for c in b.iter() {
+                        if b" \n\0".contains(c) {
+                            break;
+                        }
+                        len += 1;
+                    }
+                }
+                Some(len)
+            } else {
+                None
+            }
         }
     }};
 }

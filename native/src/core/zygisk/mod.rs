@@ -9,6 +9,7 @@ use std::os::fd::RawFd;
 extern "C" fn exec_companion_entry(client: RawFd, companion_handler: extern "C" fn(RawFd)) {
     ThreadPool::exec_task(move || {
         let Ok(s1) = fd_get_attr(client) else {
+            unsafe { libc::close(client) };
             return;
         };
 

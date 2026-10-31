@@ -56,7 +56,7 @@ rust::Vec<size_t> mut_u8_patch(MutByteSlice buf, ByteSlice from, ByteSlice to) {
 
 int fork_dont_care() {
     if (int pid = xfork()) {
-        waitpid(pid, nullptr, 0);
+        while (waitpid(pid, nullptr, 0) < 0 && errno == EINTR);
         return pid;
     } else if (xfork()) {
         exit(0);
@@ -126,7 +126,11 @@ int exec_command_sync(exec_t &exec) {
     if (pid < 0)
         return -1;
     int status;
-    waitpid(pid, &status, 0);
+    while (waitpid(pid, &status, 0) < 0) {
+        if (errno == EINTR)
+            continue;
+        return -1;
+    }
     if (WIFEXITED(status))
         return WEXITSTATUS(status);
     if (WIFSIGNALED(status))
@@ -300,7 +304,7 @@ extern "C" int magisk_log_print(int prio, const char *tag, const char *fmt, ...)
     std::replace(fmt_buf, fmt_buf + len, '%', '_');
     len = ssprintf(fmt_buf + len, sizeof(fmt_buf) - len - 1, ": %s", fmt) + len;
 
-    if (fmt_buf[len - 1] != '\n') {
+    if (len > 0 && fmt_buf[len - 1] != '\n') {
         fmt_buf[len] = '\n';
         fmt_buf[len + 1] = '\0';
     }
