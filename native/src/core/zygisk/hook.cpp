@@ -134,7 +134,7 @@ ZygiskContext::ZygiskContext(JNIEnv *env, void *args) :
     allowed_fds(get_fd_max()), hook_info_lock(PTHREAD_MUTEX_INITIALIZER) { g_ctx = this; }
 
 ZygiskContext::~ZygiskContext() {
-
+    clear_hook_info();
     g_ctx = nullptr;
 
     if (!is_child())

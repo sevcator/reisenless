@@ -19,7 +19,6 @@ use nix::unistd::UnlinkatFlags;
 use std::collections::BTreeMap;
 use std::os::fd::IntoRawFd;
 use std::path::{Component, Path};
-use std::ptr;
 use std::sync::atomic::Ordering;
 
 const MAGISK_BIN_INJECT_PARTITIONS: [&Utf8CStr; 4] = [
@@ -836,11 +835,35 @@ fn convert_zygisk_modules_to_memfd(modules: &mut [ModuleInfo]) {
             };
             if memfd >= 0 {
                 unsafe {
-                    let copied = libc::sendfile(memfd, fd, ptr::null_mut(), i32::MAX as usize) >= 0
-                        && libc::lseek(memfd, 0, libc::SEEK_SET) >= 0;
-                    if copied {
-                        libc::close(fd);
-                        return memfd;
+                    let mut st: libc::stat = std::mem::zeroed();
+                    if libc::fstat(fd, &mut st) == 0 && st.st_size > 0 {
+                        let file_size = st.st_size as usize;
+                        let mut offset: libc::off_t = 0;
+                        let mut total_copied = 0usize;
+                        let mut success = true;
+                        while total_copied < file_size {
+                            let to_copy = std::cmp::min(file_size - total_copied, 0x7fff_0000);
+                            let written = libc::sendfile(memfd, fd, &mut offset, to_copy);
+                            if written < 0 {
+                                if *libc::__errno() == libc::EINTR {
+                                    continue;
+                                }
+                                success = false;
+                                break;
+                            }
+                            if written == 0 {
+                                success = total_copied == file_size;
+                                break;
+                            }
+                            total_copied += written as usize;
+                        }
+                        if success
+                            && total_copied == file_size
+                            && libc::lseek(memfd, 0, libc::SEEK_SET) >= 0
+                        {
+                            libc::close(fd);
+                            return memfd;
+                        }
                     }
                     libc::close(memfd);
                 }

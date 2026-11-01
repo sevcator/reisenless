@@ -204,6 +204,7 @@ impl MagiskD {
         }
         if child < 0 {
             error!("su: fork failed, abort");
+            client.write_pod(&SuPolicy::Deny.repr).ok();
             return;
         }
 

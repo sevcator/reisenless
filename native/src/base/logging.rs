@@ -119,9 +119,13 @@ pub fn log_with_formatter<F: FnOnce(Formatter) -> fmt::Result>(level: LogLevel, 
 pub fn cmdline_logging() {
     fn cmdline_write(level: LogLevel, msg: &Utf8CStr) {
         if matches!(level, LogLevel::Info) {
-            stdout().write_all(msg.as_bytes()).ok();
+            let mut out = stdout();
+            out.write_all(msg.as_bytes()).ok();
+            out.flush().ok();
         } else {
-            stderr().write_all(msg.as_bytes()).ok();
+            let mut err = stderr();
+            err.write_all(msg.as_bytes()).ok();
+            err.flush().ok();
         }
     }
     update_logger(|logger| {

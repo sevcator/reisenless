@@ -369,6 +369,7 @@ flash_image() {
     local blk_ro=$(blockdev --getro "$2")
     [ "$blk_ro" -eq 1 ] && return 2
     eval "$CMD1" | cat - /dev/zero > "$2" 2>/dev/null
+    sync
   elif [ -c "$2" ]; then
     flash_eraseall "$2" >&2
     eval "$CMD1" | nandwrite -p "$2" - >&2

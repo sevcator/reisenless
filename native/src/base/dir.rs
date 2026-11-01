@@ -173,6 +173,10 @@ pub enum WalkResult {
 }
 
 impl Directory {
+    pub(crate) unsafe fn from_raw(ptr: NonNull<libc::DIR>) -> Self {
+        Directory { inner: ptr }
+    }
+
     fn open_at<'a>(&self, name: &'a Utf8CStr, flags: OFlag, mode: mode_t) -> OsResult<'a, OwnedFd> {
         nix::fcntl::openat(
             self,

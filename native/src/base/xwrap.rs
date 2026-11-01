@@ -168,7 +168,11 @@ extern "C" fn xfdopendir(fd: RawFd) -> *mut libc::DIR {
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn xreaddir(mut dir: ManuallyDrop<Directory>) -> *mut libc::dirent {
+unsafe extern "C" fn xreaddir(dirp: *mut libc::DIR) -> *mut libc::dirent {
+    let Some(ptr) = NonNull::new(dirp) else {
+        return ptr::null_mut();
+    };
+    let mut dir = ManuallyDrop::new(unsafe { Directory::from_raw(ptr) });
     dir.read()
         .log()
         .ok()

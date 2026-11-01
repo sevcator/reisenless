@@ -260,6 +260,7 @@ struct ZygiskContext {
 
     ZygiskContext(JNIEnv *env, void *args);
     ~ZygiskContext();
+    void clear_hook_info();
 
     void run_modules_pre(rust::Vec<int> &fds);
     void run_modules_post();

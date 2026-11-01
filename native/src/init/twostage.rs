@@ -30,8 +30,9 @@ pub(crate) fn hexpatch_init_for_second_stage(writable: bool) {
         let dest = cstr!("/data/init");
         let _ = || -> LoggedResult<()> {
             {
-                let mut fd = dest.create(OFlag::O_CREAT | OFlag::O_WRONLY, 0)?;
+                let mut fd = dest.create(OFlag::O_CREAT | OFlag::O_WRONLY | OFlag::O_TRUNC, 0)?;
                 fd.write_all(init.as_ref())?;
+                fd.flush()?;
             }
             let attr = src.follow_link().get_attr()?;
             dest.set_attr(&attr)?;

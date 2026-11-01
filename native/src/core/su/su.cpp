@@ -248,6 +248,7 @@ int su_client_main(int argc, char *argv[]) {
 
 
         pump_tty(ptmx, atty & ATTY_IN);
+        close(ptmx);
     }
 
 
@@ -293,7 +294,7 @@ static bool proc_is_restricted(pid_t pid) {
         if (line.starts_with(bnd)) {
             auto p = line.begin();
             advance(p, bnd.size());
-            while (isspace(*p)) advance(p, 1);
+            while (p != line.end() && isspace(*p)) advance(p, 1);
             line.remove_prefix(distance(line.begin(), p));
             if (line.size() < _LINUX_CAPABILITY_U32S_3 * 8)
                 return false;
@@ -322,16 +323,19 @@ static void set_identity(int uid, const rust::Vec<gid_t> &groups) {
     if (!groups.empty()) {
         if (setgroups(groups.size(), groups.data())) {
             PLOGE("setgroups");
+            exit(1);
         }
         gid = groups[0];
     } else {
         gid = uid;
     }
     if (setresgid(gid, gid, gid)) {
-        PLOGE("setresgid (%u)", uid);
+        PLOGE("setresgid (%u)", gid);
+        exit(1);
     }
     if (setresuid(uid, uid, uid)) {
         PLOGE("setresuid (%u)", uid);
+        exit(1);
     }
 }
 

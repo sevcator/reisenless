@@ -4,7 +4,6 @@ use fdt::nodes::{Node, NodeProperty};
 use fdt::parsing::Panic;
 use fdt::parsing::unaligned::UnalignedParser;
 use fdt::{Fdt, FdtError, FdtHeader};
-use std::cell::UnsafeCell;
 
 use crate::check_env;
 use crate::patch::patch_verity;
@@ -255,7 +254,31 @@ fn dtb_test(file: &Utf8CStr) -> LoggedResult<bool> {
 fn dtb_patch(file: &Utf8CStr) -> LoggedResult<bool> {
     let keep_verity = check_env("KEEPVERITY");
     let mut patched = false;
-    for_each_fdt(file, true, |n, fdt| {
+    eprintln!("Loading dtbs from [{file}]");
+    let mut mapped = MappedFile::open_rw(file)?;
+    let base_ptr = mapped.as_mut().as_mut_ptr();
+    let total_len = mapped.as_ref().len();
+    let mut offset = 0usize;
+    let mut dtb_num = 0usize;
+
+    while offset < total_len {
+        let slice = &mapped.as_ref()[offset..];
+        let pos = match find_dtb_offset(slice) {
+            Some(pos) => pos,
+            None => break,
+        };
+        let dtb_offset = offset + pos;
+        let dtb_slice = &mapped.as_ref()[dtb_offset..];
+        let fdt = match Fdt::new_unaligned(dtb_slice) {
+            Err(FdtError::SliceTooSmall) => {
+                eprintln!("dtb.{dtb_num:04} is truncated");
+                break;
+            }
+            Ok(fdt) => fdt,
+            e => e?,
+        };
+        let size = fdt.total_size();
+
         for (_, node) in fdt.all_nodes() {
             if node.name().name != "chosen" {
                 continue;
@@ -263,33 +286,42 @@ fn dtb_patch(file: &Utf8CStr) -> LoggedResult<bool> {
             if let Some(boot_args) = node.raw_property("bootargs") {
                 boot_args.value.windows(14).for_each(|w| {
                     if w == b"skip_initramfs" {
-                        let w = unsafe {
-                            &mut *std::mem::transmute::<&[u8], &UnsafeCell<[u8]>>(w).get()
-                        };
-                        w[..4].copy_from_slice(b"want");
-                        eprintln!("Patch [skip_initramfs] -> [want_initramfs] in dtb.{n:04}");
-                        patched = true;
+                        let rel = (w.as_ptr() as usize) - (base_ptr as usize);
+                        if rel + 4 <= total_len {
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    b"want".as_ptr(),
+                                    base_ptr.add(rel),
+                                    4,
+                                );
+                            }
+                            eprintln!("Patch [skip_initramfs] -> [want_initramfs] in dtb.{dtb_num:04}");
+                            patched = true;
+                        }
                     }
                 });
             }
         }
-        if keep_verity {
-            return Ok(());
-        }
-        if let Some(fstab) = find_fstab(&fdt) {
+        if !keep_verity && let Some(fstab) = find_fstab(&fdt) {
             for child in fstab.children().iter() {
                 if let Some(flags) = child.raw_property("fsmgr_flags") {
-                    let flags = unsafe {
-                        &mut *std::mem::transmute::<&[u8], &UnsafeCell<[u8]>>(flags.value).get()
-                    };
-                    if patch_verity(flags) != flags.len() {
-                        patched = true;
+                    let rel = (flags.value.as_ptr() as usize) - (base_ptr as usize);
+                    let flags_len = flags.value.len();
+                    if rel + flags_len <= total_len {
+                        let target_slice = unsafe {
+                            std::slice::from_raw_parts_mut(base_ptr.add(rel), flags_len)
+                        };
+                        if patch_verity(target_slice) != flags_len {
+                            patched = true;
+                        }
                     }
                 }
             }
         }
-        Ok(())
-    })?;
+
+        dtb_num += 1;
+        offset = dtb_offset + size;
+    }
     Ok(patched)
 }
 

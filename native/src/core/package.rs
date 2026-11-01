@@ -330,8 +330,12 @@ impl MagiskD {
                         None => break,
                         Some(e) => {
                             let mut entry_path = cstr::buf::default();
-                            e.resolve_path(&mut entry_path)?;
-                            let attr = entry_path.get_attr()?;
+                            if e.resolve_path(&mut entry_path).is_err() {
+                                continue;
+                            }
+                            let Ok(attr) = entry_path.get_attr() else {
+                                continue;
+                            };
                             let app_id = to_app_id(attr.st.st_uid as i32);
                             if (AID_APP_START..=AID_APP_END).contains(&app_id) {
                                 let app_no = app_id - AID_APP_START;

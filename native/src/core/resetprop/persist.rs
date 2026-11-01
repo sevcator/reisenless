@@ -57,16 +57,25 @@ fn file_set_prop(name: &Utf8CStr, value: Option<&Utf8CStr>) -> LoggedResult<()> 
         let mut tmp = cstr::buf::default()
             .join_path(PERSIST_PROP_DIR)
             .join_path("prop.XXXXXX");
-        {
+        let write_res = (|| -> LoggedResult<()> {
             let mut f = unsafe {
                 mkstemp(tmp.as_mut_ptr())
                     .into_os_result("mkstemp", None, None)
                     .map(|fd| File::from_raw_fd(fd))?
             };
             f.write_all(value.as_bytes())?;
+            f.sync_all()?;
+            Ok(())
+        })();
+        if let Err(e) = write_res {
+            tmp.remove().silent().ok();
+            return Err(e);
         }
         debug!("resetprop: write prop to [{}]", tmp);
-        tmp.rename_to(&path)?
+        if let Err(e) = tmp.rename_to(&path) {
+            tmp.remove().silent().ok();
+            return Err(e.into());
+        }
     } else {
         path.remove().silent()?;
         debug!("resetprop: unlink [{}]", path);
@@ -89,17 +98,25 @@ fn proto_read_props() -> LoggedResult<PersistentProperties> {
 
 fn proto_write_props(props: &PersistentProperties) -> LoggedResult<()> {
     let mut tmp = cstr::buf::default().join_path(concatcp!(PERSIST_PROP, ".XXXXXX"));
-    {
+    let write_res = (|| -> LoggedResult<()> {
         let f = unsafe {
             mkstemp(tmp.as_mut_ptr())
                 .into_os_result("mkstemp", None, None)
                 .map(|fd| File::from_raw_fd(fd))?
         };
         debug!("resetprop: encode with protobuf [{}]", tmp);
-        props.write_message(&mut Writer::new(BufWriter::new(f)))?;
+        let mut writer = BufWriter::new(f);
+        props.write_message(&mut Writer::new(&mut writer))?;
+        writer.flush()?;
+        writer.into_inner()?.sync_all()?;
+        clone_attr(cstr!(PERSIST_PROP), &tmp)?;
+        tmp.rename_to(cstr!(PERSIST_PROP))?;
+        Ok(())
+    })();
+    if let Err(e) = write_res {
+        tmp.remove().silent().ok();
+        return Err(e);
     }
-    clone_attr(cstr!(PERSIST_PROP), &tmp)?;
-    tmp.rename_to(cstr!(PERSIST_PROP))?;
     Ok(())
 }
 

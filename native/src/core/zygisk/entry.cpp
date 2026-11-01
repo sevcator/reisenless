@@ -154,14 +154,16 @@ static void zygiskd(int socket) {
 
     pollfd pfd = { socket, POLLIN, 0 };
     for (;;) {
-        poll(&pfd, 1, -1);
+        pfd.revents = 0;
+        if (poll(&pfd, 1, -1) < 0) {
+            if (errno == EINTR) continue;
+            exit(0);
+        }
         if (pfd.revents && !(pfd.revents & POLLIN)) {
-
             exit(0);
         }
         int client = recv_fd(socket);
         if (client < 0) {
-
             exit(0);
         }
         int module_id = read_int(client);

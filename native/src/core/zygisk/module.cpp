@@ -222,19 +222,24 @@ void ZygiskContext::plt_hook_process_regex() {
     }
 }
 
+void ZygiskContext::clear_hook_info() {
+    mutex_guard lock(hook_info_lock);
+    for (auto &reg : register_info) {
+        regfree(&reg.regex);
+    }
+    for (auto &ign : ignore_info) {
+        regfree(&ign.regex);
+    }
+    register_info.clear();
+    ignore_info.clear();
+}
+
 bool ZygiskContext::plt_hook_commit() {
     {
         mutex_guard lock(hook_info_lock);
         plt_hook_process_regex();
-        for (auto& reg: register_info) {
-            regfree(&reg.regex);
-        }
-        for (auto& ign: ignore_info) {
-            regfree(&ign.regex);
-        }
-        register_info.clear();
-        ignore_info.clear();
     }
+    clear_hook_info();
     return lsplt::CommitHook();
 }
 
@@ -300,6 +305,7 @@ void ZygiskContext::sanitize_fds() {
 
 
     auto dir = xopen_dir("/proc/self/fd");
+    if (!dir) return;
     int dfd = dirfd(dir.get());
     for (dirent *entry; (entry = xreaddir(dir.get()));) {
         int fd = parse_int(entry->d_name);
@@ -340,6 +346,7 @@ void ZygiskContext::fork_pre() {
 
 
     auto dir = xopen_dir("/proc/self/fd");
+    if (!dir) return;
     for (dirent *entry; (entry = xreaddir(dir.get()));) {
         int fd = parse_int(entry->d_name);
         if (fd < 0 || fd >= allowed_fds.size()) {
