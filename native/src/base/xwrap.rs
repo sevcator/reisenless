@@ -283,12 +283,23 @@ unsafe extern "C" fn xsendfile(
     offset: *mut off_t,
     count: usize,
 ) -> isize {
-    unsafe {
-        libc::sendfile(out_fd, in_fd, offset, count)
-            .into_os_result("sendfile", None, None)
-            .log()
-            .unwrap_or(-1)
+    let mut total = 0;
+    while total < count {
+        let chunk = std::cmp::min(count - total, 0x7fff_0000);
+        let res = unsafe { libc::sendfile(out_fd, in_fd, offset, chunk) };
+        if res < 0 {
+            if std::io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
+                continue;
+            }
+            res.into_os_result("sendfile", None, None).log().ok();
+            return if total > 0 { total as isize } else { -1 };
+        }
+        if res == 0 {
+            break;
+        }
+        total += res as usize;
     }
+    total as isize
 }
 
 #[unsafe(no_mangle)]

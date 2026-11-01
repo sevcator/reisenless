@@ -481,11 +481,19 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
     }
 
 
+    if (!req.keep_env || req.target_uid != 0) {
+        unsetenv("LD_PRELOAD");
+        unsetenv("LD_LIBRARY_PATH");
+    }
+
     if (!req.context.empty()) {
-        if (int fd = open("/proc/self/attr/exec", O_WRONLY | O_CLOEXEC); fd >= 0) {
-            xwrite(fd, req.context.data(), req.context.size());
-            close(fd);
+        int fd = open("/proc/self/attr/exec", O_WRONLY | O_CLOEXEC);
+        if (fd < 0 || xwrite(fd, req.context.data(), req.context.size()) < 0) {
+            if (fd >= 0) close(fd);
+            PLOGE("failed to set exec context '%s'", req.context.c_str());
+            exit(1);
         }
+        close(fd);
     }
     if (req.drop_cap || proc_is_restricted(pid))
         drop_caps();

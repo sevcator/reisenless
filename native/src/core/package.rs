@@ -206,13 +206,13 @@ impl MagiskD {
         let mut owners = Vec::new();
         for entry in entries {
             let Ok(entry) = entry else {
-                return false;
+                continue;
             };
             let Ok(name) = entry.file_name().into_string() else {
-                return false;
+                continue;
             };
             let Ok(metadata) = entry.metadata() else {
-                return false;
+                continue;
             };
             owners.push((name, metadata.uid() as i32));
         }

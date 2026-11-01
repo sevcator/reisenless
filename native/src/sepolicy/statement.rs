@@ -256,7 +256,7 @@ fn extract_token<'a>(s: &'a str, tokens: &mut Vec<Token<'a>>) {
                 tokens.push(Token::TL);
                 extract_token(s, tokens);
             } else if let Some(s) = s.strip_prefix("0x") {
-                tokens.push(Token::HX(s.parse().unwrap_or(0)));
+                tokens.push(Token::HX(u16::from_str_radix(s, 16).unwrap_or(0)));
             } else {
                 tokens.push(Token::ID(s));
             }

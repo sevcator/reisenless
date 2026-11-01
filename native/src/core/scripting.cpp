@@ -76,10 +76,14 @@ if (pfs) { \
 
 #define PFS_WAIT() \
 if (pfs) { \
-                                             \
     if (timer_pid < 0) \
         continue; \
-    if (int pid = waitpid(-1, nullptr, 0); pid == timer_pid) { \
+    int pid; \
+    while ((pid = waitpid(-1, nullptr, 0)) < 0) { \
+        if (errno == EINTR) continue; \
+        break; \
+    } \
+    if (pid == timer_pid) { \
         timer_pid = -1; \
     } \
 }
@@ -101,8 +105,14 @@ void exec_common_scripts(Utf8CStr stage) {
     int dfd = dirfd(dir.get());
     vector<string> scripts;
     for (dirent *entry; (entry = xreaddir(dir.get()));) {
-        if ((entry->d_type != DT_REG && entry->d_type != DT_LNK && entry->d_type != DT_UNKNOWN) ||
-            faccessat(dfd, entry->d_name, X_OK, 0) != 0)
+        if (entry->d_type == DT_UNKNOWN) {
+            struct stat st;
+            if (fstatat(dfd, entry->d_name, &st, 0) != 0 || (!S_ISREG(st.st_mode) && !S_ISLNK(st.st_mode)))
+                continue;
+        } else if (entry->d_type != DT_REG && entry->d_type != DT_LNK) {
+            continue;
+        }
+        if (faccessat(dfd, entry->d_name, X_OK, 0) != 0)
             continue;
         strcpy(name, entry->d_name);
         scripts.emplace_back(path);

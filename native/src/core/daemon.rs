@@ -185,7 +185,7 @@ impl MagiskD {
         };
 
         let mut context = cstr::buf::new::<256>();
-        unsafe {
+        let getsockopt_ok = unsafe {
             let mut len: libc::socklen_t = context.capacity().as_();
             libc::getsockopt(
                 client.as_raw_fd(),
@@ -193,7 +193,10 @@ impl MagiskD {
                 libc::SO_PEERSEC,
                 context.as_mut_ptr().cast(),
                 &mut len,
-            );
+            ) == 0
+        };
+        if !getsockopt_ok {
+            return;
         }
         context.rebuild().ok();
 
@@ -406,7 +409,7 @@ fn daemon_entry() {
     };
     MAGISKD.set(daemon).ok();
 
-    let sock_path = cstr::buf::new::<64>()
+    let sock_path = cstr::buf::new::<128>()
         .join_path(get_magisk_tmp())
         .join_path(get_runtime_socket());
     sock_path.remove().ok();
@@ -438,7 +441,7 @@ fn daemon_entry() {
 }
 
 pub fn connect_daemon(code: RequestCode, create: bool) -> LoggedResult<UnixStream> {
-    let sock_path = cstr::buf::new::<64>()
+    let sock_path = cstr::buf::new::<128>()
         .join_path(get_magisk_tmp())
         .join_path(get_runtime_socket());
 

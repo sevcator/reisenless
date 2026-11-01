@@ -155,7 +155,6 @@ static bool patch_rc_scripts(const char *src_path, const char *tmp_path, bool wr
     {
         owned_fd src_rc = xopenat(src_fd, INIT_RC, O_RDONLY | O_CLOEXEC, 0);
         if (src_rc < 0) return false;
-        if (writable) unlinkat(src_fd, INIT_RC, 0);
         auto dest_rc = xopen_file(
                 xopenat(dest_fd, INIT_RC, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0), "we");
         if (!dest_rc) return false;
@@ -222,13 +221,12 @@ static bool patch_rc_scripts(const char *src_path, const char *tmp_path, bool wr
         }
         owned_fd src_rc = xopenat(src_fd, entry->d_name, O_RDONLY | O_CLOEXEC, 0);
         if (src_rc < 0) continue;
-        if (writable) unlinkat(src_fd, entry->d_name, 0);
         auto dest_rc = xopen_file(
                 xopenat(dest_fd, entry->d_name, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0), "we");
         if (!dest_rc) continue;
         LOGD("Patching %s in %s\n", entry->d_name, src_path);
         file_readline(src_rc, [&dest_rc, &tmp_path](Utf8CStr line) -> bool {
-            if (line.sv().starts_with("service zygote ")) {
+            if (line.sv().starts_with("service zygote ") || line.sv().starts_with("service zygote_secondary ")) {
                 LOGD("Inject zygote restart\n");
                 fprintf(dest_rc.get(), "%s", line.c_str());
                 fprintf(dest_rc.get(),

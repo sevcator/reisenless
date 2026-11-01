@@ -192,25 +192,26 @@ static void process_events_buffer(struct log_msg *msg) {
         auto proc = string_view(am_proc_start->process_name.data,
                                 am_proc_start->process_name.length);
         if (!is_deny_target(am_proc_start->uid.data, proc)) {
-            int pid = am_proc_start->pid.data;
+            int target_pid = am_proc_start->pid.data;
             if (fork_dont_care() == 0) {
-                int ppid = parse_ppid(pid);
+                int ppid = parse_ppid(target_pid);
                 auto it = zygote_map.find(ppid);
                 if (it == zygote_map.end()) {
                     _exit(0);
                 }
 
                 char path[32];
-                ssprintf(path, sizeof(path), "/proc/%d", pid);
+                ssprintf(path, sizeof(path), "/proc/%d", target_pid);
                 struct stat st{};
-                int fd = syscall(__NR_pidfd_open, pid, 0);
+                int check_pid = target_pid;
+                int fd = syscall(__NR_pidfd_open, target_pid, 0);
                 if (fd >= 0 && setns(fd, CLONE_NEWNS) == 0) {
-                    pid = getpid();
+                    check_pid = getpid();
                 } else {
                     if (fd >= 0) close(fd);
                     fd = -1;
                 }
-                while (read_ns(pid, &st) == 0 && it->second.st_ino == st.st_ino) {
+                while (read_ns(check_pid, &st) == 0 && it->second.st_ino == st.st_ino) {
                     if (stat(path, &st) == 0 && st.st_uid == 0) {
                         usleep(10 * 1000);
                     } else {
@@ -220,7 +221,7 @@ static void process_events_buffer(struct log_msg *msg) {
                 }
                 if (fd >= 0) close(fd);
 
-                revert_unmount(pid);
+                revert_unmount(target_pid);
                 _exit(0);
             }
         }
@@ -258,6 +259,7 @@ static void process_events_buffer(struct log_msg *msg) {
                     break;
                 case LOG_ID_MAIN:
                     process_main_buffer(&msg);
+                    break;
                 default:
                     break;
             }

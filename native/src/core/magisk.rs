@@ -236,10 +236,16 @@ impl MagiskAction {
             PostFsData(_) => {
                 let fd = connect_daemon(RequestCode::POST_FS_DATA, true)?;
                 let mut pfd = [PollFd::new(fd.as_fd(), PollFlags::POLLIN)];
-                nix::poll::poll(
-                    &mut pfd,
-                    PollTimeout::try_from(POST_FS_DATA_WAIT_TIME * 1000)?,
-                )?;
+                loop {
+                    match nix::poll::poll(
+                        &mut pfd,
+                        PollTimeout::try_from(POST_FS_DATA_WAIT_TIME * 1000)?,
+                    ) {
+                        Ok(_) => break,
+                        Err(nix::Error::EINTR) => continue,
+                        Err(e) => return Err(e.into()),
+                    }
+                }
             }
             Service(_) => {
                 let _ = connect_daemon(RequestCode::LATE_START, true)?;
