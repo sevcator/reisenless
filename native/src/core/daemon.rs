@@ -20,7 +20,7 @@ use crate::zygisk::ZygiskState;
 use base::const_format::concatcp;
 use base::{
     AtomicArc, BufReadExt, FileAttr, FsPathBuilder, LoggedResult, ReadExt, ResultExt, Utf8CStr,
-    Utf8CStrBuf, WriteExt, cstr, fork_dont_care, info, libc, log_err, set_nice_name,
+    Utf8CStrBuf, WriteExt, cstr, fork_dont_care, info, libc, log_err, set_nice_name, warn,
 };
 use nix::fcntl::OFlag;
 use nix::mount::MsFlags;
@@ -420,10 +420,19 @@ fn daemon_entry() {
 
     let daemon = MagiskD::get();
     for client in sock.incoming() {
-        if let Ok(client) = client.log() {
-            daemon.handle_requests(client);
-        } else {
-            exit(1);
+        match client {
+            Ok(client) => daemon.handle_requests(client),
+            Err(e) => {
+                warn!("daemon: accept failed: {e}");
+                if let Some(code) = e.raw_os_error() {
+                    if code == libc::EBADF || code == libc::EINVAL {
+                        exit(1);
+                    }
+                    if code == libc::EMFILE || code == libc::ENFILE {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                }
+            }
         }
     }
 }

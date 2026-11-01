@@ -36,17 +36,18 @@ impl ThreadPool {
             {
                 let mut info = self.info.lock();
                 info.idle_threads += 1;
-                if info.task.is_none() {
+                while info.task.is_none() {
                     if is_core_pool {
-
                         self.task_is_some.wait(&mut info);
                     } else {
                         let dur = Duration::from_secs(THREAD_IDLE_MAX_SEC);
                         if self.task_is_some.wait_timeout(&mut info, dur).timed_out() {
-
-                            info.idle_threads -= 1;
-                            info.total_threads -= 1;
-                            return;
+                            if info.task.is_none() {
+                                info.idle_threads -= 1;
+                                info.total_threads -= 1;
+                                return;
+                            }
+                            break;
                         }
                     }
                 }

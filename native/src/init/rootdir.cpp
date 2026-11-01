@@ -127,7 +127,7 @@ static bool unxz(int fd, rust::Slice<const uint8_t> bytes) {
         ret = xz_dec_run(dec, &b);
         if (ret != XZ_OK && ret != XZ_STREAM_END)
             return false;
-        write(fd, out, b.out_pos);
+        xwrite(fd, out, b.out_pos);
         b.out_pos = 0;
     } while (b.in_pos != size && ret != XZ_STREAM_END);
     return ret == XZ_STREAM_END || b.in_pos == size;

@@ -446,7 +446,8 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
     for (size_t pos = 0; pos < env.size();) {
         const char *entry = env.data() + pos;
         size_t next = env.find_first_of('\0', pos);
-        if (strchr(entry, '=')) {
+        const char *eq = strchr(entry, '=');
+        if (eq && eq != entry) {
             putenv(const_cast<char *>(entry));
         }
         if (next == std::string::npos)
@@ -477,8 +478,10 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
 
 
     if (!req.context.empty()) {
-        auto f = xopen_file("/proc/self/attr/exec", "we");
-        if (f) fprintf(f.get(), "%s", req.context.c_str());
+        if (int fd = open("/proc/self/attr/exec", O_WRONLY | O_CLOEXEC); fd >= 0) {
+            xwrite(fd, req.context.data(), req.context.size());
+            close(fd);
+        }
     }
     if (req.drop_cap || proc_is_restricted(pid))
         drop_caps();

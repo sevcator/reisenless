@@ -178,12 +178,11 @@ mount_root:
     xmknod("/dev/root", S_IFBLK | 0600, dev);
     xmkdir("/system_root", 0755);
 
-    if (xmount("/dev/root", "/system_root", "ext4", MS_RDONLY, nullptr)) {
-        if (xmount("/dev/root", "/system_root", "erofs", MS_RDONLY, nullptr)) {
-
-            LOGE("Cannot mount root partition, abort\n");
-            exit(1);
-        }
+    if (xmount("/dev/root", "/system_root", "ext4", MS_RDONLY, nullptr) &&
+        xmount("/dev/root", "/system_root", "erofs", MS_RDONLY, nullptr) &&
+        xmount("/dev/root", "/system_root", "f2fs", MS_RDONLY, nullptr)) {
+        LOGE("Cannot mount root partition, abort\n");
+        exit(1);
     }
 
     rust::switch_root("/system_root");

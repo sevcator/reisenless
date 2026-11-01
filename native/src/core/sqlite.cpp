@@ -204,8 +204,8 @@ sqlite3 *open_and_init_db() {
     };
     sql_chk_log(sql_exec_impl, db.get(), "PRAGMA user_version", nullptr, nullptr, ver_cb, &ver);
     if (ver > DB_VERSION) {
-
         LOGE("sqlite3: Downgrading database is not supported\n");
+        db.reset();
         unlink(MAGISKDB);
         return open_and_init_db();
     }

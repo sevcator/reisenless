@@ -6,7 +6,7 @@ use crate::ffi::{SuPolicy, get_magisk_tmp};
 use crate::socket::IpcRead;
 use ExtraVal::{Int, Str};
 use base::{
-    BytesExt, FileAttr, LibcReturn, LoggedError, LoggedResult, ResultExt, Utf8CStrBuf, cstr,
+    BytesExt, FileAttr, LoggedError, LoggedResult, ResultExt, Utf8CStrBuf, cstr,
     warn,
 };
 use nix::fcntl::OFlag;
@@ -181,12 +181,22 @@ impl SuAppContext<'_> {
             let fd = fifo.open(OFlag::O_RDWR | OFlag::O_CLOEXEC)?;
             let mut pfd = [PollFd::new(fd.as_fd(), PollFlags::POLLIN)];
 
-
-            nix::poll::poll(
-                &mut pfd,
-                PollTimeout::try_from(15 * 1000).unwrap_or(PollTimeout::NONE),
-            )
-            .check_os_err("poll", None, None)?;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            loop {
+                let now = std::time::Instant::now();
+                if now >= deadline {
+                    return Err(LoggedError::default());
+                }
+                let timeout_ms = (deadline - now).as_millis() as i32;
+                match nix::poll::poll(
+                    &mut pfd,
+                    PollTimeout::try_from(timeout_ms).unwrap_or(PollTimeout::NONE),
+                ) {
+                    Ok(_) => break,
+                    Err(nix::errno::Errno::EINTR) => continue,
+                    Err(_) => return Err(LoggedError::default()),
+                }
+            }
             if !pfd[0]
                 .revents()
                 .unwrap_or(PollFlags::empty())

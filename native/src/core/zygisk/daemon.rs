@@ -295,15 +295,19 @@ impl MagiskD {
         let Some(module) = self
             .module_list
             .get()
-            .and_then(|list| list.get(id as usize))
+            .and_then(|list| (id >= 0).then_some(()).and_then(|_| list.get(id as usize)))
         else {
+            client.send_fds(&[])?;
             return Ok(());
         };
         let dir = cstr::buf::default()
             .join_path(MODULEROOT)
             .join_path(&module.name);
-        let fd = dir.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC)?;
-        client.send_fds(&[fd.as_raw_fd()])?;
+        if let Ok(fd) = dir.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
+            client.send_fds(&[fd.as_raw_fd()])?;
+        } else {
+            client.send_fds(&[])?;
+        }
         Ok(())
     }
 }

@@ -9,7 +9,7 @@ use base::{LoggedResult, ResultExt, Utf8CStr, WriteExt};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::ffi::c_void;
-use std::io::{BufReader, BufWriter};
+use std::io::{BufReader, BufWriter, Write};
 use std::os::unix::net::UnixStream;
 use std::pin::Pin;
 use std::ptr;
@@ -309,7 +309,9 @@ impl MagiskD {
         };
         let status = self.db_exec_with_rows(&sql, &[], &mut output_fn);
         writer.write_encodable("").log_ok();
-        writer.write_pod(&status).log()
+        writer.write_pod(&status).log()?;
+        writer.flush().log_ok();
+        Ok(())
     }
 }
 

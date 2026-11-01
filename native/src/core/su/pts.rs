@@ -8,7 +8,7 @@ use nix::sys::termios::{SetArg, Termios, cfmakeraw, tcgetattr, tcsetattr};
 use nix::unistd::pipe2;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::os::fd::{AsFd, AsRawFd, FromRawFd, RawFd};
+use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static SHOULD_USE_SPLICE: AtomicBool = AtomicBool::new(true);
@@ -100,23 +100,20 @@ fn pump_tty_impl(ptmx: File, pump_stdin: bool) -> LoggedResult<()> {
 
     let mut poll_fds = Vec::with_capacity(3);
     poll_fds.push(PollFd::new(ptmx.as_fd(), PollFlags::POLLIN));
+    let mut sig_raw_fd = -1;
     if pump_stdin {
-
         let mut set = SigSet::empty();
         set.add(Signal::SIGWINCH);
         set.thread_block()
             .check_os_err("pthread_sigmask", None, None)?;
         let sig = SignalFd::with_flags(&set, SfdFlags::SFD_CLOEXEC)
             .into_os_result("signalfd", None, None)?;
+        sig_raw_fd = sig.as_raw_fd();
         signal_fd = Some(sig);
-        unsafe {
-
-            poll_fds.push(PollFd::new(
-                signal_fd.as_ref().unwrap_unchecked().as_fd(),
-                PollFlags::POLLIN,
-            ));
-        }
-
+        poll_fds.push(PollFd::new(
+            unsafe { BorrowedFd::borrow_raw(sig_raw_fd) },
+            PollFlags::POLLIN,
+        ));
 
         poll_fds.push(PollFd::new(
             FileOrStd::StdIn.as_file().as_fd(),
@@ -124,16 +121,19 @@ fn pump_tty_impl(ptmx: File, pump_stdin: bool) -> LoggedResult<()> {
         ));
     }
 
-
     let stop_flags = PollFlags::POLLERR | PollFlags::POLLHUP | PollFlags::POLLNVAL;
-
 
     let pipe_fd = pipe2(OFlag::O_CLOEXEC).into_os_result("pipe2", None, None)?;
     let pipe_fd = (File::from(pipe_fd.0), File::from(pipe_fd.1));
 
     'poll: loop {
-
-        poll(&mut poll_fds, PollTimeout::NONE).check_os_err("poll", None, None)?;
+        match poll(&mut poll_fds, PollTimeout::NONE) {
+            Ok(_) => {}
+            Err(nix::errno::Errno::EINTR) => continue,
+            res => {
+                res.check_os_err("poll", None, None)?;
+            }
+        }
         for pfd in &poll_fds {
             if pfd.all().unwrap_or(false) {
                 let raw_fd = pfd.as_fd().as_raw_fd();
@@ -141,8 +141,8 @@ fn pump_tty_impl(ptmx: File, pump_stdin: bool) -> LoggedResult<()> {
                     pump_via_splice(FileOrStd::StdIn.as_file(), &ptmx, &pipe_fd)?;
                 } else if raw_fd == raw_ptmx {
                     pump_via_splice(&ptmx, FileOrStd::StdOut.as_file(), &pipe_fd)?;
-                } else if let Some(sig) = &signal_fd
-                    && raw_fd == sig.as_raw_fd()
+                } else if raw_fd == sig_raw_fd
+                    && let Some(sig) = &signal_fd
                 {
                     sync_winsize(raw_ptmx);
                     sig.read_signal()?;

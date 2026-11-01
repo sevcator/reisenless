@@ -74,8 +74,7 @@ impl<W: Write> LZ4BlockEncoder<W> {
         LZ4BlockEncoder {
             write,
             chunker: Chunker::new(LZ4_BLOCK_SIZE),
-
-            out_buf: unsafe { Box::new_uninit_slice(out_sz).assume_init() },
+            out_buf: vec![0u8; out_sz].into_boxed_slice(),
             total: 0,
             is_lg,
         }
@@ -150,8 +149,8 @@ impl<R: Read> LZ4BlockDecoder<R> {
         let compressed_sz = lz4::block::compress_bound(LZ4_BLOCK_SIZE).unwrap_or(LZ4_BLOCK_SIZE);
         Self {
             read,
-            in_buf: unsafe { Box::new_uninit_slice(compressed_sz).assume_init() },
-            out_buf: unsafe { Box::new_uninit_slice(LZ4_BLOCK_SIZE).assume_init() },
+            in_buf: vec![0u8; compressed_sz].into_boxed_slice(),
+            out_buf: vec![0u8; LZ4_BLOCK_SIZE].into_boxed_slice(),
             out_len: 0,
             out_pos: 0,
         }

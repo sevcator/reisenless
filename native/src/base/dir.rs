@@ -39,16 +39,56 @@ impl DirEntry<'_> {
         self.dir.path_at(self.name(), buf)
     }
 
+    fn get_stat(&self) -> Option<libc::stat> {
+        let mut st: libc::stat = unsafe { std::mem::zeroed() };
+        let res = unsafe {
+            libc::fstatat(
+                self.dir.as_raw_fd(),
+                self.name().as_ptr(),
+                &mut st,
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        (res == 0).then_some(st)
+    }
+
+    #[allow(clippy::unnecessary_cast)]
     pub fn is_dir(&self) -> bool {
-        self.d_type == libc::DT_DIR
+        if self.d_type == libc::DT_DIR {
+            true
+        } else if self.d_type == libc::DT_UNKNOWN {
+            self.get_stat()
+                .map(|st| (st.st_mode as u32 & libc::S_IFMT as u32) == libc::S_IFDIR as u32)
+                .unwrap_or(false)
+        } else {
+            false
+        }
     }
 
+    #[allow(clippy::unnecessary_cast)]
     pub fn is_file(&self) -> bool {
-        self.d_type == libc::DT_REG
+        if self.d_type == libc::DT_REG {
+            true
+        } else if self.d_type == libc::DT_UNKNOWN {
+            self.get_stat()
+                .map(|st| (st.st_mode as u32 & libc::S_IFMT as u32) == libc::S_IFREG as u32)
+                .unwrap_or(false)
+        } else {
+            false
+        }
     }
 
+    #[allow(clippy::unnecessary_cast)]
     pub fn is_symlink(&self) -> bool {
-        self.d_type == libc::DT_LNK
+        if self.d_type == libc::DT_LNK {
+            true
+        } else if self.d_type == libc::DT_UNKNOWN {
+            self.get_stat()
+                .map(|st| (st.st_mode as u32 & libc::S_IFMT as u32) == libc::S_IFLNK as u32)
+                .unwrap_or(false)
+        } else {
+            false
+        }
     }
 
     pub fn is_block_device(&self) -> bool {

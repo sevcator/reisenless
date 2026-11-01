@@ -105,6 +105,9 @@ impl Decodable for String {
         }
         let mut val = String::with_capacity(len as usize);
         r.take(len as u64).read_to_string(&mut val)?;
+        if val.len() != len as usize {
+            return Err(io::Error::new(ErrorKind::UnexpectedEof, "truncated string"));
+        }
         Ok(val)
     }
 }
@@ -242,5 +245,5 @@ pub fn recv_fds(socket: RawFd) -> Vec<RawFd> {
     let mut socket = ManuallyDrop::new(unsafe { UnixStream::from_raw_fd(socket) });
     let fds = socket.recv_fds().log().unwrap_or(Vec::new());
 
-    unsafe { std::mem::transmute(fds) }
+    fds.into_iter().map(IntoRawFd::into_raw_fd).collect()
 }
