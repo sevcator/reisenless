@@ -123,6 +123,15 @@ impl SePolicy {
             deny(["init"], ["checknv_exec"], ["file"], ["execute"]);
             deny(["checknv"], ["powerctl_prop"], ["property_service"], ["set"]);
             deny(["checknv"], ["recovery_service"], ["service_manager"], ["find"]);
+
+            deny(["shell"], ["su"], ["process"], ["transition"]);
+            deny(["adbd"], ["adbroot"], ["binder"], ["call"]);
+            deny(["fsck_untrusted"], ["fsck_untrusted"], ["capability"], ["sys_admin"]);
+            deny(["su"], ["droidspacesd"], ["process"], ["dyntransition"]);
+            deny(["magisk"], ["droidspacesd"], ["process"], ["dyntransition"]);
+            deny(["system_server"], ["droidspacesd"], ["binder"], ["call"]);
+            deny(["system_server"], ["system_server"], ["process"], ["execmem"]);
+            deny(["zygote"], ["adb_data_file"], ["dir"], ["search"]);
         }
 
         #[cfg(any())]
