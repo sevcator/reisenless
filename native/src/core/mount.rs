@@ -279,16 +279,17 @@ pub fn revert_unmount(pid: i32) {
         debug!("denylist: handling PID=[{}]", pid);
     }
 
+    let magisk_tmp = get_magisk_tmp();
     let shell_pts = cstr::buf::default()
-        .join_path(get_magisk_tmp())
+        .join_path(magisk_tmp)
         .join_path(SHELLPTS);
     let mut targets = Vec::new();
-
 
     for info in parse_mount_info("self") {
         if info.source == WORKER_SOURCE
             || info.root.contains("/modules")
             || Path::new(&info.target).starts_with(shell_pts.as_str())
+            || (!magisk_tmp.is_empty() && Path::new(&info.target).starts_with(magisk_tmp.as_str()))
         {
             targets.push(info.target);
         }
@@ -312,7 +313,10 @@ pub fn revert_unmount(pid: i32) {
 
     for mut target in targets {
         let target = Utf8CStr::from_string(&mut target);
-        if target.unmount().is_ok() {
+        for _ in 0..16 {
+            if target.unmount().is_err() {
+                break;
+            }
             debug!("denylist: Unmounted ({})", target);
         }
     }

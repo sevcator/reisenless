@@ -91,16 +91,16 @@ static bool str_starts_with(string_view a, string_view b) { return a.starts_with
 
 template<bool str_op(string_view, string_view) = str_eql>
 static bool proc_name_match(int pid, string_view name) {
-    char buf[4019];
-    sprintf(buf, "/proc/%d/cmdline", pid);
-    if (auto fp = open_file(buf, "re")) {
-        if (fgets(buf, sizeof(buf), fp.get())) {
-            if (str_op(buf, name)) {
-                return true;
-            }
-        }
-    }
-    return false;
+    char path[32];
+    sprintf(path, "/proc/%d/cmdline", pid);
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return false;
+    char buf[4096];
+    ssize_t len = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (len <= 0) return false;
+    buf[len] = '\0';
+    return str_op(buf, name);
 }
 
 bool proc_context_match(int pid, string_view context) {

@@ -452,7 +452,11 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
         size_t next = env.find_first_of('\0', pos);
         const char *eq = strchr(entry, '=');
         if (eq && eq != entry) {
-            putenv(const_cast<char *>(entry));
+            size_t key_len = eq - entry;
+            size_t val_len = (next == std::string::npos ? env.size() : next) - (eq + 1 - env.data());
+            string key(entry, key_len);
+            string val(eq + 1, val_len);
+            setenv(key.c_str(), val.c_str(), 1);
         }
         if (next == std::string::npos)
             break;
@@ -470,8 +474,7 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
     if (getenv("ANDROID_ROOT") == nullptr) setenv("ANDROID_ROOT", "/system", 1);
     if (getenv("ANDROID_DATA") == nullptr) setenv("ANDROID_DATA", "/data", 1);
     if (!req.keep_env) {
-        struct passwd *pw;
-        pw = getpwuid(req.target_uid);
+        struct passwd *pw = getpwuid(req.target_uid);
         if (pw) {
             setenv("HOME", pw->pw_dir, 1);
             setenv("USER", pw->pw_name, 1);
@@ -484,6 +487,9 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
     if (!req.keep_env || req.target_uid != 0) {
         unsetenv("LD_PRELOAD");
         unsetenv("LD_LIBRARY_PATH");
+        unsetenv("IFS");
+        unsetenv("ENV");
+        unsetenv("BASH_ENV");
     }
 
     if (!req.context.empty()) {

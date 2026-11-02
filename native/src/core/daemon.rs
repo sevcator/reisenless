@@ -369,6 +369,9 @@ fn daemon_entry() {
     if get_prop(cstr!("ro.config.per_app_memcg")) != "false" {
         switch_cgroup("/dev/memcg/apps", pid);
     }
+    unsafe {
+        libc::prctl(libc::PR_SET_DUMPABLE, 0);
+    }
 
     if cstr!("/system_ext/app/mediatek-res/mediatek-res.apk").exists() {
         set_prop(cstr!("ro.vendor.mtk_model"), cstr!("0"));

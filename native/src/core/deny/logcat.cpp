@@ -165,13 +165,14 @@ static void process_main_buffer(struct log_msg *msg) {
     ready = false;
 
     char cmdline[1024];
-    sprintf(cmdline, "/proc/%d/cmdline", msg->entry.pid);
-    if (auto f = open_file(cmdline, "re")) {
-        if (!fgets(cmdline, sizeof(cmdline), f.get()))
-            return;
-    } else {
-        return;
-    }
+    char path[32];
+    sprintf(path, "/proc/%d/cmdline", msg->entry.pid);
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return;
+    ssize_t len = read(fd, cmdline, sizeof(cmdline) - 1);
+    close(fd);
+    if (len <= 0) return;
+    cmdline[len] = '\0';
 
     if (!is_deny_target(entry.uid, cmdline)) {
         int pid = msg->entry.pid;
