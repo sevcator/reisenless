@@ -1435,7 +1435,7 @@ def _validate_release_artifact(apk: Path):
                 r"lib/[^/]+/lib(?:"
                 + "|".join(
                     re.escape(identity[name])
-                    for name in ("bootLibName", "mainLibName", "initLibName")
+                    for name in ("bootLibName", "mainLibName", "initLibName", "policyLibName")
                 )
                 + r")\.so"
             ),
