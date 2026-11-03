@@ -130,10 +130,13 @@ static void process_main_buffer(struct log_msg *msg) {
     auto tag = string_view(entry.tag, entry.tagLen);
     auto revert = [](int pid) {
         kill(pid, SIGSTOP);
-        if (fork_dont_care() == 0) {
+        int res = fork_dont_care();
+        if (res == 0) {
             revert_unmount(pid);
             kill(pid, SIGCONT);
             _exit(0);
+        } else if (res < 0) {
+            kill(pid, SIGCONT);
         }
     };
 

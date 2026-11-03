@@ -131,6 +131,7 @@ struct byte_view {
 
     const uint8_t *data() const { return ptr; }
     size_t size() const { return sz; }
+    bool empty() const { return sz == 0; }
 
 protected:
     uint8_t *ptr;

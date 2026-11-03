@@ -391,11 +391,11 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
     xdup2(outfd < 0 ? ptsfd : outfd, STDOUT_FILENO);
     xdup2(errfd < 0 ? ptsfd : errfd, STDERR_FILENO);
 
-    close(infd);
-    close(outfd);
-    close(errfd);
-    close(ptsfd);
-    close(client);
+    if (infd > STDERR_FILENO) close(infd);
+    if (outfd > STDERR_FILENO) close(outfd);
+    if (errfd > STDERR_FILENO) close(errfd);
+    if (ptsfd > STDERR_FILENO) close(ptsfd);
+    if (client > STDERR_FILENO) close(client);
 
 
     if (req.target_pid == -1)
@@ -510,6 +510,17 @@ void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode) {
 
     prctl(PR_SET_SECCOMP, 0);
 
+
+    // Close inherited descriptors from MagiskD
+    if (auto dir = open_dir("/proc/self/fd")) {
+        int dfd = dirfd(dir.get());
+        for (dirent *entry; (entry = readdir(dir.get()));) {
+            int fd = parse_int(entry->d_name);
+            if (fd > STDERR_FILENO && fd != dfd) {
+                close(fd);
+            }
+        }
+    }
 
     sigset_t block_set;
     sigemptyset(&block_set);

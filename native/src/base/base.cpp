@@ -33,11 +33,11 @@ void  operator delete[](void *p, const std::nothrow_t&) noexcept { std::free(p);
 
 rust::Vec<size_t> byte_data::patch(byte_view from, byte_view to) const {
     rust::Vec<size_t> v;
-    if (ptr == nullptr)
+    if (ptr == nullptr || from.empty() || to.size() > from.size())
         return v;
     auto p = ptr;
     auto eof = ptr + sz;
-    while (p < eof) {
+    while (p + from.size() <= eof) {
         p = static_cast<uint8_t *>(memmem(p, eof - p, from.data(), from.size()));
         if (p == nullptr)
             return v;
@@ -108,7 +108,8 @@ int exec_command(exec_t &exec) {
         xdup2(outfd, STDOUT_FILENO);
         if (exec.err)
             xdup2(outfd, STDERR_FILENO);
-        close(outfd);
+        if (outfd > STDERR_FILENO)
+            close(outfd);
     }
 
 

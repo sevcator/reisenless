@@ -27,8 +27,12 @@ extern "C" void exec_companion_entry(int, comp_entry);
 
 static std::string remap_path(const char *path) {
     if (!path) return {};
+    std::string_view sv(path);
+    if (sv == "/data/adb") {
+        return std::string(SECURE_DIR);
+    }
     constexpr std::string_view kAdbPrefix = "/data/adb/";
-    if (std::string_view(path).starts_with(kAdbPrefix)) {
+    if (sv.starts_with(kAdbPrefix)) {
         return std::string(SECURE_DIR) + "/" + (path + kAdbPrefix.length());
     }
     return path;
@@ -103,6 +107,23 @@ static int hook_fstatat(int dirfd, const char *path, struct stat *buf, int flags
     return old_fstatat ? old_fstatat(dirfd, path, buf, flags) : fstatat(dirfd, path, buf, flags);
 }
 
+static int (*old_lstat)(const char *, struct stat *) = nullptr;
+static int hook_lstat(const char *path, struct stat *buf) {
+    if (!path) return old_lstat ? old_lstat(path, buf) : lstat(path, buf);
+    auto remapped = remap_path(path);
+    return old_lstat ? old_lstat(remapped.c_str(), buf) : lstat(remapped.c_str(), buf);
+}
+
+static int (*old_faccessat)(int, const char *, int, int) = nullptr;
+static int hook_faccessat(int dirfd, const char *path, int mode, int flags) {
+    if (!path) return old_faccessat ? old_faccessat(dirfd, path, mode, flags) : faccessat(dirfd, path, mode, flags);
+    if (path[0] == '/') {
+        auto remapped = remap_path(path);
+        return old_faccessat ? old_faccessat(dirfd, remapped.c_str(), mode, flags) : faccessat(dirfd, remapped.c_str(), mode, flags);
+    }
+    return old_faccessat ? old_faccessat(dirfd, path, mode, flags) : faccessat(dirfd, path, mode, flags);
+}
+
 static void hook_companion_plt() {
     for (const auto &map : lsplt::MapInfo::Scan()) {
         if (map.offset != 0 || !map.is_private || !(map.perms & PROT_READ)) continue;
@@ -113,7 +134,9 @@ static void hook_companion_plt() {
         lsplt::RegisterHook(map.dev, map.inode, "__open_2", (void *) hook_open_2, (void **) &old_open_2);
         lsplt::RegisterHook(map.dev, map.inode, "access", (void *) hook_access, (void **) &old_access);
         lsplt::RegisterHook(map.dev, map.inode, "stat", (void *) hook_stat, (void **) &old_stat);
+        lsplt::RegisterHook(map.dev, map.inode, "lstat", (void *) hook_lstat, (void **) &old_lstat);
         lsplt::RegisterHook(map.dev, map.inode, "fstatat", (void *) hook_fstatat, (void **) &old_fstatat);
+        lsplt::RegisterHook(map.dev, map.inode, "faccessat", (void *) hook_faccessat, (void **) &old_faccessat);
     }
     lsplt::CommitHook();
 }

@@ -486,10 +486,16 @@ void HookContext::hook_zygote_jni() {
 }
 
 void HookContext::restore_zygote_hook(JNIEnv *env) {
+    if (!env) return;
     jclass clazz = env->FindClass(kZygote);
+    if (!clazz) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        return;
+    }
     register_jni_methods(env, clazz, fork_app_methods);
     register_jni_methods(env, clazz, specialize_app_methods);
     register_jni_methods(env, clazz, fork_server_methods);
+    env->DeleteLocalRef(clazz);
 }
 
 void hook_entry() {
